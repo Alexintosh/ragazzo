@@ -506,6 +506,7 @@ export const UpdateBotInput = z
   .object({
     botId: Id,
     roleplayCharacter: RoleplayCharacterSchema.optional(),
+    expectedRoleplayCharacter: RoleplayCharacterSchema.optional(),
     name: z.string().trim().min(1).max(BOT_NAME_MAX_LENGTH).optional(),
     title: z.string().trim().max(BOT_TITLE_MAX_LENGTH).optional(),
     description: z.string().trim().max(BOT_DESCRIPTION_MAX_LENGTH).optional(),

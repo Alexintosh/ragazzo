@@ -146,6 +146,41 @@ describePostgres("roleplay storage and isolation (PostgreSQL)", () => {
       });
       expect(clone.threadId).not.toBe(bot.threadId);
     }));
+  it("rejects a stale encrypted character baseline without changing story state", () =>
+    runAsTenant(identity, async () => {
+      const repos = createRepos(prisma);
+      const bot = await repos.createBot(actor, input);
+      const state = { version: 1, summary: "The voyage has begun", botId: bot.id };
+      await prisma.thread.update({ where: { id: bot.threadId }, data: { roleplayState: state } });
+      const messages = await prisma.message.findMany({ where: { threadId: bot.threadId } });
+      const updatedCharacter = { ...character, scenario: "A distant harbor" };
+      const options = {
+        prisma,
+        notify: async () => {},
+        ...identity,
+        threadId: bot.threadId,
+        botId: bot.id,
+        expectedRoleplayCharacter: character,
+        data: { roleplayCharacter: updatedCharacter },
+        emitBotUpdated: false,
+      };
+      await commitBotUpdate(options);
+      const eventCount = await prisma.event.count({ where: { threadId: bot.threadId } });
+      await expect(
+        commitBotUpdate({
+          ...options,
+          data: { roleplayCharacter: { ...character, personality: "Stale edit" } },
+        }),
+      ).rejects.toThrow("Roleplay settings changed elsewhere");
+      expect((await repos.getBot(actor, bot.id)).roleplayCharacter).toEqual(updatedCharacter);
+      expect(await prisma.event.count({ where: { threadId: bot.threadId } })).toBe(eventCount);
+      expect(await prisma.message.findMany({ where: { threadId: bot.threadId } })).toEqual(
+        messages,
+      );
+      expect(
+        (await prisma.thread.findUniqueOrThrow({ where: { id: bot.threadId } })).roleplayState,
+      ).toEqual(state);
+    }));
   it("replaces a character only after all active runs stop", () =>
     runAsTenant(identity, async () => {
       const repos = createRepos(prisma);

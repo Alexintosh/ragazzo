@@ -467,6 +467,7 @@ export function botsRoutes(ctx: RouterContext) {
           botId: input.botId,
           emitBotUpdated: botProfileLabelsChanged(input),
           expectedInstructions: input.expectedInstructions,
+          expectedRoleplayCharacter: input.expectedRoleplayCharacter,
           ...(input.modelProvider !== undefined ||
           input.modelId !== undefined ||
           input.thinkingLevel !== undefined

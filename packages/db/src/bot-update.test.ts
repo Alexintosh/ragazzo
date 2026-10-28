@@ -1,3 +1,4 @@
+import { parseRoleplayCharacterJson } from "@rakazo/contracts";
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("./events.js", () => ({ appendEventInTransaction: vi.fn() }));
@@ -17,6 +18,85 @@ describe("botProfileLabelsChanged", () => {
 });
 
 describe("commitBotUpdate", () => {
+  const character = parseRoleplayCharacterJson(
+    '{"name":"Guide","scenario":"A quiet harbor"}',
+  ).character;
+  function roleplayUpdateFixture(active = false) {
+    const tx = {
+      $queryRaw: vi.fn().mockResolvedValue([]),
+      bot: {
+        findUniqueOrThrow: vi
+          .fn()
+          .mockResolvedValue({ botKind: "roleplay", roleplayCharacter: character }),
+        update: vi
+          .fn()
+          .mockResolvedValue({ id: "bot-1", name: "Guide", title: "", description: "" }),
+      },
+      run: { findFirst: vi.fn().mockResolvedValue(active ? { id: "run-1" } : null) },
+    };
+    const notify = vi.fn().mockResolvedValue(undefined);
+    const appendEvent = vi.fn().mockResolvedValue({ seq: 11 });
+    const options = {
+      prisma: {
+        $transaction: async (run: (client: typeof tx) => Promise<unknown>) => run(tx),
+      } as never,
+      notify,
+      spaceId: "space-1",
+      threadId: "thread-1",
+      botId: "bot-1",
+      data: { roleplayCharacter: { ...character, scenario: "An abandoned lighthouse" } },
+      emitBotUpdated: false,
+    };
+    return { tx, notify, appendEvent, options };
+  }
+
+  it("rejects stale roleplay settings before writes or notifications", async () => {
+    const { tx, notify, appendEvent, options } = roleplayUpdateFixture();
+    await expect(
+      commitBotUpdate(
+        { ...options, expectedRoleplayCharacter: { ...character, scenario: "Old harbor" } },
+        appendEvent,
+      ),
+    ).rejects.toThrow("Roleplay settings changed elsewhere");
+    expect(tx.bot.update).not.toHaveBeenCalled();
+    expect(tx.run.findFirst).not.toHaveBeenCalled();
+    expect(appendEvent).not.toHaveBeenCalled();
+    expect(notify).not.toHaveBeenCalled();
+  });
+
+  it.each([false, true])(
+    "saves a character atomically with an event (baseline supplied=%s)",
+    async (withBaseline) => {
+      const { tx, notify, appendEvent, options } = roleplayUpdateFixture();
+      // JSON object order may change between storage and the client.
+      const reordered = Object.fromEntries(Object.entries(character).reverse()) as typeof character;
+      await commitBotUpdate(
+        { ...options, expectedRoleplayCharacter: withBaseline ? reordered : undefined },
+        appendEvent,
+      );
+      expect(tx.$queryRaw).toHaveBeenCalledTimes(2);
+      expect(tx.$queryRaw.mock.invocationCallOrder[1]).toBeLessThan(
+        tx.bot.findUniqueOrThrow.mock.invocationCallOrder[0] ?? 0,
+      );
+      expect(tx.bot.update).toHaveBeenCalledWith(expect.objectContaining({ data: options.data }));
+      expect(appendEvent).toHaveBeenCalledWith(
+        tx,
+        expect.objectContaining({ type: "bot.updated" }),
+      );
+      expect(notify).toHaveBeenCalledWith("thread-1", 11);
+    },
+  );
+
+  it("rejects edits during a turn even when the roleplay baseline matches", async () => {
+    const { tx, notify, appendEvent, options } = roleplayUpdateFixture(true);
+    await expect(
+      commitBotUpdate({ ...options, expectedRoleplayCharacter: character }, appendEvent),
+    ).rejects.toThrow("Stop the roleplay bot");
+    expect(tx.bot.update).not.toHaveBeenCalled();
+    expect(appendEvent).not.toHaveBeenCalled();
+    expect(notify).not.toHaveBeenCalled();
+  });
+
   it("does not publish or notify when a restore rejects its baseline", async () => {
     vi.mocked(writeBotInstructions).mockRejectedValueOnce(new Error("Instructions changed"));
     const tx = { $queryRaw: vi.fn().mockResolvedValue([]), bot: { update: vi.fn() } };

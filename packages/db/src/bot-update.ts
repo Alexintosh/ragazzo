@@ -1,3 +1,5 @@
+import { isDeepStrictEqual } from "node:util";
+import type { RoleplayCharacter } from "@rakazo/contracts";
 import { displayName } from "@rakazo/core";
 import { getLogger } from "@rakazo/logging";
 import { BotExecutionSettingsError } from "./bot-execution.js";
@@ -22,6 +24,7 @@ export async function commitBotUpdate(
     data: Omit<Prisma.BotUncheckedUpdateInput, "instructions"> & { instructions?: string };
     emitBotUpdated: boolean;
     expectedInstructions?: string;
+    expectedRoleplayCharacter?: RoleplayCharacter;
     expectedRuntimeKind?: string;
     expectedModel?: {
       modelProvider: string | null;
@@ -64,10 +67,17 @@ export async function commitBotUpdate(
       await tx.$queryRaw`SELECT id FROM bots WHERE id = ${options.botId} FOR UPDATE`;
       const bot = await tx.bot.findUniqueOrThrow({
         where: { id: options.botId },
-        select: { botKind: true },
+        select: { botKind: true, roleplayCharacter: true },
       });
       if (bot.botKind !== "roleplay")
         throw new BotExecutionSettingsError("Characters require a roleplay bot");
+      if (
+        options.expectedRoleplayCharacter !== undefined &&
+        !isDeepStrictEqual(bot.roleplayCharacter, options.expectedRoleplayCharacter)
+      )
+        throw new BotExecutionSettingsError(
+          "Roleplay settings changed elsewhere. Reopen settings before saving.",
+        );
       const active = await tx.run.findFirst({
         where: {
           botId: options.botId,

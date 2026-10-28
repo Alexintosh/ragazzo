@@ -66,6 +66,7 @@ export * from "./remote-images.js";
 export * from "./response-bytes.js";
 export * from "./retry-policy.js";
 export * from "./roleplay.js";
+export * from "./roleplay-editor.js";
 export * from "./room-settings.js";
 export * from "./routine-calendar.js";
 export * from "./run-error.js";
