@@ -276,3 +276,80 @@ test("creation actions stay visible above a long bot list", async ({ page }, tes
   await group.click();
   await expect(page.getByTestId("side-panel")).toHaveAttribute("data-panel", "create-group");
 });
+
+test("Roleplay requires a character import and keeps environment settings hidden", async ({
+  page,
+}, testInfo) => {
+  await signup(
+    page,
+    `roleplay-create-${Date.now()}@rakazo.test`,
+    "password12",
+    "Roleplay creation",
+  );
+  await completeOnboarding(page);
+  await page.getByTestId("create-menu-trigger").click();
+  await page.getByTestId("create-new-bot").click();
+  const dialog = page.getByTestId("create-bot-dialog");
+  await dialog.getByRole("button", { name: "Roleplay", exact: true }).click();
+  const create = dialog.getByRole("button", { name: "Create", exact: true });
+  await expect(create).toBeDisabled();
+  await expect(dialog.getByRole("button", { name: "Agent and environment" })).toHaveCount(0);
+  const upload = dialog.getByLabel("Character JSON", { exact: true });
+  await upload.setInputFiles({
+    name: "invalid.json",
+    mimeType: "application/json",
+    buffer: Buffer.from("{invalid"),
+  });
+  await expect(dialog.getByRole("alert")).toBeVisible();
+  await expect(create).toBeDisabled();
+  await upload.setInputFiles({
+    name: "aster.json",
+    mimeType: "application/json",
+    buffer: Buffer.from(
+      JSON.stringify({
+        spec: "chara_card_v2",
+        data: {
+          name: "Aster",
+          description: "A patient archivist in a quiet observatory.",
+          first_mes: "The observatory is quiet tonight.",
+          extensions: { example_unsupported: true },
+        },
+      }),
+    ),
+  });
+  await expect(dialog.getByPlaceholder("Name your Bot")).toHaveValue("Aster");
+  await expect(dialog.getByLabel("Import warnings")).toContainText("not imported");
+  await expect(create).toBeEnabled();
+  await captureScreenshot(page, testInfo, "create-roleplay-character-import");
+  await create.click();
+  if (process.env.ROLEPLAY_ENABLED !== "true") {
+    await expect(dialog.getByRole("alert")).toContainText("Roleplay is not enabled on this server");
+    await expect(create).toBeEnabled();
+    return;
+  }
+  if (process.env.SANDBOX_PROVIDER !== "docker") {
+    await expect(dialog.getByRole("alert")).toContainText("Roleplay requires Docker on this server");
+    await expect(create).toBeEnabled();
+    return;
+  }
+  await expect(dialog).toBeHidden();
+  await expect(page.getByPlaceholder("Message Aster")).toBeVisible();
+  const botId = page.url().split("/").pop()!;
+  const bots = await rpc<
+    Array<{
+      id: string;
+      botKind: string;
+      runtimeKind: string;
+      executionTarget: string;
+      computerMode: string;
+    }>
+  >(page, "bots/list", {});
+  expect(bots.find((bot) => bot.id === botId)).toMatchObject({
+    botKind: "roleplay",
+    runtimeKind: "pi",
+    executionTarget: "docker",
+    computerMode: "dedicated",
+  });
+  await expect(page.getByText("What do you want me on first?", { exact: true })).toHaveCount(0);
+  await captureScreenshot(page, testInfo, "roleplay-created-chat");
+});

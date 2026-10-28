@@ -1187,6 +1187,22 @@ msgstr "비밀번호 변경"
 msgid "Changing…"
 msgstr "변경 중…"
 
+#: src/pages/shell/bot-panel.tsx
+msgid "Character"
+msgstr ""
+
+#: src/pages/shell/create-bot-dialog.tsx
+msgid "Character JSON"
+msgstr ""
+
+#: src/pages/shell/create-bot-dialog.tsx
+msgid "Character JSON contains invalid or oversized fields."
+msgstr ""
+
+#: src/pages/shell/create-bot-dialog.tsx
+msgid "Character JSON must be 1 MB or smaller."
+msgstr ""
+
 #: src/pages/shell/message-cards.tsx
 msgid "Chart failed to render: {error}"
 msgstr "차트를 표시하지 못했습니다: {error}"
@@ -1300,6 +1316,10 @@ msgstr "새 비밀번호 선택"
 
 #: src/pages/Onboarding.tsx
 msgid "Choose a provider"
+msgstr ""
+
+#: src/pages/shell/create-bot-dialog.tsx
+msgid "Choose a valid character JSON file."
 msgstr ""
 
 #: src/pages/shell/agent-import.tsx
@@ -1925,6 +1945,10 @@ msgstr "{name}을 다운로드하지 못했습니다. 다시 시도해 주세요
 
 #: src/pages/shell/conversation-files-panel.tsx
 msgid "Could not download file."
+msgstr ""
+
+#: src/pages/shell/create-bot-dialog.tsx
+msgid "Could not import character JSON"
 msgstr ""
 
 #: src/pages/PluginsOverlay.tsx
@@ -3229,6 +3253,14 @@ msgstr "OpenAPI JSON 가져오기"
 #: src/pages/shell/composer.tsx
 msgid "Import this agent as a bot?"
 msgstr "이 에이전트를 봇으로 가져올까요?"
+
+#: src/pages/shell/create-bot-dialog.tsx
+msgid "Import warnings"
+msgstr ""
+
+#: src/pages/shell/create-bot-dialog.tsx
+msgid "Importing…"
+msgstr ""
 
 #: src/lib/ticket-status.ts
 msgid "In progress"
@@ -5037,6 +5069,10 @@ msgstr ""
 #: src/pages/shell/registered-host-picker.tsx
 msgid "Revoke"
 msgstr "연결 해제"
+
+#: src/pages/shell/create-bot-dialog.tsx
+msgid "Roleplay"
+msgstr ""
 
 #: src/pages/ExternalConversationSettings.tsx
 msgid "Room guidance"

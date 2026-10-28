@@ -663,3 +663,26 @@ describe("canonical project folder saves", () => {
       expect(container.querySelector<HTMLSelectElement>('[id$="-permission"]')!.value).toBe("full");
   });
 });
+
+describe("Roleplay settings", () => {
+  it("keeps model setup while hiding agent, computer, tools, permissions and instructions", async () => {
+    await renderSettings(async () => undefined, {
+      ...bot,
+      botKind: "roleplay",
+      runtimeKind: "pi",
+      executionTarget: "docker",
+      roleplayCharacter: {
+        name: "Aster",
+        description: "A quiet archivist",
+      } as NonNullable<Bot["roleplayCharacter"]>,
+    });
+    expect(container.textContent).toContain("Character");
+    expect(container.textContent).toContain("A quiet archivist");
+    expect(container.textContent).toContain("Model");
+    expect(container.textContent).not.toContain("Agent and environment");
+    expect(container.textContent).not.toContain("Computer");
+    expect(container.textContent).not.toContain("Permissions");
+    expect(container.querySelector('[data-testid="bot-settings-tools"]')).toBeNull();
+    expect(container.querySelector('[aria-label="Instructions"]')).toBeNull();
+  });
+});

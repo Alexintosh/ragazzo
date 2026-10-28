@@ -1187,6 +1187,22 @@ msgstr "Changer le mot de passe"
 msgid "Changing…"
 msgstr "Modification en cours…"
 
+#: src/pages/shell/bot-panel.tsx
+msgid "Character"
+msgstr ""
+
+#: src/pages/shell/create-bot-dialog.tsx
+msgid "Character JSON"
+msgstr ""
+
+#: src/pages/shell/create-bot-dialog.tsx
+msgid "Character JSON contains invalid or oversized fields."
+msgstr ""
+
+#: src/pages/shell/create-bot-dialog.tsx
+msgid "Character JSON must be 1 MB or smaller."
+msgstr ""
+
 #: src/pages/shell/message-cards.tsx
 msgid "Chart failed to render: {error}"
 msgstr "Le graphique n'a pas pu s'afficher : {error}"
@@ -1300,6 +1316,10 @@ msgstr "Choisissez un nouveau mot de passe"
 
 #: src/pages/Onboarding.tsx
 msgid "Choose a provider"
+msgstr ""
+
+#: src/pages/shell/create-bot-dialog.tsx
+msgid "Choose a valid character JSON file."
 msgstr ""
 
 #: src/pages/shell/agent-import.tsx
@@ -1925,6 +1945,10 @@ msgstr "Impossible de télécharger {name}. Réessayez."
 
 #: src/pages/shell/conversation-files-panel.tsx
 msgid "Could not download file."
+msgstr ""
+
+#: src/pages/shell/create-bot-dialog.tsx
+msgid "Could not import character JSON"
 msgstr ""
 
 #: src/pages/PluginsOverlay.tsx
@@ -3229,6 +3253,14 @@ msgstr "Importer OpenAPI JSON"
 #: src/pages/shell/composer.tsx
 msgid "Import this agent as a bot?"
 msgstr "Importer cet agent comme bot ?"
+
+#: src/pages/shell/create-bot-dialog.tsx
+msgid "Import warnings"
+msgstr ""
+
+#: src/pages/shell/create-bot-dialog.tsx
+msgid "Importing…"
+msgstr ""
 
 #: src/lib/ticket-status.ts
 msgid "In progress"
@@ -5037,6 +5069,10 @@ msgstr ""
 #: src/pages/shell/registered-host-picker.tsx
 msgid "Revoke"
 msgstr "Révoquer"
+
+#: src/pages/shell/create-bot-dialog.tsx
+msgid "Roleplay"
+msgstr ""
 
 #: src/pages/ExternalConversationSettings.tsx
 msgid "Room guidance"

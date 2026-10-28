@@ -29,6 +29,7 @@ export function useThreadHeader({
   groupId,
   inGroup,
   readOnly,
+  roleplay = false,
   displayName,
   titleBot,
   titleName,
@@ -42,6 +43,7 @@ export function useThreadHeader({
   groupId?: string;
   inGroup: boolean;
   readOnly: boolean;
+  roleplay?: boolean;
   displayName?: string;
   /** The chat's bot, or the inbox's copy of it until the chat's roster arrives. */
   titleBot?: ChatTitle["bot"];
@@ -114,6 +116,7 @@ export function useThreadHeader({
     });
   }, [
     readOnly,
+    roleplay,
     restoring,
     botId,
     titleBot,
@@ -166,7 +169,7 @@ export function useThreadHeader({
   }
 
   const botActions = [
-    ...(!readOnly && botId
+    ...(!readOnly && botId && !roleplay
       ? [
           {
             text: t("Conversation work"),
@@ -182,7 +185,7 @@ export function useThreadHeader({
           },
         ]
       : []),
-    ...(!readOnly && botId ? [{ text: t("Open computer"), onPress: openBotComputer }] : []),
+    ...(!readOnly && botId && !roleplay ? [{ text: t("Open computer"), onPress: openBotComputer }] : []),
     {
       text: t("Profile"),
       onPress: () =>
@@ -205,7 +208,7 @@ export function useThreadHeader({
       onPress: () =>
         Alert.alert(
           t("Clear conversation?"),
-          t(
+          roleplay ? t("This clears the story and its memory, then restores the character's greeting.") : t(
             "This removes every message and stops current work. The bot, computer, memory, and routines are kept.",
           ),
           [

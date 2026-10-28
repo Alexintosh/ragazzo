@@ -1,6 +1,10 @@
 import { Trans, useLingui } from "@lingui/react/macro";
-import type { Bot, ComputerMode } from "@rakazo/contracts";
-import { BOT_NAME_MAX_LENGTH } from "@rakazo/contracts";
+import type { Bot, ComputerMode, RoleplayCharacter } from "@rakazo/contracts";
+import {
+  BOT_NAME_MAX_LENGTH,
+  ROLEPLAY_IMPORT_MAX_BYTES,
+  parseRoleplayCharacterJson,
+} from "@rakazo/contracts";
 import {
   ORGANIC_AVATAR_LOOKS,
   organicAvatarFamily,
@@ -17,8 +21,9 @@ import {
   DialogTitle,
   Input,
   parseBotAvatar,
+  Toggle,
 } from "@rakazo/ui-web";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { errorText } from "../../lib/user-error";
 import { BotLookPicker } from "./avatar-studio-popover";
 import { ComputerModePicker } from "./bot-panel";
@@ -34,6 +39,8 @@ function pick<T>(options: readonly T[]): T {
 
 export interface CreateBotDialogInput {
   name: string;
+  botKind?: "agent" | "roleplay";
+  roleplayCharacter?: RoleplayCharacter;
   color: string;
   /** The organic family the preview drew; omitted when a studio shape is picked. */
   avatarFamily?: number;
@@ -58,6 +65,58 @@ export function CreateBotDialog({
   const { t } = useLingui();
   const nameRef = useRef<HTMLInputElement>(null);
   const [name, setName] = useState("");
+  const [roleplay, setRoleplay] = useState(false);
+  const [character, setCharacter] = useState<RoleplayCharacter | null>(null);
+  const [fileName, setFileName] = useState("");
+  const [warnings, setWarnings] = useState<string[]>([]);
+  const [importError, setImportError] = useState<string | null>(null);
+  const [importing, setImporting] = useState(false);
+  const importVersion = useRef(0);
+  useEffect(
+    () => () => {
+      ++importVersion.current;
+    },
+    [],
+  );
+  const currentName = useRef(name);
+  currentName.current = name;
+
+  async function importCharacter(file: File | undefined) {
+    const version = ++importVersion.current;
+    setCharacter(null);
+    setWarnings([]);
+    setImportError(null);
+    setFileName("");
+    if (!file) {
+      setImporting(false);
+      return;
+    }
+    if (file.size > ROLEPLAY_IMPORT_MAX_BYTES) {
+      setImporting(false);
+      setImportError(t`Character JSON must be 1 MB or smaller.`);
+      return;
+    }
+    setImporting(true);
+    try {
+      const result = parseRoleplayCharacterJson(await file.text());
+      if (version !== importVersion.current) return;
+      setCharacter(result.character);
+      setWarnings(result.warnings);
+      setFileName(file.name);
+      if (!currentName.current.trim()) setName(result.character.name.slice(0, BOT_NAME_MAX_LENGTH));
+    } catch (cause) {
+      if (version === importVersion.current)
+        setImportError(
+          cause instanceof SyntaxError
+            ? t`Choose a valid character JSON file.`
+            : cause instanceof Error && cause.name === "ZodError"
+              ? t`Character JSON contains invalid or oversized fields.`
+              : errorText(cause, t`Could not import character JSON`),
+        );
+    } finally {
+      if (version === importVersion.current) setImporting(false);
+    }
+  }
   const [look, setLook] = useState(() => ({
     value: pick(BOT_AVATAR_COLORS),
     identity: pick(ORGANIC_IDENTITIES),
@@ -75,7 +134,7 @@ export function CreateBotDialog({
   const trimmed = name.trim();
 
   async function create() {
-    if (!trimmed || submitting) return;
+    if (!trimmed || submitting || (roleplay && (!character || importing))) return;
     setError(null);
     setSubmitting(true);
     const organic = parseBotAvatar(look.value).shapeIndex === undefined;
@@ -83,7 +142,17 @@ export function CreateBotDialog({
       await onCreate({
         name: trimmed,
         color: look.value,
-        ...(executionOpen ? { ...runtime, computerMode } : {}),
+        ...(roleplay && character
+          ? {
+              botKind: "roleplay" as const,
+              roleplayCharacter: character,
+              runtimeKind: "pi" as const,
+              executionTarget: "docker" as const,
+              computerMode: "dedicated" as const,
+              projectPath: null,
+              registeredHostId: null,
+            }
+          : executionOpen ? { ...runtime, computerMode } : {}),
         ...(organic ? { avatarFamily: organicAvatarFamily(look.identity) } : {}),
       });
     } catch (err) {
@@ -121,7 +190,8 @@ export function CreateBotDialog({
           <div className="flex justify-center py-2">
             <BotAvatar color={look.value} identity={look.identity} size={96} />
           </div>
-          <Input
+          <div className="flex items-center gap-2">
+            <Input
             ref={nameRef}
             aria-label={t`Name`}
             placeholder={t`Name your Bot`}
@@ -130,6 +200,67 @@ export function CreateBotDialog({
             onChange={(event) => setName(event.target.value)}
             className="text-center"
           />
+            <Toggle
+              aria-label={t`Roleplay`}
+              pressed={roleplay}
+              disabled={submitting}
+              variant="outline"
+              onPressedChange={(pressed) => {
+                ++importVersion.current;
+                setRoleplay(pressed);
+                setCharacter(null);
+                setFileName("");
+                setWarnings([]);
+                setImportError(null);
+                setImporting(false);
+                setError(null);
+              }}
+            >
+              RP
+            </Toggle>
+          </div>
+          {roleplay ? (
+            <div className="space-y-2">
+              <label className="block space-y-2 text-sm">
+                <span>
+                  <Trans>Character JSON</Trans>
+                </span>
+                <Input
+                  type="file"
+                  accept=".json,application/json"
+                  aria-label={t`Character JSON`}
+                  disabled={submitting}
+                  onChange={(event) => void importCharacter(event.target.files?.[0])}
+                />
+              </label>
+              {importing ? (
+                <p role="status" className="text-xs text-muted-foreground">
+                  <Trans>Importing…</Trans>
+                </p>
+              ) : null}
+              {character ? (
+                <p role="status" className="break-words text-sm">
+                  {character.name}
+                  <span className="block text-xs text-muted-foreground">{fileName}</span>
+                </p>
+              ) : null}
+              {importError ? (
+                <p role="alert" className="text-[13px] text-destructive">
+                  {importError}
+                </p>
+              ) : null}
+              {warnings.length ? (
+                <ul
+                  aria-label={t`Import warnings`}
+                  className="list-disc space-y-1 ps-4 text-xs text-muted-foreground"
+                >
+                  {warnings.map((warning, index) => (
+                    <li key={index}>{warning}</li>
+                  ))}
+                </ul>
+              ) : null}
+            </div>
+          ) : null}
           {error ? (
             <p role="alert" data-testid="create-bot-error" className="text-[13px] text-destructive">
               {error}
@@ -143,7 +274,8 @@ export function CreateBotDialog({
               setLook((current) => ({ value, identity: identity ?? current.identity }))
             }
           />
-          <Button
+          {!roleplay ? (
+            <Button
             type="button"
             variant="ghost"
             aria-expanded={executionOpen}
@@ -151,14 +283,15 @@ export function CreateBotDialog({
           >
             <Trans>Agent and environment</Trans>
           </Button>
-          {executionOpen ? (
+          ) : null}
+          {executionOpen && !roleplay ? (
             <div className="space-y-3">
               <BotRuntimeSettings value={runtime} onChange={setRuntime} />
               <ComputerModePicker value={computerMode} onChange={setComputerMode} />
             </div>
           ) : null}
           <DialogFooter>
-            {onImport ? (
+            {onImport && !roleplay ? (
               <Button
                 type="button"
                 variant="ghost"
@@ -173,7 +306,7 @@ export function CreateBotDialog({
             <Button type="button" variant="outline" disabled={submitting} onClick={onCancel}>
               <Trans>Cancel</Trans>
             </Button>
-            <Button type="submit" disabled={!trimmed || submitting}>
+            <Button type="submit" disabled={!trimmed || submitting || (roleplay && (!character || importing))}>
               <Trans>Create</Trans>
             </Button>
           </DialogFooter>

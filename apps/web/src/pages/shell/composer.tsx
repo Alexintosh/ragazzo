@@ -62,6 +62,7 @@ export const Composer = memo(function Composer({
   sending,
   fileInputRef,
   onAttachmentPick,
+  attachmentsEnabled = true,
   onRemoveAttachment,
   onSend,
   onQueue,
@@ -98,6 +99,7 @@ export const Composer = memo(function Composer({
   onDismissError: () => void;
   sending: boolean;
   fileInputRef: RefObject<HTMLInputElement | null>;
+  attachmentsEnabled?: boolean;
   onAttachmentPick: (files: FileList | readonly File[] | null) => boolean;
   onRemoveAttachment: (attachment: PendingAttachment) => void;
   onSend: (text: string, mentions: ComposerMention[], clientNonce: string) => Promise<boolean>;
@@ -240,7 +242,7 @@ export const Composer = memo(function Composer({
   useEffect(() => setAgentDrop(null), [draftKey]);
 
   function pickAttachments(files: FileList | readonly File[] | null) {
-    if (!files?.length) return;
+    if (!attachmentsEnabled || disabled || !files?.length) return;
     if (onAttachmentPick(files)) markEdited();
   }
 
@@ -395,7 +397,7 @@ export const Composer = memo(function Composer({
     const dataTransfer = event.dataTransfer;
     if (!isFileDrag(dataTransfer)) return;
     event.preventDefault();
-    if (disabled) {
+    if (disabled || !attachmentsEnabled) {
       dragDepth.current = 0;
       setDraggingFiles(false);
       return;
@@ -408,8 +410,8 @@ export const Composer = memo(function Composer({
     const dataTransfer = event.dataTransfer;
     if (!isFileDrag(dataTransfer)) return;
     event.preventDefault();
-    dataTransfer.dropEffect = disabled ? "none" : "copy";
-    if (disabled) {
+    dataTransfer.dropEffect = disabled || !attachmentsEnabled ? "none" : "copy";
+    if (disabled || !attachmentsEnabled) {
       dragDepth.current = 0;
       setDraggingFiles(false);
       return;
@@ -419,7 +421,7 @@ export const Composer = memo(function Composer({
 
   function handleDragLeave(event: DragEvent<HTMLFieldSetElement>) {
     if (!isFileDrag(event.dataTransfer)) return;
-    if (disabled) {
+    if (disabled || !attachmentsEnabled) {
       dragDepth.current = 0;
       setDraggingFiles(false);
       return;
@@ -434,7 +436,7 @@ export const Composer = memo(function Composer({
     event.preventDefault();
     dragDepth.current = 0;
     setDraggingFiles(false);
-    if (disabled) return;
+    if (disabled || !attachmentsEnabled) return;
     const drop = onImportAgent ? captureDrop(dataTransfer) : null;
     if (!drop || !mightBeAgent(drop)) {
       pickAttachments(dataTransfer.files);
@@ -462,7 +464,7 @@ export const Composer = memo(function Composer({
     // Only intercept real FileList pastes; leave text-only / empty-files native.
     if (disabled || !clipboardData || !isFilePaste(clipboardData)) return;
     event.preventDefault();
-    pickAttachments(clipboardData.files);
+    if (attachmentsEnabled) pickAttachments(clipboardData.files);
     const text = clipboardData.getData("text/plain");
     if (!text) return;
     const textarea = event.currentTarget;
@@ -776,31 +778,39 @@ export const Composer = memo(function Composer({
           expanded ? "gap-x-2 gap-y-2 pb-[9px] pt-3" : "gap-x-3.5 py-[9px]"
         }`}
       >
-        <input
-          ref={fileInputRef}
-          type="file"
-          multiple
-          accept={ATTACHMENT_ACCEPT}
-          className="hidden"
-          onChange={(event) => pickAttachments(event.target.files)}
-        />
-        <Button
-          ref={attachButtonRef}
-          variant="ghost"
-          size="icon"
-          aria-label={t`Attach file`}
-          disabled={disabled}
-          onClick={() => fileInputRef.current?.click()}
-          className={`col-start-1 size-8 shrink-0 rounded-full border border-border bg-muted text-muted-foreground transition-colors hover:bg-accent hover:text-foreground ${
-            expanded ? "row-start-2" : ""
-          }`}
-        >
-          <Plus size={16} strokeWidth={2} />
-        </Button>
+        {attachmentsEnabled ? (
+          <>
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              accept={ATTACHMENT_ACCEPT}
+              className="hidden"
+              onChange={(event) => pickAttachments(event.target.files)}
+            />
+            <Button
+              ref={attachButtonRef}
+              variant="ghost"
+              size="icon"
+              aria-label={t`Attach file`}
+              disabled={disabled}
+              onClick={() => fileInputRef.current?.click()}
+              className={`col-start-1 size-8 shrink-0 rounded-full border border-border bg-muted text-muted-foreground transition-colors hover:bg-accent hover:text-foreground ${
+                expanded ? "row-start-2" : ""
+              }`}
+            >
+              <Plus size={16} strokeWidth={2} />
+            </Button>
+          </>
+        ) : null}
         <div
           ref={composerFieldRef}
           className={`flex min-w-0 flex-wrap items-end gap-1.5 ${
-            expanded ? "col-span-3 row-start-1 px-1.5" : "col-start-2"
+            expanded
+              ? "col-span-3 row-start-1 px-1.5"
+              : attachmentsEnabled
+                ? "col-start-2"
+                : "col-span-2 col-start-1"
           }`}
         >
           {selectedSkill ? (

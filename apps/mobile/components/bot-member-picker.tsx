@@ -32,7 +32,8 @@ export function BotMemberPicker({
   // member remains re-checkable until the form is saved.
   const [everPicked, setEverPicked] = useState<ReadonlySet<string>>(() => new Set(selected));
   const needle = expanded ? query.trim().toLowerCase() : "";
-  const base = expanded ? bots : bots.filter((bot) => everPicked.has(bot.id));
+  const eligible = bots.filter((bot) => bot.botKind !== "roleplay");
+  const base = expanded ? eligible : eligible.filter((bot) => everPicked.has(bot.id));
   const visible = needle
     ? base.filter(
         (bot) =>

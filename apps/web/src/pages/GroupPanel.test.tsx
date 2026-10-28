@@ -77,6 +77,8 @@ function fakeBot(id: string, name: string, title: string): Bot {
   return {
     id,
     spaceId: "space-1",
+    botKind: "agent",
+    roleplayCharacter: null,
     runtimeKind: "pi",
     executionTarget: "default",
     runtimePermission: "workspace",
@@ -360,4 +362,11 @@ describe("GroupSettings", () => {
         ?.getAttribute("aria-checked"),
     ).toBe("true");
   });
+});
+
+
+it("excludes Roleplay bots from group member choices", async () => {
+  await render({ bots: [...bots, { ...fakeBot("rp", "Aster", "Character"), botKind: "roleplay" }] });
+  await click("Show all");
+  expect(container.textContent).not.toContain("Aster");
 });

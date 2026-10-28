@@ -30,11 +30,13 @@ export function useThreadAttachments({
   taskId,
   readOnly,
   uploadConfig,
+  attachmentsEnabled = true,
 }: {
   botId?: string;
   groupId?: string;
   taskId?: string;
   readOnly: boolean;
+  attachmentsEnabled?: boolean;
   uploadConfig?: { maxUploadSizeBytes?: number };
 }) {
   const { t } = useI18n();
@@ -53,6 +55,7 @@ export function useThreadAttachments({
   ];
 
   function attachFrom(source: string) {
+    if (readOnly || !attachmentsEnabled) return;
     if (source === "library") void addAttachments(pickFromLibrary);
     else if (source === "camera") void addAttachments(takePhoto);
     else if (source === "file") void addAttachments(pickDocuments);
@@ -68,7 +71,7 @@ export function useThreadAttachments({
     }>,
   ) {
     const targetKey = taskId ?? groupId ?? botId;
-    if (!targetKey) return;
+    if (!targetKey || readOnly || !attachmentsEnabled) return;
     const result = await picker(activePendingAttachments.length, attachmentMaxBytes(uploadConfig));
     if ((taskId ?? groupId ?? botId) !== targetKey) return;
     // Two drops can overlap, so the room left is settled against the draft as it
@@ -109,7 +112,7 @@ export function useThreadAttachments({
       void addAttachments((count, maxBytes) => readDroppedFiles(files, count, maxBytes, skipped));
     },
     {
-      enabled: !readOnly && Boolean(taskId ?? groupId ?? botId),
+      enabled: attachmentsEnabled && !readOnly && Boolean(taskId ?? groupId ?? botId),
       maxBytes: attachmentMaxBytes(uploadConfig),
       maxFiles: ATTACHMENT_MAX_COUNT,
     },

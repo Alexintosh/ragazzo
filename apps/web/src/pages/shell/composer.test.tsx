@@ -909,3 +909,65 @@ it("first-task guidance never replaces an existing draft", () => {
   expect(textarea.value).toBe("My unfinished task");
   expect(container!.querySelector('[data-testid="first-task-suggestions"]')).toBeNull();
 });
+
+describe("text-only composer", () => {
+  it("removes the picker and blocks file drops and imports", () => {
+    const onAttachmentPick = vi.fn(() => true);
+    const onImportAgent = vi.fn();
+    renderComposer(async () => true, {
+      attachmentsEnabled: false,
+      onAttachmentPick,
+      onImportAgent,
+    });
+    expect(container!.querySelector('input[type="file"]')).toBeNull();
+    expect(container!.querySelector('button[aria-label="Attach file"]')).toBeNull();
+    const event = new Event("drop", { bubbles: true, cancelable: true });
+    Object.defineProperty(event, "dataTransfer", {
+      value: {
+        types: ["Files"],
+        items: [],
+        files: [new File(["content"], "agent.zip")],
+      },
+    });
+    act(() => container!.querySelector("fieldset")!.dispatchEvent(event));
+    expect(event.defaultPrevented).toBe(true);
+    expect(onAttachmentPick).not.toHaveBeenCalled();
+    expect(onImportAgent).not.toHaveBeenCalled();
+    expect(container!.textContent).not.toContain("Import agent");
+  });
+
+  it("keeps pasted text while discarding accompanying files", () => {
+    const onAttachmentPick = vi.fn(() => true);
+    const textarea = renderComposer(async () => true, {
+      attachmentsEnabled: false,
+      onAttachmentPick,
+    });
+    type(textarea, "before after");
+    textarea.setSelectionRange(7, 7);
+    const event = new Event("paste", { bubbles: true, cancelable: true });
+    Object.defineProperty(event, "clipboardData", {
+      value: {
+        files: [new File(["content"], "image.png", { type: "image/png" })],
+        getData: () => "pasted ",
+      },
+    });
+    act(() => textarea.dispatchEvent(event));
+    expect(textarea.value).toBe("before pasted after");
+    expect(onAttachmentPick).not.toHaveBeenCalled();
+  });
+
+  it("leaves ordinary text paste to the browser", () => {
+    const onAttachmentPick = vi.fn(() => true);
+    const textarea = renderComposer(async () => true, {
+      attachmentsEnabled: false,
+      onAttachmentPick,
+    });
+    const event = new Event("paste", { bubbles: true, cancelable: true });
+    Object.defineProperty(event, "clipboardData", {
+      value: { files: [], getData: () => "plain text" },
+    });
+    act(() => textarea.dispatchEvent(event));
+    expect(event.defaultPrevented).toBe(false);
+    expect(onAttachmentPick).not.toHaveBeenCalled();
+  });
+});

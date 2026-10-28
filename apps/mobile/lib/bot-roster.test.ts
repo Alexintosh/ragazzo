@@ -6,6 +6,8 @@ import { retainUnchangedBotRoster } from "./bot-roster";
 function bot(id = "bot-1"): Bot {
   return {
     id,
+    botKind: "agent",
+    roleplayCharacter: null,
     runtimeKind: "pi",
     executionTarget: "default",
     runtimePermission: "workspace",

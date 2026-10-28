@@ -622,7 +622,19 @@ export function BotSettings({
           }}
         />
       </div>
-      <InstructionSettings key={bot.id} bot={bot} />
+      {bot.botKind === "roleplay" ? (
+        <section className="mt-6 space-y-2" aria-label={t`Character`}>
+          <h3 className="text-xs font-medium text-muted-foreground">
+            <Trans>Character</Trans>
+          </h3>
+          <p className="break-words text-sm">{bot.roleplayCharacter?.name}</p>
+          <p className="whitespace-pre-wrap break-words text-sm text-muted-foreground">
+            {bot.roleplayCharacter?.description}
+          </p>
+        </section>
+      ) : (
+        <InstructionSettings key={bot.id} bot={bot} />
+      )}
       <section className="mt-6">
         <h3 className="mb-2 text-xs font-medium text-muted-foreground">
           <Trans>Notifications</Trans>
@@ -648,7 +660,9 @@ export function BotSettings({
           />
         </div>
       </section>
-      <ErrorBoundary fallback={<SectionLoadFailed />}>
+      {bot.botKind !== "roleplay" ? (
+        <>
+          <ErrorBoundary fallback={<SectionLoadFailed />}>
         <Suspense fallback={null}>
           <ScratchpadSection botId={bot.id} />
         </Suspense>
@@ -658,6 +672,8 @@ export function BotSettings({
           <KnowledgeSection botId={bot.id} />
         </Suspense>
       </ErrorBoundary>
+      </>
+      ) : null}
       <Collapsible
         open={advancedOpen}
         onOpenChange={setAdvancedOpen}
@@ -675,7 +691,8 @@ export function BotSettings({
         </h3>
         <CollapsibleContent>
           <div className="space-y-6 pt-6">
-            <SettingsGroup label={t`Agent and environment`}>
+            {bot.botKind !== "roleplay" ? (
+              <SettingsGroup label={t`Agent and environment`}>
               <BotRuntimeSettings
                 value={runtime}
                 onChange={(value) => {
@@ -691,6 +708,7 @@ export function BotSettings({
                 <BotRuntimeStatus botId={bot.id} />
               ) : null}
             </SettingsGroup>
+            ) : null}
             {runtime.runtimeKind === "pi" ? (
               <div ref={modelRef}>
                 <div className="mb-2 flex items-center justify-between text-xs font-medium text-muted-foreground pe-1">
@@ -749,7 +767,7 @@ export function BotSettings({
                 </div>
               </div>
             ) : null}
-            {
+            {bot.botKind !== "roleplay" ? (
               <SettingsGroup label={t`Computer`}>
                 <ComputerModePicker value={computerMode} onChange={setComputerMode} />
                 {memoryProviderConfigured ? (
@@ -761,7 +779,8 @@ export function BotSettings({
                           { value: null, label: t`Inherit default` },
                           { value: "isolated" as const, label: t`Isolated` },
                           { value: "shared" as const, label: t`Shared` },
-                        ] satisfies Array<{ value: "isolated" | "shared" | null; label: string }>
+                        ] satisfies Array<{ value: "isolated" | "shared" | null; label: string;
+                        }>
                       ).map((option) => (
                         <Toggle
                           key={option.label}
@@ -780,7 +799,7 @@ export function BotSettings({
                   </div>
                 ) : null}
               </SettingsGroup>
-            }
+            ) : null}
             <SettingsGroup label={t`Voice`}>
               <label
                 htmlFor={`${ids}-auto-speak`}
@@ -817,7 +836,8 @@ export function BotSettings({
                 </label>
               ) : null}
             </SettingsGroup>
-            <SettingsGroup label={t`Permissions`}>
+            {bot.botKind !== "roleplay" ? (
+              <SettingsGroup label={t`Permissions`}>
               <div className="flex min-h-11 items-center justify-between gap-3 text-sm">
                 <label htmlFor={`${ids}-cross-space`} className={rowLabelClass}>
                   <Trans>Allow cross-space bot communication</Trans>
@@ -852,6 +872,7 @@ export function BotSettings({
                 />
               </div>
             </SettingsGroup>
+            ) : null}
             <SettingsGroup label={t`Description`}>
               <label htmlFor={`${ids}-description`} className="block text-xs text-muted-foreground">
                 <Trans>How other bots see it</Trans>
@@ -868,6 +889,8 @@ export function BotSettings({
                 />
               </label>
             </SettingsGroup>
+            {bot.botKind !== "roleplay" ? (
+              <>
             <SettingsGroup label={t`Tools`}>
               <section data-testid="bot-settings-tools">
                 <div className="space-y-4 [&>*]:mt-0">
@@ -902,7 +925,8 @@ export function BotSettings({
                         aria-label={t`Enable ${humanizeTool(toolName)}`}
                         title={t`Enable ${humanizeTool(toolName)}`}
                         onClick={() => {
-                          const next = disabledBuiltinTools.filter((entry) => entry !== toolName);
+                          const next = disabledBuiltinTools.filter((entry) => entry !== toolName,
+                              );
                           setDisabledBuiltinTools(next);
                           void enqueueSave({ disabledBuiltinTools: next });
                         }}
@@ -920,6 +944,8 @@ export function BotSettings({
                 <KnowledgeSection botId={bot.id} skillsOnly />
               </Suspense>
             </ErrorBoundary>
+              </>
+            ) : null}
             <div className="overflow-hidden rounded-xl bg-muted/50 px-4">
               <button
                 type="button"

@@ -240,7 +240,7 @@ function SpaceShell() {
   const call = useCallSession();
   /** Calls a bot, or opens voice settings first when no voice is connected. */
   const callBot = (bot: Bot) => {
-    if (!bootstrapMe?.phoneCallsEnabled) return;
+    if (!bootstrapMe?.phoneCallsEnabled || bot.botKind === "roleplay") return;
     if (!voiceStatus?.ready) {
       openSettings("voice");
       return;
@@ -726,7 +726,7 @@ function SpaceShell() {
     const bot = await rpc.bots.create({ ...input, notifyOnFinish: true });
     openCreatedBot(bot);
     dialogs.setCreateBotOpen(false);
-    await composer.startFocusPrompt(bot.id, isFirstBot);
+    if (bot.botKind !== "roleplay") await composer.startFocusPrompt(bot.id, isFirstBot);
     await refreshBots().catch(() => undefined);
   }
 
@@ -1053,7 +1053,10 @@ function SpaceShell() {
                 taskId ? `task:${taskId}` : inGroup ? `group:${groupId}` : `bot:${active?.id}`
               }
               enterToSend={enterToSend}
-              onImportAgent={(agent) => openImport(agent, false)}
+              attachmentsEnabled={active?.botKind !== "roleplay"}
+              onImportAgent={
+                active?.botKind === "roleplay" ? undefined : (agent) => openImport(agent, false)
+              }
               activeName={inGroup ? (activeGroup?.name ?? activeSnapshot?.groupName) : active?.name}
               running={composerRunning}
               disabled={Boolean(recordingSkill) || Boolean(taskId && !activeSnapshot)}
@@ -1101,8 +1104,14 @@ function SpaceShell() {
               replyQuote={composer.replyQuote}
               replyTargetName={replyTargetName}
               onClearReply={composer.clearReply}
-              mentionTargets={composerMentionTargets}
-              agentSkills={agentSkills}
+              mentionTargets={
+                active?.botKind === "roleplay"
+                  ? composerMentionTargets.filter(
+                      (target) => target.kind !== "connector" && target.kind !== "routine",
+                    )
+                  : composerMentionTargets
+              }
+              agentSkills={active?.botKind === "roleplay" ? [] : agentSkills}
               onSlashOpen={refreshAgentSkills}
               onSlashAction={(action) => {
                 if (action === "chat-settings") {
@@ -1162,7 +1171,7 @@ function SpaceShell() {
         computerOpen={computerOpen}
         booting={booting}
         computerPanel={
-          active ? (
+          active && active.botKind !== "roleplay" ? (
             <ComputerPanel
               bot={active}
               computer={computer}
@@ -1271,7 +1280,7 @@ function SpaceShell() {
         />
       </Suspense>
 
-      {computerOpen && computerBot ? (
+      {computerOpen && computerBot && computerBot.botKind !== "roleplay" ? (
         <ComputerOverlay
           bot={computerBot}
           computer={computer}

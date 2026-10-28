@@ -1187,6 +1187,22 @@ msgstr "Change password"
 msgid "Changing…"
 msgstr "Changing…"
 
+#: src/pages/shell/bot-panel.tsx
+msgid "Character"
+msgstr "Character"
+
+#: src/pages/shell/create-bot-dialog.tsx
+msgid "Character JSON"
+msgstr "Character JSON"
+
+#: src/pages/shell/create-bot-dialog.tsx
+msgid "Character JSON contains invalid or oversized fields."
+msgstr "Character JSON contains invalid or oversized fields."
+
+#: src/pages/shell/create-bot-dialog.tsx
+msgid "Character JSON must be 1 MB or smaller."
+msgstr "Character JSON must be 1 MB or smaller."
+
 #: src/pages/shell/message-cards.tsx
 msgid "Chart failed to render: {error}"
 msgstr "Chart failed to render: {error}"
@@ -1301,6 +1317,10 @@ msgstr "Choose a new password"
 #: src/pages/Onboarding.tsx
 msgid "Choose a provider"
 msgstr "Choose a provider"
+
+#: src/pages/shell/create-bot-dialog.tsx
+msgid "Choose a valid character JSON file."
+msgstr "Choose a valid character JSON file."
 
 #: src/pages/shell/agent-import.tsx
 msgid "Choose backup"
@@ -1926,6 +1946,10 @@ msgstr "Could not download {name}. Try again."
 #: src/pages/shell/conversation-files-panel.tsx
 msgid "Could not download file."
 msgstr "Could not download file."
+
+#: src/pages/shell/create-bot-dialog.tsx
+msgid "Could not import character JSON"
+msgstr "Could not import character JSON"
 
 #: src/pages/PluginsOverlay.tsx
 msgid "Could not install connector"
@@ -3229,6 +3253,14 @@ msgstr "Import OpenAPI JSON"
 #: src/pages/shell/composer.tsx
 msgid "Import this agent as a bot?"
 msgstr "Import this agent as a bot?"
+
+#: src/pages/shell/create-bot-dialog.tsx
+msgid "Import warnings"
+msgstr "Import warnings"
+
+#: src/pages/shell/create-bot-dialog.tsx
+msgid "Importing…"
+msgstr "Importing…"
 
 #: src/lib/ticket-status.ts
 msgid "In progress"
@@ -5037,6 +5069,10 @@ msgstr "Review this project's code for concrete bugs. Explain your findings befo
 #: src/pages/shell/registered-host-picker.tsx
 msgid "Revoke"
 msgstr "Revoke"
+
+#: src/pages/shell/create-bot-dialog.tsx
+msgid "Roleplay"
+msgstr "Roleplay"
 
 #: src/pages/ExternalConversationSettings.tsx
 msgid "Room guidance"

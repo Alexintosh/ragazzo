@@ -196,6 +196,7 @@ export function useThreadVoiceCall({
     if (readOnly) return;
     const targetBotId = botId;
     if (!targetBotId || voiceCallStarting.current) return;
+    if (mentionBotsRef.current.find((bot) => bot.id === targetBotId)?.botKind === "roleplay") return;
     voiceCallStarting.current = true;
     const loadVoiceStatus = () => rpc("voice/status");
     try {

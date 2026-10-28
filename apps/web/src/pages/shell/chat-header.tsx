@@ -87,7 +87,7 @@ export function ChatHeader({
             </Button>
           </IconTooltip>
         ) : null}
-        {phoneCallsEnabled && !inGroup && active ? (
+        {phoneCallsEnabled && !inGroup && active && active.botKind !== "roleplay" ? (
           <IconTooltip label={inCall ? t`Open call` : t`Call`}>
             <Button
               variant="floating"
@@ -102,7 +102,7 @@ export function ChatHeader({
             </Button>
           </IconTooltip>
         ) : null}
-        {!inGroup && active ? (
+        {!inGroup && active && active.botKind !== "roleplay" ? (
           <IconTooltip label={t`Agent computer`}>
             <Button
               variant="floating"

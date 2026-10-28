@@ -14,6 +14,7 @@ const mocks = vi.hoisted(() => ({
   createInboxBot: vi.fn(),
   environment: undefined as Promise<{ sandboxProvider: string }> | undefined,
   runtimeReason: undefined as string | undefined,
+  botKind: "agent" as "agent" | "roleplay",
   executionTarget: "default" as "default" | "docker" | "host",
   instructions: "",
   description: "",
@@ -105,6 +106,8 @@ vi.mock("./api", () => ({
     if (procedure === "bots/get")
       return {
         id: "bot-fixture",
+        botKind: mocks.botKind,
+        roleplayCharacter: mocks.botKind === "roleplay" ? { name: "Aster", description: "Quiet archivist" } : null,
         spaceId: "space-fixture",
         name: "Fixture",
         title: "",
@@ -371,6 +374,7 @@ describe("bot settings device voice menu", () => {
   let container: HTMLDivElement;
   beforeEach(() => {
     mocks.runtimeReason = undefined;
+    mocks.botKind = "agent";
     mocks.executionTarget = "default";
     mocks.environment = undefined;
     mocks.crossSpaceCommunication = false;
@@ -394,6 +398,17 @@ describe("bot settings device voice menu", () => {
   afterEach(() => {
     act(() => root.unmount());
     vi.unstubAllGlobals();
+  });
+  it("renders Roleplay character and model without operational controls", async () => {
+    mocks.botKind = "roleplay";
+    await act(async () => root.render(<BotSettingsScreen />));
+    await expand();
+    expect(container.textContent).toContain("Quiet archivist");
+    expect(container.textContent).toContain("Model");
+    expect(container.textContent).not.toContain("Instructions");
+    expect(container.textContent).not.toContain("Runtime");
+    expect(container.textContent).not.toContain("Computer");
+    expect(container.textContent).not.toContain("Permissions");
   });
   const expand = async () =>
     act(async () => container.querySelector<HTMLButtonElement>('[aria-label="Advanced"]')!.click());

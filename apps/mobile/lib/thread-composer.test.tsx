@@ -100,7 +100,8 @@ vi.mock("react-native", () => {
   };
 });
 vi.mock("@expo/ui/community/menu", () => ({
-  MenuView: ({ children }: { children?: ReactNode }) => children,
+  MenuView: ({ children }: { children?: ReactNode }) =>
+    createElement("div", { "data-testid": "attachment-menu" }, children),
 }));
 vi.mock("../components/glass-surface", () => ({
   GlassSurface: ({
@@ -146,6 +147,21 @@ const props: Omit<ComponentProps<typeof ThreadComposer>, "ref"> = {
 };
 
 describe("thread composer isolation", () => {
+  it("hides the attachment menu for text-only conversations", () => {
+    render({ attachmentsEnabled: false });
+    expect(container.querySelector('[data-testid="attachment-menu"]')).toBeNull();
+    expect(container.querySelector("input")).not.toBeNull();
+  });
+
+  it("keeps the attachment menu enabled by default", () => {
+    render();
+    expect(container.querySelector('[data-testid="attachment-menu"]')).not.toBeNull();
+  });
+
+  it("hides live calls when this conversation has no call capability", () => {
+    render({ startVoiceCall: undefined });
+    expect(container.querySelector('button[aria-label="Call"]')).toBeNull();
+  });
   let root: Root;
   let container: HTMLDivElement;
   let threadRenders: number;

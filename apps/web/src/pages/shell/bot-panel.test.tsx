@@ -110,6 +110,8 @@ function bot(description = "Billing", overrides: Partial<Bot> = {}): Bot {
   return {
     id: "bot-1",
     spaceId: "space-1",
+    botKind: "agent",
+    roleplayCharacter: null,
     runtimeKind: "pi",
     executionTarget: "default",
     runtimePermission: "workspace",

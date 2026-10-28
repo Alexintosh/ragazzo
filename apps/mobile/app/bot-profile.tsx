@@ -151,13 +151,13 @@ export default function BotProfile() {
           title={t("Artifacts")}
           onPress={() => router.push({ pathname: "/artifacts", params: { botId } })}
         />
-        <SettingsRow
+        {bot?.botKind !== "roleplay" ? <SettingsRow
           key="computer"
           accessibilityRole="button"
           chevron="right"
           title={t("Computer")}
           onPress={() => router.push({ pathname: "/computer", params: { botId, name } })}
-        />
+        /> : null}
       </SettingsGroup>
       {/* Routines show only once there is something to list, or a load to retry. */}
       <SettingsGroup label={t("Routines")}>

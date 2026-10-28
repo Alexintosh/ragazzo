@@ -174,7 +174,15 @@ export function Thread({ sessionEpoch, userId }: { sessionEpoch: number; userId:
     JSON.stringify([userId, sessionEpoch, botId, groupId, requestedThreadId]),
     mentionBots,
   );
-  const attachments = useThreadAttachments({ botId, groupId, readOnly, uploadConfig });
+  const attachmentsEnabled =
+    !botId || mentionBots.find((bot) => bot.id === botId)?.botKind !== "roleplay";
+  const attachments = useThreadAttachments({
+    botId,
+    groupId,
+    readOnly,
+    uploadConfig,
+    attachmentsEnabled,
+  });
   const echoed = useMemo(
     () =>
       snap && (snap.groupId ?? snap.botId) === threadKey
@@ -290,6 +298,7 @@ export function Thread({ sessionEpoch, userId }: { sessionEpoch: number; userId:
     groupId,
     inGroup,
     readOnly,
+    roleplay: currentBot?.botKind === "roleplay",
     displayName,
     titleBot,
     titleName,
@@ -583,8 +592,14 @@ export function Thread({ sessionEpoch, userId }: { sessionEpoch: number; userId:
             onFocus={keyboardLayout.onFocus}
             key={threadKey}
             ref={composer.composerRef}
-            agentSkills={agentSkills}
-            composerMentionTargets={composerMentionTargets}
+            agentSkills={currentBot?.botKind === "roleplay" ? [] : agentSkills}
+            composerMentionTargets={
+              currentBot?.botKind === "roleplay"
+                ? composerMentionTargets.filter(
+                    (target) => target.kind !== "connector" && target.kind !== "routine",
+                  )
+                : composerMentionTargets
+            }
             onMentionRequested={onMentionRequested}
             composerPrompt={composerPrompt}
             replyTargetId={replyTarget?.id}
@@ -595,11 +610,12 @@ export function Thread({ sessionEpoch, userId }: { sessionEpoch: number; userId:
             working={working}
             sending={composer.sending}
             styles={styles}
+            attachmentsEnabled={attachmentsEnabled}
             attachActions={attachments.attachActions}
             attachFrom={attachments.attachFrom}
             send={composer.send}
             stop={composer.stop}
-            startVoiceCall={startVoiceCall}
+            startVoiceCall={currentBot?.botKind === "roleplay" ? undefined : startVoiceCall}
             onSlashAction={composer.runSlashAction}
           />
         </ThreadComposerDock>

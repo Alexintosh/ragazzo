@@ -132,6 +132,9 @@ export default function NewBot() {
         editable={!busy}
         style={[fieldStyle, { minHeight: 110, textAlignVertical: "top" }]}
       />
+      <Text style={{ color: tokens.mutedForeground, fontSize: 12 }}>
+        {t("To create a Roleplay bot, import a character JSON on the web.")}
+      </Text>
       <SettingsGroup>
         <SettingsRow
           title={t("Runtime and computer")}

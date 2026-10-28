@@ -1187,6 +1187,22 @@ msgstr "पासवर्ड बदलें"
 msgid "Changing…"
 msgstr "बदला जा रहा है…"
 
+#: src/pages/shell/bot-panel.tsx
+msgid "Character"
+msgstr ""
+
+#: src/pages/shell/create-bot-dialog.tsx
+msgid "Character JSON"
+msgstr ""
+
+#: src/pages/shell/create-bot-dialog.tsx
+msgid "Character JSON contains invalid or oversized fields."
+msgstr ""
+
+#: src/pages/shell/create-bot-dialog.tsx
+msgid "Character JSON must be 1 MB or smaller."
+msgstr ""
+
 #: src/pages/shell/message-cards.tsx
 msgid "Chart failed to render: {error}"
 msgstr "चार्ट रेंडर नहीं हो सका: {error}"
@@ -1300,6 +1316,10 @@ msgstr "नया पासवर्ड चुनें"
 
 #: src/pages/Onboarding.tsx
 msgid "Choose a provider"
+msgstr ""
+
+#: src/pages/shell/create-bot-dialog.tsx
+msgid "Choose a valid character JSON file."
 msgstr ""
 
 #: src/pages/shell/agent-import.tsx
@@ -1925,6 +1945,10 @@ msgstr "{name} डाउनलोड नहीं हो सका। पुन�
 
 #: src/pages/shell/conversation-files-panel.tsx
 msgid "Could not download file."
+msgstr ""
+
+#: src/pages/shell/create-bot-dialog.tsx
+msgid "Could not import character JSON"
 msgstr ""
 
 #: src/pages/PluginsOverlay.tsx
@@ -3229,6 +3253,14 @@ msgstr "OpenAPI JSON इम्पोर्ट करें"
 #: src/pages/shell/composer.tsx
 msgid "Import this agent as a bot?"
 msgstr "इस एजेंट को बॉट के रूप में इंपोर्ट करें?"
+
+#: src/pages/shell/create-bot-dialog.tsx
+msgid "Import warnings"
+msgstr ""
+
+#: src/pages/shell/create-bot-dialog.tsx
+msgid "Importing…"
+msgstr ""
 
 #: src/lib/ticket-status.ts
 msgid "In progress"
@@ -5036,6 +5068,10 @@ msgstr ""
 #: src/pages/MessagingSettingsPanel.tsx
 #: src/pages/shell/registered-host-picker.tsx
 msgid "Revoke"
+msgstr ""
+
+#: src/pages/shell/create-bot-dialog.tsx
+msgid "Roleplay"
 msgstr ""
 
 #: src/pages/ExternalConversationSettings.tsx

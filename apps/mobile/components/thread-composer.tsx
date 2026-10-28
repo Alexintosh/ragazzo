@@ -39,11 +39,12 @@ type ThreadComposerProps = {
   working: boolean;
   sending: boolean;
   styles: { circleButton: ViewStyle; composerFill: ViewStyle };
+  attachmentsEnabled?: boolean;
   attachActions: MenuAction[];
   attachFrom: (source: string) => void;
   send: () => Promise<void>;
   stop: () => Promise<void>;
-  startVoiceCall: () => Promise<void>;
+  startVoiceCall?: () => Promise<void>;
   onSlashAction: (action: SlashActionId) => void;
 };
 
@@ -62,6 +63,7 @@ export function ThreadComposer({
   working,
   sending,
   styles,
+  attachmentsEnabled = true,
   attachActions,
   attachFrom,
   send,
@@ -302,26 +304,30 @@ export function ThreadComposer({
         </ScrollView>
       ) : null}
       <View style={{ flexDirection: "row", alignItems: "flex-end", gap: 10, marginTop: 8 }}>
-        <MenuView
-          actions={attachActions}
-          colorScheme={colorScheme}
-          onPressAction={(event) => attachFrom(event.nativeEvent.event)}
-        >
-          <View
-            accessible
-            accessibilityRole="button"
-            accessibilityLabel={t("Attach file")}
-            style={{ width: 44, height: 44 }}
+        {attachmentsEnabled ? (
+          <MenuView
+            actions={attachActions}
+            colorScheme={colorScheme}
+            onPressAction={(event) => {
+              if (attachmentsEnabled) attachFrom(event.nativeEvent.event);
+            }}
           >
-            <GlassSurface
-              shape="circle"
-              style={styles.circleButton}
-              fallbackStyle={styles.composerFill}
+            <View
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel={t("Attach file")}
+              style={{ width: 44, height: 44 }}
             >
-              <NativeSymbol ios="plus" android="add" size={18} color={tokens.mutedForeground} />
-            </GlassSurface>
-          </View>
-        </MenuView>
+              <GlassSurface
+                shape="circle"
+                style={styles.circleButton}
+                fallbackStyle={styles.composerFill}
+              >
+                <NativeSymbol ios="plus" android="add" size={18} color={tokens.mutedForeground} />
+              </GlassSurface>
+            </View>
+          </MenuView>
+        ) : null}
         <GlassSurface
           shape="roundedRectangle"
           style={{
@@ -493,7 +499,7 @@ export function ThreadComposer({
               />
             </Pressable>
           </View>
-          {!canSend && botId && !onCall ? (
+          {!canSend && botId && !onCall && startVoiceCall ? (
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={t("Call")}

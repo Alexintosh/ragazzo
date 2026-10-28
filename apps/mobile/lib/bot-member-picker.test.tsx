@@ -251,3 +251,11 @@ it("keeps members closed while a save is running", async () => {
   expect(openButtons().every((button) => button.disabled)).toBe(true);
   await act(async () => finish());
 });
+
+
+it("excludes Roleplay bots from native group member choices", async () => {
+  await act(async () => root.render(
+    <BotMemberPicker bots={[...bots, { ...bots[0]!, id: "rp", name: "Aster", botKind: "roleplay" }]} selected={[]} onChange={() => undefined} initiallyExpanded />
+  ));
+  expect(container.textContent).not.toContain("Aster");
+});

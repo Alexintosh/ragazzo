@@ -623,7 +623,16 @@ export default function BotSettingsScreen() {
             }}
           />
         </View>
-        <View style={{ marginTop: 16 }}>
+        {bot?.botKind === "roleplay" ? (
+          <View style={{ marginTop: 16, gap: 8 }}>
+            <SettingsSectionHeading>{t("Character")}</SettingsSectionHeading>
+            <Text style={{ color: tokens.foreground }}>{bot.roleplayCharacter?.name}</Text>
+            <Text style={{ color: tokens.mutedForeground }}>
+              {bot.roleplayCharacter?.description}
+            </Text>
+          </View>
+        ) : (
+          <View style={{ marginTop: 16 }}>
           <View>
             <View
               style={{
@@ -699,6 +708,7 @@ export default function BotSettingsScreen() {
             />
           </View>
         </View>
+        )}
         <View style={{ marginTop: 24 }}>
           <SettingsGroup label={t("Notifications")}>
             <View style={styles.row}>
@@ -713,7 +723,9 @@ export default function BotSettingsScreen() {
             </View>
           </SettingsGroup>
         </View>
-        {botId ? <BotContextCards key={botId} botId={botId} /> : null}
+        {botId && bot?.botKind !== "roleplay" ? (
+          <BotContextCards key={botId} botId={botId} />
+        ) : null}
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={t("Advanced")}
@@ -741,7 +753,8 @@ export default function BotSettingsScreen() {
                 scrollRef.current?.scrollTo({ y: modelY.current, animated: true });
             }}
           >
-            <SettingsGroup label={t("Runtime")}>
+            {bot?.botKind !== "roleplay" ? (
+              <SettingsGroup label={t("Runtime")}>
               <MenuPicker
                 plain
                 showLabel={false}
@@ -859,6 +872,7 @@ export default function BotSettingsScreen() {
                 </>
               ) : null}
             </SettingsGroup>
+            ) : null}
             {runtimeKind === "pi" ? (
               <SettingsGroup label={t("Model")}>
                 <MenuPicker
@@ -895,9 +909,11 @@ export default function BotSettingsScreen() {
               </Text>
             ) : null}
 
-            <SettingsGroup label={t("Computer")}>
+            {bot?.botKind !== "roleplay" ? (
+              <SettingsGroup label={t("Computer")}>
               <ComputerModePicker plain value={computerMode} onChange={setComputerMode} />
             </SettingsGroup>
+            ) : null}
             <SettingsGroup label={t("Voice")}>
               <View style={styles.row}>
                 <Text style={[styles.rowLabel, { color: tokens.foreground }]}>
@@ -924,7 +940,8 @@ export default function BotSettingsScreen() {
                 )
               ) : null}
             </SettingsGroup>
-            <SettingsGroup label={t("Permissions")}>
+            {bot?.botKind !== "roleplay" ? (
+              <SettingsGroup label={t("Permissions")}>
               <View style={styles.row}>
                 <Text style={[styles.rowLabel, { color: tokens.foreground }]}>
                   {t("Allow cross-space bot communication")}
@@ -961,6 +978,7 @@ export default function BotSettingsScreen() {
                 />
               </View>
             </SettingsGroup>
+            ) : null}
             <SettingsGroup label={t("Description")}>
               <Text style={{ color: tokens.mutedForeground, fontSize: 12 }}>
                 {t("How other bots see it")}
