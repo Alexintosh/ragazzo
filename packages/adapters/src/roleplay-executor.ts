@@ -1,16 +1,20 @@
 import { runContinueJob } from "@rakazo/adapter-kit";
+import type { RoleplayContinuity } from "@rakazo/contracts";
 import { RoleplayCharacterSchema } from "@rakazo/contracts";
 import type { RoleplayMessage, RoleplayStoryState } from "@rakazo/core";
 import {
+  buildRoleplayContinuityRequest,
   buildRoleplayPrompt,
   createStreamingRedactor,
   displayName,
   MISSING_MODEL_RUN_ERROR,
+  parseRoleplayContinuity,
   redactSecrets,
   roleplayMemoryWindow,
   roleplayStoryState,
   roleplayTokens,
   STEERING_CONTINUATION_PROMPT,
+  splitRoleplayChatMessages,
   userRunError,
 } from "@rakazo/core";
 import type { Run } from "@rakazo/db";
@@ -107,12 +111,14 @@ export async function collectRoleplayText(
   runtime: RoleplayRuntime,
   request: RoleplayRunRequest,
   signal: AbortSignal,
+  maxTextLength = Number.POSITIVE_INFINITY,
 ): Promise<string> {
   let text = "";
   for await (const event of runtime.run(request, signal)) {
     signal.throwIfAborted();
     if (event.type === "text") text += event.text;
     if (event.type === "done") text = event.text;
+    if (text.length > maxTextLength) throw new Error("The roleplay model returned too much text");
   }
   if (!text.trim()) throw new Error("The roleplay model returned no text");
   return text;
@@ -366,16 +372,29 @@ export async function executeRoleplayRun(
       model.contextWindow ?? resolveRuntimeModel(model).model?.contextWindow ?? 16_384;
     const outputBudget = Math.min(model.maxTokens ?? 4096, Math.floor(contextWindow / 3));
     const inputBudget = Math.max(1, contextWindow - outputBudget - 1024);
-    const initial = buildRoleplayPrompt({
+    const initialInput = {
       character,
       history: [],
       prompt: promptText,
       summary: state.summary,
+      continuity: undefined,
       loreTokenLimit: 0,
-    });
-    const fixedTokens = roleplayTokens(initial.instructions + promptText) + 32;
-    if (fixedTokens > inputBudget)
+    };
+    const bare = buildRoleplayPrompt(initialInput);
+    const bareTokens = roleplayTokens(bare.instructions + bare.prompt) + 32;
+    if (bareTokens > inputBudget)
       throw new Error("This character and message exceed the model context window");
+    // Durable state can outlive a switch to a smaller model. Bound only the prompt copy,
+    // preserving the saved snapshot and reserving room for recent dialogue.
+    const initial = boundedContinuityPrompt(
+      {
+        ...initialInput,
+        continuity: character.conversationStyle === "chat" ? state.continuity : undefined,
+      },
+      bareTokens + Math.floor((inputBudget - bareTokens) / 2),
+    );
+    let promptContinuity = initial.continuity;
+    const fixedTokens = roleplayTokens(initial.prompt.instructions + initial.prompt.prompt) + 32;
     const dialogueBudget = Math.max(0, Math.floor((inputBudget - fixedTokens) * 0.7));
     const window = roleplayMemoryWindow(history, dialogueBudget);
     if (window.older.length) {
@@ -394,13 +413,19 @@ export async function executeRoleplayRun(
       (sum, message) => sum + roleplayTokens(message.content) + 8,
       0,
     );
-    const withoutLore = buildRoleplayPrompt({
-      character,
-      history,
-      prompt: promptText,
-      summary: state.summary,
-      loreTokenLimit: 0,
-    });
+    const fitted = boundedContinuityPrompt(
+      {
+        character,
+        history,
+        prompt: promptText,
+        summary: state.summary,
+        continuity: promptContinuity,
+        loreTokenLimit: 0,
+      },
+      inputBudget - historyTokens,
+    );
+    promptContinuity = fitted.continuity;
+    const withoutLore = fitted.prompt;
     const remaining =
       inputBudget -
       historyTokens -
@@ -412,6 +437,7 @@ export async function executeRoleplayRun(
       history,
       prompt: promptText,
       summary: state.summary,
+      continuity: promptContinuity,
       loreTokenLimit: remaining,
     });
     await deps.events.append({
@@ -458,7 +484,32 @@ export async function executeRoleplayRun(
     pending += redactor.finish();
     await publishProgress(true);
     if (!assembled.trim()) throw new Error("The roleplay model returned no text");
-    if (!(await renewRunLease(deps, run.id, workerId, fence))) return;
+    await checkOwnership();
+    signal.throwIfAborted();
+    const reply = redactSecrets(assembled, secrets);
+    if (character.conversationStyle === "chat") {
+      state = await refreshContinuity(
+        runtime,
+        base,
+        state,
+        [
+          ...history,
+          ...currentInputs,
+          { seq: thread.nextMessageSeq, role: "assistant", content: reply },
+        ],
+        signal,
+        inputBudget,
+        secrets,
+        Math.min(1024, outputBudget),
+      );
+    }
+    signal.throwIfAborted();
+    const [runValid, computerValid] = await Promise.all([
+      renewRunLease(deps, run.id, workerId, fence),
+      renewComputerExecutionLease(deps.prisma, computerLease),
+    ]);
+    signal.throwIfAborted();
+    if (!runValid || !computerValid) return;
     // A queued user input can predate an older answer now included in the summary.
     // Preserve that input explicitly until a later compaction covers this turn too.
     state.retainedInputs = [
@@ -469,6 +520,8 @@ export async function executeRoleplayRun(
         ].map((message) => [message.seq, message]),
       ).values(),
     ];
+    const replies =
+      character.conversationStyle === "chat" ? splitRoleplayChatMessages(reply) : [reply];
     const result = await deps.events.finalizeRun({
       spaceId: run.spaceId,
       threadId: thread.id,
@@ -479,7 +532,10 @@ export async function executeRoleplayRun(
       leaseOwner: workerId,
       leaseFence: fence,
       outcome: "completed",
-      blocks: [{ kind: "text", text: redactSecrets(assembled, secrets) }],
+      blocks: [{ kind: "text", text: replies[0]! }],
+      ...(replies.length > 1
+        ? { additionalMessages: replies.slice(1).map((text) => [{ kind: "text" as const, text }]) }
+        : {}),
       roleplayState: {
         ...state,
         retainedInputs: state.retainedInputs.map(({ seq, role, content }) => ({
@@ -548,6 +604,124 @@ export async function executeRoleplayRun(
       getLogger().error("roleplay computer lease release", error),
     );
     if (computerLease) scheduleComputerSleep(deps.jobs, computerLease.computerId);
+  }
+}
+
+function boundedContinuityPrompt(
+  input: Parameters<typeof buildRoleplayPrompt>[0],
+  tokenBudget: number,
+): { prompt: ReturnType<typeof buildRoleplayPrompt>; continuity: RoleplayContinuity | undefined } {
+  let continuity = input.continuity;
+  let prompt = buildRoleplayPrompt(input);
+  while (continuity && roleplayTokens(prompt.instructions + prompt.prompt) + 32 > tokenBudget) {
+    continuity = smallerContinuity(continuity);
+    prompt = buildRoleplayPrompt({ ...input, continuity });
+  }
+  return { prompt, continuity };
+}
+
+/** Remove whole facts so context fitting never changes a negation or condition. */
+function smallerContinuity(continuity: RoleplayContinuity): RoleplayContinuity | undefined {
+  if (continuity.callbacks.length)
+    return { ...continuity, callbacks: continuity.callbacks.slice(0, -1) };
+  if (continuity.openThreads.length)
+    return { ...continuity, openThreads: continuity.openThreads.slice(0, -1) };
+  if (continuity.sharedDetails.length)
+    return { ...continuity, sharedDetails: continuity.sharedDetails.slice(0, -1) };
+  if (continuity.scene) return { ...continuity, scene: "" };
+  if (continuity.relationship) return { ...continuity, relationship: "" };
+  return undefined;
+}
+
+/** An optional, hidden completion must never turn an already successful reply into a failure. */
+async function refreshContinuity(
+  runtime: RoleplayRuntime,
+  base: Pick<
+    RoleplayRunRequest,
+    "runId" | "botId" | "threadId" | "historyGeneration" | "model" | "onUsage"
+  >,
+  state: RoleplayStoryState,
+  messages: RoleplayMessage[],
+  signal: AbortSignal,
+  inputBudget: number,
+  secrets: string[],
+  maxTokens: number,
+): Promise<RoleplayStoryState> {
+  let recent = messages;
+  let summary = state.summary;
+  let continuity = state.continuity;
+  let prompt = buildRoleplayContinuityRequest({
+    current: continuity,
+    summary,
+    messages: recent,
+  });
+  const fits = () =>
+    roleplayTokens(
+      redactSecrets(prompt.instructions, secrets) + redactSecrets(prompt.prompt, secrets),
+    ) +
+      32 <=
+    inputBudget;
+  // Keep the current exchange, trimming older material before giving up on a small model.
+  while (!fits() && recent.length > 2) {
+    recent = recent.slice(1);
+    prompt = buildRoleplayContinuityRequest({
+      current: continuity,
+      summary,
+      messages: recent,
+    });
+  }
+  while (!fits() && summary) {
+    summary = summary.slice(0, Math.floor(summary.length / 2));
+    prompt = buildRoleplayContinuityRequest({
+      current: continuity,
+      summary,
+      messages: recent,
+    });
+  }
+  while (!fits() && continuity) {
+    continuity = smallerContinuity(continuity);
+    prompt = buildRoleplayContinuityRequest({ current: continuity, summary, messages: recent });
+  }
+  if (!fits()) return state;
+  const controller = new AbortController();
+  const boundedSignal = AbortSignal.any([signal, controller.signal]);
+  const timeout = setTimeout(() => controller.abort(), 8_000);
+  timeout.unref?.();
+  let abort!: () => void;
+  const aborted = new Promise<never>((_resolve, reject) => {
+    abort = () => reject(boundedSignal.reason);
+    if (boundedSignal.aborted) abort();
+    else boundedSignal.addEventListener("abort", abort, { once: true });
+  });
+  try {
+    signal.throwIfAborted();
+    const text = await Promise.race([
+      collectRoleplayText(
+        runtime,
+        {
+          ...base,
+          ...prompt,
+          instructions: redactSecrets(prompt.instructions, secrets),
+          prompt: redactSecrets(prompt.prompt, secrets),
+          history: [],
+          purpose: "continuity",
+          model: { ...base.model, maxTokens },
+        },
+        boundedSignal,
+        16_384,
+      ),
+      aborted,
+    ]);
+    signal.throwIfAborted();
+    const extracted = parseRoleplayContinuity(redactSecrets(text, secrets));
+    return extracted ? { ...state, continuity: extracted } : state;
+  } catch {
+    signal.throwIfAborted();
+    return state;
+  } finally {
+    clearTimeout(timeout);
+    boundedSignal.removeEventListener("abort", abort);
+    controller.abort();
   }
 }
 

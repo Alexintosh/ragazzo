@@ -121,6 +121,32 @@ describe("dedicated roleplay runtime", () => {
     expect(fake.agent).not.toHaveBeenCalled();
   });
 
+  it.each(["memory", "continuity"] as const)(
+    "accounts for hidden %s completions as compaction with no tools",
+    async (purpose) => {
+      const usage = vi.fn();
+      fake.stream.mockImplementation((model: Model<"openai-completions">) => {
+        const stream = new AssistantMessageEventStream();
+        const message = answer(model, "{}");
+        queueMicrotask(() => {
+          stream.push({ type: "done", reason: "stop", message });
+          stream.end(message);
+        });
+        return stream;
+      });
+      for await (const _event of new InternalRoleplayRuntime().run(
+        { ...request, purpose, history: [], onUsage: usage },
+        new AbortController().signal,
+      )) {
+        /* consume */
+      }
+      expect(usage).toHaveBeenCalledWith(expect.objectContaining({ operationKind: "compaction" }));
+      expect(fake.stream.mock.calls[0]![1].tools).toBeUndefined();
+      expect(fake.stream.mock.calls[0]![2].sessionId).toBe(`roleplay:story:character:0:${purpose}`);
+      expect(fake.agent).not.toHaveBeenCalled();
+    },
+  );
+
   it("rejects unsolicited tool calls without executing or continuing them", async () => {
     fake.stream.mockImplementation((model: Model<"openai-completions">) => {
       const stream = new AssistantMessageEventStream();

@@ -51,6 +51,13 @@ const character: RoleplayCharacter = {
   postHistoryInstructions: "",
   lorebook: null,
 };
+const continuity = {
+  scene: "Beside the forest gate",
+  relationship: "New travel companions",
+  sharedDetails: ["They found a map"],
+  openThreads: ["Find the hidden path"],
+  callbacks: ["The lantern keeps flickering"],
+};
 function fixture() {
   const run = {
     id: "turn",
@@ -281,6 +288,314 @@ beforeEach(() => {
   fake.notify.mockReset().mockResolvedValue(undefined);
 });
 afterEach(() => vi.useRealTimers());
+
+describe("roleplay chat continuity", () => {
+  function chatFixture() {
+    const f = fixture();
+    f.bot.roleplayCharacter = { ...character, conversationStyle: "chat" };
+    f.thread.roleplayState = {
+      ...roleplayStoryState(null, { threadId: "story", botId: "aria", historyGeneration: 0 }),
+      continuity,
+    };
+    return f;
+  }
+  const execute = (f: ReturnType<typeof fixture>) =>
+    executeRoleplayRun(f.deps, f.runtime, f.run as unknown as Run, {
+      workerId: "worker",
+      fence: 1,
+    });
+
+  it("commits three real chat bubbles with a redacted, scoped continuity snapshot", async () => {
+    const f = chatFixture();
+    f.runtime.run = vi.fn(async function* (request) {
+      f.requests.push(request);
+      const text =
+        request.purpose === "continuity"
+          ? JSON.stringify({
+              ...continuity,
+              scene: "The path ahead",
+              sharedDetails: ["fake-model-secret"],
+            })
+          : "I found it.\n\nLook here.\n\nBring the lantern.\n\nCareful now.";
+      yield { type: "text" as const, text };
+      yield { type: "done" as const, text };
+    });
+    await execute(f);
+    expect(f.requests.map((request) => request.purpose)).toEqual(["dialogue", "continuity"]);
+    expect(f.requests[0]!.instructions).toContain(continuity.scene);
+    const extracted = f.requests[1]!;
+    expect(extracted.model.maxTokens).toBeLessThanOrEqual(1024);
+    expect(extracted.history).toEqual([]);
+    const data = JSON.parse(extracted.prompt);
+    expect(data.priorContinuity).toEqual(continuity);
+    expect(data.recentMessages.slice(-2).map((message: { role: string }) => message.role)).toEqual([
+      "user",
+      "assistant",
+    ]);
+    expect(extracted.prompt).not.toContain("OTHER BOT SECRET");
+    expect(extracted.prompt).not.toContain("UNCLAIMED FUTURE INPUT");
+    expect(f.finalizeRun).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({
+        outcome: "completed",
+        blocks: [{ kind: "text", text: "I found it." }],
+        additionalMessages: [
+          [{ kind: "text", text: "Look here." }],
+          [{ kind: "text", text: "Bring the lantern.\n\nCareful now." }],
+        ],
+        roleplayState: expect.objectContaining({
+          continuity: { ...continuity, scene: "The path ahead", sharedDetails: ["[redacted]"] },
+        }),
+      }),
+    );
+    expect(JSON.stringify(vi.mocked(f.deps.events.append).mock.calls)).not.toContain(
+      "sharedDetails",
+    );
+    expect(f.forbidden).not.toHaveBeenCalled();
+  });
+
+  it.each(["malformed", "provider error", "oversized"])(
+    "keeps the successful reply and previous snapshot after %s extraction",
+    async (failure) => {
+      const f = chatFixture();
+      f.runtime.run = vi.fn(async function* (request) {
+        f.requests.push(request);
+        if (request.purpose === "continuity" && failure === "provider error")
+          throw new Error("Unavailable");
+        const text =
+          request.purpose !== "continuity"
+            ? "Onward."
+            : failure === "oversized"
+              ? "x".repeat(20_000)
+              : '{"scene":"partial"}';
+        yield { type: "done" as const, text };
+      });
+      await execute(f);
+      expect(f.finalizeRun).toHaveBeenCalledExactlyOnceWith(
+        expect.objectContaining({
+          outcome: "completed",
+          blocks: [{ kind: "text", text: "Onward." }],
+          roleplayState: expect.objectContaining({ continuity }),
+        }),
+      );
+    },
+  );
+
+  it("leaves narrative mode as one completion without injecting an older chat snapshot", async () => {
+    const f = chatFixture();
+    f.bot.roleplayCharacter = { ...character, conversationStyle: "narrative" };
+    await execute(f);
+    expect(f.requests.map((request) => request.purpose)).toEqual(["dialogue"]);
+    expect(f.requests[0]!.instructions).not.toContain(continuity.scene);
+    expect(f.thread.roleplayState).toMatchObject({ continuity });
+    expect(f.finalizeRun.mock.calls[0]![0]).not.toHaveProperty("additionalMessages");
+  });
+
+  it("times out a quiet extraction without delaying or failing the successful reply indefinitely", async () => {
+    vi.useFakeTimers();
+    const f = chatFixture();
+    let entered!: () => void;
+    const ready = new Promise<void>((resolve) => {
+      entered = resolve;
+    });
+    let extractionSignal: AbortSignal | undefined;
+    f.runtime.run = vi.fn(async function* (request, signal) {
+      if (request.purpose === "dialogue") {
+        yield { type: "done" as const, text: "Onward." };
+        return;
+      }
+      extractionSignal = signal;
+      entered();
+      await new Promise<void>((resolve) =>
+        signal.addEventListener("abort", () => resolve(), { once: true }),
+      );
+      signal.throwIfAborted();
+    });
+    const running = execute(f);
+    await ready;
+    await vi.advanceTimersByTimeAsync(8_000);
+    await running;
+    expect(extractionSignal?.aborted).toBe(true);
+    expect(f.finalizeRun).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({
+        outcome: "completed",
+        roleplayState: expect.objectContaining({ continuity }),
+      }),
+    );
+  });
+
+  it.each(["cancel", "lease"])(
+    "never finalizes a successful reply after %s loss during extraction",
+    async (loss) => {
+      const f = chatFixture();
+      const controller = new AbortController();
+      f.deps.shutdownSignal = controller.signal;
+      f.runtime.run = vi.fn(async function* (request) {
+        if (request.purpose === "continuity") {
+          if (loss === "cancel") controller.abort();
+          else {
+            f.run.leaseFence = 2;
+            f.run.leaseOwner = "replacement";
+          }
+        }
+        yield {
+          type: "done" as const,
+          text: request.purpose === "continuity" ? JSON.stringify(continuity) : "Onward.",
+        };
+      });
+      const before = f.thread.roleplayState;
+      await execute(f);
+      expect(f.finalizeRun).not.toHaveBeenCalled();
+      expect(f.thread.roleplayState).toBe(before);
+    },
+  );
+
+  it("keeps continuity through compaction and fits every request inside the model budget", async () => {
+    const f = chatFixture();
+    f.rows.splice(
+      0,
+      f.rows.length,
+      ...Array.from({ length: 60 }, (_, seq) => ({
+        seq,
+        threadId: "story",
+        role: seq % 2 ? "user" : "bot",
+        botId: "aria",
+        blocks: [{ kind: "text", text: `Scene ${seq}: ${"ancient map ".repeat(120)}` }],
+      })),
+    );
+    fake.resolveModel.mockResolvedValue({
+      provider: "neutral",
+      id: "fiction-model",
+      contextWindow: 8192,
+      maxTokens: 1024,
+    });
+    await execute(f);
+    expect(f.requests.some((request) => request.purpose === "memory")).toBe(true);
+    expect(f.requests.at(-1)!.purpose).toBe("continuity");
+    const dialogue = f.requests.find((request) => request.purpose === "dialogue")!;
+    expect(dialogue.instructions).toContain(continuity.scene);
+    expect(f.thread.roleplayState).toMatchObject({ continuity, summary: "Scoped story memory." });
+    for (const request of f.requests) {
+      const input =
+        roleplayTokens(request.instructions + request.prompt) +
+        request.history.reduce((sum, message) => sum + roleplayTokens(message.content) + 8, 0) +
+        32;
+      expect(input + request.model.maxTokens!).toBeLessThanOrEqual(8192);
+    }
+  });
+
+  it.each([4096, 3072])(
+    "bounds the prompt copy after switching to a %i-token model and preserves the full snapshot",
+    async (contextWindow) => {
+      const f = chatFixture();
+      const large = {
+        scene: "scene ".repeat(133),
+        relationship: "relationship ".repeat(61),
+        sharedDetails: Array(12).fill("detail ".repeat(57)),
+        openThreads: Array(8).fill("thread ".repeat(57)),
+        callbacks: Array(8).fill("callback ".repeat(44)),
+      };
+      f.thread.roleplayState = {
+        ...roleplayStoryState(null, { threadId: "story", botId: "aria", historyGeneration: 0 }),
+        continuity: large,
+      };
+      fake.resolveModel.mockResolvedValue({
+        provider: "neutral",
+        id: "small-fiction-model",
+        contextWindow,
+        maxTokens: 2048,
+      });
+      await execute(f);
+      expect(f.run.status).toBe("completed");
+      expect(f.requests[0]!.purpose).toBe("dialogue");
+      expect(f.thread.roleplayState).toMatchObject({ continuity: large });
+      for (const request of f.requests) {
+        const cost =
+          roleplayTokens(request.instructions + request.prompt) +
+          request.history.reduce((sum, message) => sum + roleplayTokens(message.content) + 8, 0) +
+          32;
+        expect(cost + request.model.maxTokens!).toBeLessThanOrEqual(contextWindow);
+      }
+    },
+  );
+
+  it.each([4096, 3072])(
+    "still updates an oversized prior snapshot after switching to a %i-token model",
+    async (contextWindow) => {
+      const f = chatFixture();
+      const large = {
+        scene: "scene ".repeat(133),
+        relationship: "relationship ".repeat(61),
+        sharedDetails: Array(12).fill("detail ".repeat(57)),
+        openThreads: Array(8).fill("thread ".repeat(57)),
+        callbacks: Array(8).fill("callback ".repeat(44)),
+      };
+      f.thread.roleplayState = {
+        ...roleplayStoryState(null, { threadId: "story", botId: "aria", historyGeneration: 0 }),
+        continuity: large,
+      };
+      fake.resolveModel.mockResolvedValue({
+        provider: "neutral",
+        id: "small-fiction-model",
+        contextWindow,
+        maxTokens: 2048,
+      });
+      const updated = { ...continuity, scene: "By the stream" };
+      f.runtime.run = vi.fn(async function* (request) {
+        f.requests.push(request);
+        yield {
+          type: "done" as const,
+          text:
+            request.purpose === "continuity" ? JSON.stringify(updated) : "We reached the stream.",
+        };
+      });
+      await execute(f);
+      const request = f.requests.find((request) => request.purpose === "continuity")!;
+      expect(request).toBeDefined();
+      expect(
+        roleplayTokens(request.instructions + request.prompt) + request.model.maxTokens! + 32,
+      ).toBeLessThanOrEqual(contextWindow);
+      const prior = JSON.parse(request.prompt).priorContinuity;
+      if (prior) {
+        expect(["", large.scene]).toContain(prior.scene);
+        expect(["", large.relationship]).toContain(prior.relationship);
+        for (const field of ["sharedDetails", "openThreads", "callbacks"] as const)
+          for (const value of prior[field]) expect(large[field]).toContain(value);
+      }
+      expect(f.thread.roleplayState).toMatchObject({ continuity: updated });
+    },
+  );
+
+  it("polls persisted cancellation during a quiet extraction and commits neither reply nor snapshot", async () => {
+    vi.useFakeTimers();
+    const f = chatFixture();
+    const before = f.thread.roleplayState;
+    let entered!: () => void;
+    const ready = new Promise<void>((resolve) => {
+      entered = resolve;
+    });
+    let extractionSignal: AbortSignal | undefined;
+    f.runtime.run = vi.fn(async function* (request, signal) {
+      if (request.purpose === "dialogue") {
+        yield { type: "done" as const, text: "Onward." };
+        return;
+      }
+      extractionSignal = signal;
+      entered();
+      await new Promise<void>((resolve) =>
+        signal.addEventListener("abort", () => resolve(), { once: true }),
+      );
+      signal.throwIfAborted();
+    });
+    const running = execute(f);
+    await ready;
+    f.run.status = "cancelled";
+    await vi.advanceTimersByTimeAsync(1000);
+    await running;
+    expect(extractionSignal?.aborted).toBe(true);
+    expect(f.finalizeRun).not.toHaveBeenCalled();
+    expect(f.thread.roleplayState).toBe(before);
+  });
+});
 
 describe("roleplay executor boundary", () => {
   it("branches from real run execution before normal agent context and operational tools", async () => {

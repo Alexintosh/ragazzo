@@ -1,6 +1,22 @@
 import * as z from "zod";
 
 export const ROLEPLAY_IMPORT_MAX_BYTES = 1_048_576;
+export const ROLEPLAY_CONTINUITY_MAX_BYTES = 16_384;
+export const RoleplayConversationStyleSchema = z.enum(["narrative", "chat"]);
+export const RoleplayContinuitySchema = z
+  .strictObject({
+    scene: z.string().max(800),
+    relationship: z.string().max(800),
+    sharedDetails: z.array(z.string().max(400)).max(12),
+    openThreads: z.array(z.string().max(400)).max(8),
+    callbacks: z.array(z.string().max(400)).max(8),
+  })
+  .refine(
+    (value) =>
+      new TextEncoder().encode(JSON.stringify(value)).length <= ROLEPLAY_CONTINUITY_MAX_BYTES,
+    { message: "Story continuity exceeds the memory limit" },
+  );
+export type RoleplayContinuity = z.infer<typeof RoleplayContinuitySchema>;
 const text = z.string().max(100_000);
 export const BotKindSchema = z.enum(["agent", "roleplay"]);
 export const RoleplayLorebookEntrySchema = z.object({
@@ -18,6 +34,7 @@ export type RoleplayLorebookEntry = z.infer<typeof RoleplayLorebookEntrySchema>;
 export const RoleplayCharacterSchema = z
   .object({
     name: z.string().trim().min(1).max(500),
+    conversationStyle: RoleplayConversationStyleSchema.optional(),
     description: text,
     personality: text,
     scenario: text,
@@ -78,8 +95,28 @@ export function parseRoleplayCharacterJson(source: string): {
     throw new Error("Unsupported character card format");
   const data = root.spec ? record(root.data) : root;
   const extensions = data.extensions;
-  if (extensions && Object.keys(record(extensions)).length)
-    warnings.add("Character extensions, scripts, triggers, and assets are not imported.");
+  let extensionStyle: unknown;
+  if (extensions) {
+    const entries = record(extensions);
+    let unsupported = false;
+    for (const [namespace, value] of Object.entries(entries)) {
+      if (namespace !== "rakazo") {
+        unsupported = true;
+        continue;
+      }
+      if (!value || typeof value !== "object" || Array.isArray(value)) {
+        unsupported = true;
+        continue;
+      }
+      const rakazo = record(value);
+      extensionStyle = rakazo.conversation_style;
+      if (Object.keys(rakazo).some((key) => key !== "conversation_style")) unsupported = true;
+    }
+    if (unsupported)
+      warnings.add("Character extensions, scripts, triggers, and assets are not imported.");
+  }
+  const conversationStyle =
+    data.conversationStyle === undefined ? extensionStyle : data.conversationStyle;
   for (const field of [
     "scripts",
     "triggerscript",
@@ -145,6 +182,7 @@ export function parseRoleplayCharacterJson(source: string): {
   }
   const character = RoleplayCharacterSchema.parse({
     name: string(data.name),
+    ...(conversationStyle === undefined ? {} : { conversationStyle }),
     description: string(data.description ?? data.desc),
     personality: string(data.personality),
     scenario: string(data.scenario),

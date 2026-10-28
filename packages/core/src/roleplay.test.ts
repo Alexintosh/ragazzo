@@ -2,6 +2,8 @@ import type { RoleplayCharacter, RoleplayLorebookEntry } from "@rakazo/contracts
 import { describe, expect, it } from "vitest";
 import {
   buildRoleplayPrompt,
+  ROLEPLAY_CHAT_INSTRUCTION,
+  ROLEPLAY_NARRATIVE_INSTRUCTION,
   roleplayMacros,
   roleplayMemoryWindow,
   roleplayStoryState,
@@ -42,6 +44,34 @@ const character: RoleplayCharacter = {
 const scope = { threadId: "story-a", botId: "aria", historyGeneration: 0 };
 
 describe("roleplay prompt engine", () => {
+  it("selects chat instruction only explicitly and keeps continuity separate from examples", () => {
+    const continuity = {
+      scene: "Still messaging",
+      relationship: "New acquaintances",
+      sharedDetails: ["Player prefers tea"],
+      openThreads: ["A cafe was suggested, not agreed"],
+      callbacks: [],
+    };
+    const legacy = buildRoleplayPrompt({ character, history: [], prompt: "Hi" });
+    const narrative = buildRoleplayPrompt({
+      character: { ...character, conversationStyle: "narrative" },
+      history: [],
+      prompt: "Hi",
+    });
+    const chat = buildRoleplayPrompt({
+      character: { ...character, conversationStyle: "chat" },
+      history: [],
+      prompt: "Hi",
+      continuity,
+    });
+    expect(legacy.instructions).toBe(narrative.instructions);
+    expect(legacy.instructions.startsWith(ROLEPLAY_NARRATIVE_INSTRUCTION)).toBe(true);
+    expect(legacy.instructions).not.toContain(ROLEPLAY_CHAT_INSTRUCTION);
+    expect(chat.instructions).toContain(ROLEPLAY_CHAT_INSTRUCTION);
+    expect(chat.instructions).toContain(JSON.stringify(continuity));
+    expect(legacy.instructions).not.toContain(JSON.stringify(continuity));
+    expect(roleplayTokens(chat.instructions)).toBeGreaterThan(roleplayTokens(legacy.instructions));
+  });
   it("keeps character, scene, example dialogue and narrative history distinct", () => {
     const history = [{ seq: 1, role: "assistant" as const, content: "Welcome to the forest." }];
     const prompt = buildRoleplayPrompt({
@@ -126,6 +156,32 @@ describe("roleplay prompt engine", () => {
 });
 
 describe("story memory isolation", () => {
+  it("preserves legacy state when continuity is absent or independently invalid", () => {
+    const state = {
+      ...roleplayStoryState(null, scope),
+      summary: "An established event",
+      summarizedUpToSeq: 3,
+      turnCount: 2,
+      retainedInputs: [{ seq: 2, role: "user" as const, content: "A queued input" }],
+    };
+    expect(roleplayStoryState(state, scope)).toEqual(state);
+    for (const continuity of [null, {}, { scene: "x".repeat(801) }]) {
+      expect(roleplayStoryState({ ...state, continuity }, scope)).toEqual(state);
+    }
+    const continuity = {
+      scene: "A cafe",
+      relationship: "Friends",
+      sharedDetails: ["Tea"],
+      openThreads: [],
+      callbacks: [],
+    };
+    const restored = roleplayStoryState({ ...state, continuity }, scope);
+    expect(restored.continuity).toEqual(continuity);
+    continuity.sharedDetails.push("Later mutation");
+    expect(restored.continuity?.sharedDetails).toEqual(["Tea"]);
+    for (const changed of [{ threadId: "story-b" }, { botId: "other" }, { historyGeneration: 1 }])
+      expect(roleplayStoryState(restored, { ...scope, ...changed }).continuity).toBeUndefined();
+  });
   it("accepts only the exact bot, thread and history generation", () => {
     const state = {
       ...roleplayStoryState(null, scope),

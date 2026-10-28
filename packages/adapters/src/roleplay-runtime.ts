@@ -22,7 +22,7 @@ export interface RoleplayRunRequest {
   threadId: string;
   botId: string;
   historyGeneration: number;
-  purpose: "dialogue" | "memory";
+  purpose: "dialogue" | "memory" | "continuity";
   model: AgentRunModel;
   instructions: string;
   history: RoleplayMessage[];
@@ -150,7 +150,7 @@ export class InternalRoleplayRuntime implements RoleplayRuntime {
           () => undefined,
           request.model.callObserver,
           {
-            operationKind: request.purpose === "memory" ? "compaction" : "answer",
+            operationKind: request.purpose === "dialogue" ? "answer" : "compaction",
             runId: request.runId,
           },
           { recordUsage: request.onUsage },

@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { BotSchema, CreateBotInput } from "./domain.js";
-import { parseRoleplayCharacterJson, ROLEPLAY_IMPORT_MAX_BYTES } from "./roleplay.js";
+import {
+  parseRoleplayCharacterJson,
+  ROLEPLAY_IMPORT_MAX_BYTES,
+  RoleplayCharacterSchema,
+  RoleplayContinuitySchema,
+} from "./roleplay.js";
 
 const plain = {
   name: "Mira",
@@ -74,6 +79,41 @@ describe("roleplay character imports", () => {
     expect(imported.warnings.length).toBe(2);
     expect(JSON.stringify(imported.character)).not.toContain("untrusted");
   });
+  it("keeps old cards unchanged and accepts only the supported conversation style extension", () => {
+    const legacy = parseRoleplayCharacterJson(JSON.stringify(plain)).character;
+    expect(legacy).not.toHaveProperty("conversationStyle");
+    expect(RoleplayCharacterSchema.parse(legacy)).toEqual(legacy);
+    for (const conversationStyle of ["chat", "narrative"] as const) {
+      expect(
+        parseRoleplayCharacterJson(JSON.stringify({ ...plain, conversationStyle })).character
+          .conversationStyle,
+      ).toBe(conversationStyle);
+      const imported = parseRoleplayCharacterJson(
+        JSON.stringify({
+          spec: "chara_card_v2",
+          data: { ...plain, extensions: { rakazo: { conversation_style: conversationStyle } } },
+        }),
+      );
+      expect(imported.character.conversationStyle).toBe(conversationStyle);
+      expect(imported.warnings).toEqual([]);
+    }
+    expect(
+      parseRoleplayCharacterJson(
+        JSON.stringify({
+          ...plain,
+          extensions: { rakazo: { conversation_style: "chat", script: "discard me" }, other: {} },
+        }),
+      ).warnings,
+    ).toHaveLength(1);
+    expect(() =>
+      parseRoleplayCharacterJson(
+        JSON.stringify({ ...plain, extensions: { rakazo: { conversation_style: "unknown" } } }),
+      ),
+    ).toThrow();
+    expect(() =>
+      parseRoleplayCharacterJson(JSON.stringify({ ...plain, conversationStyle: null })),
+    ).toThrow();
+  });
   it("supports Risu plain text aliases and lore", () => {
     expect(
       parseRoleplayCharacterJson(
@@ -103,6 +143,42 @@ describe("roleplay character imports", () => {
     " ".repeat(ROLEPLAY_IMPORT_MAX_BYTES + 1),
   ])("rejects malformed or oversized input", (input) => {
     expect(() => parseRoleplayCharacterJson(input)).toThrow();
+  });
+});
+
+describe("bounded story continuity contract", () => {
+  const empty = { scene: "", relationship: "", sharedDetails: [], openThreads: [], callbacks: [] };
+  it("accepts complete snapshots at field limits", () => {
+    expect(
+      RoleplayContinuitySchema.safeParse({
+        scene: "s".repeat(800),
+        relationship: "r".repeat(800),
+        sharedDetails: Array(12).fill("d".repeat(400)),
+        openThreads: Array(8).fill("t".repeat(400)),
+        callbacks: Array(8).fill("c".repeat(400)),
+      }).success,
+    ).toBe(true);
+  });
+  it.each([
+    { scene: "s".repeat(801) },
+    { relationship: "r".repeat(801) },
+    { sharedDetails: Array(13).fill("") },
+    { sharedDetails: ["d".repeat(401)] },
+    { openThreads: Array(9).fill("") },
+    { openThreads: ["t".repeat(401)] },
+    { callbacks: Array(9).fill("") },
+    { callbacks: ["c".repeat(401)] },
+    { callbacks: [1] },
+    { extra: "unsupported" },
+    {
+      sharedDetails: Array(12).fill("界".repeat(400)),
+      openThreads: Array(2).fill("界".repeat(400)),
+    },
+  ])("rejects out-of-contract snapshot %j", (overrides) => {
+    expect(RoleplayContinuitySchema.safeParse({ ...empty, ...overrides }).success).toBe(false);
+  });
+  it("requires all fields", () => {
+    expect(RoleplayContinuitySchema.safeParse({ scene: "" }).success).toBe(false);
   });
 });
 describe("roleplay creation contract", () => {

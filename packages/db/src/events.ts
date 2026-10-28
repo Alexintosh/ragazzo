@@ -161,6 +161,8 @@ export type FinalizeRunInput = FinalizeRunBase &
     | {
         outcome: "completed";
         blocks: MessageBlock[];
+        /** Additional text-only bubbles for a roleplay chat turn, committed with its state. */
+        additionalMessages?: MessageBlock[][];
         markUnread?: boolean;
         roleplayState?: Prisma.InputJsonValue;
       }
@@ -1712,6 +1714,32 @@ async function finalizeRunOnce(
       if (error instanceof RunHistoryWriteError) return null;
       throw error;
     }
+    if (input.outcome === "completed" && input.additionalMessages !== undefined) {
+      const replies = [input.blocks, ...input.additionalMessages];
+      if (
+        input.additionalMessages.length > 2 ||
+        replies.some(
+          (blocks) =>
+            !Array.isArray(blocks) ||
+            blocks.length === 0 ||
+            blocks.some(
+              (block) => !MessageBlockSchema.safeParse(block).success || block.kind !== "text",
+            ),
+        )
+      )
+        throw new Error("Roleplay chat replies support at most three text messages");
+      const bot = await tx.bot.findUnique({
+        where: { id: input.botId },
+        select: { botKind: true, roleplayCharacter: true },
+      });
+      const character = RoleplayCharacterSchema.safeParse(bot?.roleplayCharacter);
+      if (
+        bot?.botKind !== "roleplay" ||
+        !character.success ||
+        character.data.conversationStyle !== "chat"
+      )
+        throw new Error("Multiple replies require a roleplay chat character");
+    }
     const now = new Date();
     const terminal = await tx.run.updateMany({
       where: {
@@ -1790,11 +1818,16 @@ async function finalizeRunOnce(
       input.outcome === "completed"
         ? completedRunBlocks(input.blocks, writableRun?.startedAt ?? null, now)
         : (input.partialReply ?? []);
-    if (replyBlocks.length > 0) {
+    const replies = [
+      replyBlocks,
+      ...(input.outcome === "completed" ? (input.additionalMessages ?? []) : []),
+    ];
+    for (const blocks of replies) {
+      if (!blocks.length) continue;
       const message = await createThreadMessageInTransaction(tx, {
         threadId: input.threadId,
         role: "bot",
-        blocks: replyBlocks,
+        blocks,
         botId: input.botId,
         runId: input.runId,
         ...(input.outcome === "completed"
@@ -1807,9 +1840,9 @@ async function finalizeRunOnce(
         botId: input.botId,
         type: "thread.message.created",
         runId: input.runId,
-        payload: { messageId: message.id, role: "bot", blocks: replyBlocks },
+        payload: { messageId: message.id, role: "bot", blocks },
       });
-      firstResponse = response.firstResponse;
+      firstResponse ||= response.firstResponse;
     }
     const lastEvent = await appendEventInTransaction(tx, {
       spaceId: input.spaceId,

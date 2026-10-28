@@ -5,7 +5,7 @@ import { setBotExecution } from "./bot-execution.js";
 import { commitBotUpdate } from "./bot-update.js";
 import type { PrismaClient } from "./client.js";
 import { createDb } from "./client.js";
-import { clearThread } from "./events.js";
+import { clearThread, finalizeRun } from "./events.js";
 import { provisionMessagingIdentity } from "./messaging.js";
 import { createRepos } from "./repos.js";
 import { asSystem, runAsSystem, runAsTenant } from "./row-security.js";
@@ -105,6 +105,107 @@ describePostgres("roleplay storage and isolation (PostgreSQL)", () => {
       expect(
         (await prisma.message.findFirstOrThrow({ where: { threadId: bot.threadId } })).blocks,
       ).toEqual([{ kind: "text", text: "Mira welcomes Player." }]);
+    }));
+  it("atomically saves chat bursts and encrypted continuity once", () =>
+    runAsTenant(identity, async () => {
+      const bot = await createRepos(prisma).createBot(actor, {
+        ...input,
+        roleplayCharacter: { ...character, conversationStyle: "chat" },
+      });
+      const task = await prisma.task.create({
+        data: {
+          ...identity,
+          botId: bot.id,
+          threadId: bot.threadId,
+          prompt: "Continue",
+          status: "running",
+        },
+      });
+      const run = await prisma.run.create({
+        data: {
+          ...identity,
+          botId: bot.id,
+          threadId: bot.threadId,
+          taskId: task.id,
+          status: "running",
+          trigger: "user",
+          startedAt: new Date(),
+          leaseOwner: "chat-fixture-worker",
+          leaseFence: 1,
+          leaseExpiresAt: new Date(Date.now() + 60_000),
+        },
+      });
+      const attempt = await prisma.attempt.create({
+        data: { runId: run.id, fence: 1, status: "running" },
+      });
+      const continuity = {
+        scene: "The AMARANTH harbor",
+        relationship: "New acquaintances",
+        sharedDetails: ["They discussed a map"],
+        openThreads: ["No trip agreed yet"],
+        callbacks: [],
+      };
+      const state = {
+        version: 1,
+        threadId: bot.threadId,
+        botId: bot.id,
+        historyGeneration: 0,
+        summary: "",
+        summarizedUpToSeq: -1,
+        turnCount: 1,
+        lastRunId: run.id,
+        activeLoreEntries: [],
+        retainedInputs: [],
+        continuity,
+      };
+      const finalization = {
+        ...identity,
+        threadId: bot.threadId,
+        botId: bot.id,
+        runId: run.id,
+        taskId: task.id,
+        attemptId: attempt.id,
+        leaseOwner: "chat-fixture-worker",
+        leaseFence: 1,
+        outcome: "completed" as const,
+        blocks: [{ kind: "text" as const, text: "I found the map." }],
+        additionalMessages: [
+          [{ kind: "text" as const, text: "Mostly intact." }],
+          [{ kind: "text" as const, text: "Want to see?" }],
+        ],
+        roleplayState: state,
+      };
+      expect(await finalizeRun(prisma, finalization)).toEqual({ continuationRunId: null });
+      expect(await finalizeRun(prisma, finalization)).toBe(false);
+      const replies = await prisma.message.findMany({
+        where: { runId: run.id },
+        orderBy: { seq: "asc" },
+      });
+      expect(replies.map(({ blocks }) => blocks)).toEqual([
+        finalization.blocks,
+        ...finalization.additionalMessages,
+      ]);
+      expect(new Set(replies.map(({ seq }) => seq)).size).toBe(3);
+      expect(
+        await prisma.event.count({ where: { runId: run.id, type: "thread.message.created" } }),
+      ).toBe(3);
+      expect(await prisma.event.count({ where: { runId: run.id, type: "run.completed" } })).toBe(1);
+      expect(
+        (await prisma.thread.findUniqueOrThrow({ where: { id: bot.threadId } })).roleplayState,
+      ).toEqual(state);
+      const raw = await prisma.$queryRaw<
+        Array<{ state: unknown }>
+      >`SELECT "roleplayState" AS state FROM threads WHERE id=${bot.threadId}`;
+      expect(JSON.stringify(raw)).not.toContain("AMARANTH");
+      expect(JSON.stringify(raw)).toContain("$sealed");
+      await clearThread(prisma, {
+        spaceId: identity.spaceId,
+        threadId: bot.threadId,
+        botId: bot.id,
+      });
+      expect(
+        (await prisma.thread.findUniqueOrThrow({ where: { id: bot.threadId } })).roleplayState,
+      ).toBeNull();
     }));
   it("rejects runtime/host/sharing and immutable-kind bypasses", () =>
     runAsTenant(identity, async () => {
