@@ -23,6 +23,7 @@ import type {
   ComposioProvider,
   ConnectorRegistry,
   RemoteConnectorDependencies,
+  RoleplayRuntime,
 } from "@rakazo/adapters";
 import {
   applyMessagingOutboundStatus,
@@ -225,6 +226,7 @@ type CreateAppOverrides = Partial<AppEnv> & {
   modelConnectionFetch?: typeof fetch;
   logger?: Logger;
   runtime?: AgentRuntime;
+  roleplayRuntime?: RoleplayRuntime;
   contextStrategy?: AgentContextStrategy;
 };
 
@@ -244,6 +246,7 @@ async function buildApp(overrides: CreateAppOverrides): Promise<AppHandles> {
     modelConnectionFetch,
     logger: loggerOverride,
     runtime: runtimeOverride,
+    roleplayRuntime,
     contextStrategy,
     ...envOverrides
   } = overrides;
@@ -554,6 +557,8 @@ async function buildApp(overrides: CreateAppOverrides): Promise<AppHandles> {
   // resolution alike, so a list call warms the run path in this process.
   const codexCatalog = new CodexCatalogCache();
   const executor = createRunExecutor({
+    roleplayEnabled: env.roleplayEnabled,
+    roleplayRuntime,
     runtimes: { codex: nativeRuntime, claude: claudeRuntime, acp: acpRuntime },
     billingEnabled: modelCreditsEnabled,
     maxUploadSizeBytes: env.maxUploadSizeBytes,
@@ -739,6 +744,7 @@ async function buildApp(overrides: CreateAppOverrides): Promise<AppHandles> {
       phoneCallRingSeconds: env.phoneCallRingSeconds,
       ticketBoardEnabled,
       agentRuntime: env.agentRuntime,
+      roleplayEnabled: env.roleplayEnabled,
       defaultProvider: env.defaultProvider,
       defaultModel: env.defaultModel,
       teamChatJudgeProvider: env.teamChatJudgeProvider,

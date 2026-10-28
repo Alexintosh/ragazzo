@@ -16,7 +16,19 @@ export class BotExecutionSettingsError extends Error {
 }
 
 /** Validate implemented combinations without silently broadening a runtime's permissions. */
-export function validateBotExecution(input: SetBotExecutionInput): void {
+export function validateBotExecution(
+  input: SetBotExecutionInput,
+  botKind: "agent" | "roleplay" = "agent",
+): void {
+  if (
+    botKind === "roleplay" &&
+    (input.runtimeKind !== "pi" ||
+      input.executionTarget !== "docker" ||
+      input.runtimePermission !== "workspace" ||
+      input.projectPath != null ||
+      input.registeredHostId != null)
+  )
+    throw new BotExecutionSettingsError("Roleplay bots require the internal runtime in Docker");
   if (!RuntimeKindSchema.safeParse(input.runtimeKind).success)
     throw new BotExecutionSettingsError("Unsupported agent runtime");
   if (input.registeredHostId && input.executionTarget !== "host")
@@ -61,6 +73,7 @@ export async function setBotExecution(
         include: { computer: true },
       });
       if (!bot?.computer) throw new IsolationError();
+      validateBotExecution(input, bot.botKind === "roleplay" ? "roleplay" : "agent");
       const active = await tx.run.findFirst({
         where: { botId: bot.id, status: { in: [...ACTIVE_RUN_STATUSES] } },
         select: { id: true },

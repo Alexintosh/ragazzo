@@ -45,10 +45,16 @@ describe("loadEnv", () => {
   it("defaults the product path to Pi, Docker, and Graphile Worker", () => {
     const env = loadEnv(base);
     expect(env.agentRuntime).toBe("pi");
+    expect(env.roleplayEnabled).toBe(false);
     expect(env.sandboxProvider).toBe("docker");
     expect(env.wakeupDriver).toBe("graphile");
     expect(env.apiHost).toBe("127.0.0.1");
     expect(env.nodeEnv).toBe("test");
+  });
+
+  it("requires explicit activation of the experimental roleplay path", () => {
+    expect(loadEnv({ ...base, ROLEPLAY_ENABLED: "true" }).roleplayEnabled).toBe(true);
+    expect(loadEnv({ ...base, ROLEPLAY_ENABLED: "1" }).roleplayEnabled).toBe(false);
   });
 
   it("defaults Pi JSONL session recording to off", () => {

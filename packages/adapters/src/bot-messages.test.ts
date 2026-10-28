@@ -18,6 +18,17 @@ const run = {
 };
 const sender = { id: "bot-sender", name: "Researcher" };
 
+it("does not deliver operational bot messages into a roleplay story", async () => {
+  const f = deps({
+    bots: [{ id: "character", name: "Character", botKind: "roleplay", thread: { id: "story" } }],
+  });
+  await expect(
+    messageBot(f.deps, run, sender, { bot_id: "character", message: "Work request" }),
+  ).resolves.toMatchObject({ ok: false });
+  expect(f.deps.jobs.enqueue).not.toHaveBeenCalled();
+  expect(f.deps.prisma.$transaction).not.toHaveBeenCalled();
+});
+
 function deps(
   options: {
     bots?: unknown[];

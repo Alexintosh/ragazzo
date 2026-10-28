@@ -17,7 +17,7 @@ import {
   validateBotModelChange,
 } from "@rakazo/adapters";
 import type { Actor, Bot, BotSecretMetadata } from "@rakazo/contracts";
-import { BotSecretAuth } from "@rakazo/contracts";
+import { BotSecretAuth, RoleplayCharacterSchema } from "@rakazo/contracts";
 import { ACTIVE_RUN_STATUSES, displayName } from "@rakazo/core";
 import type { Prisma } from "@rakazo/db";
 import {
@@ -171,6 +171,7 @@ export function botIntroPrompt(input: {
  * answering resumes the run as the user's turn.
  */
 export async function enqueueBotIntroRun(deps: RouterDeps, actor: Actor, bot: Bot): Promise<void> {
+  if (bot.botKind === "roleplay") return;
   const threadId = bot.threadId;
   if (!threadId) return;
   // Scripted is the deterministic test/eval runtime, not a real deployment: an
@@ -258,6 +259,12 @@ export function botsRoutes(ctx: RouterContext) {
         return bot;
       }),
       create: authed.bots.create.handler(async ({ context, input }) => {
+        if (input.botKind === "roleplay" && !deps.env.roleplayEnabled)
+          throw new ORPCError("BAD_REQUEST", { message: "Roleplay is not enabled on this server" });
+        if (input.botKind === "roleplay" && deps.env.sandboxProvider !== "docker")
+          throw new ORPCError("BAD_REQUEST", {
+            message: "Roleplay requires Docker on this server",
+          });
         if (
           input.executionTarget === "host" &&
           !input.registeredHostId &&
@@ -286,7 +293,8 @@ export function botsRoutes(ctx: RouterContext) {
           const requestedExecution = {
             botId: "new",
             runtimeKind: input.runtimeKind ?? "pi",
-            executionTarget: input.executionTarget ?? "default",
+            executionTarget:
+              input.executionTarget ?? (input.botKind === "roleplay" ? "docker" : "default"),
             runtimePermission: input.runtimePermission ?? "workspace",
             registeredHostId: input.registeredHostId,
             projectPath: input.projectPath ?? null,
@@ -347,8 +355,19 @@ export function botsRoutes(ctx: RouterContext) {
       ),
       duplicate: authed.bots.duplicate.handler(async ({ context, input }) => {
         const source = await repos.getBot(context.actor, input.botId);
+        if (source.botKind === "roleplay" && !deps.env.roleplayEnabled)
+          throw new ORPCError("BAD_REQUEST", { message: "Roleplay is not enabled on this server" });
+        if (source.botKind === "roleplay" && deps.env.sandboxProvider !== "docker")
+          throw new ORPCError("BAD_REQUEST", {
+            message: "Roleplay requires Docker on this server",
+          });
         const duplicate = await repos
           .createBot(context.actor, {
+            botKind: source.botKind === "roleplay" ? "roleplay" : "agent",
+            roleplayCharacter:
+              source.roleplayCharacter == null
+                ? null
+                : RoleplayCharacterSchema.parse(source.roleplayCharacter),
             name: duplicateBotName(source.name),
             title: source.title,
             description: source.description,
@@ -391,6 +410,20 @@ export function botsRoutes(ctx: RouterContext) {
       }),
       update: authed.bots.update.handler(async ({ context, input }) => {
         const existing = await repos.getBot(context.actor, input.botId);
+        if (input.roleplayCharacter !== undefined && existing.botKind !== "roleplay")
+          throw new ORPCError("BAD_REQUEST", { message: "Characters require a roleplay bot" });
+        if (
+          existing.botKind === "roleplay" &&
+          (input.fleetManagement === true ||
+            input.crossSpaceCommunication === true ||
+            input.teamChatAmbientEnabled === true ||
+            input.disabledBuiltinTools !== undefined ||
+            input.selfUpdateInstructions === true ||
+            input.memoryScope === "shared")
+        )
+          throw new ORPCError("BAD_REQUEST", {
+            message: "Roleplay bots cannot use agent tools or delegation",
+          });
         if (input.sectionId) {
           const section = await deps.prisma.botSection.findFirst({
             where: {
@@ -440,6 +473,9 @@ export function botsRoutes(ctx: RouterContext) {
             ? { expectedRuntimeKind: existing.runtimeKind ?? "pi" }
             : {}),
           data: {
+            ...(input.roleplayCharacter !== undefined
+              ? { roleplayCharacter: input.roleplayCharacter as Prisma.InputJsonValue }
+              : {}),
             name: input.name,
             title: input.title,
             description: input.description,
@@ -481,6 +517,8 @@ export function botsRoutes(ctx: RouterContext) {
             error.code === "P2025"
           )
             throw new ORPCError("CONFLICT", { message: "Execution settings changed. Try again" });
+          if (error instanceof BotExecutionSettingsError)
+            throw new ORPCError("CONFLICT", { message: error.message });
           if (!(error instanceof InstructionConflictError)) throw error;
           throw new ORPCError("CONFLICT", { message: error.message });
         });
@@ -554,7 +592,8 @@ export function botsRoutes(ctx: RouterContext) {
         }
         try {
           // Verify ownership before resolving a path on any host; the commit rechecks it under lock.
-          await repos.getBot(context.actor, input.botId);
+          const bot = await repos.getBot(context.actor, input.botId);
+          validateBotExecution(input, bot.botKind === "roleplay" ? "roleplay" : "agent");
           const execution = await resolveNativeProjectConfig(
             deps,
             context.actor,
@@ -578,6 +617,10 @@ export function botsRoutes(ctx: RouterContext) {
       setComputer: authed.bots.setComputer.handler(async ({ context, input }) => {
         const bot = await repos.getBot(context.actor, input.botId);
         if (!bot.computer) throw new IsolationError();
+        if (bot.botKind === "roleplay" && input.mode !== "dedicated")
+          throw new ORPCError("BAD_REQUEST", {
+            message: "Roleplay bots require a dedicated Docker computer",
+          });
         const currentMode = bot.computer.scope === "dedicated" ? "dedicated" : "team";
         if (currentMode === input.mode) {
           try {

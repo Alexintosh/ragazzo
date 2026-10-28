@@ -68,6 +68,7 @@ export const AGENT_IMPORT_ERROR_REASONS = [
   "import_reused",
   "first_bot_new_only",
   "name_required",
+  "roleplay_destination",
   "first_bot_exists",
   "instructions_changed",
   "name_just_taken",

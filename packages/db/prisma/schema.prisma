@@ -534,6 +534,8 @@ model RegisteredHostCleanup {
 }
 
 model Bot {
+  botKind String @default("agent")
+  roleplayCharacter Json?
   screenGeneration Int @default(0)
   id                String            @id @default(cuid())
   spaceId           String
@@ -678,6 +680,7 @@ model ChatGroupMember {
 }
 
 model Thread {
+  roleplayState Json?
   id                          String     @id @default(cuid())
   spaceId                     String
   space                       Space      @relation(fields: [spaceId], references: [id], onDelete: Cascade)

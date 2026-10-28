@@ -243,6 +243,11 @@ export function contentRoutes(ctx: RouterContext) {
     export: {
       bot: authed.export.bot.handler(async ({ context, input }) => {
         const bot = await repos.getBot(context.actor, input.botId);
+        if (bot.botKind === "roleplay") {
+          throw new ORPCError("BAD_REQUEST", {
+            message: "Roleplay characters cannot be exported as operational agents",
+          });
+        }
         if (!bot.thread || !bot.computer) throw new IsolationError();
         const homeKey = bot.computer.homeKey;
         const computerMode = parseComputerMode(bot.computer.scope);

@@ -42,6 +42,8 @@ export function routinesRoutes(ctx: RouterContext) {
       create: authed.routines.create.handler(async ({ context, input }) => {
         assertRoutineSchedule(input);
         const bot = await repos.getBot(context.actor, input.botId);
+        if (bot.botKind === "roleplay")
+          throw new ORPCError("BAD_REQUEST", { message: "Roleplay bots cannot run routines" });
         if (input.watch) {
           try {
             await validateRoutineWatch(
@@ -75,6 +77,8 @@ export function routinesRoutes(ctx: RouterContext) {
         });
         if (!existing) throw new ORPCError("NOT_FOUND");
         const bot = await repos.getBot(context.actor, existing.botId);
+        if (bot.botKind === "roleplay")
+          throw new ORPCError("BAD_REQUEST", { message: "Roleplay bots cannot run routines" });
         const active = input.active ?? existing.active;
         const crons = input.crons ?? existing.crons;
         const timezone = input.timezone ?? existing.timezone;

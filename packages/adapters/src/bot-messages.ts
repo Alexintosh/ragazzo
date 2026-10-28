@@ -97,13 +97,18 @@ export async function messageBot(
 
   const candidates = await deps.prisma.bot.findMany({
     where: { spaceId: run.spaceId, userId: run.userId, archivedAt: null },
-    select: { id: true, name: true, title: true, thread: { select: { id: true } } },
+    select: { id: true, name: true, title: true, botKind: true, thread: { select: { id: true } } },
   });
   const target = resolveBotAddress(candidates, {
     botId: input.bot_id,
     name: input.confirm_name,
   });
   if (!target) return { ok: false as const, error: "no bot found with that id or name" };
+  if (target.botKind === "roleplay")
+    return {
+      ok: false as const,
+      error: "Roleplay bots only accept messages in their individual story",
+    };
   if (target.id === sender.id) return { ok: false as const, error: "a bot cannot message itself" };
   if (!target.thread)
     return { ok: false as const, error: `${target.name} has no chat to deliver to` };

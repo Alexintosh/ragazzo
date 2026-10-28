@@ -13,7 +13,7 @@ import type { RouterContext } from "./context.js";
 import { isUniqueViolation } from "./shared.js";
 
 export function messagingRoutes(ctx: RouterContext) {
-  const { deps, authed } = ctx;
+  const { deps, repos, authed } = ctx;
   return {
     messaging: {
       installations: {
@@ -28,6 +28,11 @@ export function messagingRoutes(ctx: RouterContext) {
         }),
         start: authed.messaging.installations.start.handler(async ({ context, input }) => {
           if (!deps.messagingInstallations) throw new ORPCError("BAD_REQUEST");
+          const bot = input.botId ? await repos.getBot(context.actor, input.botId) : null;
+          if (bot?.botKind === "roleplay")
+            throw new ORPCError("BAD_REQUEST", {
+              message: "Roleplay bots cannot connect messaging integrations",
+            });
           return { url: await deps.messagingInstallations.start(context.actor, input.botId) };
         }),
         remove: authed.messaging.installations.remove.handler(async ({ context, input }) => {
@@ -64,10 +69,14 @@ export function messagingRoutes(ctx: RouterContext) {
                 archivedAt: null,
                 space: { memberships: { some: { userId: context.actor.userId } } },
               },
-              select: { id: true, spaceId: true },
+              select: { id: true, spaceId: true, botKind: true },
             }),
           );
           if (!bot) throw new ORPCError("NOT_FOUND");
+          if (bot.botKind === "roleplay")
+            throw new ORPCError("BAD_REQUEST", {
+              message: "Roleplay bots cannot connect messaging integrations",
+            });
           // One chat identity per bot: delivery mirrors a bot's replies to
           // exactly one conversation.
           // The bot may live in another space, so look across them.
@@ -115,9 +124,13 @@ export function messagingRoutes(ctx: RouterContext) {
               userId: context.actor.userId,
               archivedAt: null,
             },
-            select: { id: true },
+            select: { id: true, botKind: true },
           });
           if (!bot) throw new ORPCError("NOT_FOUND");
+          if (bot.botKind === "roleplay")
+            throw new ORPCError("BAD_REQUEST", {
+              message: "Roleplay bots cannot connect messaging integrations",
+            });
           try {
             const updated = await acrossChatIdentities(() =>
               deps.prisma.messagingIdentity.update({

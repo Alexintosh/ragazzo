@@ -21,9 +21,13 @@ import type { McpStdioPolicy } from "./mcp-transport.js";
 import type { MemoryProviderResolver } from "./memory-provider-factory.js";
 import type { CodexLiveCatalog } from "./pi-codex-catalog.js";
 import type { RemoteTransportDependencies } from "./remote-mcp.js";
+import type { RoleplayRuntime } from "./roleplay-runtime.js";
 import type { TicketChangeNotifier } from "./ticket-changes.js";
 
 export interface ExecutorDeps {
+  /** Enable only after all API and worker processes have the dedicated roleplay runtime. */
+  roleplayEnabled?: boolean;
+  roleplayRuntime?: RoleplayRuntime;
   maxUploadSizeBytes?: number;
   contextStrategy?: AgentContextStrategy;
   prisma: PrismaClient;

@@ -71,6 +71,8 @@ export interface AppEnv {
   cloudAgentSpaceId: string | undefined;
   cursorApiKey: string | undefined;
   agentRuntime: string;
+  /** Activate only after every API and worker supports the dedicated roleplay path. */
+  roleplayEnabled: boolean;
   deploymentModelKey: string | undefined;
   /** The deployment default model can run; see resolveDeploymentModel. */
   deploymentModelConfigured: boolean;
@@ -235,6 +237,7 @@ export function loadEnv(source: NodeJS.ProcessEnv = process.env): AppEnv {
     cloudAgentSpaceId: optional(source.CLOUD_AGENT_SPACE_ID),
     cursorApiKey: optional(source.CURSOR_API_KEY),
     agentRuntime: source.AGENT_RUNTIME ?? "pi",
+    roleplayEnabled: source.ROLEPLAY_ENABLED === "true",
     // Provider, model and key resolve together: see resolveDeploymentModel.
     deploymentModelKey: deploymentModel.key,
     deploymentModelConfigured: deploymentModel.configured,

@@ -203,6 +203,12 @@ export function threadsRoutes(ctx: RouterContext) {
       }),
       send: authed.threads.send.handler(async ({ context, input }) => {
         const target = await resolveThreadTarget(deps.prisma, context.actor, input);
+        if (target.kind === "bot" && target.bot.botKind === "roleplay") {
+          if (!deps.env.roleplayEnabled)
+            throw new ORPCError("BAD_REQUEST", { message: "Roleplay is not enabled on this server" });
+          if (input.artifactIds?.length)
+            throw new ORPCError("BAD_REQUEST", { message: "Roleplay currently supports text messages only" });
+        }
         const nativeBot = target.kind === "bot" && ["codex", "claude", "acp"].includes(target.bot.runtimeKind ?? "pi");
         if (!nativeBot && (await modelSetup(deps, context.actor)).needsModel) {
           throw new ORPCError("BAD_REQUEST", { message: MODEL_REQUIRED_SEND_ERROR });
@@ -225,6 +231,7 @@ export function threadsRoutes(ctx: RouterContext) {
         // Without a model or while teaching, the reaction is still saved; it just starts no turn.
         const nativeBot = target.kind === "bot" && ["codex", "claude", "acp"].includes(target.bot.runtimeKind ?? "pi");
         const mayStartTurn =
+          (target.kind !== "bot" || target.bot.botKind !== "roleplay") &&
           (nativeBot || !(await modelSetup(deps, context.actor)).needsModel) &&
           (target.kind !== "bot" ||
             (await assertTeachingSendAllowed(deps.prisma, context.actor.spaceId, target.botId).then(
@@ -300,6 +307,8 @@ export function threadsRoutes(ctx: RouterContext) {
       }),
       followUp: authed.threads.followUp.handler(async ({ context, input }) => {
         const target = await resolveThreadTarget(deps.prisma, context.actor, input);
+        if (target.kind === "bot" && target.bot.botKind === "roleplay" && !deps.env.roleplayEnabled)
+          throw new ORPCError("BAD_REQUEST", { message: "Roleplay is not enabled on this server" });
         if (target.kind === "bot") {
           await assertTeachingSendAllowed(deps.prisma, context.actor.spaceId, target.botId);
           const sent = await deps.events.sendUserMessage({
@@ -422,6 +431,8 @@ export function threadsRoutes(ctx: RouterContext) {
       answerCall: callsEnabled.threads.answerCall.handler(async ({ context, input }) => {
         const target = await resolveThreadTarget(deps.prisma, context.actor, input);
         if (target.kind !== "bot") throw new IsolationError();
+        if (target.bot.botKind === "roleplay")
+          throw new ORPCError("BAD_REQUEST", { message: "Roleplay does not support live calls" });
         const answered = await settleCallRequest(deps, {
           threadId: target.threadId,
           callId: input.callId,
@@ -435,6 +446,8 @@ export function threadsRoutes(ctx: RouterContext) {
       declineCall: callsEnabled.threads.declineCall.handler(async ({ context, input }) => {
         const target = await resolveThreadTarget(deps.prisma, context.actor, input);
         if (target.kind !== "bot") throw new IsolationError();
+        if (target.bot.botKind === "roleplay")
+          throw new ORPCError("BAD_REQUEST", { message: "Roleplay does not support live calls" });
         await settleCallRequest(deps, {
           threadId: target.threadId,
           callId: input.callId,
@@ -446,6 +459,8 @@ export function threadsRoutes(ctx: RouterContext) {
       endCall: callsEnabled.threads.endCall.handler(async ({ context, input }) => {
         const target = await resolveThreadTarget(deps.prisma, context.actor, input);
         if (target.kind !== "bot") throw new IsolationError();
+        if (target.bot.botKind === "roleplay")
+          throw new ORPCError("BAD_REQUEST", { message: "Roleplay does not support live calls" });
         await assertTeachingSendAllowed(deps.prisma, context.actor.spaceId, target.botId);
         const { botId, threadId } = target;
         // The bot's own call: its card keeps how long the user stayed on.

@@ -8157,6 +8157,15 @@ describe("boards.tickets.list", () => {
 });
 
 describe("export.bot", () => {
+  it("rejects exporting a roleplay bot as an operational agent", async () => {
+    const deps = {
+      prisma: { bot: { findFirst: vi.fn().mockResolvedValue({ id: "rp", botKind: "roleplay" }) } },
+      env: { webOrigin: "http://127.0.0.1:5173", screenProxySecret: "fake-test-secret", sandboxProvider: "docker" },
+      dataDir: "/tmp/rakazo-router-test",
+    } as unknown as RouterDeps;
+    const client = createRouterClient(createRouter(deps), { context: { actor } as never });
+    await expect(client.export.bot({ botId: "rp" })).rejects.toThrow("cannot be exported");
+  });
   const actor = {
     spaceId: "workspace-1",
     userId: "user-1",

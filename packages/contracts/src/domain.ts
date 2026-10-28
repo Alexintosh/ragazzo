@@ -18,6 +18,7 @@ import {
   parseMcpOAuthAuthorizationParams,
 } from "./mcp.js";
 import { ModelHeadersSchema } from "./model-headers.js";
+import { BotKindSchema, RoleplayCharacterSchema } from "./roleplay.js";
 import { RoutineWatchSchema, RoutineWatchStateSchema } from "./routine-watch.js";
 import { RunTriggerSchema } from "./runs.js";
 import { SettingsScopeSchema } from "./settings-scope.js";
@@ -146,6 +147,8 @@ export const SetBotExecutionInput = z.object({
 export type SetBotExecutionInput = z.infer<typeof SetBotExecutionInput>;
 
 export const BotSchema = z.object({
+  botKind: BotKindSchema.default("agent"),
+  roleplayCharacter: RoleplayCharacterSchema.nullable().default(null),
   id: Id,
   spaceId: Id,
   name: z.string(),
@@ -432,25 +435,59 @@ export const BOT_TITLE_MAX_LENGTH = 500;
 export const BOT_DESCRIPTION_MAX_LENGTH = 4000;
 export const BOT_INSTRUCTIONS_MAX_LENGTH = 20000;
 
-export const CreateBotInput = z.object({
-  name: z.string().trim().min(1).max(BOT_NAME_MAX_LENGTH),
-  title: z.string().max(BOT_TITLE_MAX_LENGTH).default(""),
-  description: z.string().max(BOT_DESCRIPTION_MAX_LENGTH).default(""),
-  instructions: z.string().max(BOT_INSTRUCTIONS_MAX_LENGTH).default(""),
-  notifyOnFinish: z.boolean().default(true),
-  fleetManagement: z.boolean().optional(),
-  color: BotAvatarValueSchema.optional(),
-  /** Organic body family (0-9) to draw the new bot with; the server picks an id that hashes to it. */
-  avatarFamily: z.number().int().min(0).max(9).optional(),
-  computerMode: ComputerModeSchema.default("team"),
-  runtimeKind: RuntimeKindSchema.optional(),
-  registeredHostId: Id.nullable().optional(),
-  executionTarget: ExecutionTargetSchema.optional(),
-  runtimePermission: RuntimePermissionSchema.optional(),
-  projectPath: z.string().trim().min(1).max(4096).nullable().optional(),
-  /** Idempotency key within a space (unique with spaceId). */
-  spawnKey: z.string().trim().min(1).max(120).optional(),
-});
+export const CreateBotInput = z
+  .object({
+    botKind: BotKindSchema.default("agent"),
+    roleplayCharacter: RoleplayCharacterSchema.nullable().optional(),
+    name: z.string().trim().min(1).max(BOT_NAME_MAX_LENGTH),
+    title: z.string().max(BOT_TITLE_MAX_LENGTH).default(""),
+    description: z.string().max(BOT_DESCRIPTION_MAX_LENGTH).default(""),
+    instructions: z.string().max(BOT_INSTRUCTIONS_MAX_LENGTH).default(""),
+    notifyOnFinish: z.boolean().default(true),
+    fleetManagement: z.boolean().optional(),
+    color: BotAvatarValueSchema.optional(),
+    /** Organic body family (0-9) to draw the new bot with; the server picks an id that hashes to it. */
+    avatarFamily: z.number().int().min(0).max(9).optional(),
+    computerMode: ComputerModeSchema.default("team"),
+    runtimeKind: RuntimeKindSchema.optional(),
+    registeredHostId: Id.nullable().optional(),
+    executionTarget: ExecutionTargetSchema.optional(),
+    runtimePermission: RuntimePermissionSchema.optional(),
+    projectPath: z.string().trim().min(1).max(4096).nullable().optional(),
+    /** Idempotency key within a space (unique with spaceId). */
+    spawnKey: z.string().trim().min(1).max(120).optional(),
+  })
+  .superRefine((value, ctx) => {
+    if (value.botKind === "roleplay") {
+      if (!value.roleplayCharacter)
+        ctx.addIssue({
+          code: "custom",
+          path: ["roleplayCharacter"],
+          message: "Import a character for this roleplay bot",
+        });
+      for (const [field, invalid] of Object.entries({
+        runtimeKind: value.runtimeKind !== undefined && value.runtimeKind !== "pi",
+        executionTarget: value.executionTarget !== undefined && value.executionTarget !== "docker",
+        registeredHostId: Boolean(value.registeredHostId),
+        runtimePermission:
+          value.runtimePermission !== undefined && value.runtimePermission !== "workspace",
+        projectPath: value.projectPath != null,
+        fleetManagement: value.fleetManagement === true,
+      }))
+        if (invalid)
+          ctx.addIssue({
+            code: "custom",
+            path: [field],
+            message: "Roleplay bots use the internal runtime in Docker",
+          });
+    } else if (value.roleplayCharacter != null) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["roleplayCharacter"],
+        message: "Characters require a roleplay bot",
+      });
+    }
+  });
 export type CreateBotInput = z.infer<typeof CreateBotInput>;
 
 export function normalizeCreateBotProfile(
@@ -468,6 +505,7 @@ export function normalizeCreateBotProfile(
 export const UpdateBotInput = z
   .object({
     botId: Id,
+    roleplayCharacter: RoleplayCharacterSchema.optional(),
     name: z.string().trim().min(1).max(BOT_NAME_MAX_LENGTH).optional(),
     title: z.string().trim().max(BOT_TITLE_MAX_LENGTH).optional(),
     description: z.string().trim().max(BOT_DESCRIPTION_MAX_LENGTH).optional(),

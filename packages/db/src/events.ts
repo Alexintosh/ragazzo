@@ -7,6 +7,7 @@ import {
   encodeLoginSecret,
   LoginSecretValue,
   MessageBlock as MessageBlockSchema,
+  RoleplayCharacterSchema,
 } from "@rakazo/contracts";
 import {
   ACTIVE_RUN_STATUSES,
@@ -23,6 +24,7 @@ import {
   QUEUE_HOLDING_RUN_STATUSES,
   releasedTakeoverComputerBlocks,
   resolveAskChoice,
+  roleplayMacros,
   STEERING_CONTINUATION_PROMPT,
   sanitizeJsonValue,
 } from "@rakazo/core";
@@ -31,7 +33,8 @@ import { approvalEffectKey } from "@rakazo/core/node/approval-effect-key";
 import { getLogger } from "@rakazo/logging";
 import { saveApprovalRule } from "./approval-settings.js";
 import { cancelRunsInTransaction } from "./cancel-runs.js";
-import type { Prisma, PrismaClient } from "./client.js";
+import type { PrismaClient } from "./client.js";
+import { Prisma } from "./client.js";
 import { expireComputerExecutionLeases } from "./computers.js";
 import {
   CrossSpaceCommunicationBlockedError,
@@ -159,6 +162,7 @@ export type FinalizeRunInput = FinalizeRunBase &
         outcome: "completed";
         blocks: MessageBlock[];
         markUnread?: boolean;
+        roleplayState?: Prisma.InputJsonValue;
       }
     | {
         outcome: "failed";
@@ -388,6 +392,7 @@ export async function clearThread(
         data: {
           historyCompactedUpToSeq: thread.nextMessageSeq - 1,
           historyCompactionSummary: null,
+          roleplayState: Prisma.DbNull,
           historyCompactionGeneration: { increment: 1 },
         },
       });
@@ -396,30 +401,57 @@ export async function clearThread(
         where: { id: input.threadId },
         data: {
           historyCompactionSummary: null,
+          roleplayState: Prisma.DbNull,
           historyCompactionGeneration: { increment: 1 },
         },
       });
     }
+    let greeting: string | null = null;
     if (input.groupId) {
       await tx.chatGroup.update({ where: { id: input.groupId }, data: { updatedAt: now } });
     } else {
-      await tx.bot.update({
+      const bot = await tx.bot.update({
         where: { id: input.botId, spaceId: input.spaceId },
         data: { updatedAt: now },
       });
+      if (bot?.botKind === "roleplay") {
+        const character = RoleplayCharacterSchema.parse(bot.roleplayCharacter);
+        if (character.firstMessage)
+          greeting = roleplayMacros(character.firstMessage, character.name);
+      }
     }
     const event = await appendEventInTransaction(tx, {
       ...input,
       type: "thread.cleared",
       payload: {},
     });
+    let notifySeq = event.seq;
+    if (greeting) {
+      const blocks: MessageBlock[] = [{ kind: "text", text: greeting }];
+      const message = await createThreadMessageInTransaction(tx, {
+        threadId: input.threadId,
+        botId: input.botId,
+        role: "bot",
+        blocks,
+        markUnread: false,
+      });
+      const greetingEvent = await appendEventInTransaction(tx, {
+        spaceId: input.spaceId,
+        threadId: input.threadId,
+        botId: input.botId,
+        type: "thread.message.created",
+        payload: { messageId: message.id, role: "bot", blocks },
+      });
+      notifySeq = greetingEvent.seq;
+    }
     return {
       event,
+      notifySeq,
       cancelledRunIds: runIds,
       historyCompactionGeneration: thread.historyCompactionGeneration,
     };
   });
-  await notifyRealtime(realtime, committed.event.threadId, committed.event.seq);
+  await notifyRealtime(realtime, committed.event.threadId, committed.notifySeq);
   return {
     event: mapProductEvent(committed.event),
     cancelledRunIds: committed.cancelledRunIds,
@@ -1794,6 +1826,11 @@ async function finalizeRunOnce(
       ]);
     }
     if (input.outcome === "completed") {
+      if (input.roleplayState !== undefined)
+        await tx.thread.update({
+          where: { id: input.threadId },
+          data: { roleplayState: input.roleplayState },
+        });
       await tx.steeringMessage.deleteMany({
         where: { runId: input.runId, claimedAt: { not: null } },
       });

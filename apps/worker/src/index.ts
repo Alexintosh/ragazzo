@@ -248,6 +248,7 @@ async function main() {
     accessToken: process.env.EXPO_ACCESS_TOKEN,
   });
   const executor = createRunExecutor({
+    roleplayEnabled: process.env.ROLEPLAY_ENABLED === "true",
     runtimes: { codex: nativeRuntime, claude: claudeRuntime, acp: acpRuntime },
     maxUploadSizeBytes: uploadSizeFromEnv(process.env),
     prisma,

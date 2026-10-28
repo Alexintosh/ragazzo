@@ -480,17 +480,26 @@ export async function resolveRunModel(
     spaceId: string;
     botId?: string;
   },
+  modelOverride?: {
+    modelProvider: string | null;
+    modelId: string | null;
+    thinkingLevel: string | null;
+  },
+  registerSecrets?: (values: string[]) => void,
 ): Promise<AgentRunRequest["model"]> {
-  const override = scope.botId
-    ? await deps.prisma.bot.findFirst({
-        where: {
-          id: scope.botId,
-          userId: scope.userId,
-          spaceId: scope.spaceId,
-        },
-        select: { modelProvider: true, modelId: true, thinkingLevel: true },
-      })
-    : null;
+  const override =
+    modelOverride?.modelProvider && modelOverride.modelId
+      ? modelOverride
+      : scope.botId
+        ? await deps.prisma.bot.findFirst({
+            where: {
+              id: scope.botId,
+              userId: scope.userId,
+              spaceId: scope.spaceId,
+            },
+            select: { modelProvider: true, modelId: true, thinkingLevel: true },
+          })
+        : null;
   const hasOverride = Boolean(override?.modelProvider && override.modelId);
   const [overrideCredential, main, settings] = await Promise.all([
     hasOverride
@@ -535,6 +544,7 @@ export async function resolveRunModel(
     credential,
     provider,
     id,
+    registerSecrets,
   );
   return {
     provider,

@@ -3,6 +3,7 @@ import {
   canonicalPiProviderId,
   InstructionVersionSchema,
   initialBotMemory,
+  RoleplayCharacterSchema,
 } from "@rakazo/contracts";
 import {
   BACKGROUND_RUN_TRIGGERS,
@@ -10,6 +11,7 @@ import {
   isBackgroundRunTrigger,
   phoneCallSettings,
   ringingCall,
+  roleplayMacros,
   userVisibleMessages,
 } from "@rakazo/core";
 import { chooseBotAvatar } from "./bot-avatar-choice.js";
@@ -67,6 +69,8 @@ function rosterUpdatedAt(newestMessage: { createdAt: Date } | undefined, botUpda
 function mapBot(
   bot: {
     id: string;
+    botKind?: string;
+    roleplayCharacter?: unknown;
     spaceId: string;
     name: string;
     title: string;
@@ -115,6 +119,9 @@ function mapBot(
   }
   return {
     id: bot.id,
+    botKind: bot.botKind === "roleplay" ? "roleplay" : "agent",
+    roleplayCharacter:
+      bot.roleplayCharacter == null ? null : RoleplayCharacterSchema.parse(bot.roleplayCharacter),
     spaceId: bot.spaceId,
     name: bot.name,
     title: displayName(bot.title, ""),
@@ -510,6 +517,8 @@ export function createRepos(
     async createBot(
       actor: Actor,
       input: {
+        botKind?: Bot["botKind"];
+        roleplayCharacter?: Bot["roleplayCharacter"];
         name: string;
         title: string;
         description: string;
@@ -540,14 +549,22 @@ export function createRepos(
         isolationLevel?: Prisma.TransactionIsolationLevel;
       },
     ): Promise<Bot> {
+      const roleplay = input.botKind === "roleplay";
+      if (roleplay) {
+        RoleplayCharacterSchema.parse(input.roleplayCharacter);
+        if (input.fleetManagement || input.parentBotId || input.disabledBuiltinTools?.length)
+          throw new BotExecutionSettingsError("Roleplay bots cannot use agent tools or delegation");
+      } else if (input.roleplayCharacter != null) {
+        throw new BotExecutionSettingsError("Characters require a roleplay bot");
+      }
       const execution = {
         runtimeKind: input.runtimeKind ?? "pi",
-        executionTarget: input.executionTarget ?? "default",
+        executionTarget: input.executionTarget ?? (roleplay ? "docker" : "default"),
         registeredHostId: input.registeredHostId ?? null,
         runtimePermission: input.runtimePermission ?? "workspace",
         projectPath: input.projectPath ?? null,
       };
-      validateBotExecution({ botId: "new", ...execution });
+      validateBotExecution({ botId: "new", ...execution }, roleplay ? "roleplay" : "agent");
       let modelProvider = input.modelProvider ?? null;
       let modelId = input.modelId ?? null;
       let thinkingLevel = input.thinkingLevel ?? null;
@@ -561,6 +578,8 @@ export function createRepos(
           },
         });
         if (!parent) throw new IsolationError();
+        if (parent.botKind === "roleplay")
+          throw new BotExecutionSettingsError("Roleplay bots cannot delegate agents");
         if (execution.runtimeKind === "pi" && (parent.runtimeKind ?? "pi") === "pi") {
           if (!modelId) {
             modelProvider = parent.modelProvider ?? null;
@@ -617,7 +636,7 @@ export function createRepos(
             if (!host) throw new BotExecutionSettingsError("Registered host is unavailable");
           }
           const computer = await ensureComputerRecord(tx, {
-            mode: input.computerMode ?? "team",
+            mode: roleplay ? "dedicated" : (input.computerMode ?? "team"),
             spaceId: actor.spaceId,
             userId: actor.userId,
             botId: avatar.id,
@@ -628,6 +647,10 @@ export function createRepos(
           const created = await tx.bot.create({
             data: {
               id: avatar.id,
+              botKind: input.botKind ?? "agent",
+              ...(input.roleplayCharacter != null
+                ? { roleplayCharacter: input.roleplayCharacter as Prisma.InputJsonValue }
+                : {}),
               spaceId: actor.spaceId,
               userId: actor.userId,
               name: displayName(input.name, ""),
@@ -635,7 +658,7 @@ export function createRepos(
               description: input.description,
               instructions: input.instructions,
               notifyOnFinish: input.notifyOnFinish,
-              fleetManagement: input.fleetManagement,
+              fleetManagement: roleplay ? false : input.fleetManagement,
               color: avatar.color,
               position: (positions._max.position ?? -1) + 1,
               parentBotId: input.parentBotId ?? null,
@@ -655,6 +678,17 @@ export function createRepos(
               userId: actor.userId,
             },
           });
+          const greeting = roleplay ? input.roleplayCharacter?.firstMessage : null;
+          if (greeting)
+            await createThreadMessageInTransaction(tx, {
+              threadId: thread.id,
+              role: "bot",
+              botId: created.id,
+              blocks: [
+                { kind: "text", text: roleplayMacros(greeting, input.roleplayCharacter!.name) },
+              ],
+              markUnread: false,
+            });
           if (input.initialMessage) {
             await createThreadMessageInTransaction(tx, {
               threadId: thread.id,
@@ -662,23 +696,25 @@ export function createRepos(
               markUnread: false,
             });
           }
-          await tx.browserProfile.create({
-            data: {
-              spaceId: actor.spaceId,
-              botId: created.id,
-              userId: actor.userId,
-            },
-          });
-          await tx.memoryDocument.create({
-            data: {
-              spaceId: actor.spaceId,
-              userId: actor.userId,
-              botId: created.id,
-              scope: "bot",
-              path: "MEMORY.md",
-              content: initialBotMemory(input.name),
-            },
-          });
+          if (!roleplay) {
+            await tx.browserProfile.create({
+              data: {
+                spaceId: actor.spaceId,
+                botId: created.id,
+                userId: actor.userId,
+              },
+            });
+            await tx.memoryDocument.create({
+              data: {
+                spaceId: actor.spaceId,
+                userId: actor.userId,
+                botId: created.id,
+                scope: "bot",
+                path: "MEMORY.md",
+                content: initialBotMemory(input.name),
+              },
+            });
+          }
           await input.seed?.(tx, created.id);
           return tx.bot.findFirstOrThrow({
             where: { id: created.id },
@@ -706,6 +742,8 @@ export function createRepos(
         if (!input.spawnKey || !isSpawnKeyConflict(error)) throw error;
         const existing = await findBySpawnKey();
         if (!existing || existing.userId !== actor.userId) throw error;
+        if (existing.botKind !== (input.botKind ?? "agent"))
+          throw new BotExecutionSettingsError("Bot kind cannot be changed");
         if (!existing.archivedAt) {
           bot = existing;
         } else {
@@ -765,6 +803,10 @@ export function createRepos(
             include: { computer: true, thread: true },
           });
           if (!bot?.computer) throw new IsolationError();
+          if (bot.botKind === "roleplay" && mode !== "dedicated")
+            throw new BotExecutionSettingsError(
+              "Roleplay bots require a dedicated Docker computer",
+            );
           if (expectedComputerId !== undefined && bot.computerId !== expectedComputerId)
             throw new BotExecutionSettingsError("Computer settings changed. Reload and try again.");
           if (bot.computer.scope === mode) return bot;

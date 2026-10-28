@@ -32,6 +32,7 @@ export * from "./network-host.js";
 export * from "./openai-compatible-ui.js";
 export * from "./reactions.js";
 export * from "./registered-hosts.js";
+export * from "./roleplay.js";
 export * from "./routine-watch.js";
 export * from "./rpc.js";
 export * from "./runs.js";

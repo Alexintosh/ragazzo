@@ -361,6 +361,13 @@ export async function createImportedBot<PreparedKey>(
   const target =
     destination.kind === "existing" ? await services.findBot(actor, destination.botId) : null;
   if (destination.kind === "existing" && !target) throw new IsolationError();
+  if (target?.botKind === "roleplay") {
+    throw refused(
+      "BAD_REQUEST",
+      "roleplay_destination",
+      "Operational agent packages cannot be imported into a roleplay bot.",
+    );
+  }
   const { plan, settings, routineInputs, mcpConfigs, connectedKeyIds } = await buildPlan(
     services as AgentImportServices,
     actor,

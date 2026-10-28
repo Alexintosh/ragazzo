@@ -7,7 +7,7 @@ import { ContentDecryptionError } from "./content-crypto.js";
 import { contentEncryptionOf } from "./content-encryption.js";
 import type { ContentExportRecord } from "./content-export.js";
 import { exportContent } from "./content-export.js";
-import { LocalKeyProvider, masterKeysFromEnv } from "./content-keys.js";
+import { LocalKeyProvider } from "./content-keys.js";
 import {
   contentEncryptionStatus,
   migrateContent,
@@ -34,13 +34,14 @@ describePostgres("content encryption (PostgreSQL)", () => {
   const botId = `enc-bot-${suffix}`;
   const threadId = `enc-thread-${suffix}`;
   const scope = { spaceId, userId, threadId, botId };
+  const fixtureScope = { spaceIds: [spaceId, `enc-switch-space-${suffix}`] };
   const clients: Array<ReturnType<typeof createDb>> = [];
   let prisma: PrismaClient;
   let raw: ReturnType<typeof createDb>["pool"];
 
   function client(keys = [masterA], options: { encryptContent?: boolean } = {}) {
-    // The derived key keeps rows from other suites sharing this database readable.
-    const provider = new LocalKeyProvider([...keys, ...masterKeysFromEnv()]);
+    // Never load real master keys: migration calls below are restricted to fixture spaces.
+    const provider = new LocalKeyProvider(keys);
     // On unless a test switches it, whatever NODE_ENV the developer runs with.
     const db = createDb(databaseUrl!, { keyProvider: provider, encryptContent: true, ...options });
     clients.push(db);
@@ -76,11 +77,16 @@ describePostgres("content encryption (PostgreSQL)", () => {
   );
 
   afterAll(async () => {
-    await prisma?.organization.deleteMany({ where: { id: organizationId } });
-    await prisma?.user.deleteMany({ where: { id: userId } });
-    for (const db of clients) {
-      await db.prisma.$disconnect();
-      await db.pool.end();
+    try {
+      await runAsSystem("test fixture cleanup", async () => {
+        await prisma?.organization.deleteMany({ where: { id: organizationId } });
+        await prisma?.user.deleteMany({ where: { id: userId } });
+      });
+    } finally {
+      for (const db of clients) {
+        await db.prisma.$disconnect();
+        await db.pool.end();
+      }
     }
   });
 
@@ -197,7 +203,7 @@ describePostgres("content encryption (PostgreSQL)", () => {
 
       const before = await contentEncryptionStatus(prisma);
       expect(before.tables.find((t) => t.table === "messages")!.plaintext).toBeGreaterThan(0);
-      await migrateContent(prisma, { mode: "encrypt" });
+      await migrateContent(prisma, { ...fixtureScope, mode: "encrypt" });
       expect(await rawBlocks(plaintextId)).not.toContain("pelicans");
       expect(await texts()).toEqual(["fresh note about pelicans", "legacy note about pelicans"]);
       // Status is database-wide, and suites running alongside may write plaintext
@@ -325,7 +331,7 @@ describePostgres("content encryption (PostgreSQL)", () => {
       });
       const rotating = client([masterB, masterA]);
       const keys = contentEncryptionOf(rotating.prisma)!.ring;
-      expect(await rewrapSpaceKeys(rotating.prisma, keys)).toMatchObject({
+      expect(await rewrapSpaceKeys(rotating.prisma, keys, fixtureScope)).toMatchObject({
         rewrapped: expect.any(Number),
       });
       const masters = await raw.query(
@@ -344,8 +350,12 @@ describePostgres("content encryption (PostgreSQL)", () => {
       );
 
       const before = (await rawBlocks(message.id)).match(/rkz1:([^:]+):/)![1];
-      await rotateSpaceDataKeys(onlyB.prisma, contentEncryptionOf(onlyB.prisma)!.ring);
-      await migrateContent(onlyB.prisma, { mode: "reencrypt" });
+      await rotateSpaceDataKeys(
+        onlyB.prisma,
+        contentEncryptionOf(onlyB.prisma)!.ring,
+        fixtureScope,
+      );
+      await migrateContent(onlyB.prisma, { ...fixtureScope, mode: "reencrypt" });
       const afterKey = (await rawBlocks(message.id)).match(/rkz1:([^:]+):/)![1];
       expect(afterKey).not.toBe(before);
       const versions = await raw.query(
@@ -360,14 +370,14 @@ describePostgres("content encryption (PostgreSQL)", () => {
   it("writes plaintext back for a rollback", () =>
     runAsSystem("test fixture", async () => {
       const db = client([masterB]);
-      await migrateContent(db.prisma, { mode: "decrypt" });
+      await migrateContent(db.prisma, { ...fixtureScope, mode: "decrypt" });
       const stored = await raw.query(
         `SELECT count(*)::int AS n FROM messages WHERE "threadId" = $1 AND blocks::text LIKE '%rkz1:%'`,
         [threadId],
       );
       expect(stored.rows[0].n).toBe(0);
       expect(await rawBlocks(`enc-plain-${suffix}`)).toContain("pelicans");
-      await migrateContent(db.prisma, { mode: "encrypt" });
+      await migrateContent(db.prisma, { ...fixtureScope, mode: "encrypt" });
     }));
 
   it("destroys a space's keys when the space is deleted", () =>
@@ -388,8 +398,7 @@ describePostgres("content encryption (PostgreSQL)", () => {
       expect(await count()).toBe(0);
     }));
 
-  // Its own space, so key counts and searches see only these rows. Global steps
-  // (migrate) run here, where every master key this file uses is configured.
+  // Both fixture spaces are explicitly scoped into every migration and key change.
   describe("with CONTENT_ENCRYPTION switched", () => {
     const switchSpaceId = `enc-switch-space-${suffix}`;
     const switchBotId = `enc-switch-bot-${suffix}`;
@@ -512,7 +521,7 @@ describePostgres("content encryption (PostgreSQL)", () => {
           "narwhal two, edited while off",
         ];
         expect(await found(on.prisma, "narwhal")).toEqual(all);
-        await migrateContent(on.prisma, { mode: "encrypt" });
+        await migrateContent(on.prisma, { ...fixtureScope, mode: "encrypt" });
         for (const id of [sealed.id, third.id]) {
           expect((await stored(id)).blocks).not.toContain("narwhal");
           expect((await stored(id)).tokens?.length).toBeGreaterThan(0);

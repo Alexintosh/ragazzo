@@ -116,6 +116,8 @@ import { publishNativeOutput } from "./native-output-artifacts.js";
 import { deferNativeSteering } from "./native-steering.js";
 import { isRetiredModelCredentialError } from "./pi-oauth.js";
 import { loadReplyContext, messageToAgentHistoryText } from "./reply-context.js";
+import { executeRoleplayRun } from "./roleplay-executor.js";
+import { InternalRoleplayRuntime } from "./roleplay-runtime.js";
 import { backOffRoutineAfterAccountError } from "./routine-backoff.js";
 import { lateRoutineRunInstruction } from "./routine-lateness.js";
 import { lazyRunComputer } from "./run-computer.js";
@@ -204,6 +206,7 @@ import { appendToolCompletionAudit } from "./tool-completion-audit.js";
 import { createWebProvider } from "./web-provider-factory.js";
 
 export function createRunExecutor(deps: ExecutorDeps) {
+  const roleplayRuntime = deps.roleplayRuntime ?? new InternalRoleplayRuntime();
   const contextStrategy = deps.contextStrategy ?? DEFAULT_CONTEXT_STRATEGY;
   const web = deps.web ?? createWebProvider();
   const mediaGeneration = deps.mediaGeneration ?? createMediaGenerationProvider();
@@ -284,6 +287,7 @@ export function createRunExecutor(deps: ExecutorDeps) {
       const leaseTarget = await deps.prisma.bot.findUniqueOrThrow({
         where: { id: run.botId },
         select: {
+          botKind: true,
           computerId: true,
           computerSwitching: true,
           runtimeKind: true,
@@ -301,6 +305,10 @@ export function createRunExecutor(deps: ExecutorDeps) {
           },
         },
       });
+      if (leaseTarget.botKind === "roleplay") {
+        await executeRoleplayRun(deps, roleplayRuntime, run, { workerId, fence }, onRunStarted);
+        return;
+      }
       if (!leaseTarget.computerId) throw new Error("Bot has no computer");
       if (leaseTarget.computerSwitching) {
         await requeueComputerRun(deps, runId, workerId, fence, resumeCheckpoint, heldForTakeover);

@@ -7,6 +7,7 @@ import {
 } from "@rakazo/core";
 import { describe, expect, it, vi } from "vitest";
 import type { PrismaClient } from "./client.js";
+import { Prisma } from "./client.js";
 import { CrossSpaceCommunicationBlockedError } from "./cross-space-communication.js";
 import {
   AnswerTooLongError,
@@ -3962,6 +3963,7 @@ describe("clearThread", () => {
       data: {
         historyCompactedUpToSeq: 41,
         historyCompactionSummary: null,
+        roleplayState: Prisma.DbNull,
         historyCompactionGeneration: { increment: 1 },
       },
     });

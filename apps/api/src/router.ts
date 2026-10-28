@@ -148,6 +148,7 @@ export interface RouterDeps {
     phoneCallRingSeconds?: number;
     maxUploadSizeBytes?: number;
     agentRuntime: string;
+    roleplayEnabled?: boolean;
     teamChatJudgeProvider?: string;
     teamChatJudgeModel?: string;
     defaultProvider: string;

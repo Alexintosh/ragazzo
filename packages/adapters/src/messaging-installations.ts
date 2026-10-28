@@ -25,7 +25,13 @@ export class MessagingInstallations implements MessagingInstallationStore {
   async start(actor: Actor, botId?: string): Promise<string> {
     const bot = botId
       ? await this.prisma.bot.findFirst({
-          where: { id: botId, spaceId: actor.spaceId, userId: actor.userId, archivedAt: null },
+          where: {
+            id: botId,
+            spaceId: actor.spaceId,
+            userId: actor.userId,
+            archivedAt: null,
+            botKind: "agent",
+          },
           select: { id: true, spaceId: true },
         })
       : await this.defaultBot(actor.userId);
@@ -53,7 +59,7 @@ export class MessagingInstallations implements MessagingInstallationStore {
     return runAsSystem("resolve default messaging bot", async () => {
       const { spaceId } = await requireMembership(this.prisma, userId);
       return this.prisma.bot.findFirst({
-        where: { spaceId, userId, archivedAt: null },
+        where: { spaceId, userId, archivedAt: null, botKind: "agent" },
         orderBy: [{ createdAt: "asc" }, { id: "asc" }],
         select: { id: true, spaceId: true },
       });
@@ -84,6 +90,7 @@ export class MessagingInstallations implements MessagingInstallationStore {
           spaceId: session.spaceId,
           userId: session.userId,
           archivedAt: null,
+          botKind: "agent",
         },
       });
       const member = await this.prisma.spaceMember.findFirst({

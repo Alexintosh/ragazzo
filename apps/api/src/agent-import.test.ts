@@ -113,6 +113,23 @@ const input = AgentImportCreateInput.parse({
 });
 
 describe("after the import commits", () => {
+  it("rejects operational imports into an existing roleplay character before writing", async () => {
+    const inTransaction = vi.fn();
+    const createBot = vi.fn();
+    const rpServices = services({
+      findBot: async () => ({ ...bot, botKind: "roleplay" }),
+      inTransaction,
+      createBot,
+    });
+    await expect(
+      createImportedBot(rpServices, actor, {
+        ...input,
+        destination: { kind: "existing", botId: bot.id, replaceInstructions: true },
+      }),
+    ).rejects.toThrow("cannot be imported into a roleplay bot");
+    expect(inTransaction).not.toHaveBeenCalled();
+    expect(createBot).not.toHaveBeenCalled();
+  });
   it("reports success even when a notice or refresh fails", async () => {
     const announceRoutine = vi.fn(async () => {
       throw new Error("events are down");

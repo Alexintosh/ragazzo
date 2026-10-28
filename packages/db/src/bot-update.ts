@@ -1,5 +1,6 @@
 import { displayName } from "@rakazo/core";
 import { getLogger } from "@rakazo/logging";
+import { BotExecutionSettingsError } from "./bot-execution.js";
 import { writeBotInstructions } from "./bot-instructions.js";
 import type { Prisma, PrismaClient } from "./client.js";
 import { appendEventInTransaction } from "./events.js";
@@ -40,6 +41,7 @@ export async function commitBotUpdate(
   }
   if (
     !options.emitBotUpdated &&
+    options.data.roleplayCharacter === undefined &&
     options.data.instructions === undefined &&
     !options.instructionRestore
   ) {
@@ -58,6 +60,24 @@ export async function commitBotUpdate(
   const committed = await options.prisma.$transaction(async (tx) => {
     // Event appends also lock the thread; all writers take it before the bot row.
     await tx.$queryRaw`SELECT id FROM threads WHERE id = ${options.threadId} FOR UPDATE`;
+    if (data.roleplayCharacter !== undefined) {
+      await tx.$queryRaw`SELECT id FROM bots WHERE id = ${options.botId} FOR UPDATE`;
+      const bot = await tx.bot.findUniqueOrThrow({
+        where: { id: options.botId },
+        select: { botKind: true },
+      });
+      if (bot.botKind !== "roleplay")
+        throw new BotExecutionSettingsError("Characters require a roleplay bot");
+      const active = await tx.run.findFirst({
+        where: {
+          botId: options.botId,
+          status: { in: ["queued", "leased", "running", "waiting_input", "waiting_takeover"] },
+        },
+        select: { id: true },
+      });
+      if (active)
+        throw new BotExecutionSettingsError("Stop the roleplay bot before replacing its character");
+    }
     if (typeof instructions === "string" || options.instructionRestore) {
       await writeBotInstructions(tx, {
         botId: options.botId,

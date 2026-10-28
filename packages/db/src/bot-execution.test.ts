@@ -28,6 +28,7 @@ function fixture(
     target?: string;
     maintenance?: string;
     scope?: string;
+    botKind?: string;
   } = {},
 ) {
   const current = {
@@ -41,6 +42,7 @@ function fixture(
   };
   const bot = {
     id: "bot",
+    botKind: options.botKind ?? "agent",
     name: "Helper",
     title: "",
     description: "",
@@ -121,6 +123,9 @@ describe("bot execution settings", () => {
       where: { id: "bot" },
       data: {
         runtimeKind: "codex",
+        modelProvider: null,
+        modelId: null,
+        thinkingLevel: null,
         executionTarget: "host",
         registeredHostId: null,
         runtimePermission: "workspace",
@@ -192,4 +197,33 @@ it.each(["claude", "acp"] as const)("requires explicit full host access for %s",
       runtimePermission: "full",
     }),
   ).toThrow();
+});
+
+describe("roleplay execution isolation", () => {
+  it.each([
+    codex,
+    { ...codex, runtimeKind: "pi", projectPath: null },
+    { ...codex, runtimeKind: "pi", projectPath: null, executionTarget: "default" },
+  ])("rejects host/default/native placement before mutating computers", async (settings) => {
+    const { prisma, tx } = fixture({ botKind: "roleplay" });
+    await expect(setBotExecution(prisma, actor, settings as SetBotExecutionInput)).rejects.toThrow(
+      "Roleplay bots require",
+    );
+    expect(tx.computer.upsert).not.toHaveBeenCalled();
+    expect(tx.bot.update).not.toHaveBeenCalled();
+  });
+  it("accepts only internal Docker execution", () => {
+    expect(() =>
+      validateBotExecution(
+        {
+          botId: "bot",
+          runtimeKind: "pi",
+          executionTarget: "docker",
+          runtimePermission: "workspace",
+          projectPath: null,
+        },
+        "roleplay",
+      ),
+    ).not.toThrow();
+  });
 });

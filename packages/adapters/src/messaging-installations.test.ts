@@ -167,7 +167,7 @@ it("connects the first bot in the user's default space when no bot is chosen", a
   await f.manager.start({ ...actor, spaceId: "space-work" });
   expect(f.prisma.bot.findFirst).toHaveBeenCalledWith(
     expect.objectContaining({
-      where: { spaceId: "space-home", userId: "user-a", archivedAt: null },
+      where: { spaceId: "space-home", userId: "user-a", archivedAt: null, botKind: "agent" },
       orderBy: [{ createdAt: "asc" }, { id: "asc" }],
     }),
   );
