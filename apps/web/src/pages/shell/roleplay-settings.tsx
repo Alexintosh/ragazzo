@@ -203,6 +203,24 @@ function CharacterEditor({
           open
           error={Boolean(errors.name || errors.description || errors.personality)}
         >
+          <Field id={`${id}-conversation-style`} label={t`Conversation style`}>
+            <NativeSelect
+              id={`${id}-conversation-style`}
+              value={draft.conversationStyle ?? "narrative"}
+              onChange={(event) =>
+                update({
+                  conversationStyle: event.target.value as RoleplayCharacter["conversationStyle"],
+                })
+              }
+            >
+              <NativeSelectOption value="narrative">
+                <Trans>Narrative</Trans>
+              </NativeSelectOption>
+              <NativeSelectOption value="chat">
+                <Trans>Chat</Trans>
+              </NativeSelectOption>
+            </NativeSelect>
+          </Field>
           {text("name", t`Character name`)}
           {text("description", t`Description`)}
           {text("personality", t`Personality`)}

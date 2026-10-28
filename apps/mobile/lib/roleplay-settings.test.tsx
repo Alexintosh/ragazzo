@@ -203,6 +203,53 @@ describe("native roleplay settings", () => {
       target.dispatchEvent(new Event("input", { bubbles: true }));
     });
   }
+  function stylePicker() {
+    return host.querySelector<HTMLSelectElement>('select[aria-label="Conversation style"]')!;
+  }
+  async function changeStyle(value: string) {
+    await act(async () => {
+      const select = stylePicker();
+      Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value")!.set!.call(
+        select,
+        value,
+      );
+      select.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+  }
+
+  it("defaults legacy cards to narrative and preserves a missing style on unrelated saves", async () => {
+    await render();
+    expect(stylePicker().value).toBe("narrative");
+    expect(host.textContent).not.toContain("Save changes");
+    await change("Character description", "Edited");
+    await click("Save changes");
+    expect(onSave.mock.lastCall?.[0]).not.toHaveProperty("conversationStyle");
+  });
+
+  it("saves style with the full card and uses the accepted style as its baseline", async () => {
+    await render();
+    await changeStyle("chat");
+    expect(onSave).not.toHaveBeenCalled();
+    await click("Save changes");
+    const saved = { ...initial, conversationStyle: "chat" };
+    expect(onSave).toHaveBeenLastCalledWith(saved, initial);
+    expect(host.textContent).not.toContain("Save changes");
+    await changeStyle("narrative");
+    await click("Save changes");
+    expect(onSave.mock.lastCall?.[1]).toEqual(saved);
+  });
+
+  it("discards a style draft and displays refreshed saved styles", async () => {
+    await render();
+    await changeStyle("chat");
+    await click("Discard");
+    expect(stylePicker().value).toBe("narrative");
+    expect(onSave).not.toHaveBeenCalled();
+    props.character = { ...initial, conversationStyle: "chat" };
+    await render();
+    expect(stylePicker().value).toBe("chat");
+  });
+
   async function openBook() {
     await click("Lorebook");
   }
@@ -256,7 +303,7 @@ describe("native roleplay settings", () => {
       await click(label);
     await change("Insertion order", "-100000");
     await act(async () => {
-      const select = host.querySelector("select")!;
+      const select = host.querySelector<HTMLSelectElement>('select[aria-label="Position"]')!;
       select.value = "after_char";
       select.dispatchEvent(new Event("change", { bubbles: true }));
     });

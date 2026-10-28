@@ -150,6 +150,38 @@ async function toggle(label: string) {
 }
 
 describe("RoleplaySettings", () => {
+  it("defaults legacy cards to narrative without adding a style when saving other fields", async () => {
+    await render();
+    expect(field("Conversation style").value).toBe("narrative");
+    expect(container.textContent).not.toContain("Save changes");
+    await change("Description", "Edited");
+    await click("Save changes");
+    expect(onSave.mock.lastCall?.[0]).not.toHaveProperty("conversationStyle");
+  });
+
+  it("saves conversation style with the full card and advances its optimistic baseline", async () => {
+    await render();
+    await change("Conversation style", "chat");
+    expect(onSave).not.toHaveBeenCalled();
+    await click("Save changes");
+    const saved = { ...initial, conversationStyle: "chat" };
+    expect(onSave).toHaveBeenLastCalledWith(saved, initial);
+    expect(container.textContent).not.toContain("Save changes");
+    await change("Conversation style", "narrative");
+    await click("Save changes");
+    expect(onSave.mock.lastCall?.[1]).toEqual(saved);
+  });
+
+  it("discards a conversation style draft and follows refreshed saved styles", async () => {
+    await render();
+    await change("Conversation style", "chat");
+    await click("Discard");
+    expect(field("Conversation style").value).toBe("narrative");
+    expect(onSave).not.toHaveBeenCalled();
+    await render({ ...initial, conversationStyle: "chat" });
+    expect(field("Conversation style").value).toBe("chat");
+  });
+
   it("saves every active character field and preserves alternate greetings and literal key phrases", async () => {
     await render();
     for (const [label, value] of [

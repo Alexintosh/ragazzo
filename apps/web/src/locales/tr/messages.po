@@ -1252,6 +1252,10 @@ msgstr ""
 msgid "Chart failed to render: {error}"
 msgstr "Grafik çizilemedi: {error}"
 
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Chat"
+msgstr "Sohbet"
+
 #: src/pages/shell/composer-mentions.tsx
 msgid "Chat Settings"
 msgstr "Sohbet Ayarları"
@@ -1778,6 +1782,10 @@ msgstr ""
 #: src/pages/shell/conversation-files-panel.tsx
 msgid "Conversation files"
 msgstr ""
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Conversation style"
+msgstr "Konuşma tarzı"
 
 #: src/pages/MessagingSettingsPanel.tsx
 msgid "Conversations"
@@ -4082,6 +4090,10 @@ msgstr ""
 #: src/pages/shell/create-bot-dialog.tsx
 msgid "Name your Bot"
 msgstr ""
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Narrative"
+msgstr "Anlatı"
 
 #: src/pages/shell/roleplay-settings.tsx
 msgid "Narrative instructions"

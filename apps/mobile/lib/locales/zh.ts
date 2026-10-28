@@ -1,4 +1,7 @@
 export const ZH_MESSAGES: Record<string, string> = {
+  "Conversation style": "对话风格",
+  Narrative: "叙事",
+  Chat: "聊天",
   Approvals: "审批",
   "Never ask": "从不询问",
   Auto: "自动",

@@ -170,7 +170,10 @@ export function RoleplaySettings({
   }
   useImperativeHandle(ref, () => ({ save }));
 
-  const field = (key: keyof Omit<Draft, "lorebook" | "alternateGreetings">, label: string) => (
+  const field = (
+    key: keyof Omit<Draft, "lorebook" | "alternateGreetings" | "conversationStyle">,
+    label: string,
+  ) => (
     <Field
       key={key}
       label={label}
@@ -185,6 +188,19 @@ export function RoleplaySettings({
   return (
     <View style={styles.editor}>
       <Disclosure title={t("Character")} initiallyOpen forceOpen={showErrors}>
+        <MenuPicker
+          label={t("Conversation style")}
+          value={draft.conversationStyle ?? "narrative"}
+          choices={[
+            { key: "narrative", label: t("Narrative"), disabled: inactive },
+            { key: "chat", label: t("Chat"), disabled: inactive },
+          ]}
+          plain
+          onChange={(conversationStyle) => {
+            if (!inactive && (conversationStyle === "narrative" || conversationStyle === "chat"))
+              update({ conversationStyle });
+          }}
+        />
         {field("name", t("Character name"))}
         {field("description", t("Character description"))}
         {field("personality", t("Personality"))}

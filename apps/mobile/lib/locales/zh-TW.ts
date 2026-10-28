@@ -1,4 +1,7 @@
 export const ZH_TW_MESSAGES: Record<string, string> = {
+  "Conversation style": "對話風格",
+  Narrative: "敘事",
+  Chat: "聊天",
   "Approval model": "核准模型",
   "Main model": "主模型",
   "Add fallback": "新增備援模型",

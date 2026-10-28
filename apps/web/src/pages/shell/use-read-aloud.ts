@@ -1,5 +1,5 @@
 import type { Bot, ThreadMessage, ThreadSnapshot } from "@rakazo/contracts";
-import { speechFromBlocks } from "@rakazo/core";
+import { nextAutoSpeakAction, speechFromBlocks } from "@rakazo/core";
 import { toast } from "@rakazo/ui-web";
 import type { RefObject } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -41,27 +41,32 @@ export function useReadAloud({
 
   useEffect(() => {
     if (!active || !snapshot || snapshot.botId !== active.id) return;
-    const lastBot = [...snapshot.messages].reverse().find((message) => message.role === "bot");
-    if (autoSpokenBotId.current !== active.id) {
-      autoSpokenBotId.current = active.id;
-      autoSpoken.current = lastBot?.id ?? null;
-      return;
-    }
-    if (callBotId === active.id || !active.autoSpeak) {
-      autoSpoken.current = lastBot?.id ?? null;
-      return;
-    }
-    if (snapshot.run && ["running", "queued", "leased"].includes(snapshot.run.status)) return;
-    if (!lastBot || lastBot.id === autoSpoken.current) return;
-    const text = speechFromBlocks(lastBot.blocks);
-    if (!text) return;
-    autoSpoken.current = lastBot.id;
-    readAloud(text, { botId: active.id, messageId: lastBot.id });
+    const decision = nextAutoSpeakAction({
+      botId: active.id,
+      autoSpeak: active.autoSpeak && callBotId !== active.id,
+      focused: true,
+      snapshotReady: true,
+      lastSpokenBotId: autoSpokenBotId.current,
+      lastSpokenMessageId: autoSpoken.current,
+      runId: snapshot.run?.id,
+      runStatus: snapshot.run?.status,
+      combineRunReplies:
+        active.botKind === "roleplay" && active.roleplayCharacter?.conversationStyle === "chat",
+      messages: snapshot.messages,
+    });
+    if (decision.action === "wait") return;
+    autoSpokenBotId.current = active.id;
+    autoSpoken.current = decision.messageId;
+    if (decision.action === "seed") return;
+    readAloud(decision.text, { botId: active.id, messageId: decision.messageId });
   }, [
     snapshot?.messages,
     snapshot?.run?.status,
+    snapshot?.run?.id,
     snapshot?.botId,
     active?.autoSpeak,
+    active?.botKind,
+    active?.roleplayCharacter?.conversationStyle,
     active?.id,
     callBotId,
   ]);

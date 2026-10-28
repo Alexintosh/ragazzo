@@ -1,4 +1,7 @@
 export const NL_MESSAGES: Record<string, string> = {
+  "Conversation style": "Gespreksstijl",
+  Narrative: "Verhalend",
+  Chat: "Chat",
   Approvals: "Goedkeuringen",
   "Never ask": "Nooit vragen",
   Auto: "Auto",

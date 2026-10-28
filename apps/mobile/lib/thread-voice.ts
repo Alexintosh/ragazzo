@@ -61,6 +61,10 @@ export function useAutoSpeakReply({
       lastSpokenBotId: autoSpokenBotId.current,
       lastSpokenMessageId: autoSpoken.current,
       runStatus: snap?.run?.status,
+      runId: snap?.run?.id,
+      combineRunReplies:
+        currentBot.botKind === "roleplay" &&
+        currentBot.roleplayCharacter?.conversationStyle === "chat",
       messages: snap?.messages ?? [],
     });
     if (decision.action === "seed") {
@@ -87,6 +91,7 @@ export function useAutoSpeakReply({
     snap?.botId,
     snap?.messages,
     snap?.run?.status,
+    snap?.run?.id,
   ]);
 
   const speakFinishedReplyRef = useRef(speakFinishedReply);

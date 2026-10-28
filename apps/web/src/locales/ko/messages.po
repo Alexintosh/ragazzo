@@ -1252,6 +1252,10 @@ msgstr ""
 msgid "Chart failed to render: {error}"
 msgstr "차트를 표시하지 못했습니다: {error}"
 
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Chat"
+msgstr "채팅"
+
 #: src/pages/shell/composer-mentions.tsx
 msgid "Chat Settings"
 msgstr "채팅 설정"
@@ -1778,6 +1782,10 @@ msgstr ""
 #: src/pages/shell/conversation-files-panel.tsx
 msgid "Conversation files"
 msgstr ""
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Conversation style"
+msgstr "대화 스타일"
 
 #: src/pages/MessagingSettingsPanel.tsx
 msgid "Conversations"
@@ -4082,6 +4090,10 @@ msgstr "이 루틴의 이름을 정하세요"
 #: src/pages/shell/create-bot-dialog.tsx
 msgid "Name your Bot"
 msgstr ""
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Narrative"
+msgstr "서사"
 
 #: src/pages/shell/roleplay-settings.tsx
 msgid "Narrative instructions"

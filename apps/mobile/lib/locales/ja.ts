@@ -1,4 +1,7 @@
 export const JA_MESSAGES: Record<string, string> = {
+  "Conversation style": "会話スタイル",
+  Narrative: "物語",
+  Chat: "チャット",
   Approvals: "承認",
   "Never ask": "確認しない",
   Auto: "自動",

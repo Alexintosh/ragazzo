@@ -1252,6 +1252,10 @@ msgstr ""
 msgid "Chart failed to render: {error}"
 msgstr "图表渲染失败：{error}"
 
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Chat"
+msgstr "聊天"
+
 #: src/pages/shell/composer-mentions.tsx
 msgid "Chat Settings"
 msgstr "聊天设置"
@@ -1778,6 +1782,10 @@ msgstr ""
 #: src/pages/shell/conversation-files-panel.tsx
 msgid "Conversation files"
 msgstr ""
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Conversation style"
+msgstr "对话风格"
 
 #: src/pages/MessagingSettingsPanel.tsx
 msgid "Conversations"
@@ -4082,6 +4090,10 @@ msgstr "给这个例行任务命名"
 #: src/pages/shell/create-bot-dialog.tsx
 msgid "Name your Bot"
 msgstr ""
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Narrative"
+msgstr "叙事"
 
 #: src/pages/shell/roleplay-settings.tsx
 msgid "Narrative instructions"
