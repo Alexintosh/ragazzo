@@ -43,6 +43,8 @@ import { NativeSwitch } from "../components/native-switch";
 import { NativeSymbol } from "../components/native-symbol";
 import { ProfileEditDialog } from "../components/profile-edit-dialog";
 import { RegisteredHostPicker } from "../components/registered-host-picker";
+import type { RoleplaySettingsHandle } from "../components/roleplay-settings";
+import { RoleplaySettings } from "../components/roleplay-settings";
 import { Chevron } from "../components/row-accessories";
 import type { MobileMe, MobileModel, MobileModelCredential } from "../lib/api";
 import { rpc } from "../lib/api";
@@ -123,6 +125,12 @@ export default function BotSettingsScreen() {
   const voiceChoice = useRef(0);
   const [voiceError, setVoiceError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  const roleplaySettingsRef = useRef<RoleplaySettingsHandle>(null);
+  const [roleplaySettingsState, setRoleplaySettingsState] = useState({ dirty: false, pending: false });
+
+  useEffect(() => {
+    setRoleplaySettingsState({ dirty: false, pending: false });
+  }, [botId]);
 
   const crossSpaceSave = useMemo(
     () =>
@@ -398,7 +406,9 @@ export default function BotSettingsScreen() {
   }
 
   async function save() {
-    if (!botId || !bot || pending) return;
+    if (!botId || !bot || pending || roleplaySettingsState.pending) return;
+    // Saving other settings must also commit any character draft before leaving the screen.
+    if (roleplaySettingsRef.current && !(await roleplaySettingsRef.current.save())) return;
     setPending(true);
     setError(null);
     try {
@@ -624,13 +634,24 @@ export default function BotSettingsScreen() {
           />
         </View>
         {bot?.botKind === "roleplay" ? (
-          <View style={{ marginTop: 16, gap: 8 }}>
-            <SettingsSectionHeading>{t("Character")}</SettingsSectionHeading>
-            <Text style={{ color: tokens.foreground }}>{bot.roleplayCharacter?.name}</Text>
-            <Text style={{ color: tokens.mutedForeground }}>
-              {bot.roleplayCharacter?.description}
-            </Text>
-          </View>
+          bot.roleplayCharacter ? (
+            <RoleplaySettings
+              key={bot.id}
+              ref={roleplaySettingsRef}
+              character={bot.roleplayCharacter}
+              disabled={pending}
+              onStateChange={setRoleplaySettingsState}
+              onSave={async (roleplayCharacter, expectedRoleplayCharacter) => {
+                const updated = await rpc("bots/update", {
+                  botId: bot.id,
+                  roleplayCharacter,
+                  expectedRoleplayCharacter,
+                });
+                if (executionContextRef.current.botId === bot.id) setBot(updated);
+                return updated.roleplayCharacter ?? roleplayCharacter;
+              }}
+            />
+          ) : null
         ) : (
           <View style={{ marginTop: 16 }}>
           <View>
@@ -1043,7 +1064,7 @@ export default function BotSettingsScreen() {
         {error ? <Text style={{ color: tokens.destructive, marginTop: 16 }}>{error}</Text> : null}
         {dirty ? (
           <NativeActionButton
-            disabled={!name.trim() || pending || !bot}
+            disabled={!name.trim() || pending || roleplaySettingsState.pending || !bot}
             label={pending ? t("Saving…") : t("Save")}
             onPress={() => void save()}
             style={{ marginTop: 24 }}
