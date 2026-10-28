@@ -500,7 +500,7 @@ export async function executeRoleplayRun(
         signal,
         inputBudget,
         secrets,
-        Math.min(1024, outputBudget),
+        outputBudget,
       );
     }
     signal.throwIfAborted();

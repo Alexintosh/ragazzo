@@ -324,7 +324,7 @@ describe("roleplay chat continuity", () => {
     expect(f.requests.map((request) => request.purpose)).toEqual(["dialogue", "continuity"]);
     expect(f.requests[0]!.instructions).toContain(continuity.scene);
     const extracted = f.requests[1]!;
-    expect(extracted.model.maxTokens).toBeLessThanOrEqual(1024);
+    expect(extracted.model.maxTokens).toBe(2048);
     expect(extracted.history).toEqual([]);
     const data = JSON.parse(extracted.prompt);
     expect(data.priorContinuity).toEqual(continuity);
@@ -389,6 +389,43 @@ describe("roleplay chat continuity", () => {
     expect(f.thread.roleplayState).toMatchObject({ continuity });
     expect(f.finalizeRun.mock.calls[0]![0]).not.toHaveProperty("additionalMessages");
   });
+
+  it.each([
+    { contextWindow: 16_384, maxTokens: 2048, expected: 2048 },
+    { contextWindow: 16_384, maxTokens: undefined, expected: 4096 },
+    { contextWindow: 8192, maxTokens: 4096, expected: 2730 },
+    { contextWindow: 4096, maxTokens: 2048, expected: 1365 },
+    { contextWindow: 8192, maxTokens: 512, expected: 512 },
+  ])(
+    "gives continuity $expected output tokens within model and context limits",
+    async ({ contextWindow, maxTokens, expected }) => {
+      const f = chatFixture();
+      fake.resolveModel.mockResolvedValue({
+        provider: "neutral",
+        id: "fiction-model",
+        contextWindow,
+        maxTokens,
+      });
+      f.runtime.run = vi.fn(async function* (request) {
+        f.requests.push(request);
+        yield {
+          type: "done" as const,
+          text: request.purpose === "continuity" ? JSON.stringify(continuity) : "Onward.",
+        };
+      });
+      await execute(f);
+      expect(f.requests.map((request) => request.purpose)).toEqual(["dialogue", "continuity"]);
+      for (const request of f.requests) {
+        expect(request.model.maxTokens).toBe(expected);
+        const input =
+          roleplayTokens(request.instructions + request.prompt) +
+          request.history.reduce((sum, message) => sum + roleplayTokens(message.content) + 8, 0) +
+          32;
+        expect(input + expected).toBeLessThanOrEqual(contextWindow);
+      }
+      expect(f.thread.roleplayState).toMatchObject({ continuity });
+    },
+  );
 
   it("saves continuity from a slower model without changing its reasoning preference", async () => {
     vi.useFakeTimers();
