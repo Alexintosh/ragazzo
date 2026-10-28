@@ -4,6 +4,7 @@ import type {
   Bot,
   ComputerMode,
   ModelCatalogEntry,
+  RoleplayCharacter,
   ThinkingLevel,
 } from "@rakazo/contracts";
 import {
@@ -52,6 +53,7 @@ import { AvatarStudioPopover } from "./avatar-studio-popover";
 import { BotCredentialsSection } from "./bot-credentials";
 import { BotRuntimeSettings, BotRuntimeStatus } from "./bot-runtime-settings";
 import { ChatModelPicker } from "./chat-model-picker";
+import { RoleplaySettings } from "./roleplay-settings";
 
 const ScratchpadSection = lazyComponent(() =>
   import("../ScratchpadSection").then((module) => module.ScratchpadSection),
@@ -145,6 +147,8 @@ export function BotSettings({
       modelId?: string | null;
       thinkingLevel?: ThinkingLevel | null;
       disabledBuiltinTools?: string[];
+      roleplayCharacter?: RoleplayCharacter;
+      expectedRoleplayCharacter?: RoleplayCharacter;
     },
     onExecutionSaved?: (bot: Bot) => void,
   ) => Promise<void>;
@@ -623,15 +627,16 @@ export function BotSettings({
         />
       </div>
       {bot.botKind === "roleplay" ? (
-        <section className="mt-6 space-y-2" aria-label={t`Character`}>
-          <h3 className="text-xs font-medium text-muted-foreground">
-            <Trans>Character</Trans>
-          </h3>
-          <p className="break-words text-sm">{bot.roleplayCharacter?.name}</p>
-          <p className="whitespace-pre-wrap break-words text-sm text-muted-foreground">
-            {bot.roleplayCharacter?.description}
-          </p>
-        </section>
+        bot.roleplayCharacter ? (
+          <RoleplaySettings
+            botId={bot.id}
+            character={bot.roleplayCharacter}
+            status={bot.status}
+            onSave={(roleplayCharacter, expectedRoleplayCharacter) =>
+              onSave({ roleplayCharacter, expectedRoleplayCharacter })
+            }
+          />
+        ) : null
       ) : (
         <InstructionSettings key={bot.id} bot={bot} />
       )}

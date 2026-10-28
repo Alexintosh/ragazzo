@@ -185,6 +185,11 @@ msgstr ""
 msgid "{hours}h ago"
 msgstr "il y a {hours} h"
 
+#. placeholder {0}: index + 1
+#: src/pages/shell/roleplay-settings.tsx
+msgid "{label} {0}"
+msgstr ""
+
 #: src/components/markdown-copy.tsx
 msgid "{label}, empty"
 msgstr "{label}, vide"
@@ -525,6 +530,10 @@ msgstr ""
 msgid "Add dependency"
 msgstr ""
 
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Add entry"
+msgstr ""
+
 #: src/pages/PluginsOverlay.tsx
 msgid "Add Executor"
 msgstr "Ajouter un exécuteur"
@@ -548,6 +557,14 @@ msgstr "Ajouter un en-tête"
 #: src/pages/ScratchpadSection.tsx
 msgid "Add item"
 msgstr "Ajouter un élément"
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Add key"
+msgstr ""
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Add lorebook"
+msgstr ""
 
 #: src/components/integrations/IntegrationSetup.tsx
 #: src/pages/PluginsOverlay.tsx
@@ -632,6 +649,10 @@ msgstr "Avancé"
 msgid "Advanced..."
 msgstr "Avancé..."
 
+#: src/pages/shell/roleplay-settings.tsx
+msgid "After character"
+msgstr ""
+
 #: src/pages/shell/bot-runtime-settings.tsx
 msgid "Agent"
 msgstr ""
@@ -693,6 +714,10 @@ msgstr "Vous avez déjà un compte ?"
 #: src/pages/ExternalConversationSettings.tsx
 msgid "Always act"
 msgstr "Agir toujours"
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Always active"
+msgstr ""
 
 #: src/components/AskCard.tsx
 msgid "Always allow {site}"
@@ -964,6 +989,10 @@ msgstr ""
 msgid "Bearer token"
 msgstr "Jeton porteur"
 
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Before character"
+msgstr ""
+
 #: src/pages/SettingsOverlay.tsx
 msgid "Billing"
 msgstr ""
@@ -1171,6 +1200,10 @@ msgstr "Annulé"
 msgid "Card view"
 msgstr "Vue en cartes"
 
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Case sensitive"
+msgstr ""
+
 #: src/pages/ModelRoleSettings.tsx
 msgid "Change {name}"
 msgstr "Changer {name}"
@@ -1183,12 +1216,20 @@ msgstr "Changer {title}"
 msgid "Change password"
 msgstr "Changer le mot de passe"
 
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Changes apply to the next reply. Story history and memory are kept."
+msgstr ""
+
 #: src/pages/AccountSettingsOverlay.tsx
 msgid "Changing…"
 msgstr "Modification en cours…"
 
-#: src/pages/shell/bot-panel.tsx
+#: src/pages/shell/roleplay-settings.tsx
 msgid "Character"
+msgstr ""
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Character content must be at most 1 MB."
 msgstr ""
 
 #: src/pages/shell/create-bot-dialog.tsx
@@ -1201,6 +1242,10 @@ msgstr ""
 
 #: src/pages/shell/create-bot-dialog.tsx
 msgid "Character JSON must be 1 MB or smaller."
+msgstr ""
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Character name"
 msgstr ""
 
 #: src/pages/shell/message-cards.tsx
@@ -1256,6 +1301,10 @@ msgstr "Faites un point."
 #: src/lib/model-connection-preflight.ts
 msgid "Check the API key or sign-in, then test again."
 msgstr "Vérifiez la clé API ou la connexion, puis testez à nouveau."
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Check the highlighted fields."
+msgstr ""
 
 #: src/lib/model-connection-preflight.ts
 msgid "Check the server URL and network, then test again."
@@ -1678,6 +1727,10 @@ msgstr "La connexion à {0} est toujours en attente. Vous pouvez fermer cette fe
 #: src/pages/shell/import-status.ts
 msgid "Contains code to run"
 msgstr "Contient du code à exécuter"
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Content"
+msgstr ""
 
 #: src/pages/model-settings/compatible-model-fields.tsx
 #: src/pages/Onboarding.tsx
@@ -2138,6 +2191,10 @@ msgstr "Impossible d'enregistrer"
 msgid "Could not save Auto Review"
 msgstr "Impossible d'enregistrer la révision automatique"
 
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Could not save character"
+msgstr ""
+
 #: src/pages/GroupPanel.tsx
 msgid "Could not save group"
 msgstr "Impossible d'enregistrer le groupe"
@@ -2515,6 +2572,7 @@ msgstr "Refuser"
 #: src/pages/Board.tsx
 #: src/pages/shell/agent-import.tsx
 #: src/pages/shell/bot-panel.tsx
+#: src/pages/shell/roleplay-settings.tsx
 msgid "Description"
 msgstr "Description"
 
@@ -2535,15 +2593,21 @@ msgstr "Détails"
 msgid "Device code"
 msgstr ""
 
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Dialogue examples"
+msgstr ""
+
 #: src/pages/shell/bot-panel.tsx
 msgid "Disable a tool"
 msgstr "Désactiver un outil"
 
 #: src/pages/PluginsOverlay.tsx
+#: src/pages/shell/roleplay-settings.tsx
 msgid "Disabled"
 msgstr "Désactivé"
 
 #: src/pages/shell/conversation-tasks.tsx
+#: src/pages/shell/roleplay-settings.tsx
 #: src/pages/shell/thread-queue.tsx
 msgid "Discard"
 msgstr ""
@@ -2739,6 +2803,10 @@ msgstr "Vérification de l’e-mail requise"
 msgid "Enable {0}"
 msgstr "Activer {0}"
 
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Enabled"
+msgstr ""
+
 #: src/pages/shell/bot-credentials.tsx
 msgid "Encrypted and never shown again"
 msgstr "Chiffré et jamais affiché à nouveau"
@@ -2750,6 +2818,10 @@ msgstr ""
 #: src/pages/ExternalConversationSettings.tsx
 msgid "Engage when... Ignore..."
 msgstr "Répondre quand... Ignorer..."
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Enter a character name (1–500 characters)."
+msgstr ""
 
 #: src/lib/user-error.ts
 msgid "Enter a password"
@@ -2766,6 +2838,18 @@ msgstr ""
 #: src/lib/user-error.ts
 msgid "Enter a valid email"
 msgstr "Saisissez une adresse e-mail valide"
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Enter a whole number from -100000 to 100000."
+msgstr ""
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Enter a whole number from 0 to 100."
+msgstr ""
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Enter a whole number from 0 to 32768."
+msgstr ""
 
 #: src/pages/model-settings/use-model-settings.ts
 #: src/pages/Onboarding.tsx
@@ -2785,6 +2869,11 @@ msgstr "Saisissez un nombre entier de 1 à 1000 pour la limite d'images."
 #: src/lib/model-connection-preflight.ts
 msgid "Enter an API key before testing."
 msgstr "Saisissez une clé API avant de tester."
+
+#. placeholder {0}: index + 1
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Entry {0}"
+msgstr ""
 
 #: src/pages/McpServersOverlay.tsx
 msgid "Environment variables"
@@ -3004,6 +3093,10 @@ msgstr "Terminé."
 #: src/pages/McpOAuthCallback.tsx
 msgid "Finishing MCP connection…"
 msgstr "Finalisation de la connexion MCP…"
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "First message"
+msgstr ""
 
 #: src/pages/shell/project-folder-picker.tsx
 msgid "Folder path"
@@ -3298,6 +3391,10 @@ msgstr "Entrée"
 msgid "Inputs"
 msgstr "Entrées"
 
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Insertion order"
+msgstr ""
+
 #: src/pages/shell/bot-runtime-settings.tsx
 msgid "Install the runtime on the host."
 msgstr ""
@@ -3579,6 +3676,18 @@ msgstr "Se déconnecter"
 #: src/pages/shell/agent-import.tsx
 msgid "Looks like it contains a key"
 msgstr "Semble contenir une clé"
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Lorebook"
+msgstr ""
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Lorebook description"
+msgstr ""
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Lorebook name"
+msgstr ""
 
 #: src/lib/ticket-priority.ts
 #: src/pages/model-settings/compatible-model-fields.tsx
@@ -3972,6 +4081,10 @@ msgstr "Nommez cette routine"
 
 #: src/pages/shell/create-bot-dialog.tsx
 msgid "Name your Bot"
+msgstr ""
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Narrative instructions"
 msgstr ""
 
 #: src/lib/roster-status.ts
@@ -4506,6 +4619,10 @@ msgstr "Personnalité"
 msgid "Personal"
 msgstr ""
 
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Personality"
+msgstr ""
+
 #: src/components/call/VoiceChatCard.tsx
 msgid "Phone call"
 msgstr "Appel téléphonique"
@@ -4555,6 +4672,10 @@ msgstr "Lecture en cours…"
 msgid "Plugin"
 msgstr "Plugin"
 
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Position"
+msgstr ""
+
 #: src/pages/RoutineEditor.tsx
 msgid "Post \"No changes\" in chat"
 msgstr "Publier « Aucun changement » dans le chat"
@@ -4562,6 +4683,10 @@ msgstr "Publier « Aucun changement » dans le chat"
 #: src/pages/RoutineEditor.tsx
 msgid "POST to"
 msgstr "POST vers"
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Post-history instructions"
+msgstr ""
 
 #: src/pages/AccountSettingsOverlay.tsx
 msgid "Preferences"
@@ -4594,6 +4719,10 @@ msgstr ""
 
 #: src/pages/SettingsOverlay.tsx
 msgid "Previous settings sections"
+msgstr ""
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Primary keys"
 msgstr ""
 
 #: src/pages/Board.tsx
@@ -4843,6 +4972,11 @@ msgstr "Retirer {0}"
 msgid "Remove {0} from the group"
 msgstr ""
 
+#. placeholder {0}: index + 1
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Remove {label} {0}"
+msgstr ""
+
 #: src/pages/shell/bot-credentials.tsx
 msgid "Remove {secretName}? This bot will no longer be able to use it."
 msgstr ""
@@ -4855,6 +4989,10 @@ msgstr "Supprimer le déclencheur de changement"
 msgid "Remove dependency"
 msgstr ""
 
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Remove entry"
+msgstr ""
+
 #: src/pages/RoutineEditor.tsx
 msgid "Remove Git event"
 msgstr "Retirer l'événement Git"
@@ -4862,6 +5000,10 @@ msgstr "Retirer l'événement Git"
 #: src/components/ModelHeadersEditor.tsx
 msgid "Remove header"
 msgstr "Supprimer l'en-tête"
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Remove lorebook"
+msgstr ""
 
 #. placeholder {0}: mention.name
 #: src/pages/shell/composer.tsx
@@ -4952,6 +5094,10 @@ msgstr "Demandez un nouveau code"
 
 #: src/pages/MessagingSettingsPanel.tsx
 msgid "Requests"
+msgstr ""
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Require secondary match"
 msgstr ""
 
 #: src/pages/shell/message-cards.tsx
@@ -5074,6 +5220,10 @@ msgstr "Révoquer"
 msgid "Roleplay"
 msgstr ""
 
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Roleplay settings"
+msgstr ""
+
 #: src/pages/ExternalConversationSettings.tsx
 msgid "Room guidance"
 msgstr "Guide de la salle"
@@ -5194,6 +5344,10 @@ msgstr "samedi"
 msgid "Save"
 msgstr "Enregistrer"
 
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Save changes"
+msgstr ""
+
 #: src/pages/shell/bot-credentials.tsx
 msgid "Save credential"
 msgstr ""
@@ -5246,12 +5400,21 @@ msgstr "Enregistrement..."
 #: src/pages/RoutineEditor.tsx
 #: src/pages/shell/bot-credentials.tsx
 #: src/pages/shell/dialogs.tsx
+#: src/pages/shell/roleplay-settings.tsx
 msgid "Saving…"
 msgstr "Enregistrement en cours…"
 
 #: src/lib/call-session.ts
 msgid "Say yes or no, or answer in a sentence."
 msgstr "Dites oui ou non, ou répondez en une phrase."
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Scan depth"
+msgstr ""
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Scenario"
+msgstr ""
 
 #: src/pages/RoutineCalendar.tsx
 msgid "Scheduled"
@@ -5322,6 +5485,10 @@ msgstr ""
 #: src/pages/SpaceSearch.tsx
 msgid "Searching…"
 msgstr "Recherche en cours…"
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Secondary keys"
+msgstr ""
 
 #: src/pages/AccountSettingsOverlay.tsx
 msgid "Security"
@@ -5778,6 +5945,10 @@ msgstr "Arrêter la lecture"
 msgid "Stop teaching"
 msgstr "Arrêter l'enseignement"
 
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Stop the current reply before saving character changes."
+msgstr ""
+
 #. js-lingui-explicit-id
 #: src/lib/browser-notifications.ts
 msgid "Stopped."
@@ -5794,6 +5965,10 @@ msgstr ""
 #: src/pages/McpServersOverlay.tsx
 msgid "Stored encrypted"
 msgstr "Stocké chiffré"
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Story"
+msgstr ""
 
 #: src/pages/AccountSettingsOverlay.tsx
 msgid "Stream replies"
@@ -5846,6 +6021,10 @@ msgstr "Basculement en cours…"
 #: src/pages/AccountSettingsOverlay.tsx
 msgid "System"
 msgstr "Système"
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "System prompt"
+msgstr ""
 
 #: src/components/markdown-copy.tsx
 msgid "Table"
@@ -5925,6 +6104,10 @@ msgstr "Le bot et ce que son import a ajouté seront supprimés."
 msgid "The connection timed out."
 msgstr "La connexion a expiré."
 
+#: src/pages/shell/roleplay-settings.tsx
+msgid "The first message is used when a story starts or is reset."
+msgstr ""
+
 #. js-lingui-explicit-id
 #: src/lib/run-error.ts
 msgid "The model provider returned an error."
@@ -5979,10 +6162,6 @@ msgstr "Impossible de lire cette sauvegarde."
 msgid "This bot"
 msgstr "Ce bot"
 
-#: src/pages/shell/computer-view.tsx
-msgid "This bot runs on this computer, not a Linux desktop. Shell and files use your home folder."
-msgstr "Ce bot s'exécute sur cet ordinateur, pas sur un bureau Linux. Le shell et les fichiers utilisent votre dossier personnel."
-
 #: src/lib/agent-import-errors.ts
 msgid "This bot was not imported."
 msgstr "Ce bot n’a pas été importé."
@@ -6020,6 +6199,10 @@ msgstr "Cela supprime toutes les {0} versions de cet artefact. Cette action est 
 
 #: src/pages/Workflows.tsx
 msgid "This dependency would create a cycle."
+msgstr ""
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "This field exceeds the character limit."
 msgstr ""
 
 #: src/components/ArtifactFileCard.tsx
@@ -6138,6 +6321,10 @@ msgstr "À :"
 #: src/pages/shell/chat-context.tsx
 msgid "Today"
 msgstr "Aujourd'hui"
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Token budget"
+msgstr ""
 
 #: src/pages/AccountSettingsOverlay.tsx
 msgid "Tokens"

@@ -185,6 +185,11 @@ msgstr ""
 msgid "{hours}h ago"
 msgstr "{hours} sa önce"
 
+#. placeholder {0}: index + 1
+#: src/pages/shell/roleplay-settings.tsx
+msgid "{label} {0}"
+msgstr ""
+
 #: src/components/markdown-copy.tsx
 msgid "{label}, empty"
 msgstr "{label}, boş"
@@ -525,6 +530,10 @@ msgstr ""
 msgid "Add dependency"
 msgstr ""
 
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Add entry"
+msgstr ""
+
 #: src/pages/PluginsOverlay.tsx
 msgid "Add Executor"
 msgstr "Executor ekle"
@@ -548,6 +557,14 @@ msgstr "Üstbilgi ekle"
 #: src/pages/ScratchpadSection.tsx
 msgid "Add item"
 msgstr "Öğe ekle"
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Add key"
+msgstr ""
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Add lorebook"
+msgstr ""
 
 #: src/components/integrations/IntegrationSetup.tsx
 #: src/pages/PluginsOverlay.tsx
@@ -632,6 +649,10 @@ msgstr "Gelişmiş"
 msgid "Advanced..."
 msgstr ""
 
+#: src/pages/shell/roleplay-settings.tsx
+msgid "After character"
+msgstr ""
+
 #: src/pages/shell/bot-runtime-settings.tsx
 msgid "Agent"
 msgstr ""
@@ -692,6 +713,10 @@ msgstr "Zaten hesabın var mı?"
 
 #: src/pages/ExternalConversationSettings.tsx
 msgid "Always act"
+msgstr ""
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Always active"
 msgstr ""
 
 #: src/components/AskCard.tsx
@@ -964,6 +989,10 @@ msgstr ""
 msgid "Bearer token"
 msgstr "Bearer token"
 
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Before character"
+msgstr ""
+
 #: src/pages/SettingsOverlay.tsx
 msgid "Billing"
 msgstr ""
@@ -1171,6 +1200,10 @@ msgstr "İptal edildi"
 msgid "Card view"
 msgstr ""
 
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Case sensitive"
+msgstr ""
+
 #: src/pages/ModelRoleSettings.tsx
 msgid "Change {name}"
 msgstr "{name} değiştir"
@@ -1183,12 +1216,20 @@ msgstr "{title} değiştir"
 msgid "Change password"
 msgstr "Parolayı değiştir"
 
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Changes apply to the next reply. Story history and memory are kept."
+msgstr ""
+
 #: src/pages/AccountSettingsOverlay.tsx
 msgid "Changing…"
 msgstr "Değiştiriliyor…"
 
-#: src/pages/shell/bot-panel.tsx
+#: src/pages/shell/roleplay-settings.tsx
 msgid "Character"
+msgstr ""
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Character content must be at most 1 MB."
 msgstr ""
 
 #: src/pages/shell/create-bot-dialog.tsx
@@ -1201,6 +1242,10 @@ msgstr ""
 
 #: src/pages/shell/create-bot-dialog.tsx
 msgid "Character JSON must be 1 MB or smaller."
+msgstr ""
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Character name"
 msgstr ""
 
 #: src/pages/shell/message-cards.tsx
@@ -1256,6 +1301,10 @@ msgstr "Durum bildir."
 #: src/lib/model-connection-preflight.ts
 msgid "Check the API key or sign-in, then test again."
 msgstr "API anahtarını veya oturumu kontrol et, sonra yeniden test et."
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Check the highlighted fields."
+msgstr ""
 
 #: src/lib/model-connection-preflight.ts
 msgid "Check the server URL and network, then test again."
@@ -1678,6 +1727,10 @@ msgstr "{0} bağlantısı hâlâ beklemede. Bunu kapatıp daha sonra tekrar kont
 #: src/pages/shell/import-status.ts
 msgid "Contains code to run"
 msgstr "Çalıştırılacak kod içeriyor"
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Content"
+msgstr ""
 
 #: src/pages/model-settings/compatible-model-fields.tsx
 #: src/pages/Onboarding.tsx
@@ -2138,6 +2191,10 @@ msgstr "Kaydedilemedi"
 msgid "Could not save Auto Review"
 msgstr ""
 
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Could not save character"
+msgstr ""
+
 #: src/pages/GroupPanel.tsx
 msgid "Could not save group"
 msgstr "Grup kaydedilemedi"
@@ -2515,6 +2572,7 @@ msgstr "Reddet"
 #: src/pages/Board.tsx
 #: src/pages/shell/agent-import.tsx
 #: src/pages/shell/bot-panel.tsx
+#: src/pages/shell/roleplay-settings.tsx
 msgid "Description"
 msgstr "Açıklama"
 
@@ -2535,15 +2593,21 @@ msgstr "Ayrıntılar"
 msgid "Device code"
 msgstr ""
 
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Dialogue examples"
+msgstr ""
+
 #: src/pages/shell/bot-panel.tsx
 msgid "Disable a tool"
 msgstr "Bir aracı devre dışı bırak"
 
 #: src/pages/PluginsOverlay.tsx
+#: src/pages/shell/roleplay-settings.tsx
 msgid "Disabled"
 msgstr "Devre dışı"
 
 #: src/pages/shell/conversation-tasks.tsx
+#: src/pages/shell/roleplay-settings.tsx
 #: src/pages/shell/thread-queue.tsx
 msgid "Discard"
 msgstr ""
@@ -2739,6 +2803,10 @@ msgstr "E-posta doğrulaması gerekiyor"
 msgid "Enable {0}"
 msgstr "{0} etkinleştir"
 
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Enabled"
+msgstr ""
+
 #: src/pages/shell/bot-credentials.tsx
 msgid "Encrypted and never shown again"
 msgstr "Şifrelenir ve bir daha gösterilmez"
@@ -2749,6 +2817,10 @@ msgstr ""
 
 #: src/pages/ExternalConversationSettings.tsx
 msgid "Engage when... Ignore..."
+msgstr ""
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Enter a character name (1–500 characters)."
 msgstr ""
 
 #: src/lib/user-error.ts
@@ -2766,6 +2838,18 @@ msgstr ""
 #: src/lib/user-error.ts
 msgid "Enter a valid email"
 msgstr "Geçerli bir e-posta girin"
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Enter a whole number from -100000 to 100000."
+msgstr ""
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Enter a whole number from 0 to 100."
+msgstr ""
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Enter a whole number from 0 to 32768."
+msgstr ""
 
 #: src/pages/model-settings/use-model-settings.ts
 #: src/pages/Onboarding.tsx
@@ -2785,6 +2869,11 @@ msgstr "Görüntü sınırı için 1 ile 1000 arasında bir tam sayı girin."
 #: src/lib/model-connection-preflight.ts
 msgid "Enter an API key before testing."
 msgstr "Test etmeden önce bir API anahtarı gir."
+
+#. placeholder {0}: index + 1
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Entry {0}"
+msgstr ""
 
 #: src/pages/McpServersOverlay.tsx
 msgid "Environment variables"
@@ -3004,6 +3093,10 @@ msgstr "Tamamlandı."
 #: src/pages/McpOAuthCallback.tsx
 msgid "Finishing MCP connection…"
 msgstr "MCP bağlantısı tamamlanıyor…"
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "First message"
+msgstr ""
 
 #: src/pages/shell/project-folder-picker.tsx
 msgid "Folder path"
@@ -3298,6 +3391,10 @@ msgstr "Girdi"
 msgid "Inputs"
 msgstr "Girdiler"
 
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Insertion order"
+msgstr ""
+
 #: src/pages/shell/bot-runtime-settings.tsx
 msgid "Install the runtime on the host."
 msgstr ""
@@ -3579,6 +3676,18 @@ msgstr "Çıkış yap"
 #: src/pages/shell/agent-import.tsx
 msgid "Looks like it contains a key"
 msgstr "Bir anahtar içeriyor gibi görünüyor"
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Lorebook"
+msgstr ""
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Lorebook description"
+msgstr ""
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Lorebook name"
+msgstr ""
 
 #: src/lib/ticket-priority.ts
 #: src/pages/model-settings/compatible-model-fields.tsx
@@ -3972,6 +4081,10 @@ msgstr ""
 
 #: src/pages/shell/create-bot-dialog.tsx
 msgid "Name your Bot"
+msgstr ""
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Narrative instructions"
 msgstr ""
 
 #: src/lib/roster-status.ts
@@ -4506,6 +4619,10 @@ msgstr "Kişilik"
 msgid "Personal"
 msgstr ""
 
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Personality"
+msgstr ""
+
 #: src/components/call/VoiceChatCard.tsx
 msgid "Phone call"
 msgstr ""
@@ -4555,12 +4672,20 @@ msgstr "Çalınıyor…"
 msgid "Plugin"
 msgstr "Eklenti"
 
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Position"
+msgstr ""
+
 #: src/pages/RoutineEditor.tsx
 msgid "Post \"No changes\" in chat"
 msgstr "Sohbete “Değişiklik yok” gönder"
 
 #: src/pages/RoutineEditor.tsx
 msgid "POST to"
+msgstr ""
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Post-history instructions"
 msgstr ""
 
 #: src/pages/AccountSettingsOverlay.tsx
@@ -4594,6 +4719,10 @@ msgstr ""
 
 #: src/pages/SettingsOverlay.tsx
 msgid "Previous settings sections"
+msgstr ""
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Primary keys"
 msgstr ""
 
 #: src/pages/Board.tsx
@@ -4843,6 +4972,11 @@ msgstr "{0} kaldır"
 msgid "Remove {0} from the group"
 msgstr ""
 
+#. placeholder {0}: index + 1
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Remove {label} {0}"
+msgstr ""
+
 #: src/pages/shell/bot-credentials.tsx
 msgid "Remove {secretName}? This bot will no longer be able to use it."
 msgstr ""
@@ -4855,6 +4989,10 @@ msgstr "Değişiklik tetikleyicisini kaldır"
 msgid "Remove dependency"
 msgstr ""
 
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Remove entry"
+msgstr ""
+
 #: src/pages/RoutineEditor.tsx
 msgid "Remove Git event"
 msgstr ""
@@ -4862,6 +5000,10 @@ msgstr ""
 #: src/components/ModelHeadersEditor.tsx
 msgid "Remove header"
 msgstr "Üstbilgiyi kaldır"
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Remove lorebook"
+msgstr ""
 
 #. placeholder {0}: mention.name
 #: src/pages/shell/composer.tsx
@@ -4952,6 +5094,10 @@ msgstr "Yeni bir kod isteyin"
 
 #: src/pages/MessagingSettingsPanel.tsx
 msgid "Requests"
+msgstr ""
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Require secondary match"
 msgstr ""
 
 #: src/pages/shell/message-cards.tsx
@@ -5074,6 +5220,10 @@ msgstr "İptal et"
 msgid "Roleplay"
 msgstr ""
 
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Roleplay settings"
+msgstr ""
+
 #: src/pages/ExternalConversationSettings.tsx
 msgid "Room guidance"
 msgstr ""
@@ -5194,6 +5344,10 @@ msgstr "Cumartesi"
 msgid "Save"
 msgstr "Kaydet"
 
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Save changes"
+msgstr ""
+
 #: src/pages/shell/bot-credentials.tsx
 msgid "Save credential"
 msgstr ""
@@ -5246,12 +5400,21 @@ msgstr ""
 #: src/pages/RoutineEditor.tsx
 #: src/pages/shell/bot-credentials.tsx
 #: src/pages/shell/dialogs.tsx
+#: src/pages/shell/roleplay-settings.tsx
 msgid "Saving…"
 msgstr "Kaydediliyor…"
 
 #: src/lib/call-session.ts
 msgid "Say yes or no, or answer in a sentence."
 msgstr "Evet ya da hayır de veya bir cümleyle yanıtla."
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Scan depth"
+msgstr ""
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Scenario"
+msgstr ""
 
 #: src/pages/RoutineCalendar.tsx
 msgid "Scheduled"
@@ -5322,6 +5485,10 @@ msgstr ""
 #: src/pages/SpaceSearch.tsx
 msgid "Searching…"
 msgstr "Aranıyor…"
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Secondary keys"
+msgstr ""
 
 #: src/pages/AccountSettingsOverlay.tsx
 msgid "Security"
@@ -5778,6 +5945,10 @@ msgstr "Seslendirmeyi durdur"
 msgid "Stop teaching"
 msgstr "Öğretmeyi durdur"
 
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Stop the current reply before saving character changes."
+msgstr ""
+
 #. js-lingui-explicit-id
 #: src/lib/browser-notifications.ts
 msgid "Stopped."
@@ -5794,6 +5965,10 @@ msgstr ""
 #: src/pages/McpServersOverlay.tsx
 msgid "Stored encrypted"
 msgstr "Şifreli saklanıyor"
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Story"
+msgstr ""
 
 #: src/pages/AccountSettingsOverlay.tsx
 msgid "Stream replies"
@@ -5846,6 +6021,10 @@ msgstr "Geçiliyor…"
 #: src/pages/AccountSettingsOverlay.tsx
 msgid "System"
 msgstr "Sistem"
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "System prompt"
+msgstr ""
 
 #: src/components/markdown-copy.tsx
 msgid "Table"
@@ -5925,6 +6104,10 @@ msgstr "Bot ve içe aktarmanın eklediği her şey kaldırılacak."
 msgid "The connection timed out."
 msgstr "Bağlantı zaman aşımına uğradı."
 
+#: src/pages/shell/roleplay-settings.tsx
+msgid "The first message is used when a story starts or is reset."
+msgstr ""
+
 #. js-lingui-explicit-id
 #: src/lib/run-error.ts
 msgid "The model provider returned an error."
@@ -5979,10 +6162,6 @@ msgstr "Bu yedek okunamadı."
 msgid "This bot"
 msgstr "Bu bot"
 
-#: src/pages/shell/computer-view.tsx
-msgid "This bot runs on this computer, not a Linux desktop. Shell and files use your home folder."
-msgstr "Bu bot bir Linux masaüstünde değil, bu bilgisayarda çalışır. Kabuk ve dosyalar senin kullanıcı klasörünü kullanır."
-
 #: src/lib/agent-import-errors.ts
 msgid "This bot was not imported."
 msgstr "Bu bot içe aktarılmadı."
@@ -6020,6 +6199,10 @@ msgstr ""
 
 #: src/pages/Workflows.tsx
 msgid "This dependency would create a cycle."
+msgstr ""
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "This field exceeds the character limit."
 msgstr ""
 
 #: src/components/ArtifactFileCard.tsx
@@ -6138,6 +6321,10 @@ msgstr "Kime:"
 #: src/pages/shell/chat-context.tsx
 msgid "Today"
 msgstr "Bugün"
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Token budget"
+msgstr ""
 
 #: src/pages/AccountSettingsOverlay.tsx
 msgid "Tokens"

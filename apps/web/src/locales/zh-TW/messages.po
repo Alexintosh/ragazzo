@@ -186,6 +186,11 @@ msgstr "{hidden, plural, one {還有 # 個先前步驟} other {還有 # 個先�
 msgid "{hours}h ago"
 msgstr "{hours} 小時前"
 
+#. placeholder {0}: index + 1
+#: src/pages/shell/roleplay-settings.tsx
+msgid "{label} {0}"
+msgstr ""
+
 #: src/components/markdown-copy.tsx
 msgid "{label}, empty"
 msgstr "{label}，空白"
@@ -526,6 +531,10 @@ msgstr "加值"
 msgid "Add dependency"
 msgstr ""
 
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Add entry"
+msgstr ""
+
 #: src/pages/PluginsOverlay.tsx
 msgid "Add Executor"
 msgstr "新增 Executor"
@@ -549,6 +558,14 @@ msgstr "新增標頭"
 #: src/pages/ScratchpadSection.tsx
 msgid "Add item"
 msgstr "新增項目"
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Add key"
+msgstr ""
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Add lorebook"
+msgstr ""
 
 #: src/components/integrations/IntegrationSetup.tsx
 #: src/pages/PluginsOverlay.tsx
@@ -633,6 +650,10 @@ msgstr "進階"
 msgid "Advanced..."
 msgstr "進階..."
 
+#: src/pages/shell/roleplay-settings.tsx
+msgid "After character"
+msgstr ""
+
 #: src/pages/shell/bot-runtime-settings.tsx
 msgid "Agent"
 msgstr ""
@@ -694,6 +715,10 @@ msgstr "已有帳號？"
 #: src/pages/ExternalConversationSettings.tsx
 msgid "Always act"
 msgstr "一律採取行動"
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Always active"
+msgstr ""
 
 #: src/components/AskCard.tsx
 msgid "Always allow {site}"
@@ -965,6 +990,10 @@ msgstr "基本驗證（{username}）"
 msgid "Bearer token"
 msgstr "Bearer 權杖"
 
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Before character"
+msgstr ""
+
 #: src/pages/SettingsOverlay.tsx
 msgid "Billing"
 msgstr "帳務"
@@ -1172,6 +1201,10 @@ msgstr "已取消"
 msgid "Card view"
 msgstr "卡片檢視"
 
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Case sensitive"
+msgstr ""
+
 #: src/pages/ModelRoleSettings.tsx
 msgid "Change {name}"
 msgstr "更改 {name}"
@@ -1184,12 +1217,20 @@ msgstr "更改 {title}"
 msgid "Change password"
 msgstr "修改密碼"
 
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Changes apply to the next reply. Story history and memory are kept."
+msgstr ""
+
 #: src/pages/AccountSettingsOverlay.tsx
 msgid "Changing…"
 msgstr "正在修改…"
 
-#: src/pages/shell/bot-panel.tsx
+#: src/pages/shell/roleplay-settings.tsx
 msgid "Character"
+msgstr ""
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Character content must be at most 1 MB."
 msgstr ""
 
 #: src/pages/shell/create-bot-dialog.tsx
@@ -1202,6 +1243,10 @@ msgstr ""
 
 #: src/pages/shell/create-bot-dialog.tsx
 msgid "Character JSON must be 1 MB or smaller."
+msgstr ""
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Character name"
 msgstr ""
 
 #: src/pages/shell/message-cards.tsx
@@ -1257,6 +1302,10 @@ msgstr "報到。"
 #: src/lib/model-connection-preflight.ts
 msgid "Check the API key or sign-in, then test again."
 msgstr "請檢查 API 金鑰或登入，然後重新測試。"
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Check the highlighted fields."
+msgstr ""
 
 #: src/lib/model-connection-preflight.ts
 msgid "Check the server URL and network, then test again."
@@ -1679,6 +1728,10 @@ msgstr "與 {0} 的連線仍在等待。可以關閉此視窗稍後再看。"
 #: src/pages/shell/import-status.ts
 msgid "Contains code to run"
 msgstr "包含可執行的程式碼"
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Content"
+msgstr ""
 
 #: src/pages/model-settings/compatible-model-fields.tsx
 #: src/pages/Onboarding.tsx
@@ -2139,6 +2192,10 @@ msgstr "無法儲存"
 msgid "Could not save Auto Review"
 msgstr "無法儲存自動審查"
 
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Could not save character"
+msgstr ""
+
 #: src/pages/GroupPanel.tsx
 msgid "Could not save group"
 msgstr "無法儲存群組"
@@ -2516,6 +2573,7 @@ msgstr "拒絕"
 #: src/pages/Board.tsx
 #: src/pages/shell/agent-import.tsx
 #: src/pages/shell/bot-panel.tsx
+#: src/pages/shell/roleplay-settings.tsx
 msgid "Description"
 msgstr "描述"
 
@@ -2536,15 +2594,21 @@ msgstr "詳細資訊"
 msgid "Device code"
 msgstr ""
 
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Dialogue examples"
+msgstr ""
+
 #: src/pages/shell/bot-panel.tsx
 msgid "Disable a tool"
 msgstr "停用工具"
 
 #: src/pages/PluginsOverlay.tsx
+#: src/pages/shell/roleplay-settings.tsx
 msgid "Disabled"
 msgstr "已停用"
 
 #: src/pages/shell/conversation-tasks.tsx
+#: src/pages/shell/roleplay-settings.tsx
 #: src/pages/shell/thread-queue.tsx
 msgid "Discard"
 msgstr ""
@@ -2740,6 +2804,10 @@ msgstr "需要驗證電子信箱"
 msgid "Enable {0}"
 msgstr "啟用 {0}"
 
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Enabled"
+msgstr ""
+
 #: src/pages/shell/bot-credentials.tsx
 msgid "Encrypted and never shown again"
 msgstr "已加密，且不再顯示"
@@ -2751,6 +2819,10 @@ msgstr "於 {day} 結束"
 #: src/pages/ExternalConversationSettings.tsx
 msgid "Engage when... Ignore..."
 msgstr "何時參與… 忽略哪些內容…"
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Enter a character name (1–500 characters)."
+msgstr ""
 
 #: src/lib/user-error.ts
 msgid "Enter a password"
@@ -2767,6 +2839,18 @@ msgstr "輸入使用者名稱與密碼"
 #: src/lib/user-error.ts
 msgid "Enter a valid email"
 msgstr "請輸入有效的電子郵件地址"
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Enter a whole number from -100000 to 100000."
+msgstr ""
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Enter a whole number from 0 to 100."
+msgstr ""
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Enter a whole number from 0 to 32768."
+msgstr ""
 
 #: src/pages/model-settings/use-model-settings.ts
 #: src/pages/Onboarding.tsx
@@ -2786,6 +2870,11 @@ msgstr "請輸入 1 到 1000 之間的整數作為影像限制。"
 #: src/lib/model-connection-preflight.ts
 msgid "Enter an API key before testing."
 msgstr "測試前請輸入 API 金鑰。"
+
+#. placeholder {0}: index + 1
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Entry {0}"
+msgstr ""
 
 #: src/pages/McpServersOverlay.tsx
 msgid "Environment variables"
@@ -3005,6 +3094,10 @@ msgstr "已完成。"
 #: src/pages/McpOAuthCallback.tsx
 msgid "Finishing MCP connection…"
 msgstr "正在完成 MCP 連線…"
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "First message"
+msgstr ""
 
 #: src/pages/shell/project-folder-picker.tsx
 msgid "Folder path"
@@ -3299,6 +3392,10 @@ msgstr "輸入"
 msgid "Inputs"
 msgstr "輸入"
 
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Insertion order"
+msgstr ""
+
 #: src/pages/shell/bot-runtime-settings.tsx
 msgid "Install the runtime on the host."
 msgstr ""
@@ -3580,6 +3677,18 @@ msgstr "登出"
 #: src/pages/shell/agent-import.tsx
 msgid "Looks like it contains a key"
 msgstr "似乎包含金鑰"
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Lorebook"
+msgstr ""
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Lorebook description"
+msgstr ""
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Lorebook name"
+msgstr ""
 
 #: src/lib/ticket-priority.ts
 #: src/pages/model-settings/compatible-model-fields.tsx
@@ -3974,6 +4083,10 @@ msgstr "給這個例行任務命名"
 #: src/pages/shell/create-bot-dialog.tsx
 msgid "Name your Bot"
 msgstr "為你的機器人命名"
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Narrative instructions"
+msgstr ""
 
 #: src/lib/roster-status.ts
 msgid "Needs an answer"
@@ -4507,6 +4620,10 @@ msgstr "人設"
 msgid "Personal"
 msgstr "個人"
 
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Personality"
+msgstr ""
+
 #: src/components/call/VoiceChatCard.tsx
 msgid "Phone call"
 msgstr "語音通話"
@@ -4556,6 +4673,10 @@ msgstr "播放中…"
 msgid "Plugin"
 msgstr "外掛程式"
 
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Position"
+msgstr ""
+
 #: src/pages/RoutineEditor.tsx
 msgid "Post \"No changes\" in chat"
 msgstr "在聊天室中傳送「沒有變更」"
@@ -4563,6 +4684,10 @@ msgstr "在聊天室中傳送「沒有變更」"
 #: src/pages/RoutineEditor.tsx
 msgid "POST to"
 msgstr "POST 到"
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Post-history instructions"
+msgstr ""
 
 #: src/pages/AccountSettingsOverlay.tsx
 msgid "Preferences"
@@ -4596,6 +4721,10 @@ msgstr ""
 #: src/pages/SettingsOverlay.tsx
 msgid "Previous settings sections"
 msgstr "上一組設定區段"
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Primary keys"
+msgstr ""
 
 #: src/pages/Board.tsx
 msgid "Priority"
@@ -4844,6 +4973,11 @@ msgstr "移除 {0}"
 msgid "Remove {0} from the group"
 msgstr "將 {0} 移出群組"
 
+#. placeholder {0}: index + 1
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Remove {label} {0}"
+msgstr ""
+
 #: src/pages/shell/bot-credentials.tsx
 msgid "Remove {secretName}? This bot will no longer be able to use it."
 msgstr "要移除 {secretName} 嗎？此機器人將無法再使用它。"
@@ -4856,6 +4990,10 @@ msgstr "移除變化觸發器"
 msgid "Remove dependency"
 msgstr ""
 
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Remove entry"
+msgstr ""
+
 #: src/pages/RoutineEditor.tsx
 msgid "Remove Git event"
 msgstr "移除 Git 事件"
@@ -4863,6 +5001,10 @@ msgstr "移除 Git 事件"
 #: src/components/ModelHeadersEditor.tsx
 msgid "Remove header"
 msgstr "移除標頭"
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Remove lorebook"
+msgstr ""
 
 #. placeholder {0}: mention.name
 #: src/pages/shell/composer.tsx
@@ -4954,6 +5096,10 @@ msgstr "請重新獲取驗證碼"
 #: src/pages/MessagingSettingsPanel.tsx
 msgid "Requests"
 msgstr "請求"
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Require secondary match"
+msgstr ""
 
 #: src/pages/shell/message-cards.tsx
 msgid "Research & writing"
@@ -5073,6 +5219,10 @@ msgstr "撤銷授權"
 
 #: src/pages/shell/create-bot-dialog.tsx
 msgid "Roleplay"
+msgstr ""
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Roleplay settings"
 msgstr ""
 
 #: src/pages/ExternalConversationSettings.tsx
@@ -5195,6 +5345,10 @@ msgstr "週六"
 msgid "Save"
 msgstr "儲存"
 
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Save changes"
+msgstr ""
+
 #: src/pages/shell/bot-credentials.tsx
 msgid "Save credential"
 msgstr "儲存憑證"
@@ -5247,12 +5401,21 @@ msgstr "儲存中…"
 #: src/pages/RoutineEditor.tsx
 #: src/pages/shell/bot-credentials.tsx
 #: src/pages/shell/dialogs.tsx
+#: src/pages/shell/roleplay-settings.tsx
 msgid "Saving…"
 msgstr "正在儲存…"
 
 #: src/lib/call-session.ts
 msgid "Say yes or no, or answer in a sentence."
 msgstr "回答是或否，或一句話說明。"
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Scan depth"
+msgstr ""
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Scenario"
+msgstr ""
 
 #: src/pages/RoutineCalendar.tsx
 msgid "Scheduled"
@@ -5323,6 +5486,10 @@ msgstr "搜尋：{0}"
 #: src/pages/SpaceSearch.tsx
 msgid "Searching…"
 msgstr "正在搜尋…"
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Secondary keys"
+msgstr ""
 
 #: src/pages/AccountSettingsOverlay.tsx
 msgid "Security"
@@ -5779,6 +5946,10 @@ msgstr "停止朗讀"
 msgid "Stop teaching"
 msgstr "停止示範"
 
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Stop the current reply before saving character changes."
+msgstr ""
+
 #. js-lingui-explicit-id
 #: src/lib/browser-notifications.ts
 msgid "Stopped."
@@ -5795,6 +5966,10 @@ msgstr "正在停止…"
 #: src/pages/McpServersOverlay.tsx
 msgid "Stored encrypted"
 msgstr "已加密儲存"
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Story"
+msgstr ""
 
 #: src/pages/AccountSettingsOverlay.tsx
 msgid "Stream replies"
@@ -5847,6 +6022,10 @@ msgstr "正在切換…"
 #: src/pages/AccountSettingsOverlay.tsx
 msgid "System"
 msgstr "系統"
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "System prompt"
+msgstr ""
 
 #: src/components/markdown-copy.tsx
 msgid "Table"
@@ -5926,6 +6105,10 @@ msgstr "此機器人及其匯入新增的內容將被移除。"
 msgid "The connection timed out."
 msgstr "連線超時。"
 
+#: src/pages/shell/roleplay-settings.tsx
+msgid "The first message is used when a story starts or is reset."
+msgstr ""
+
 #. js-lingui-explicit-id
 #: src/lib/run-error.ts
 msgid "The model provider returned an error."
@@ -5980,10 +6163,6 @@ msgstr "無法讀取此備份。"
 msgid "This bot"
 msgstr "此機器人"
 
-#: src/pages/shell/computer-view.tsx
-msgid "This bot runs on this computer, not a Linux desktop. Shell and files use your home folder."
-msgstr "此機器人執行在這臺電腦上，而不是 Linux 桌面。Shell 和檔案使用你的主目錄。"
-
 #: src/lib/agent-import-errors.ts
 msgid "This bot was not imported."
 msgstr "此機器人不是匯入的。"
@@ -6021,6 +6200,10 @@ msgstr "這將刪除此成品的全部 {0} 個版本，且無法復原。"
 
 #: src/pages/Workflows.tsx
 msgid "This dependency would create a cycle."
+msgstr ""
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "This field exceeds the character limit."
 msgstr ""
 
 #: src/components/ArtifactFileCard.tsx
@@ -6139,6 +6322,10 @@ msgstr "收件人："
 #: src/pages/shell/chat-context.tsx
 msgid "Today"
 msgstr "今天"
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Token budget"
+msgstr ""
 
 #: src/pages/AccountSettingsOverlay.tsx
 msgid "Tokens"
