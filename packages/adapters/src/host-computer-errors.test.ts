@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   HOST_COMPUTER_STOPPED_MESSAGE,
   hostComputerErrorMessage,
+  isHostConnectionUnavailable,
   isNativeCodexCleanupFailedError,
   NATIVE_CODEX_CLEANUP_FAILED_MESSAGE,
 } from "./host-computer-errors.js";
@@ -52,6 +53,35 @@ describe("host computer error boundary", () => {
     expect(hostComputerErrorMessage(new Error("computer file exceeds 100 bytes"))).toBe(
       "computer file exceeds 100 bytes",
     );
+  });
+});
+
+describe("host connection failure classification", () => {
+  it("requires every attempted address to fail before accepting a connection", () => {
+    const refused = Object.assign(new Error("connection refused"), { code: "ECONNREFUSED" });
+    const reset = Object.assign(new Error("connection reset"), { code: "ECONNRESET" });
+    expect(isHostConnectionUnavailable(new AggregateError([refused, refused]))).toBe(true);
+    expect(isHostConnectionUnavailable(new AggregateError([refused, reset]))).toBe(false);
+    expect(
+      isHostConnectionUnavailable(
+        Object.assign(new AggregateError([refused, refused]), { code: "ECONNREFUSED" }),
+      ),
+    ).toBe(true);
+    expect(
+      isHostConnectionUnavailable(
+        Object.assign(new AggregateError([refused, reset]), { code: "ECONNREFUSED" }),
+      ),
+    ).toBe(false);
+    expect(isHostConnectionUnavailable(new AggregateError([]))).toBe(false);
+  });
+
+  it("does not let a nested refusal override an uncertain outer failure", () => {
+    const refused = Object.assign(new Error("connection refused"), { code: "ECONNREFUSED" });
+    expect(
+      isHostConnectionUnavailable(
+        Object.assign(new Error("connection reset", { cause: refused }), { code: "ECONNRESET" }),
+      ),
+    ).toBe(false);
   });
 });
 

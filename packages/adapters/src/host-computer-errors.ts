@@ -1,4 +1,28 @@
+import { SandboxUnavailableError } from "@rakazo/adapter-kit";
+
 export const HOST_COMPUTER_STOPPED_MESSAGE = "Local computer stopped";
+
+/** The connection failed before the host could accept the request. */
+export class HostComputerUnavailableError extends SandboxUnavailableError {
+  constructor(options?: { cause?: unknown }) {
+    super(options);
+    this.name = "HostComputerUnavailableError";
+    this.message =
+      "Host computer unavailable. Check the host connection and enable host access locally.";
+  }
+}
+
+/** Only connection establishment failures prove that host work never started. */
+export function isHostConnectionUnavailable(error: unknown): boolean {
+  if (!(error instanceof Error)) return false;
+  if (error instanceof AggregateError)
+    return error.errors.length > 0 && error.errors.every(isHostConnectionUnavailable);
+  if ("code" in error && typeof error.code === "string")
+    return ["ECONNREFUSED", "ENOTFOUND", "EAI_AGAIN", "ENETUNREACH", "EHOSTUNREACH"].includes(
+      error.code,
+    );
+  return error.cause !== undefined && isHostConnectionUnavailable(error.cause);
+}
 
 export const NATIVE_CODEX_CLEANUP_FAILED_MESSAGE =
   "Native Codex cleanup failed; turn outcome is uncertain. Check the project before starting a new run";

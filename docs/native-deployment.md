@@ -20,6 +20,8 @@ pnpm native:start
 
 `native:start` explicitly passes `--allow-host`: running it is local authorization for bots to execute as your OS user. The bridge uses a newly generated process-only credential, binds to loopback and rejects browser-origin requests. The API, worker and web also bind to loopback. Web clients cannot grant this consent themselves. Host authorization ends when the launcher stops. If one service exits, the launcher stops the other owned services and closes the bridge. Ctrl+C shuts down the entire stack, including owned native runs. No service is installed into the OS background startup configuration.
 
+Keep the launcher itself alive for the lifetime of the deployment: it hosts the bridge, so surviving API or web processes alone cannot run host computers. For a background deployment, supervise the whole `native:start` command. If it was terminated abruptly, stop the remaining owned services and restart the stack together. Boot and preview report an unavailable host connection without automatically resubmitting commands.
+
 The default computer is the local host. Both Team and Private are available. Native Codex additionally needs an existing signed-in CLI and a project folder. Private host computers separate application state and workspace folders; they do not create separate OS users. The computer panel previews a managed Chrome/Chromium browser on the host, with the same view/control lease flow as other computers. It does not capture or control the personal desktop. An existing Chrome/Chromium installation is required; the launcher never installs a browser.
 
 ### Optional Docker placement

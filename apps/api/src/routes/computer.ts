@@ -70,22 +70,25 @@ export function computerRoutes(ctx: RouterContext) {
       boot: authed.computer.boot.handler(async ({ context, input }) => {
         const bot = await repos.getBot(context.actor, input.botId);
         if (!bot.computer) throw new IsolationError();
+        const ctx = computerContext(context.actor, bot.id, "boot");
         if (bot.computer.state === "running" && bot.computer.providerRef) {
           try {
-            await ensureComputerWorkspaceLayout(
-              deps.sandbox,
-              toComputerRef(bot.computer),
-              parseComputerMode(bot.computer.scope),
-              bot.id,
-              computerContext(context.actor, bot.id, "boot"),
-            );
-            scheduleComputerSleep(deps.jobs, bot.computer.id);
-            return computerStatus(deps, context.actor, input.botId);
+            const ref = toComputerRef(bot.computer);
+            if (!deps.sandbox.isRunning || (await deps.sandbox.isRunning(ref, ctx))) {
+              await ensureComputerWorkspaceLayout(
+                deps.sandbox,
+                ref,
+                parseComputerMode(bot.computer.scope),
+                bot.id,
+                ctx,
+              );
+              scheduleComputerSleep(deps.jobs, bot.computer.id);
+              return computerStatus(deps, context.actor, input.botId);
+            }
           } catch (error) {
             await clearGoneSandbox(deps, bot.computer, error);
           }
         }
-        const ctx = computerContext(context.actor, bot.id, "boot");
         const manualRunId = `boot:${randomUUID()}`;
         let lease: ComputerExecutionLease | null;
         try {

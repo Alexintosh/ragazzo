@@ -5,7 +5,10 @@ import {
   SandboxUnavailableError,
   VoiceAccountError,
 } from "@rakazo/adapter-kit";
-import { NATIVE_CODEX_CLEANUP_FAILED_MESSAGE } from "@rakazo/adapters";
+import {
+  HostComputerUnavailableError,
+  NATIVE_CODEX_CLEANUP_FAILED_MESSAGE,
+} from "@rakazo/adapters";
 import { IsolationError } from "@rakazo/db";
 import { createLogger, createTestSink, installLogger } from "@rakazo/logging";
 import { afterEach, describe, expect, it } from "vitest";
@@ -93,6 +96,40 @@ describe("logUnexpectedRpcError", () => {
       }),
     ]);
   });
+
+  it.each(["boot", "screenUrl"])(
+    "returns an unreachable host during %s as HTTP 503 without leaking its address",
+    async (procedure) => {
+      installLogger(createLogger({ service: "rakazo-api", level: "off", sinks: [] }));
+      const unavailable = new HostComputerUnavailableError({
+        cause: Object.assign(new Error("connect ECONNREFUSED private-host.example:1234"), {
+          code: "ECONNREFUSED",
+        }),
+      });
+      const rpc = new RPCHandler(
+        {
+          [procedure]: os.handler(() => {
+            throw unavailable;
+          }),
+        },
+        { clientInterceptors: [onError((error, { path }) => handleRpcError(error, path))] },
+      );
+      const { response } = await rpc.handle(
+        new Request(`http://localhost/rpc/${procedure}`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({}),
+        }),
+        { prefix: "/rpc", context: {} },
+      );
+      expect(response?.status).toBe(503);
+      const body = await response!.text();
+      expect(body).toContain("SERVICE_UNAVAILABLE");
+      expect(body).toContain(unavailable.message);
+      expect(body).not.toContain("private-host.example");
+      expect(body).not.toContain("ECONNREFUSED");
+    },
+  );
 
   it("sends a provider rate limit to the client as HTTP 429 with the plain message", async () => {
     installLogger(createLogger({ service: "rakazo-api", sinks: [createTestSink()] }));

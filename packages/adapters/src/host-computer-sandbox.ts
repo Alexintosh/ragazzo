@@ -24,6 +24,8 @@ import type { HostBrowserImage } from "./host-browser.js";
 import type { HostBrowserIdentity } from "./host-browser-protocol.js";
 import {
   HOST_COMPUTER_STOPPED_MESSAGE,
+  HostComputerUnavailableError,
+  isHostConnectionUnavailable,
   NATIVE_CODEX_CLEANUP_FAILED_MESSAGE,
 } from "./host-computer-errors.js";
 import type {
@@ -127,10 +129,12 @@ export class HostComputerSandbox implements SandboxProvider {
       : undefined;
     monitor?.unref();
     let response: Response;
+    let connecting = false;
     try {
       // Secret loading or queued work may outlive a registration's revocation.
       await credentials.validate?.();
       signal.throwIfAborted();
+      connecting = true;
       response = await fetch(new URL("/computer", credentials.url), {
         method: "POST",
         headers: {
@@ -143,6 +147,13 @@ export class HostComputerSandbox implements SandboxProvider {
       });
     } catch (error) {
       clearInterval(monitor);
+      const setupRequest =
+        ["provision", "prepare", "isRunning", "browserScreen", "browserControl"].includes(
+          input.method,
+        ) ||
+        (input.method === "workspaceDirectories" && input.directories.action === "ensure");
+      if (connecting && setupRequest && !signal.aborted && isHostConnectionUnavailable(error))
+        throw new HostComputerUnavailableError({ cause: error });
       throw error;
     }
     if (!response.ok || !response.body) {

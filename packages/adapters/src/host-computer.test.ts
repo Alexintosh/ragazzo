@@ -11,6 +11,7 @@ import {
 import { tmpdir } from "node:os";
 import path from "node:path";
 import type { ComputerRef, ProcessEvent } from "@rakazo/adapter-kit";
+import { SandboxUnavailableError } from "@rakazo/adapter-kit";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   checkpointComputerWorkspace,
@@ -20,6 +21,8 @@ import {
 import { win32NtRelativeAvailable } from "./desktop-sandbox-win32-path.js";
 import { LocalAgentHomeStore } from "./home.js";
 import { HostCodexBroker } from "./host-codex-broker.js";
+import { HostComputerUnavailableError } from "./host-computer-errors.js";
+import type { HostComputerRequest } from "./host-computer-protocol.js";
 import { hostComputerDeadlineMs } from "./host-computer-protocol.js";
 import { HostComputerSandbox } from "./host-computer-sandbox.js";
 import { startHostComputerServer } from "./host-computer-server.js";
@@ -38,6 +41,148 @@ const token = "ab".repeat(32);
 const nodeEnv: Record<string, string> = process.versions.electron
   ? { ELECTRON_RUN_AS_NODE: "1" }
   : {};
+
+describe("unreachable host computer transport", () => {
+  const connectionFailure = (code: string) =>
+    new TypeError("fetch failed", {
+      cause: Object.assign(new Error("connection failed"), { code }),
+    });
+  const readRequest: HostComputerRequest = { method: "isRunning", botId: "test-bot" };
+
+  const setupRequests: HostComputerRequest[] = [
+    { method: "provision", botId: "test-bot" },
+    { method: "prepare", botId: "test-bot" },
+    {
+      method: "workspaceDirectories",
+      botId: "test-bot",
+      directories: { action: "ensure", paths: ["shared", "bots/bot"] },
+    },
+    {
+      method: "browserScreen",
+      botId: "test-bot",
+      scope: { botId: "bot", spaceId: "space", userId: "user", mode: "dedicated" },
+      interactive: false,
+    },
+    ...[false, true].map((interactive) => ({
+      method: "browserControl" as const,
+      botId: "test-bot",
+      scope: { botId: "bot", spaceId: "space", userId: "user", mode: "dedicated" as const },
+      interactive,
+      controlToken: "control",
+    })),
+  ];
+  it.each(setupRequests)("reports an offline host during $method setup", async (input) => {
+    const request = vi
+      .spyOn(globalThis, "fetch")
+      .mockRejectedValue(connectionFailure("ECONNREFUSED"));
+    try {
+      const client = new HostComputerSandbox("http://127.0.0.1:12345", token);
+      await expect(collect(client.request(input, context))).rejects.toBeInstanceOf(
+        HostComputerUnavailableError,
+      );
+    } finally {
+      request.mockRestore();
+    }
+  });
+
+  it.each(["ECONNREFUSED", "ENOTFOUND", "EAI_AGAIN", "ENETUNREACH", "EHOSTUNREACH"])(
+    "reports %s before setup as an unavailable computer",
+    async (code) => {
+      const failure = connectionFailure(code);
+      const request = vi.spyOn(globalThis, "fetch").mockRejectedValue(failure);
+      try {
+        const client = new HostComputerSandbox("http://127.0.0.1:12345", token);
+        const result = collect(client.request(readRequest, context));
+        await expect(result).rejects.toBeInstanceOf(HostComputerUnavailableError);
+        await expect(result).rejects.toBeInstanceOf(SandboxUnavailableError);
+        await expect(result).rejects.toMatchObject({
+          cause: failure,
+          message:
+            "Host computer unavailable. Check the host connection and enable host access locally.",
+        });
+        expect(request).toHaveBeenCalledOnce();
+      } finally {
+        request.mockRestore();
+      }
+    },
+  );
+
+  it.each(["ECONNRESET", "ETIMEDOUT", "UND_ERR_SOCKET"])(
+    "preserves uncertain %s failures",
+    async (code) => {
+      const failure = connectionFailure(code);
+      const request = vi.spyOn(globalThis, "fetch").mockRejectedValue(failure);
+      try {
+        const client = new HostComputerSandbox("http://127.0.0.1:12345", token);
+        await expect(collect(client.request(readRequest, context))).rejects.toBe(failure);
+      } finally {
+        request.mockRestore();
+      }
+    },
+  );
+
+  it("preserves native and command transport failures", async () => {
+    const failure = connectionFailure("ECONNREFUSED");
+    const request = vi.spyOn(globalThis, "fetch").mockRejectedValue(failure);
+    try {
+      const client = new HostComputerSandbox("http://127.0.0.1:12345", token);
+      await expect(
+        collect(
+          client.request(
+            { method: "codexAbort", botId: "bot", runId: "run", threadId: "thread" },
+            context,
+          ),
+        ),
+      ).rejects.toBe(failure);
+      await expect(
+        collect(
+          client.request(
+            { method: "execute", botId: "bot", command: { argv: ["command"] } },
+            context,
+          ),
+        ),
+      ).rejects.toBe(failure);
+    } finally {
+      request.mockRestore();
+    }
+  });
+
+  it("preserves a failure after the host accepted the request", async () => {
+    const failure = connectionFailure("ECONNREFUSED");
+    const response = new Response(
+      new ReadableStream({
+        start(stream) {
+          stream.error(failure);
+        },
+      }),
+    );
+    const request = vi.spyOn(globalThis, "fetch").mockResolvedValue(response);
+    try {
+      const client = new HostComputerSandbox("http://127.0.0.1:12345", token);
+      await expect(collect(client.request(readRequest, context))).rejects.toBe(failure);
+    } finally {
+      request.mockRestore();
+    }
+  });
+
+  it("does not mistake a credential-validation connection failure for an offline host", async () => {
+    const failure = connectionFailure("ECONNREFUSED");
+    const request = vi.spyOn(globalThis, "fetch");
+    try {
+      const client = new HostComputerSandbox(async () => ({
+        url: "http://127.0.0.1:12345",
+        token,
+        validate: async () => {
+          throw failure;
+        },
+      }));
+      await expect(collect(client.request(readRequest, context))).rejects.toBe(failure);
+      expect(request).not.toHaveBeenCalled();
+    } finally {
+      request.mockRestore();
+    }
+  });
+});
 
 describe("native host computer transport", () => {
   let root: string;

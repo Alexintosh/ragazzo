@@ -83,6 +83,7 @@ export { HonchoMemoryProvider } from "./honcho-memory-provider.js";
 export * from "./host-aware-sandbox.js";
 export type { HostCodexStatus } from "./host-codex-protocol.js";
 export {
+  HostComputerUnavailableError,
   isNativeCodexCleanupFailedError,
   NATIVE_CODEX_CLEANUP_FAILED_MESSAGE,
 } from "./host-computer-errors.js";
