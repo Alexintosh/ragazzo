@@ -685,7 +685,9 @@ async function refreshContinuity(
   if (!fits()) return state;
   const controller = new AbortController();
   const boundedSignal = AbortSignal.any([signal, controller.signal]);
-  const timeout = setTimeout(() => controller.abort(), 8_000);
+  // Local and reasoning models can take longer than a short interactive request
+  // to produce JSON. Keep extraction bounded without assuming hosted-model latency.
+  const timeout = setTimeout(() => controller.abort(), 60_000);
   timeout.unref?.();
   let abort!: () => void;
   const aborted = new Promise<never>((_resolve, reject) => {

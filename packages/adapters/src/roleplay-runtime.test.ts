@@ -13,7 +13,7 @@ vi.mock("@earendil-works/pi-ai/providers/all", () => ({
       api: "openai-completions",
       name: id,
       baseUrl: "https://model.invalid/v1",
-      reasoning: false,
+      reasoning: id === "reasoning-model",
       input: ["text"],
       contextWindow: 16_384,
       maxTokens: 2048,
@@ -146,6 +146,29 @@ describe("dedicated roleplay runtime", () => {
       expect(fake.agent).not.toHaveBeenCalled();
     },
   );
+
+  it("keeps default reasoning enabled for continuity models that require it", async () => {
+    fake.stream.mockImplementation((model: Model<"openai-completions">) => {
+      const stream = new AssistantMessageEventStream();
+      const message = answer(model, "{}");
+      queueMicrotask(() => {
+        stream.push({ type: "done", reason: "stop", message });
+        stream.end(message);
+      });
+      return stream;
+    });
+    for await (const _event of new InternalRoleplayRuntime().run(
+      {
+        ...request,
+        purpose: "continuity",
+        model: { ...request.model, id: "reasoning-model" },
+      },
+      new AbortController().signal,
+    )) {
+      /* consume */
+    }
+    expect(fake.stream.mock.calls[0]![2].reasoning).toBe("medium");
+  });
 
   it("rejects unsolicited tool calls without executing or continuing them", async () => {
     fake.stream.mockImplementation((model: Model<"openai-completions">) => {

@@ -390,6 +390,50 @@ describe("roleplay chat continuity", () => {
     expect(f.finalizeRun.mock.calls[0]![0]).not.toHaveProperty("additionalMessages");
   });
 
+  it("saves continuity from a slower model without changing its reasoning preference", async () => {
+    vi.useFakeTimers();
+    const f = chatFixture();
+    fake.resolveModel.mockResolvedValue({
+      provider: "neutral",
+      id: "reasoning-fiction-model",
+      contextWindow: 16_384,
+      maxTokens: 2048,
+      thinkingLevel: "medium",
+    });
+    const updated = { ...continuity, scene: "By the stream" };
+    let entered!: () => void;
+    const ready = new Promise<void>((resolve) => {
+      entered = resolve;
+    });
+    let extractionSignal: AbortSignal | undefined;
+    f.runtime.run = vi.fn(async function* (request, signal) {
+      f.requests.push(request);
+      if (request.purpose === "dialogue") {
+        yield { type: "done" as const, text: "Onward." };
+        return;
+      }
+      extractionSignal = signal;
+      entered();
+      await new Promise<void>((resolve) => setTimeout(resolve, 20_000));
+      signal.throwIfAborted();
+      yield { type: "done" as const, text: JSON.stringify(updated) };
+    });
+    const running = execute(f);
+    await ready;
+    await vi.advanceTimersByTimeAsync(19_999);
+    expect(extractionSignal?.aborted).toBe(false);
+    expect(f.finalizeRun).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(1);
+    await running;
+    expect(f.requests.at(-1)!.model.thinkingLevel).toBe("medium");
+    expect(f.finalizeRun).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({
+        outcome: "completed",
+        roleplayState: expect.objectContaining({ continuity: updated }),
+      }),
+    );
+  });
+
   it("times out a quiet extraction without delaying or failing the successful reply indefinitely", async () => {
     vi.useFakeTimers();
     const f = chatFixture();
@@ -412,7 +456,10 @@ describe("roleplay chat continuity", () => {
     });
     const running = execute(f);
     await ready;
-    await vi.advanceTimersByTimeAsync(8_000);
+    await vi.advanceTimersByTimeAsync(59_999);
+    expect(extractionSignal?.aborted).toBe(false);
+    expect(f.finalizeRun).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(1);
     await running;
     expect(extractionSignal?.aborted).toBe(true);
     expect(f.finalizeRun).toHaveBeenCalledExactlyOnceWith(
