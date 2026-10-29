@@ -489,6 +489,7 @@ export function Thread({ sessionEpoch, userId }: { sessionEpoch: number; userId:
       }))}
       atBottom={!scroll.state.detached}
       label={activityLine ?? t("Working…")}
+      botKind={inGroup ? undefined : currentBot?.botKind}
     />
   );
 

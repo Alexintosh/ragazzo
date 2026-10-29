@@ -1,4 +1,4 @@
-import type { ProductEvent, ThreadMessage, ThreadSnapshot } from "@rakazo/contracts";
+import type { Bot, ProductEvent, ThreadMessage, ThreadSnapshot } from "@rakazo/contracts";
 import { foldPeerReplies } from "@rakazo/core";
 import type { GroupAvatarMember } from "@rakazo/ui-web";
 import { DEFAULT_BOT_AVATAR_COLOR } from "@rakazo/ui-web";
@@ -52,6 +52,7 @@ export function FixtureTranscript({
   header,
   answerableAskIds = NO_IDS,
   bots = [BOT],
+  botKind,
 }: {
   messages: readonly ThreadMessage[];
   running: boolean;
@@ -61,6 +62,7 @@ export function FixtureTranscript({
   answerableAskIds?: Set<string>;
   /** The chat's own bot first, then any peers it mentions or hands off to. */
   bots?: GroupAvatarMember[];
+  botKind?: Bot["botKind"];
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const transcript = useMemo(
@@ -85,6 +87,7 @@ export function FixtureTranscript({
         dismissableAskIds={answerableAskIds}
         running={running}
         workingBots={running ? [bots[0]!] : []}
+        botKind={botKind}
         onLoadOlder={noop}
         onOpenBot={noop}
         onAnswer={resolved}

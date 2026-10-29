@@ -22,7 +22,6 @@ import {
   reduceComputerStatus,
   reduceThreadSnapshot,
 } from "../../lib/thread-events";
-import { transcriptCanSnapAfterFrame, transcriptIsNearEnd } from "../../lib/transcript-scroll";
 import type { useBrowserNotifications } from "./use-browser-notifications";
 import type { ComputerState } from "./use-computer";
 import type { ThreadState } from "./use-thread-state";
@@ -134,21 +133,7 @@ export function useThreadSync({
     return queries.threads.get.queryKey({ input: target });
   }
 
-  function snapTranscriptToEndAfterFrame() {
-    const queuedElement = messageScroll.current;
-    if (!queuedElement) return;
-    const queuedScrollTop = queuedElement.scrollTop;
-    window.requestAnimationFrame(() => {
-      const element = messageScroll.current;
-      if (transcriptCanSnapAfterFrame(element, queuedElement, queuedScrollTop)) {
-        queuedElement.scrollTop = queuedElement.scrollHeight;
-      }
-    });
-  }
-
   async function refreshGroupThread(id: string, signal?: AbortSignal) {
-    const scrollElement = messageScroll.current;
-    const stickToEnd = !scrollElement || transcriptIsNearEnd(scrollElement);
     markOnce("rk:renderer:thread-request-start");
     const request = ++groupRefreshEpoch.current;
     const snap = await rpc.threads.get({ groupId: id }, signal ? { signal } : undefined);
@@ -164,20 +149,11 @@ export function useThreadSync({
     if (!computerOpenRef.current) commitComputer(null);
     setRoutines([]);
     setRoutinesBotId(null);
-    // Keep the search-jump viewport; expandedHistoryThread merge still accepts live messages.
-    if (
-      stickToEnd &&
-      (!scrollElement || transcriptIsNearEnd(scrollElement)) &&
-      expandedHistoryThread.current !== snap.threadId
-    ) {
-      snapTranscriptToEndAfterFrame();
-    }
+    // Transcript owns tail-following, including the reader's explicit scroll-away intent.
     return snap;
   }
 
   async function refreshThread(id: string, signal?: AbortSignal) {
-    const scrollElement = messageScroll.current;
-    const stickToEnd = !scrollElement || transcriptIsNearEnd(scrollElement);
     markOnce("rk:renderer:thread-request-start");
     const epoch = historyEpoch.current;
     const request = ++threadRefreshEpoch.current;
@@ -204,13 +180,6 @@ export function useThreadSync({
     commitSnapshot(reconciled.snapshot);
     commitComputer(reconciled.computer);
     cacheComputerFor(id, { computer: reconciled.computer });
-    if (
-      stickToEnd &&
-      (!scrollElement || transcriptIsNearEnd(scrollElement)) &&
-      expandedHistoryThread.current !== snap.threadId
-    ) {
-      snapTranscriptToEndAfterFrame();
-    }
     void Promise.all([
       // Runs after routine changes too, so an older read in flight is not reused.
       fetchFresh(queryClient, queries.routines.list.queryOptions({ input: { botId: id } })).catch(

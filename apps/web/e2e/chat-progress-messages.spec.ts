@@ -10,6 +10,25 @@ const states = [
   { name: "complete", live: false, reply: "Tuesday afternoon is free." },
 ];
 
+test("roleplay waits with its animated indicator and no visible working label", async ({
+  page,
+}, testInfo) => {
+  for (const viewport of viewports) {
+    await page.setViewportSize(viewport);
+    await page.goto("/e2e/fixtures/chat-progress-messages.html?waiting=roleplay");
+    const status = page.getByRole("status");
+    await expect(status).toHaveAccessibleName("Working…");
+    await expect(status).toHaveText("");
+    await expect(status.locator('[data-working="true"]')).toBeVisible();
+    await expect(page.getByText("Working…", { exact: true })).toHaveCount(0);
+    await captureScreenshot(page, testInfo, `roleplay-waiting-${viewport.name}`);
+
+    await page.goto("/e2e/fixtures/chat-progress-messages.html?waiting=agent");
+    await expect(page.getByRole("status")).toHaveText("Working…");
+    await expect(page.getByRole("status").locator('[data-working="true"]')).toBeVisible();
+  }
+});
+
 test("chat shows mid-turn progress without Working…", async ({ page }, testInfo) => {
   for (const viewport of viewports) {
     await page.setViewportSize(viewport);

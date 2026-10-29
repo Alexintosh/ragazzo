@@ -1,6 +1,6 @@
 import { i18n } from "@lingui/core";
 import { useLingui } from "@lingui/react/macro";
-import type { MessageReaction, ThreadMessage } from "@rakazo/contracts";
+import type { Bot, MessageReaction, ThreadMessage } from "@rakazo/contracts";
 import type { FoldedTranscript } from "@rakazo/core";
 import {
   expandPeerReplies,
@@ -60,6 +60,7 @@ export const Transcript = memo(function Transcript({
   dismissableAskIds,
   running,
   workingBots,
+  botKind,
   userBubble,
   onCallBack,
   onLoadOlder,
@@ -98,6 +99,7 @@ export const Transcript = memo(function Transcript({
   dismissableAskIds: Set<string>;
   running: boolean;
   workingBots: GroupAvatarMember[];
+  botKind?: Bot["botKind"];
   /** Your bubbles take the bot's color in its own chat. */
   userBubble?: { background: string; foreground: string };
   /** Calls the bot back from a missed call in the transcript. */
@@ -578,7 +580,7 @@ export const Transcript = memo(function Transcript({
         !messages.some(
           (message) => message.id.startsWith("progress:") && liveMessageComposing(message.blocks),
         ) ? (
-          <ActiveBotGlyph bots={workingBots} label={workingLabel} />
+          <ActiveBotGlyph bots={workingBots} label={workingLabel} botKind={botKind} />
         ) : null}
       </div>
       {quoteDraft ? (

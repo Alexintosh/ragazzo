@@ -67,5 +67,22 @@ describe("collaboration transcript markers", () => {
     expect(html).toContain('role="status"');
     expect(html).toContain('data-working="true"');
     expect(html).toContain("rakazo-organic-avatar-body-working");
+    expect(html).toContain(">Searching the web: injury news</span>");
+  });
+
+  it("keeps the roleplay working animation and accessible label without visible status copy", () => {
+    const html = renderToString(
+      <ActiveBotGlyph
+        bots={[{ botId: "character", color: "#14B8A6", status: "running" }]}
+        label="Working…"
+        botKind="roleplay"
+      />,
+    );
+
+    expect(html).toContain('role="status"');
+    expect(html).toContain('aria-label="Working…"');
+    expect(html).toContain("rakazo-organic-avatar-body-working");
+    expect(html).not.toContain(">Working…<");
+    expect(html).not.toContain("text-shimmer");
   });
 });

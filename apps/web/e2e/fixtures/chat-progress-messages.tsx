@@ -3,9 +3,10 @@ import type { ProductEvent } from "@rakazo/contracts";
 import { createRoot } from "react-dom/client";
 import { bootstrapI18n, i18n } from "../../src/lib/i18n";
 import "../../src/styles.css";
-import { FixtureTranscript, reduceThreadEvents } from "./thread-fixture";
+import { BOT, FixtureTranscript, reduceThreadEvents } from "./thread-fixture";
 
 const live = new URLSearchParams(location.search).get("live") === "1";
+const waiting = new URLSearchParams(location.search).get("waiting");
 
 // A bot posts a message_user update mid-turn, keeps calling tools, then replies.
 const midTurn: Partial<ProductEvent>[] = [
@@ -28,23 +29,28 @@ const midTurn: Partial<ProductEvent>[] = [
   },
   { type: "agent.tool.called", payload: { name: "calendar" } },
 ];
-const events: Partial<ProductEvent>[] = live
-  ? [
-      ...midTurn,
-      { type: "thread.progress", payload: { text: "Still finding a free slot…", streaming: true } },
-    ]
-  : [
-      ...midTurn,
-      {
-        type: "thread.message.created",
-        payload: {
-          messageId: "bot-reply",
-          role: "bot",
-          blocks: [{ kind: "text", text: "Tuesday afternoon is free." }],
+const events: Partial<ProductEvent>[] = waiting
+  ? midTurn.slice(0, 2)
+  : live
+    ? [
+        ...midTurn,
+        {
+          type: "thread.progress",
+          payload: { text: "Still finding a free slot…", streaming: true },
         },
-      },
-      { type: "run.completed" },
-    ];
+      ]
+    : [
+        ...midTurn,
+        {
+          type: "thread.message.created",
+          payload: {
+            messageId: "bot-reply",
+            role: "bot",
+            blocks: [{ kind: "text", text: "Tuesday afternoon is free." }],
+          },
+        },
+        { type: "run.completed" },
+      ];
 const snapshot = reduceThreadEvents(events);
 
 void bootstrapI18n("en").then(() => {
@@ -54,6 +60,8 @@ void bootstrapI18n("en").then(() => {
         messages={snapshot.messages}
         running={snapshot.run?.status === "running"}
         showToolActivity={false}
+        bots={[{ ...BOT, status: snapshot.run?.status }]}
+        botKind={waiting === "roleplay" ? "roleplay" : "agent"}
       />
     </I18nProvider>,
   );
