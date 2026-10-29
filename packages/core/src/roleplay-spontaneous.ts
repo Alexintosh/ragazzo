@@ -1,4 +1,8 @@
-import type { RoleplayCharacter, RoleplayContinuity } from "@rakazo/contracts";
+import type {
+  RoleplayCharacter,
+  RoleplayContinuity,
+  RoleplayRelationship,
+} from "@rakazo/contracts";
 import type { RoleplayMessage } from "./roleplay.js";
 import { buildRoleplayPrompt } from "./roleplay.js";
 import type { RoleplayTemporalContext } from "./roleplay-temporal.js";
@@ -162,6 +166,7 @@ export function buildRoleplaySpontaneousRequest(input: {
   temporal: RoleplayTemporalContext;
   summary?: string;
   continuity?: RoleplayContinuity;
+  relationshipState?: RoleplayRelationship;
   playerName?: string;
   loreTokenLimit?: number;
 }): ReturnType<typeof buildRoleplayPrompt> {

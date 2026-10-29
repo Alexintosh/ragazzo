@@ -2,6 +2,7 @@ import { RoleplayContinuitySchema } from "@rakazo/contracts";
 import { describe, expect, it } from "vitest";
 import {
   buildRoleplayContinuityRequest,
+  buildRoleplayRelationshipContext,
   parseRoleplayContinuity,
   splitRoleplayChatMessages,
 } from "./roleplay-continuity.js";
@@ -13,6 +14,21 @@ const snapshot = {
   openThreads: ["A cafe was suggested"],
   callbacks: [],
 };
+
+describe("relationship reply context", () => {
+  it("changes each dimension independently and includes the supplied values", () => {
+    const low = { warmth: 0, intimacy: 0, love: 0 };
+    const baseline = buildRoleplayRelationshipContext(low).split("\n");
+    for (const [index, field] of ["warmth", "intimacy", "love"].entries()) {
+      const changed = buildRoleplayRelationshipContext({ ...low, [field]: 100 }).split("\n");
+      expect(changed[index + 1]).not.toBe(baseline[index + 1]);
+      expect(changed[index + 1]).toContain("100/100");
+      expect(changed.filter((_, line) => line !== index + 1)).toEqual(
+        baseline.filter((_, line) => line !== index + 1),
+      );
+    }
+  });
+});
 
 describe("continuity extraction contract", () => {
   it("accepts complete raw and fenced JSON without accepting surrounding prose", () => {

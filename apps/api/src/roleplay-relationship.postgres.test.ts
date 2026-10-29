@@ -30,7 +30,8 @@ postgres("relationship debug scoped persistence (PostgreSQL)", () => {
         { signupsEnabled: undefined, signupAllowlist: undefined },
       ),
     );
-    if (!identity.created) throw new Error("Relationship fixture must own a newly created identity");
+    if (!identity.created)
+      throw new Error("Relationship fixture must own a newly created identity");
     actor = {
       userId: identity.userId,
       spaceId: identity.spaceId,
@@ -49,7 +50,7 @@ postgres("relationship debug scoped persistence (PostgreSQL)", () => {
     await db?.pool.end();
   });
 
-  it("saves encrypted scores, rejects another owner and stale resets, and preserves messages", async () => {
+  it("saves encrypted scores across a client restart, rejects stale resets, and preserves messages", async () => {
     await runAsTenant(actor, async () => {
       const character = parseRoleplayCharacterJson(
         '{"name":"Mira","first_mes":"Welcome."}',
@@ -63,7 +64,7 @@ postgres("relationship debug scoped persistence (PostgreSQL)", () => {
         botKind: "roleplay",
         roleplayCharacter: character,
       });
-      const deps = { prisma: db.prisma, env: { roleplayEnabled: true } } as Pick<
+      let deps = { prisma: db.prisma, env: { roleplayEnabled: true } } as Pick<
         RouterDeps,
         "prisma" | "env"
       >;
@@ -77,9 +78,13 @@ postgres("relationship debug scoped persistence (PostgreSQL)", () => {
       };
       const after = await updateRoleplayRelationship(deps, actor, input);
       expect(after.relationship).toEqual(input.relationship);
-      expect((await loadRoleplayRelationship(deps, actor, bot.id)).relationship).toEqual(
-        input.relationship,
-      );
+      // Discard the writing client, pool and in-memory content keys. A new process
+      // must recover the saved scores from the database and persisted space key.
+      await db.prisma.$disconnect();
+      await db.pool.end();
+      db = createDb(databaseUrl!, { encryptContent: true });
+      deps = { ...deps, prisma: db.prisma };
+      expect(await loadRoleplayRelationship(deps, actor, bot.id)).toEqual(after);
       const raw = await db.prisma.$queryRaw<
         Array<{ roleplayState: unknown }>
       >`SELECT "roleplayState" FROM threads WHERE id=${bot.threadId}`;

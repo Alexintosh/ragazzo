@@ -6,7 +6,11 @@ import type {
   RoleplayRelationship,
   RoleplayRelationshipDebug,
 } from "@rakazo/contracts";
-import { RoleplayRelationshipSchema, TimeZoneSchema } from "@rakazo/contracts";
+import {
+  RoleplayContinuitySchema,
+  RoleplayRelationshipSchema,
+  TimeZoneSchema,
+} from "@rakazo/contracts";
 import { ACTIVE_RUN_STATUSES, roleplayRelationshipState, roleplayStoryState } from "@rakazo/core";
 import type { Prisma } from "@rakazo/db";
 import { IsolationError } from "@rakazo/db";
@@ -144,7 +148,7 @@ export async function updateRoleplayRelationship(
         botId: current.id,
         historyGeneration: thread.historyCompactionGeneration,
       });
-      state.continuity = {
+      const continuity = RoleplayContinuitySchema.safeParse({
         scene: "",
         relationship: "",
         sharedDetails: [],
@@ -152,7 +156,10 @@ export async function updateRoleplayRelationship(
         callbacks: [],
         ...state.continuity,
         relationshipState: relationship,
-      };
+      });
+      if (!continuity.success)
+        throw new ORPCError("BAD_REQUEST", { message: "Story memory exceeds the memory limit" });
+      state.continuity = continuity.data;
       const updated = await tx.thread.update({
         where: { id: thread.id },
         data: { roleplayState: state as unknown as Prisma.InputJsonValue },

@@ -1,4 +1,5 @@
 import { createRouterClient } from "@orpc/server";
+import { RoleplayContinuitySchema } from "@rakazo/contracts";
 import { roleplayStoryState } from "@rakazo/core";
 import { describe, expect, it, vi } from "vitest";
 import type { RouterDeps } from "./router.js";
@@ -108,6 +109,44 @@ describe("roleplay relationship debug", () => {
       expect(f.update).not.toHaveBeenCalled();
     },
   );
+
+  it("rejects relationship edits that would make saved continuity unreadable", async () => {
+    const f = fixture();
+    const continuity = {
+      scene: "x".repeat(800),
+      relationship: "x".repeat(800),
+      sharedDetails: Array<string>(12).fill("x".repeat(400)),
+      openThreads: Array<string>(8).fill("x".repeat(400)),
+      callbacks: Array<string>(8).fill("x".repeat(400)),
+    };
+    // Each replacement adds one UTF-8 byte without exceeding field character limits.
+    let extraBytes = 16_360 - new TextEncoder().encode(JSON.stringify(continuity)).length;
+    for (let i = 0; extraBytes > 0 && i < continuity.sharedDetails.length; i++) {
+      const count = Math.min(extraBytes, 400);
+      continuity.sharedDetails[i] = "é".repeat(count) + "x".repeat(400 - count);
+      extraBytes -= count;
+    }
+    expect(RoleplayContinuitySchema.safeParse(continuity).success).toBe(true);
+    const relationship = { warmth: 100, intimacy: 100, love: 100 };
+    expect(
+      RoleplayContinuitySchema.safeParse({ ...continuity, relationshipState: relationship })
+        .success,
+    ).toBe(false);
+    f.thread.roleplayState = { ...(f.thread.roleplayState as object), continuity };
+    const original = structuredClone(f.thread.roleplayState);
+    const before = await f.client.bots.roleplayRelationship({ botId: "rp" });
+    await expect(
+      f.client.bots.updateRoleplayRelationship({
+        botId: "rp",
+        relationship,
+        historyGeneration: before.historyGeneration,
+        expectedRevision: before.revision,
+      }),
+    ).rejects.toThrow("Story memory exceeds the memory limit");
+    expect(f.update).not.toHaveBeenCalled();
+    expect(f.thread.roleplayState).toEqual(original);
+    expect(await f.client.bots.roleplayRelationship({ botId: "rp" })).toEqual(before);
+  });
 
   it("refuses an active reply and out-of-range scores", async () => {
     const f = fixture();

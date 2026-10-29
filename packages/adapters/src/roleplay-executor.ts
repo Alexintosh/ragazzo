@@ -1,6 +1,6 @@
 import { runContinueJob } from "@rakazo/adapter-kit";
 import type { RoleplayContinuity } from "@rakazo/contracts";
-import { RoleplayCharacterSchema } from "@rakazo/contracts";
+import { RoleplayCharacterSchema, RoleplayContinuitySchema } from "@rakazo/contracts";
 import type { RoleplayMessage, RoleplayStoryState, RoleplayTemporalContext } from "@rakazo/core";
 import {
   buildRoleplayContinuityRequest,
@@ -460,6 +460,7 @@ export async function executeRoleplayRun(
       scheduleMode,
       summary: state.summary,
       continuity: undefined,
+      relationshipState: state.continuity?.relationshipState,
       loreTokenLimit: 0,
     };
     const withScheduling = buildRoleplayPrompt(initialInput);
@@ -518,6 +519,7 @@ export async function executeRoleplayRun(
         scheduleMode,
         summary: state.summary,
         continuity: promptContinuity,
+        relationshipState: initialInput.relationshipState,
         loreTokenLimit: 0,
       },
       inputBudget - historyTokens,
@@ -540,6 +542,7 @@ export async function executeRoleplayRun(
       scheduleMode,
       summary: state.summary,
       continuity: promptContinuity,
+      relationshipState: initialInput.relationshipState,
       loreTokenLimit: remaining,
     });
     await deps.events.append({
@@ -919,19 +922,18 @@ async function refreshContinuity(
     ]);
     signal.throwIfAborted();
     const extracted = parseRoleplayContinuity(redactSecrets(text, secrets));
-    return extracted
-      ? {
-          ...state,
-          continuity: {
-            ...extracted,
-            relationshipState: updateRoleplayRelationshipState(
-              state.continuity?.relationshipState,
-              extracted.relationshipState,
-              { realUserTurn },
-            ),
-          },
-        }
-      : state;
+    if (!extracted) return state;
+    // Adding scores can push an otherwise valid extraction over the snapshot byte limit.
+    // Validate the complete saved value so the next load cannot discard its relationship state.
+    const continuity = RoleplayContinuitySchema.safeParse({
+      ...extracted,
+      relationshipState: updateRoleplayRelationshipState(
+        state.continuity?.relationshipState,
+        extracted.relationshipState,
+        { realUserTurn },
+      ),
+    });
+    return continuity.success ? { ...state, continuity: continuity.data } : state;
   } catch {
     signal.throwIfAborted();
     return state;

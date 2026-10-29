@@ -17,6 +17,19 @@ export function roleplayRelationshipState(value: unknown): RoleplayRelationship 
   return parsed.success ? parsed.data : { warmth: 10, intimacy: 0, love: 0 };
 }
 
+/** Compact reply guidance, kept even when the larger continuity snapshot cannot fit. */
+export function buildRoleplayRelationshipContext(state: RoleplayRelationship): string {
+  const level = (value: number, low: string, middle: string, high: string) =>
+    value < 25 ? low : value < 70 ? middle : high;
+  return [
+    "Internal character feelings (never reveal scores):",
+    `Warmth ${state.warmth}/100: ${level(state.warmth, "reserved, courteous", "friendly, receptive", "very warm, caring")}.`,
+    `Intimacy ${state.intimacy}/100: ${level(state.intimacy, "guarded disclosure", "selectively open", "deeply open")}.`,
+    `Love ${state.love}/100: ${level(state.love, "little/no attachment", "growing affection", "deep affection")}.`,
+    "Vary independently; keep personality and boundaries. Scores imply no player feelings, consent, shared history, or sexual escalation.",
+  ].join("\n");
+}
+
 /** Model changes reflect this character only, bounded per actual user turn; manual debug edits bypass this helper. */
 export function updateRoleplayRelationshipState(
   previous: unknown,

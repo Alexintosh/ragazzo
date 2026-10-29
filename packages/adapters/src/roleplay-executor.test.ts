@@ -1,5 +1,11 @@
 import type { RoleplayCharacter } from "@rakazo/contracts";
-import { roleplayStoryState, roleplayTokens, STEERING_CONTINUATION_PROMPT } from "@rakazo/core";
+import { RoleplayContinuitySchema } from "@rakazo/contracts";
+import {
+  buildRoleplayRelationshipContext,
+  roleplayStoryState,
+  roleplayTokens,
+  STEERING_CONTINUATION_PROMPT,
+} from "@rakazo/core";
 import type * as Database from "@rakazo/db";
 import type { Run } from "@rakazo/db";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -315,6 +321,125 @@ describe("roleplay chat continuity", () => {
       fence: 1,
     });
 
+  it.each([
+    { warmth: 0, intimacy: 0, love: 0 },
+    { warmth: 50, intimacy: 20, love: 70 },
+    { warmth: 100, intimacy: 100, love: 100 },
+  ])("passes saved relationship state %j as dialogue guidance", async (relationshipState) => {
+    const f = chatFixture();
+    f.thread.roleplayState = {
+      ...roleplayStoryState(f.thread.roleplayState, {
+        threadId: "story",
+        botId: "aria",
+        historyGeneration: 0,
+      }),
+      continuity: { ...continuity, relationshipState },
+    };
+    await execute(f);
+    expect(f.requests[0]!.purpose).toBe("dialogue");
+    expect(f.requests[0]!.instructions).toContain(
+      buildRoleplayRelationshipContext(relationshipState),
+    );
+    expect(f.thread.roleplayState).toMatchObject({
+      continuity: { relationshipState },
+    });
+  });
+
+  it("retains saved maximum scores when a valid continuity extraction omits them", async () => {
+    const f = chatFixture();
+    const relationshipState = { warmth: 100, intimacy: 100, love: 100 };
+    f.thread.roleplayState = {
+      ...roleplayStoryState(f.thread.roleplayState, {
+        threadId: "story",
+        botId: "aria",
+        historyGeneration: 0,
+      }),
+      continuity: { ...continuity, relationshipState },
+    };
+    f.runtime.run = vi.fn(async function* (request) {
+      f.requests.push(request);
+      yield {
+        type: "done" as const,
+        text: request.purpose === "continuity" ? JSON.stringify(continuity) : "Onward.",
+      };
+    });
+    await execute(f);
+    expect(f.requests[0]!.instructions).toContain(
+      buildRoleplayRelationshipContext(relationshipState),
+    );
+    expect(f.thread.roleplayState).toMatchObject({
+      continuity: { relationshipState },
+    });
+  });
+
+  it("keeps the prior snapshot when adding retained scores would exceed the byte limit", async () => {
+    const f = chatFixture();
+    const relationshipState = { warmth: 100, intimacy: 100, love: 100 };
+    f.thread.roleplayState = {
+      ...roleplayStoryState(f.thread.roleplayState, {
+        threadId: "story",
+        botId: "aria",
+        historyGeneration: 0,
+      }),
+      continuity: { ...continuity, relationshipState },
+    };
+    const extracted = {
+      scene: "x".repeat(800),
+      relationship: "x".repeat(800),
+      sharedDetails: Array<string>(12).fill("x".repeat(400)),
+      openThreads: Array<string>(8).fill("x".repeat(400)),
+      callbacks: Array<string>(8).fill("x".repeat(400)),
+    };
+    let extraBytes = 16_360 - new TextEncoder().encode(JSON.stringify(extracted)).length;
+    for (let index = 0; extraBytes > 0; index++) {
+      const count = Math.min(extraBytes, 400);
+      extracted.sharedDetails[index] = "é".repeat(count) + "x".repeat(400 - count);
+      extraBytes -= count;
+    }
+    expect(RoleplayContinuitySchema.safeParse(extracted).success).toBe(true);
+    expect(RoleplayContinuitySchema.safeParse({ ...extracted, relationshipState }).success).toBe(
+      false,
+    );
+    f.runtime.run = vi.fn(async function* (request) {
+      f.requests.push(request);
+      yield {
+        type: "done" as const,
+        text: request.purpose === "continuity" ? JSON.stringify(extracted) : "Onward.",
+      };
+    });
+    await execute(f);
+    expect(f.run.status).toBe("completed");
+    expect(f.thread.roleplayState).toMatchObject({
+      continuity: { ...continuity, relationshipState },
+    });
+    const restored = roleplayStoryState(JSON.parse(JSON.stringify(f.thread.roleplayState)), {
+      threadId: "story",
+      botId: "aria",
+      historyGeneration: 0,
+    });
+    expect(restored.continuity?.relationshipState).toEqual(relationshipState);
+  });
+
+  it("includes saved relationship guidance in narrative mode without injecting old chat facts", async () => {
+    const f = chatFixture();
+    const relationshipState = { warmth: 100, intimacy: 100, love: 100 };
+    f.bot.roleplayCharacter = { ...character, conversationStyle: "narrative" };
+    f.thread.roleplayState = {
+      ...roleplayStoryState(f.thread.roleplayState, {
+        threadId: "story",
+        botId: "aria",
+        historyGeneration: 0,
+      }),
+      continuity: { ...continuity, relationshipState },
+    };
+    await execute(f);
+    expect(f.requests.map((request) => request.purpose)).toEqual(["dialogue"]);
+    expect(f.requests[0]!.instructions).toContain(
+      buildRoleplayRelationshipContext(relationshipState),
+    );
+    expect(f.requests[0]!.instructions).not.toContain(JSON.stringify(continuity));
+  });
+
   it("commits three real chat bubbles with a redacted, scoped continuity snapshot", async () => {
     const f = chatFixture();
     f.runtime.run = vi.fn(async function* (request) {
@@ -583,11 +708,15 @@ describe("roleplay chat continuity", () => {
     }
   });
 
-  it.each([4096, 3072])(
-    "bounds the prompt copy after switching to a %i-token model and preserves the full snapshot",
-    async (contextWindow) => {
+  it.each([
+    { contextWindow: 4096, scores: true },
+    { contextWindow: 3072, scores: false },
+  ])(
+    "bounds the prompt copy after switching to a $contextWindow-token model (scores: $scores) and preserves the full snapshot",
+    async ({ contextWindow, scores }) => {
       const f = chatFixture();
       const large = {
+        ...(scores ? { relationshipState: { warmth: 100, intimacy: 0, love: 50 } } : {}),
         scene: "scene ".repeat(133),
         relationship: "relationship ".repeat(61),
         sharedDetails: Array(12).fill("detail ".repeat(57)),
@@ -607,6 +736,11 @@ describe("roleplay chat continuity", () => {
       await execute(f);
       expect(f.run.status).toBe("completed");
       expect(f.requests[0]!.purpose).toBe("dialogue");
+      if (large.relationshipState)
+        expect(f.requests[0]!.instructions).toContain(
+          buildRoleplayRelationshipContext(large.relationshipState),
+        );
+      expect(f.requests[0]!.instructions).not.toContain(JSON.stringify(large));
       expect(f.thread.roleplayState).toMatchObject({ continuity: large });
       for (const request of f.requests) {
         const cost =
@@ -1257,6 +1391,9 @@ describe("spontaneous roleplay execution", () => {
     });
     await execute(f);
     expect(f.requests.map((request) => request.purpose)).toEqual(["spontaneous", "continuity"]);
+    expect(f.requests[0]!.instructions).toContain(
+      buildRoleplayRelationshipContext(relationshipState),
+    );
     expect(f.finalizeRun).toHaveBeenCalledWith(
       expect.objectContaining({
         blocks: [{ kind: "text", text: "Hi" }],

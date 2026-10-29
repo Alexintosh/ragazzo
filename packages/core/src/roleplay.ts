@@ -2,8 +2,10 @@ import type {
   RoleplayCharacter,
   RoleplayContinuity,
   RoleplayLorebookEntry,
+  RoleplayRelationship,
 } from "@rakazo/contracts";
 import { RoleplayContinuitySchema } from "@rakazo/contracts";
+import { buildRoleplayRelationshipContext } from "./roleplay-continuity.js";
 import type { RoleplayTemporalContext } from "./roleplay-temporal.js";
 import { buildRoleplayTemporalContext } from "./roleplay-temporal.js";
 
@@ -267,6 +269,8 @@ export function buildRoleplayPrompt(input: {
   prompt: string;
   summary?: string;
   continuity?: RoleplayContinuity;
+  /** Kept separately so fitting story facts cannot discard relationship guidance. */
+  relationshipState?: RoleplayRelationship;
   playerName?: string;
   loreTokenLimit?: number;
   temporal?: RoleplayTemporalContext;
@@ -279,6 +283,7 @@ export function buildRoleplayPrompt(input: {
   activeLoreEntries: number[];
 } {
   const { character, history, summary = "", playerName = "Player" } = input;
+  const relationshipState = input.relationshipState ?? input.continuity?.relationshipState;
   const macro = (text: string) => roleplayMacros(text, character.name, playerName);
   const prompt = macro(input.prompt);
   const lore = selectRoleplayLore(
@@ -292,6 +297,7 @@ export function buildRoleplayPrompt(input: {
   const instructions = [
     ROLEPLAY_NARRATIVE_INSTRUCTION,
     character.conversationStyle === "chat" ? ROLEPLAY_CHAT_INSTRUCTION : "",
+    relationshipState ? buildRoleplayRelationshipContext(relationshipState) : "",
     input.temporal ? buildRoleplayTemporalContext(input.temporal, character.conversationStyle) : "",
     roleplayTranscriptMetadata(history, input.currentInputs),
     input.scheduleMode === "manage"

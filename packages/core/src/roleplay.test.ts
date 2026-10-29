@@ -11,6 +11,7 @@ import {
   roleplayTranscriptMetadata,
   selectRoleplayLore,
 } from "./roleplay.js";
+import { buildRoleplayRelationshipContext } from "./roleplay-continuity.js";
 
 const entry = (overrides: Partial<RoleplayLorebookEntry> = {}): RoleplayLorebookEntry => ({
   keys: ["forest"],
@@ -45,6 +46,31 @@ const character: RoleplayCharacter = {
 const scope = { threadId: "story-a", botId: "aria", historyGeneration: 0 };
 
 describe("roleplay prompt engine", () => {
+  it("includes relationship guidance with continuity and after optional story facts are removed", () => {
+    const relationshipState = { warmth: 100, intimacy: 40, love: 0 };
+    const guidance = buildRoleplayRelationshipContext(relationshipState);
+    for (const state of [
+      {
+        continuity: {
+          scene: "",
+          relationship: "",
+          sharedDetails: [],
+          openThreads: [],
+          callbacks: [],
+          relationshipState,
+        },
+      },
+      { relationshipState },
+    ]) {
+      const request = buildRoleplayPrompt({
+        character: { ...character, conversationStyle: "chat" },
+        history: [],
+        prompt: "Hi",
+        ...state,
+      });
+      expect(request.instructions).toContain(guidance);
+    }
+  });
   it("selects chat instruction only explicitly and keeps continuity separate from examples", () => {
     const continuity = {
       scene: "Still messaging",
