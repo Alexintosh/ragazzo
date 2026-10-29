@@ -67,6 +67,16 @@ Per la prova manuale è stato preparato un pannello temporaneo separato, con cha
 
 Controller limitato al loopback, con validazione di Host, Origin, token anti-CSRF e valori numerici. Nessuna modifica al prodotto Rakazo. Lo stato è temporaneo: sopravvive alla ricarica della pagina e al riavvio dell'engine con DB attivo, ma viene eliminato arrestando l'ambiente di prova RAM. Le nuove immagini hanno una dimensione nominale complessiva di circa 611 MB; nessuna compilazione Rust o nuova installazione di dipendenze host.
 
+## Esperimento di lingua dei prompt e tempo
+
+Il pannello sperimentale supporta `English` e `Original Chinese`. La variante inglese modifica le istruzioni effettivamente inviate al modello per chat, valutazione dell'affinità e sintesi emotiva. Non traduce il testo del riquadro dopo la generazione. Eros salva normalmente i nuovi motivi e le nuove clausole in inglese; conversazioni e memorie precedenti conservano la lingua originale.
+
+La sostituzione avviene nel gateway della prova, tramite un catalogo legato alla versione esaminata, senza ricompilare Rust. Non è una localizzazione completa del servizio: i sottosistemi disabilitati restano fuori dal catalogo. Strutture ambigue, citazioni e rami opzionali non coperti vengono lasciati invariati e segnalati come copertura parziale. Questo limite va mantenuto visibile quando si interpretano i risultati.
+
+Nove test deterministici verificano identità della variante cinese, contratti JSON, limiti dei punteggi, traduzioni dei rami attivi e conservazione dei dati citati. Una prova reale su un'identità sintetica separata ha verificato tutti e tre i task inglesi e una clausola inglese persistita dall'engine. La sessione del pannello è stata conservata durante l'aggiornamento del gateway. Non è ancora una valutazione comparativa della qualità inglese/cinese.
+
+I controlli temporali distinguono il fuso orario nativo del personaggio dall'invecchiamento artificiale del timestamp dell'affinità. Il secondo usa il decadimento nativo, ma non sposta cronologia, eventi o timer. Il percorso standard della chat vieta la narrazione delle azioni: le mosse follow/listen/ask/judge non sono modalità narrative. Una modalità narrativa richiederebbe modifiche esplicite alle istruzioni di output e ai limiti di lunghezza.
+
 ## Vincoli per un'eventuale integrazione
 
 1. **Un solo proprietario dello stato.** Il servizio completo Eros possiede memoria, prompt, stato e salvataggi. Inserirlo come semplice trasporto LLM nel `RoleplayRuntime` attuale duplicherebbe queste responsabilità. Servirebbe un confine di orchestrazione prima della costruzione del contesto di Rakazo.
