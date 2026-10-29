@@ -126,81 +126,177 @@ export async function checkNativeHostDefault(env: NodeJS.ProcessEnv) {
   }
 }
 
+/** Stop only detached process groups created by this launcher, including surviving descendants. */
+export async function stopNativeProcessGroups(
+  children: readonly ChildProcess[],
+  graceMs = 15_000,
+): Promise<void> {
+  const groups = new Set(children.flatMap((child) => (child.pid ? [child.pid] : [])));
+  const signal = (pid: number, name: NodeJS.Signals | 0) => {
+    try {
+      process.kill(-pid, name);
+      return true;
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === "ESRCH") return false;
+      throw error;
+    }
+  };
+  let failure: string | undefined;
+  // Do not use ChildProcess.exitCode here: a wrapper may exit before its descendants.
+  const remaining = () => {
+    for (const pid of groups) {
+      try {
+        if (!signal(pid, 0)) groups.delete(pid);
+      } catch (error) {
+        failure = error instanceof Error ? error.message : "process group probe failed";
+      }
+    }
+    return groups.size > 0;
+  };
+  const waitUntil = async (deadline: number) => {
+    while (remaining() && performance.now() < deadline)
+      await new Promise<void>((resolve) => setTimeout(resolve, 25));
+  };
+  for (const pid of groups) {
+    try {
+      if (!signal(pid, "SIGTERM")) groups.delete(pid);
+    } catch (error) {
+      failure = error instanceof Error ? error.message : "process group signal failed";
+    }
+  }
+  await waitUntil(performance.now() + graceMs);
+  for (const pid of groups) {
+    try {
+      if (!signal(pid, "SIGKILL")) groups.delete(pid);
+    } catch (error) {
+      failure = error instanceof Error ? error.message : "process group signal failed";
+    }
+  }
+  await waitUntil(performance.now() + 1_000);
+  // A process group can become unsignalable while its last process exits (EPERM on macOS).
+  // A later ESRCH proves cleanup completed; only surviving groups are a shutdown failure.
+  if (groups.size)
+    throw new Error(
+      `Some native process groups could not be stopped.${failure ? ` ${failure}` : ""}`,
+    );
+}
+
+function abortable<T>(work: Promise<T>, signal?: AbortSignal): Promise<T> {
+  if (!signal) return work;
+  return new Promise<T>((resolve, reject) => {
+    const aborted = () => reject(signal.reason ?? new Error("Native stack startup cancelled"));
+    signal.addEventListener("abort", aborted, { once: true });
+    if (signal.aborted) aborted();
+    work.then(resolve, reject).finally(() => signal.removeEventListener("abort", aborted));
+  });
+}
+
+async function boundedClose(close: () => Promise<void>): Promise<void> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    await Promise.race([
+      Promise.resolve().then(close),
+      new Promise<never>((_resolve, reject) => {
+        timer = setTimeout(() => reject(new Error("Native host cleanup timed out")), 15_000);
+      }),
+    ]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 export async function startNativeStack(
   root: string,
   env: NodeJS.ProcessEnv,
   allowHost: boolean,
   withDocker = false,
+  options: { signal?: AbortSignal } = {},
 ) {
   const settings = nativeStackSettings(env, root, allowHost, withDocker);
-  const apiEntry = path.join(root, "apps/api/dist/index.js");
-  const workerEntry = path.join(root, "apps/worker/dist/index.js");
-  const webRoot = path.join(root, "apps/web");
-  if (![apiEntry, workerEntry, path.join(webRoot, "dist/index.html")].every(existsSync))
-    throw new Error("Build API, worker and web before starting the native stack.");
-  if (withDocker) {
-    await checkNativeDockerSupervisor(settings.env);
-    await checkNativeHostDefault(settings.env);
-  }
-  const requireWeb = createRequire(path.join(webRoot, "package.json"));
-  const viteEntry = path.resolve(
-    path.dirname(requireWeb.resolve("vite/package.json")),
-    "bin/vite.js",
-  );
-  const token = randomBytes(32).toString("hex");
-  const host = await startHostComputerServer({
-    root: settings.dataDir,
-    token,
-    hostname: "127.0.0.1",
-    port: 0,
-  });
-  host.setEnabled(true);
   const children: ChildProcess[] = [];
+  let host: Awaited<ReturnType<typeof startHostComputerServer>> | undefined;
+  let closingHost: Promise<void> | undefined;
   let stopping: Promise<void> | undefined;
-  let resolveExit: (code: number) => void;
+  let resolveExit!: (code: number) => void;
   const exited = new Promise<number>((resolve) => {
     resolveExit = resolve;
   });
-  const childEnv = {
-    ...settings.env,
-    DATA_DIR: settings.dataDir,
-    SANDBOX_HOST_URL: `http://127.0.0.1:${host.port}`,
-    SANDBOX_HOST_TOKEN: token,
+  const closeHost = () => {
+    if (!host) return Promise.resolve();
+    closingHost ??= boundedClose(() => host!.close());
+    return closingHost;
   };
   const stop = (exitCode = 0): Promise<void> => {
     if (stopping) return stopping;
-    stopping = (async () => {
+    // Defer the body so synchronous spawn/error callbacks see stopping immediately.
+    stopping = Promise.resolve().then(async () => {
       let failed = false;
       try {
-        await host.close();
-      } catch {
+        await stopNativeProcessGroups(children);
+      } catch (error) {
+        process.stderr.write(
+          `Service shutdown failed: ${error instanceof Error ? error.message : "unknown error"}\n`,
+        );
         failed = true;
       }
-      await Promise.all(
-        children.map(async (child) => {
-          if (child.exitCode !== null || child.signalCode !== null || !child.pid) return;
-          const closed = new Promise<void>((resolve) => child.once("exit", () => resolve()));
-          const signal = (name: NodeJS.Signals) => {
-            try {
-              process.kill(-child.pid!, name);
-            } catch (error) {
-              if ((error as NodeJS.ErrnoException).code !== "ESRCH") failed = true;
-            }
-          };
-          signal("SIGTERM");
-          const kill = setTimeout(() => signal("SIGKILL"), 15_000);
-          try {
-            await closed;
-          } finally {
-            clearTimeout(kill);
-          }
-        }),
-      );
-      resolveExit!(failed ? 1 : exitCode);
-    })();
+      // API and worker must still reach the host while they drain their work.
+      try {
+        await closeHost();
+      } catch (error) {
+        process.stderr.write(
+          `Host shutdown failed: ${error instanceof Error ? error.message : "unknown error"}\n`,
+        );
+        failed = true;
+      }
+      options.signal?.removeEventListener("abort", onAbort);
+      resolveExit(failed ? 1 : exitCode);
+    });
     return stopping;
   };
+  const onAbort = () => {
+    void stop();
+  };
+  options.signal?.addEventListener("abort", onAbort, { once: true });
+  const checkCancelled = () => options.signal?.throwIfAborted();
   try {
+    checkCancelled();
+    const apiEntry = path.join(root, "apps/api/dist/index.js");
+    const workerEntry = path.join(root, "apps/worker/dist/index.js");
+    const webRoot = path.join(root, "apps/web");
+    if (![apiEntry, workerEntry, path.join(webRoot, "dist/index.html")].every(existsSync))
+      throw new Error("Build API, worker and web before starting the native stack.");
+    if (withDocker) {
+      await abortable(checkNativeDockerSupervisor(settings.env), options.signal);
+      checkCancelled();
+      await abortable(checkNativeHostDefault(settings.env), options.signal);
+      checkCancelled();
+    }
+    const requireWeb = createRequire(path.join(webRoot, "package.json"));
+    const viteEntry = path.resolve(
+      path.dirname(requireWeb.resolve("vite/package.json")),
+      "bin/vite.js",
+    );
+    const token = randomBytes(32).toString("hex");
+    const openingHost = startHostComputerServer({
+      root: settings.dataDir,
+      token,
+      hostname: "127.0.0.1",
+      port: 0,
+    }).then(async (opened) => {
+      host = opened;
+      // Cancellation may win while the bridge is still opening.
+      if (stopping || options.signal?.aborted) await closeHost();
+      return opened;
+    });
+    await abortable(openingHost, options.signal);
+    checkCancelled();
+    host!.setEnabled(true);
+    const childEnv = {
+      ...settings.env,
+      DATA_DIR: settings.dataDir,
+      SANDBOX_HOST_URL: `http://127.0.0.1:${host!.port}`,
+      SANDBOX_HOST_TOKEN: token,
+    };
     for (const [entry, args, cwd] of [
       [apiEntry, [], root],
       [workerEntry, [], root],
@@ -210,10 +306,13 @@ export async function startNativeStack(
         webRoot,
       ],
     ] as const) {
+      checkCancelled();
+      if (stopping) throw new Error("Native stack stopped during startup");
       const child = spawn(process.execPath, [entry, ...args], {
         cwd,
         env: childEnv,
-        stdio: "inherit",
+        // Keep terminal input with the launcher; Vite must not consume Ctrl+C in raw mode.
+        stdio: ["ignore", "inherit", "inherit"],
         detached: true,
       });
       children.push(child);
@@ -224,33 +323,38 @@ export async function startNativeStack(
         if (!stopping) void stop(code || 1);
       });
     }
+    return { url: settings.env.WEB_ORIGIN, stop, exited };
   } catch (error) {
-    await stop(1);
+    await stop(options.signal?.aborted ? 0 : 1);
     throw error;
   }
-  return { url: settings.env.WEB_ORIGIN, stop, exited };
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   loadRootEnv();
   const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
+  const controller = new AbortController();
+  const onSignal = () => controller.abort();
+  process.on("SIGINT", onSignal);
+  process.on("SIGTERM", onSignal);
   try {
     const stack = await startNativeStack(
       root,
       process.env,
       process.argv.includes("--allow-host"),
       process.argv.includes("--with-docker"),
+      { signal: controller.signal },
     );
-    process.once("SIGINT", () => {
-      void stack.stop();
-    });
-    process.once("SIGTERM", () => {
-      void stack.stop();
-    });
     process.stdout.write(`Rakazo native stack: ${stack.url}\n`);
     process.exitCode = await stack.exited;
   } catch (error) {
-    process.stderr.write(`${error instanceof Error ? error.message : "Native stack failed"}\n`);
-    process.exitCode = 1;
+    if (!controller.signal.aborted)
+      process.stderr.write(`${error instanceof Error ? error.message : "Native stack failed"}\n`);
+    process.exitCode = controller.signal.aborted ? 0 : 1;
+  } finally {
+    process.removeListener("SIGINT", onSignal);
+    process.removeListener("SIGTERM", onSignal);
   }
+  // Cleanup has a deadline; lingering in-process handles must not keep ports occupied.
+  process.exit(process.exitCode ?? 0);
 }

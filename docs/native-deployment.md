@@ -1,4 +1,20 @@
-# Local deployment without Docker
+# Local deployment
+
+## One-command local stack with Docker
+
+With the database, dependencies, production build and computer image already installed, configure the root `.env` as described below, including `SANDBOX_SUPERVISOR_URL=http://127.0.0.1:7091` and `SANDBOX_SUPERVISOR_TOKEN`, then run:
+
+```sh
+make start
+```
+
+This starts API, worker, web and the host bridge. It starts a local Docker supervisor when that port is free, or authenticates and reuses an already-running supervisor. The command explicitly grants local host execution, like `native:start`. It does not create a database, copy data, install dependencies, build or download computer images. The stored deployment computer preference must be `this-mac`, preserving existing host defaults while explicit Docker bots stay in Docker.
+
+The managed supervisor uses `DOCKER_SOCKET` if supplied; otherwise it follows the Docker CLI's selected context (or `DOCKER_HOST`). Only local Unix sockets are supported. Its listeners bind to loopback, and automatic image builds are disabled with `SANDBOX_AUTO_BUILD_IMAGE=false`. A missing image or unavailable Docker daemon fails startup with an explanation.
+
+Press Ctrl+C and wait for the terminal prompt before running `make start` again. Signal handlers cover startup as well as steady operation. The launcher sends TERM to its child process groups, waits for shutdown, then forcibly stops any surviving descendants after the grace period. The host bridge closes after API and worker drain. A supervisor started by this command also stops; an existing external supervisor and PostgreSQL remain running. Occupied API/web ports produce an error rather than killing unrelated processes. `make build` rebuilds the existing web/API/worker outputs when code changes.
+
+## Host-only or externally supervised deployment
 
 This entrypoint runs API, worker, web and the authenticated host bridge as local processes. PostgreSQL must already be running, locally or on a separately managed server. It never calls Docker, starts a database, installs a CLI, clones a project or creates worktrees.
 

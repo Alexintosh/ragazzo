@@ -1178,6 +1178,9 @@ async function ensureComputerImage() {
       } catch {
         // build below
       }
+      if (process.env.SANDBOX_AUTO_BUILD_IMAGE === "false") {
+        throw new Error("The computer image is missing and automatic image builds are disabled.");
+      }
       const dockerfile = path.join(computerContext, "Dockerfile");
       if (!existsSync(dockerfile)) {
         throw new Error(
