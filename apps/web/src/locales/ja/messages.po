@@ -971,6 +971,10 @@ msgstr ""
 msgid "Back to sign in"
 msgstr "ログインに戻る"
 
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Balanced"
+msgstr "バランス"
+
 #: src/pages/memory-providers/ConnectionModeFields.tsx
 msgid "Base URL"
 msgstr "ベースURL"
@@ -1215,6 +1219,10 @@ msgstr "{title} を変更"
 #: src/pages/AccountSettingsOverlay.tsx
 msgid "Change password"
 msgstr "パスワードを変更"
+
+#: src/pages/shell/roleplay-relationship-debug.tsx
+msgid "Changes affect this conversation."
+msgstr "変更はこの会話に適用されます。"
 
 #: src/pages/shell/roleplay-settings.tsx
 msgid "Changes apply to the next reply. Story history and memory are kept."
@@ -2071,6 +2079,10 @@ msgstr "モデル設定を読み込めませんでした"
 msgid "Could not load models"
 msgstr ""
 
+#: src/pages/shell/roleplay-relationship-debug.tsx
+msgid "Could not load relationship"
+msgstr "関係を読み込めませんでした"
+
 #: src/pages/RoutineCalendar.tsx
 #: src/pages/RoutineRunHistory.tsx
 msgid "Could not load run history"
@@ -2211,6 +2223,10 @@ msgstr "グループを保存できませんでした"
 #: src/pages/shell/bot-model-picker.tsx
 msgid "Could not save model"
 msgstr "モデルを保存できませんでした"
+
+#: src/pages/shell/roleplay-relationship-debug.tsx
+msgid "Could not save relationship"
+msgstr "関係を保存できませんでした"
 
 #: src/pages/shell/use-routine-editor.ts
 msgid "Could not save routine"
@@ -2615,6 +2631,7 @@ msgid "Disabled"
 msgstr "無効"
 
 #: src/pages/shell/conversation-tasks.tsx
+#: src/pages/shell/roleplay-relationship-debug.tsx
 #: src/pages/shell/roleplay-settings.tsx
 #: src/pages/shell/thread-queue.tsx
 msgid "Discard"
@@ -2878,6 +2895,10 @@ msgstr "画像の上限には1〜1000の整数を入力してください。"
 msgid "Enter an API key before testing."
 msgstr "テストする前にAPIキーを入力してください。"
 
+#: src/pages/shell/roleplay-relationship-debug.tsx
+msgid "Enter whole numbers from 0 to 100."
+msgstr "0から100までの整数を入力してください。"
+
 #. placeholder {0}: index + 1
 #: src/pages/shell/roleplay-settings.tsx
 msgid "Entry {0}"
@@ -3119,6 +3140,14 @@ msgstr "パスワードをお忘れですか？"
 msgid "Free"
 msgstr "無料"
 
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Frequency"
+msgstr "頻度"
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Frequent"
+msgstr "頻繁"
+
 #: src/lib/cron.ts
 msgid "Friday"
 msgstr "金曜日"
@@ -3152,6 +3181,10 @@ msgstr "一般"
 #: src/pages/shell/conversation-files-panel.tsx
 msgid "Generated"
 msgstr ""
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Gentle"
+msgstr "控えめ"
 
 #: src/components/SidebarFooter.tsx
 msgid "Get the mobile app"
@@ -3468,6 +3501,10 @@ msgstr "間隔の値"
 msgid "Interval unit"
 msgstr "間隔の単位"
 
+#: src/pages/shell/roleplay-relationship-debug.tsx
+msgid "Intimacy"
+msgstr "親密さ"
+
 #: src/lib/user-error.ts
 msgid "Invalid code"
 msgstr "無効なコード"
@@ -3550,6 +3587,10 @@ msgstr "前回の確認 {0}: 変更あり"
 #: src/pages/RoutineEditor.tsx
 msgid "Last check {0}: no changes"
 msgstr "前回の確認 {0}: 変更なし"
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Late-night messages"
+msgstr "深夜のメッセージ"
 
 #: src/components/DesktopUpdates.tsx
 msgid "Later"
@@ -3659,6 +3700,7 @@ msgstr "音声プロバイダーを読み込み中…"
 #: src/pages/PeerMessagesOverlay.tsx
 #: src/pages/RoutineCalendar.tsx
 #: src/pages/RoutineRunHistory.tsx
+#: src/pages/shell/roleplay-relationship-debug.tsx
 #: src/pages/shell/transcript.tsx
 msgid "Loading…"
 msgstr "読み込み中…"
@@ -3696,6 +3738,10 @@ msgstr ""
 #: src/pages/shell/roleplay-settings.tsx
 msgid "Lorebook name"
 msgstr ""
+
+#: src/pages/shell/roleplay-relationship-debug.tsx
+msgid "Love"
+msgstr "愛情"
 
 #: src/lib/ticket-priority.ts
 #: src/pages/model-settings/compatible-model-fields.tsx
@@ -4957,6 +5003,10 @@ msgstr ""
 msgid "Registration is closed"
 msgstr "新規登録は締め切られています"
 
+#: src/pages/shell/roleplay-relationship-debug.tsx
+msgid "Relationship debug"
+msgstr "関係のデバッグ"
+
 #: src/pages/shell/computer-release-actions.tsx
 msgid "Release control"
 msgstr "操作を戻す"
@@ -5356,6 +5406,7 @@ msgstr "土曜日"
 msgid "Save"
 msgstr "保存"
 
+#: src/pages/shell/roleplay-relationship-debug.tsx
 #: src/pages/shell/roleplay-settings.tsx
 msgid "Save changes"
 msgstr ""
@@ -5412,6 +5463,7 @@ msgstr "保存中..."
 #: src/pages/RoutineEditor.tsx
 #: src/pages/shell/bot-credentials.tsx
 #: src/pages/shell/dialogs.tsx
+#: src/pages/shell/roleplay-relationship-debug.tsx
 #: src/pages/shell/roleplay-settings.tsx
 msgid "Saving…"
 msgstr "保存中…"
@@ -5859,6 +5911,10 @@ msgstr "話しています"
 #: src/pages/VoiceSettingsOverlay.tsx
 msgid "Speech model"
 msgstr "音声モデル"
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Spontaneous messages"
+msgstr "自発的なメッセージ"
 
 #: src/lib/user-error.ts
 msgid "SSO is temporarily unavailable. Try again."
@@ -6682,6 +6738,10 @@ msgstr "順番待ち…"
 #: src/pages/shell/message-cards.tsx
 msgid "Waiting…"
 msgstr "待機中…"
+
+#: src/pages/shell/roleplay-relationship-debug.tsx
+msgid "Warmth"
+msgstr "親しみ"
 
 #: src/components/ModelCredits.tsx
 msgid "Web, desktop and mobile"

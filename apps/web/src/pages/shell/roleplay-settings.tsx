@@ -221,6 +221,61 @@ function CharacterEditor({
               </NativeSelectOption>
             </NativeSelect>
           </Field>
+          {draft.conversationStyle === "chat" ? (
+            <>
+              <SwitchField
+                label={t`Spontaneous messages`}
+                checked={draft.spontaneous?.enabled ?? false}
+                onChange={(enabled) =>
+                  update({
+                    spontaneous: {
+                      frequency: "balanced",
+                      allowLateNight: false,
+                      ...draft.spontaneous,
+                      enabled,
+                    },
+                  })
+                }
+              />
+              {draft.spontaneous?.enabled ? (
+                <>
+                  <Field id={`${id}-spontaneous-frequency`} label={t`Frequency`}>
+                    <NativeSelect
+                      id={`${id}-spontaneous-frequency`}
+                      value={draft.spontaneous.frequency}
+                      onChange={(event) =>
+                        update({
+                          spontaneous: {
+                            ...draft.spontaneous!,
+                            frequency: event.target.value as NonNullable<
+                              RoleplayCharacter["spontaneous"]
+                            >["frequency"],
+                          },
+                        })
+                      }
+                    >
+                      <NativeSelectOption value="gentle">
+                        <Trans>Gentle</Trans>
+                      </NativeSelectOption>
+                      <NativeSelectOption value="balanced">
+                        <Trans>Balanced</Trans>
+                      </NativeSelectOption>
+                      <NativeSelectOption value="frequent">
+                        <Trans>Frequent</Trans>
+                      </NativeSelectOption>
+                    </NativeSelect>
+                  </Field>
+                  <SwitchField
+                    label={t`Late-night messages`}
+                    checked={draft.spontaneous.allowLateNight}
+                    onChange={(allowLateNight) =>
+                      update({ spontaneous: { ...draft.spontaneous!, allowLateNight } })
+                    }
+                  />
+                </>
+              ) : null}
+            </>
+          ) : null}
           {text("name", t`Character name`)}
           {text("description", t`Description`)}
           {text("personality", t`Personality`)}

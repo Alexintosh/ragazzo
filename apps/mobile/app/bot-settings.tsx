@@ -45,6 +45,7 @@ import { ProfileEditDialog } from "../components/profile-edit-dialog";
 import { RegisteredHostPicker } from "../components/registered-host-picker";
 import type { RoleplaySettingsHandle } from "../components/roleplay-settings";
 import { RoleplaySettings } from "../components/roleplay-settings";
+import { RoleplayRelationshipDebug } from "../components/roleplay-relationship-debug";
 import { Chevron } from "../components/row-accessories";
 import type { MobileMe, MobileModel, MobileModelCredential } from "../lib/api";
 import { rpc } from "../lib/api";
@@ -635,22 +636,36 @@ export default function BotSettingsScreen() {
         </View>
         {bot?.botKind === "roleplay" ? (
           bot.roleplayCharacter ? (
-            <RoleplaySettings
-              key={bot.id}
-              ref={roleplaySettingsRef}
-              character={bot.roleplayCharacter}
-              disabled={pending}
-              onStateChange={setRoleplaySettingsState}
-              onSave={async (roleplayCharacter, expectedRoleplayCharacter) => {
-                const updated = await rpc("bots/update", {
-                  botId: bot.id,
-                  roleplayCharacter,
-                  expectedRoleplayCharacter,
-                });
-                if (executionContextRef.current.botId === bot.id) setBot(updated);
-                return updated.roleplayCharacter ?? roleplayCharacter;
-              }}
-            />
+            <>
+              <RoleplaySettings
+                key={bot.id}
+                ref={roleplaySettingsRef}
+                character={bot.roleplayCharacter}
+                disabled={pending}
+                onStateChange={setRoleplaySettingsState}
+                onSave={async (roleplayCharacter, expectedRoleplayCharacter) => {
+                  const updated = await rpc("bots/update", {
+                    botId: bot.id,
+                    roleplayCharacter,
+                    expectedRoleplayCharacter,
+                  });
+                  if (executionContextRef.current.botId === bot.id) setBot(updated);
+                  return updated.roleplayCharacter ?? roleplayCharacter;
+                }}
+              />
+              <RoleplayRelationshipDebug
+                key={bot.id}
+                onLoad={() => rpc("bots/roleplayRelationship", { botId: bot.id })}
+                onSave={(state) =>
+                  rpc("bots/updateRoleplayRelationship", {
+                    botId: bot.id,
+                    relationship: state.relationship,
+                    historyGeneration: state.historyGeneration,
+                    expectedRevision: state.revision,
+                  })
+                }
+              />
+            </>
           ) : null
         ) : (
           <View style={{ marginTop: 16 }}>

@@ -46,6 +46,7 @@ vi.mock("@rakazo/ui-web", () => ({
   ),
 }));
 
+import { RoleplayRelationshipDebug } from "./roleplay-relationship-debug";
 import { RoleplaySettings } from "./roleplay-settings";
 
 const initial: RoleplayCharacter = {
@@ -180,6 +181,52 @@ describe("RoleplaySettings", () => {
     expect(onSave).not.toHaveBeenCalled();
     await render({ ...initial, conversationStyle: "chat" });
     expect(field("Conversation style").value).toBe("chat");
+  });
+
+  it("keeps spontaneous messages absent and off until explicitly enabled in chat", async () => {
+    await render();
+    expect(container.textContent).not.toContain("Spontaneous messages");
+    await change("Conversation style", "chat");
+    expect(field("Spontaneous messages").getAttribute("aria-checked")).toBe("false");
+    expect(container.textContent).not.toContain("Late-night messages");
+    await click("Save changes");
+    expect(onSave.mock.lastCall?.[0]).not.toHaveProperty("spontaneous");
+    await toggle("Spontaneous messages");
+    expect(field("Frequency").value).toBe("balanced");
+    expect(field("Late-night messages").getAttribute("aria-checked")).toBe("false");
+    expect(onSave).toHaveBeenCalledTimes(1);
+    await change("Frequency", "gentle");
+    await toggle("Late-night messages");
+    await click("Save changes");
+    expect(onSave.mock.lastCall?.[0].spontaneous).toEqual({
+      enabled: true,
+      frequency: "gentle",
+      allowLateNight: true,
+    });
+    expect(onSave.mock.lastCall?.[1]).not.toHaveProperty("spontaneous");
+    await toggle("Spontaneous messages");
+    expect(container.textContent).not.toContain("Late-night messages");
+    await click("Discard");
+    // The fixture parent has not refreshed, so discard returns to its saved prop.
+    expect(container.textContent).not.toContain("Spontaneous messages");
+  });
+
+  it("discards spontaneous drafts and keeps persisted preferences hidden in narrative", async () => {
+    const saved: RoleplayCharacter = {
+      ...initial,
+      conversationStyle: "chat",
+      spontaneous: { enabled: true, frequency: "frequent", allowLateNight: false },
+    };
+    await render(saved);
+    expect(container.textContent).not.toContain("Save changes");
+    await toggle("Spontaneous messages");
+    await click("Discard");
+    expect(field("Spontaneous messages").getAttribute("aria-checked")).toBe("true");
+    expect(field("Frequency").value).toBe("frequent");
+    await change("Conversation style", "narrative");
+    expect(container.textContent).not.toContain("Spontaneous messages");
+    await click("Save changes");
+    expect(onSave.mock.lastCall?.[0]).toEqual({ ...saved, conversationStyle: "narrative" });
   });
 
   it("saves every active character field and preserves alternate greetings and literal key phrases", async () => {
@@ -404,4 +451,47 @@ it("uses the API's canonical name for subsequent optimistic baselines", async ()
     "harbor, east",
     "  spaces  ",
   ]);
+});
+
+it("loads relationship debug only when expanded and explicitly saves validated scores with its revision", async () => {
+  const initialState = {
+    relationship: { warmth: 20, intimacy: 30, love: 40 },
+    historyGeneration: 3,
+    revision: "revision-one",
+  };
+  const load = vi.fn(async () => initialState);
+  const save = vi.fn(async (state: typeof initialState) => ({
+    ...state,
+    revision: "revision-two",
+  }));
+  await act(async () => root.render(<RoleplayRelationshipDebug onLoad={load} onSave={save} />));
+  expect(load).not.toHaveBeenCalled();
+  expect(container.textContent).not.toContain("Warmth");
+  await act(async () => {
+    const details = container.querySelector("details")!;
+    details.open = true;
+    details.dispatchEvent(new Event("toggle"));
+  });
+  expect(load).toHaveBeenCalledOnce();
+  expect(field("Warmth").value).toBe("20");
+  await change("Warmth", "101");
+  await click("Save changes");
+  expect(save).not.toHaveBeenCalled();
+  expect(container.textContent).toContain("Enter whole numbers from 0 to 100.");
+  await click("Discard");
+  expect(field("Warmth").value).toBe("20");
+  await change("Warmth", "80");
+  expect(save).not.toHaveBeenCalled();
+  save.mockRejectedValueOnce(new Error("Relationship changed. Reload and try again."));
+  await click("Save changes");
+  expect(field("Warmth").value).toBe("80");
+  expect(container.textContent).toContain("Relationship changed");
+  await click("Save changes");
+  expect(save).toHaveBeenLastCalledWith({
+    ...initialState,
+    relationship: { warmth: 80, intimacy: 30, love: 40 },
+  });
+  await change("Love", "100");
+  await click("Save changes");
+  expect(save.mock.lastCall?.[0].revision).toBe("revision-two");
 });

@@ -171,7 +171,7 @@ export function RoleplaySettings({
   useImperativeHandle(ref, () => ({ save }));
 
   const field = (
-    key: keyof Omit<Draft, "lorebook" | "alternateGreetings" | "conversationStyle">,
+    key: keyof Omit<Draft, "lorebook" | "alternateGreetings" | "conversationStyle" | "spontaneous">,
     label: string,
   ) => (
     <Field
@@ -201,6 +201,64 @@ export function RoleplaySettings({
               update({ conversationStyle });
           }}
         />
+        {draft.conversationStyle === "chat" ? (
+          <>
+            <View style={styles.switchRow}>
+              <Text style={{ color: tokens.foreground, flex: 1 }}>{t("Spontaneous messages")}</Text>
+              <NativeSwitch
+                accessibilityLabel={t("Spontaneous messages")}
+                value={draft.spontaneous?.enabled ?? false}
+                disabled={inactive}
+                onValueChange={(enabled) =>
+                  update({
+                    spontaneous: {
+                      frequency: "balanced",
+                      allowLateNight: false,
+                      ...draft.spontaneous,
+                      enabled,
+                    },
+                  })
+                }
+              />
+            </View>
+            {draft.spontaneous?.enabled ? (
+              <>
+                <MenuPicker
+                  label={t("Frequency")}
+                  value={draft.spontaneous.frequency}
+                  choices={[
+                    { key: "gentle", label: t("Gentle"), disabled: inactive },
+                    { key: "balanced", label: t("Balanced"), disabled: inactive },
+                    { key: "frequent", label: t("Frequent"), disabled: inactive },
+                  ]}
+                  plain
+                  onChange={(frequency) => {
+                    if (
+                      !inactive &&
+                      (frequency === "gentle" ||
+                        frequency === "balanced" ||
+                        frequency === "frequent")
+                    )
+                      update({ spontaneous: { ...draft.spontaneous!, frequency } });
+                  }}
+                />
+                <View style={styles.switchRow}>
+                  <Text style={{ color: tokens.foreground, flex: 1 }}>
+                    {t("Late-night messages")}
+                  </Text>
+                  <NativeSwitch
+                    accessibilityLabel={t("Late-night messages")}
+                    value={draft.spontaneous.allowLateNight}
+                    disabled={inactive}
+                    onValueChange={(allowLateNight) =>
+                      update({ spontaneous: { ...draft.spontaneous!, allowLateNight } })
+                    }
+                  />
+                </View>
+              </>
+            ) : null}
+          </>
+        ) : null}
         {field("name", t("Character name"))}
         {field("description", t("Character description"))}
         {field("personality", t("Personality"))}

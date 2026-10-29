@@ -8,6 +8,7 @@ import type { Root } from "react-dom/client";
 import { createRoot } from "react-dom/client";
 import type { Mock } from "vitest";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { RoleplayRelationshipDebug } from "../components/roleplay-relationship-debug";
 import type { RoleplaySettingsHandle } from "../components/roleplay-settings";
 import { RoleplaySettings } from "../components/roleplay-settings";
 
@@ -248,6 +249,94 @@ describe("native roleplay settings", () => {
     props.character = { ...initial, conversationStyle: "chat" };
     await render();
     expect(stylePicker().value).toBe("chat");
+  });
+
+  it("keeps spontaneous messages off and absent until explicitly enabled in chat", async () => {
+    await render();
+    expect(host.textContent).not.toContain("Spontaneous messages");
+    await changeStyle("chat");
+    expect(button("Spontaneous messages").getAttribute("aria-checked")).toBe("false");
+    expect(host.textContent).not.toContain("Late-night messages");
+    await click("Save changes");
+    expect(onSave.mock.lastCall?.[0]).not.toHaveProperty("spontaneous");
+    await click("Spontaneous messages");
+    const frequency = host.querySelector<HTMLSelectElement>('select[aria-label="Frequency"]')!;
+    expect(frequency.value).toBe("balanced");
+    expect(button("Late-night messages").getAttribute("aria-checked")).toBe("false");
+    await act(async () => {
+      frequency.value = "gentle";
+      frequency.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    await click("Late-night messages");
+    expect(onSave).toHaveBeenCalledTimes(1);
+    await click("Save changes");
+    expect(onSave.mock.lastCall?.[0].spontaneous).toEqual({
+      enabled: true,
+      frequency: "gentle",
+      allowLateNight: true,
+    });
+    expect(onSave.mock.lastCall?.[1]).not.toHaveProperty("spontaneous");
+  });
+
+  it("discards spontaneous drafts and hides persisted preferences in narrative", async () => {
+    const saved: RoleplayCharacter = {
+      ...initial,
+      conversationStyle: "chat",
+      spontaneous: { enabled: true, frequency: "frequent", allowLateNight: false },
+    };
+    props.character = saved;
+    await render();
+    expect(host.textContent).not.toContain("Save changes");
+    await click("Spontaneous messages");
+    expect(host.textContent).not.toContain("Late-night messages");
+    await click("Discard");
+    expect(button("Spontaneous messages").getAttribute("aria-checked")).toBe("true");
+    expect(host.querySelector<HTMLSelectElement>('select[aria-label="Frequency"]')!.value).toBe(
+      "frequent",
+    );
+    await changeStyle("narrative");
+    expect(host.textContent).not.toContain("Spontaneous messages");
+    await click("Save changes");
+    expect(onSave.mock.lastCall?.[0]).toEqual({ ...saved, conversationStyle: "narrative" });
+  });
+
+  it("loads relationship debug on expansion and saves scores with the loaded revision", async () => {
+    const initialState = {
+      relationship: { warmth: 20, intimacy: 30, love: 40 },
+      historyGeneration: 3,
+      revision: "revision-one",
+    };
+    const load = vi.fn(async () => initialState);
+    const save = vi.fn(async (state: typeof initialState) => ({
+      ...state,
+      revision: "revision-two",
+    }));
+    await act(async () => root.render(<RoleplayRelationshipDebug onLoad={load} onSave={save} />));
+    expect(load).not.toHaveBeenCalled();
+    expect(host.textContent).not.toContain("Warmth");
+    await click("Relationship debug");
+    expect(load).toHaveBeenCalledOnce();
+    expect(input("Warmth").value).toBe("20");
+    await change("Warmth", "");
+    await click("Save changes");
+    expect(save).not.toHaveBeenCalled();
+    expect(host.textContent).toContain("Enter whole numbers from 0 to 100.");
+    await click("Discard");
+    expect(input("Warmth").value).toBe("20");
+    await change("Warmth", "80");
+    expect(save).not.toHaveBeenCalled();
+    save.mockRejectedValueOnce(new Error("Relationship changed. Reload and try again."));
+    await click("Save changes");
+    expect(input("Warmth").value).toBe("80");
+    expect(host.textContent).toContain("Relationship changed");
+    await click("Save changes");
+    expect(save).toHaveBeenLastCalledWith({
+      ...initialState,
+      relationship: { warmth: 80, intimacy: 30, love: 40 },
+    });
+    await change("Love", "100");
+    await click("Save changes");
+    expect(save.mock.lastCall?.[0].revision).toBe("revision-two");
   });
 
   async function openBook() {

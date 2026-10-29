@@ -971,6 +971,10 @@ msgstr "Back to chats"
 msgid "Back to sign in"
 msgstr "Back to sign in"
 
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Balanced"
+msgstr "Balanced"
+
 #: src/pages/memory-providers/ConnectionModeFields.tsx
 msgid "Base URL"
 msgstr "Base URL"
@@ -1215,6 +1219,10 @@ msgstr "Change {title}"
 #: src/pages/AccountSettingsOverlay.tsx
 msgid "Change password"
 msgstr "Change password"
+
+#: src/pages/shell/roleplay-relationship-debug.tsx
+msgid "Changes affect this conversation."
+msgstr "Changes affect this conversation."
 
 #: src/pages/shell/roleplay-settings.tsx
 msgid "Changes apply to the next reply. Story history and memory are kept."
@@ -2071,6 +2079,10 @@ msgstr "Could not load model settings"
 msgid "Could not load models"
 msgstr "Could not load models"
 
+#: src/pages/shell/roleplay-relationship-debug.tsx
+msgid "Could not load relationship"
+msgstr "Could not load relationship"
+
 #: src/pages/RoutineCalendar.tsx
 #: src/pages/RoutineRunHistory.tsx
 msgid "Could not load run history"
@@ -2211,6 +2223,10 @@ msgstr "Could not save group"
 #: src/pages/shell/bot-model-picker.tsx
 msgid "Could not save model"
 msgstr "Could not save model"
+
+#: src/pages/shell/roleplay-relationship-debug.tsx
+msgid "Could not save relationship"
+msgstr "Could not save relationship"
 
 #: src/pages/shell/use-routine-editor.ts
 msgid "Could not save routine"
@@ -2615,6 +2631,7 @@ msgid "Disabled"
 msgstr "Disabled"
 
 #: src/pages/shell/conversation-tasks.tsx
+#: src/pages/shell/roleplay-relationship-debug.tsx
 #: src/pages/shell/roleplay-settings.tsx
 #: src/pages/shell/thread-queue.tsx
 msgid "Discard"
@@ -2878,6 +2895,10 @@ msgstr "Enter a whole number from 1 to 1000 for the image limit."
 msgid "Enter an API key before testing."
 msgstr "Enter an API key before testing."
 
+#: src/pages/shell/roleplay-relationship-debug.tsx
+msgid "Enter whole numbers from 0 to 100."
+msgstr "Enter whole numbers from 0 to 100."
+
 #. placeholder {0}: index + 1
 #: src/pages/shell/roleplay-settings.tsx
 msgid "Entry {0}"
@@ -3119,6 +3140,14 @@ msgstr "Forgot password?"
 msgid "Free"
 msgstr "Free"
 
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Frequency"
+msgstr "Frequency"
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Frequent"
+msgstr "Frequent"
+
 #: src/lib/cron.ts
 msgid "Friday"
 msgstr "Friday"
@@ -3152,6 +3181,10 @@ msgstr "General"
 #: src/pages/shell/conversation-files-panel.tsx
 msgid "Generated"
 msgstr "Generated"
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Gentle"
+msgstr "Gentle"
 
 #: src/components/SidebarFooter.tsx
 msgid "Get the mobile app"
@@ -3468,6 +3501,10 @@ msgstr "Interval amount"
 msgid "Interval unit"
 msgstr "Interval unit"
 
+#: src/pages/shell/roleplay-relationship-debug.tsx
+msgid "Intimacy"
+msgstr "Intimacy"
+
 #: src/lib/user-error.ts
 msgid "Invalid code"
 msgstr "Invalid code"
@@ -3550,6 +3587,10 @@ msgstr "Last check {0}: changed"
 #: src/pages/RoutineEditor.tsx
 msgid "Last check {0}: no changes"
 msgstr "Last check {0}: no changes"
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Late-night messages"
+msgstr "Late-night messages"
 
 #: src/components/DesktopUpdates.tsx
 msgid "Later"
@@ -3659,6 +3700,7 @@ msgstr "Loading voice providers…"
 #: src/pages/PeerMessagesOverlay.tsx
 #: src/pages/RoutineCalendar.tsx
 #: src/pages/RoutineRunHistory.tsx
+#: src/pages/shell/roleplay-relationship-debug.tsx
 #: src/pages/shell/transcript.tsx
 msgid "Loading…"
 msgstr "Loading…"
@@ -3696,6 +3738,10 @@ msgstr "Lorebook description"
 #: src/pages/shell/roleplay-settings.tsx
 msgid "Lorebook name"
 msgstr "Lorebook name"
+
+#: src/pages/shell/roleplay-relationship-debug.tsx
+msgid "Love"
+msgstr "Love"
 
 #: src/lib/ticket-priority.ts
 #: src/pages/model-settings/compatible-model-fields.tsx
@@ -4957,6 +5003,10 @@ msgstr "Register host"
 msgid "Registration is closed"
 msgstr "Registration is closed"
 
+#: src/pages/shell/roleplay-relationship-debug.tsx
+msgid "Relationship debug"
+msgstr "Relationship debug"
+
 #: src/pages/shell/computer-release-actions.tsx
 msgid "Release control"
 msgstr "Release control"
@@ -5356,6 +5406,7 @@ msgstr "Saturday"
 msgid "Save"
 msgstr "Save"
 
+#: src/pages/shell/roleplay-relationship-debug.tsx
 #: src/pages/shell/roleplay-settings.tsx
 msgid "Save changes"
 msgstr "Save changes"
@@ -5412,6 +5463,7 @@ msgstr "Saving..."
 #: src/pages/RoutineEditor.tsx
 #: src/pages/shell/bot-credentials.tsx
 #: src/pages/shell/dialogs.tsx
+#: src/pages/shell/roleplay-relationship-debug.tsx
 #: src/pages/shell/roleplay-settings.tsx
 msgid "Saving…"
 msgstr "Saving…"
@@ -5859,6 +5911,10 @@ msgstr "Speaking"
 #: src/pages/VoiceSettingsOverlay.tsx
 msgid "Speech model"
 msgstr "Speech model"
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Spontaneous messages"
+msgstr "Spontaneous messages"
 
 #: src/lib/user-error.ts
 msgid "SSO is temporarily unavailable. Try again."
@@ -6682,6 +6738,10 @@ msgstr "Waiting in line…"
 #: src/pages/shell/message-cards.tsx
 msgid "Waiting…"
 msgstr "Waiting…"
+
+#: src/pages/shell/roleplay-relationship-debug.tsx
+msgid "Warmth"
+msgstr "Warmth"
 
 #: src/components/ModelCredits.tsx
 msgid "Web, desktop and mobile"

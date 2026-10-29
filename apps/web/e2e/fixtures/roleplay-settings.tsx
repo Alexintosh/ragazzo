@@ -3,6 +3,7 @@ import type { RoleplayCharacter } from "@rakazo/contracts";
 import { useState } from "react";
 import { createRoot } from "react-dom/client";
 import { bootstrapI18n, i18n } from "../../src/lib/i18n";
+import { RoleplayRelationshipDebug } from "../../src/pages/shell/roleplay-relationship-debug";
 import { RoleplaySettings } from "../../src/pages/shell/roleplay-settings";
 import "../../src/styles.css";
 
@@ -63,6 +64,11 @@ const syntheticCharacter: RoleplayCharacter = {
 
 function Fixture() {
   const [character, setCharacter] = useState(syntheticCharacter);
+  const [relationship, setRelationship] = useState({
+    relationship: { warmth: 35, intimacy: 20, love: 10 },
+    historyGeneration: 1,
+    revision: "fixture-revision",
+  });
   const [saved, setSaved] = useState(false);
   return (
     <main className="min-h-dvh bg-background text-foreground">
@@ -78,6 +84,14 @@ function Fixture() {
           onSave={async (value) => {
             setCharacter(value);
             setSaved(true);
+          }}
+        />
+        <RoleplayRelationshipDebug
+          onLoad={async () => relationship}
+          onSave={async (value) => {
+            const saved = { ...value, revision: "fixture-updated-revision" };
+            setRelationship(saved);
+            return saved;
           }}
         />
         {saved ? (

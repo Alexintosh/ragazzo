@@ -48,12 +48,14 @@ import { thinkingLevelLabel } from "../../lib/model-catalog";
 import { lazyComponent } from "../../lib/preload-recovery";
 import { useSpaceQueries } from "../../lib/query";
 import { errorText } from "../../lib/user-error";
+import { useSpaceRpc } from "../../lib/space-rpc";
 import { AgentImportUndo } from "./agent-import-undo";
 import { AvatarStudioPopover } from "./avatar-studio-popover";
 import { BotCredentialsSection } from "./bot-credentials";
 import { BotRuntimeSettings, BotRuntimeStatus } from "./bot-runtime-settings";
 import { ChatModelPicker } from "./chat-model-picker";
 import { RoleplaySettings } from "./roleplay-settings";
+import { RoleplayRelationshipDebug } from "./roleplay-relationship-debug";
 
 const ScratchpadSection = lazyComponent(() =>
   import("../ScratchpadSection").then((module) => module.ScratchpadSection),
@@ -228,6 +230,7 @@ export function BotSettings({
   }, [bot.disabledBuiltinTools]);
   // Shared with the model and voice settings, so a revisit paints at once and refreshes behind.
   const queries = useSpaceQueries();
+  const rpc = useSpaceRpc();
   const refresh = { refetchOnMount: "always" } as const;
   const voices = useQuery({ ...queries.voice.voices.queryOptions({ input: {} }), ...refresh }).data;
   const credentialsQuery = useQuery({ ...queries.models.credentials.queryOptions(), ...refresh });
@@ -628,14 +631,28 @@ export function BotSettings({
       </div>
       {bot.botKind === "roleplay" ? (
         bot.roleplayCharacter ? (
-          <RoleplaySettings
-            botId={bot.id}
-            character={bot.roleplayCharacter}
-            status={bot.status}
-            onSave={(roleplayCharacter, expectedRoleplayCharacter) =>
-              onSave({ roleplayCharacter, expectedRoleplayCharacter })
-            }
-          />
+          <>
+            <RoleplaySettings
+              botId={bot.id}
+              character={bot.roleplayCharacter}
+              status={bot.status}
+              onSave={(roleplayCharacter, expectedRoleplayCharacter) =>
+                onSave({ roleplayCharacter, expectedRoleplayCharacter })
+              }
+            />
+            <RoleplayRelationshipDebug
+              key={bot.id}
+              onLoad={() => rpc.bots.roleplayRelationship({ botId: bot.id })}
+              onSave={(state) =>
+                rpc.bots.updateRoleplayRelationship({
+                  botId: bot.id,
+                  relationship: state.relationship,
+                  historyGeneration: state.historyGeneration,
+                  expectedRevision: state.revision,
+                })
+              }
+            />
+          </>
         ) : null
       ) : (
         <InstructionSettings key={bot.id} bot={bot} />
