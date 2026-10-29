@@ -13,6 +13,12 @@ const configuration = z
       baseUrl: z.string().min(1).max(2048),
       jwtSecret: z.string().min(32).max(4096),
       callerSecret: z.string().min(32).max(4096).optional(),
+      debugBridge: z
+        .strictObject({
+          baseUrl: z.string().min(1).max(2048),
+          secret: z.string().min(32).max(4096),
+        })
+        .optional(),
       characters: z
         .array(z.strictObject({ id: z.uuid(), name: z.string().trim().min(1).max(120) }))
         .min(1)
@@ -35,7 +41,18 @@ export function parseConversationEngines(raw?: string): ErosConversationEngineCo
       ) {
         throw new Error();
       }
-      return { ...config, baseUrl: normalizeConversationEngineBaseUrl(config.baseUrl) };
+      return {
+        ...config,
+        baseUrl: normalizeConversationEngineBaseUrl(config.baseUrl),
+        ...(config.debugBridge
+          ? {
+              debugBridge: {
+                ...config.debugBridge,
+                baseUrl: normalizeConversationEngineBaseUrl(config.debugBridge.baseUrl),
+              },
+            }
+          : {}),
+      };
     });
   } catch {
     throw new Error("Invalid CONVERSATION_ENGINES configuration");

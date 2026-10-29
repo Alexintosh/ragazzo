@@ -1,0 +1,44 @@
+# Optional operator debug service. Requires the base companion Compose file.
+# Build with: node scripts/build-companion-debug.mjs
+# Apply debug-bridge-role.sql and set independent credentials before starting it.
+services:
+  debug-bridge:
+    # Reuse an installed Node-capable image; no image is downloaded by this recipe.
+    image: ${COMPANION_DEBUG_IMAGE:?Set COMPANION_DEBUG_IMAGE to an installed Node 18+ image}
+    pull_policy: never
+    entrypoint: [node, /operator/debug-bridge.cjs]
+    user: "65532:65532"
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    pids_limit: 32
+    mem_limit: 128m
+    cpus: 0.5
+    restart: unless-stopped
+    environment:
+      HOST: 0.0.0.0
+      PORT: "8082"
+      DATABASE_URL: postgres://rakazo_eros_debug:${DEBUG_DATABASE_PASSWORD:?Set DEBUG_DATABASE_PASSWORD}@postgres:5432/companion
+      DEBUG_JWT_SECRET: ${SUPABASE_JWT_SECRET:?Set SUPABASE_JWT_SECRET}
+      DEBUG_BRIDGE_SECRET: ${DEBUG_BRIDGE_SECRET:?Set DEBUG_BRIDGE_SECRET}
+    volumes:
+      - type: bind
+        source: ../../.cache/companion/debug-bridge.cjs
+        target: /operator/debug-bridge.cjs
+        read_only: true
+        bind:
+          create_host_path: false
+    ports:
+      - 127.0.0.1:5186:8082
+    networks:
+      database:
+      service:
+        aliases: [companion-debug]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    logging:
+      driver: local
+      options:
+        max-size: 1m
+        max-file: "2"

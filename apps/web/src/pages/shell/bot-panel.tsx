@@ -54,6 +54,7 @@ import { AvatarStudioPopover } from "./avatar-studio-popover";
 import { BotCredentialsSection } from "./bot-credentials";
 import { BotRuntimeSettings, BotRuntimeStatus } from "./bot-runtime-settings";
 import { ChatModelPicker } from "./chat-model-picker";
+import { ConversationEngineStatePanel } from "./conversation-engine-state";
 import { RoleplayRelationshipDebug } from "./roleplay-relationship-debug";
 import { RoleplaySettings } from "./roleplay-settings";
 
@@ -630,7 +631,18 @@ export function BotSettings({
       </div>
       {bot.botKind === "roleplay" ? (
         bot.conversationEngine === "eros" ? (
-          <SettingsGroup label={t`Conversation engine`}>Eros</SettingsGroup>
+          <ConversationEngineStatePanel
+            key={bot.id}
+            busy={bot.status !== "idle" && bot.status !== "error"}
+            onLoad={() => rpc.bots.conversationEngineState({ botId: bot.id })}
+            onSave={(state, edit) =>
+              rpc.bots.updateConversationEngineState({
+                botId: bot.id,
+                historyGeneration: state.historyGeneration,
+                ...edit,
+              })
+            }
+          />
         ) : bot.roleplayCharacter ? (
           <>
             <RoleplaySettings

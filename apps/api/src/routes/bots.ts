@@ -45,6 +45,10 @@ import {
   undoAgentImport,
 } from "../agent-import.js";
 import { deleteAgentSecret, listAgentSecrets, putAgentSecret } from "../agent-secrets.js";
+import {
+  loadConversationEngineState,
+  updateConversationEngineState,
+} from "../conversation-engine-state.js";
 import { resolveNativeProjectConfig } from "../native-project-config.js";
 import { assertNativeSetupAdmission } from "../native-setup-admission.js";
 import {
@@ -252,6 +256,13 @@ export function botsRoutes(ctx: RouterContext) {
       ),
       roleplayRelationship: authed.bots.roleplayRelationship.handler(({ context, input }) =>
         loadRoleplayRelationship(deps, context.actor, input.botId),
+      ),
+      conversationEngineState: authed.bots.conversationEngineState.handler(({ context, input }) =>
+        loadConversationEngineState(deps, context.actor, input.botId, context.signal),
+      ),
+      updateConversationEngineState: authed.bots.updateConversationEngineState.handler(
+        ({ context, input }) =>
+          updateConversationEngineState(deps, context.actor, input, context.signal),
       ),
       updateRoleplayRelationship: authed.bots.updateRoleplayRelationship.handler(
         ({ context, input }) => updateRoleplayRelationship(deps, context.actor, input),

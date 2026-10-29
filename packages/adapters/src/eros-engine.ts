@@ -1,11 +1,17 @@
 import { createHmac } from "node:crypto";
 import type {
   ConversationEngine,
+  ConversationEngineBinding,
   ConversationEngineCharacter,
   ConversationEngineEvent,
 } from "@rakazo/adapter-kit";
 import { ConversationEngineError } from "@rakazo/adapter-kit";
+import type {
+  ConversationEngineInspection,
+  UpdateConversationEngineState,
+} from "@rakazo/contracts";
 import {
+  ConversationEngineAxesSchema,
   ipVersion,
   isCloudMetadataHost,
   isLinkLocalAddress,
@@ -13,6 +19,8 @@ import {
   isNonPublicAddress,
   normalizeHost,
 } from "@rakazo/contracts";
+import { z } from "zod";
+import { parseErosDebug, parseErosInspection } from "./eros-engine-inspection.js";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const MAX_STREAM_BYTES = 2 * 1024 * 1024;
@@ -25,6 +33,7 @@ export interface ErosConversationEngineConfig {
   baseUrl: string;
   jwtSecret: string;
   callerSecret?: string;
+  debugBridge?: { baseUrl: string; secret: string };
   characters: readonly ConversationEngineCharacter[];
 }
 
@@ -78,7 +87,10 @@ function object(value: unknown): Record<string, unknown> {
   return value as Record<string, unknown>;
 }
 
-async function readJson(response: Response): Promise<Record<string, unknown>> {
+async function readJson(
+  response: Response,
+  maxBytes = MAX_JSON_BYTES,
+): Promise<Record<string, unknown>> {
   if (!response.body) throw new ConversationEngineError("uncertain", true);
   const reader = response.body.getReader();
   const decoder = new TextDecoder("utf-8", { fatal: true });
@@ -89,7 +101,7 @@ async function readJson(response: Response): Promise<Record<string, unknown>> {
       const next = await reader.read();
       if (next.done) break;
       size += next.value.byteLength;
-      if (size > MAX_JSON_BYTES) throw new ConversationEngineError("uncertain", true);
+      if (size > maxBytes) throw new ConversationEngineError("uncertain", true);
       body += decoder.decode(next.value, { stream: true });
     }
     body += decoder.decode();
@@ -170,12 +182,21 @@ export class ErosConversationEngine implements ConversationEngine {
   readonly #callerSecret: string | undefined;
   readonly #fetch: typeof globalThis.fetch;
   readonly #timeoutMs: number;
+  readonly #debugBridge: { baseUrl: string; secret: string } | undefined;
 
   constructor(
     config: ErosConversationEngineConfig,
     options: ConversationEngineTransportOptions = {},
   ) {
     this.#baseUrl = normalizeConversationEngineBaseUrl(config.baseUrl);
+    if (config.debugBridge && config.debugBridge.secret.length < 32)
+      throw new Error("Conversation engine debug credentials require at least 32 characters");
+    this.#debugBridge = config.debugBridge
+      ? {
+          ...config.debugBridge,
+          baseUrl: normalizeConversationEngineBaseUrl(config.debugBridge.baseUrl),
+        }
+      : undefined;
     if (config.jwtSecret.length < 32 || (config.callerSecret && config.callerSecret.length < 32)) {
       throw new Error("Conversation engine credentials require at least 32 characters");
     }
@@ -214,6 +235,140 @@ export class ErosConversationEngine implements ConversationEngine {
       accept,
       ...(this.#callerSecret ? { "x-caller-secret": this.#callerSecret } : {}),
     };
+  }
+
+  #binding(input: ConversationEngineBinding) {
+    if (
+      ![input.userId, input.sessionId, input.instanceId, input.characterId].every((id) =>
+        UUID.test(id),
+      ) ||
+      !this.characters.some(({ id }) => id === input.characterId)
+    )
+      throw new ConversationEngineError("invalid_request");
+  }
+
+  #debugHeaders(input: ConversationEngineBinding): Record<string, string> {
+    if (!this.#debugBridge) throw new ConversationEngineError("unavailable");
+    const now = Math.floor(Date.now() / 1000);
+    const header = Buffer.from(JSON.stringify({ alg: "HS256", typ: "JWT" })).toString("base64url");
+    const payload = Buffer.from(
+      JSON.stringify({
+        sub: input.userId,
+        iat: now,
+        exp: now + 60,
+        aud: "rakazo-eros-debug",
+        session_id: input.sessionId,
+        instance_id: input.instanceId,
+        genome_id: input.characterId,
+      }),
+    ).toString("base64url");
+    const body = `${header}.${payload}`;
+    const signature = createHmac("sha256", this.#jwtSecret).update(body).digest("base64url");
+    return {
+      authorization: `Bearer ${body}.${signature}`,
+      "x-debug-secret": this.#debugBridge.secret,
+      "content-type": "application/json",
+      accept: "application/json",
+    };
+  }
+
+  async #debugRequest(
+    input: ConversationEngineBinding,
+    signal: AbortSignal,
+    patch?: Record<string, unknown>,
+  ) {
+    if (!this.#debugBridge) throw new ConversationEngineError("unavailable");
+    const response = await this.#fetch(
+      `${this.#debugBridge.baseUrl}/v1/sessions/${input.sessionId}/debug`,
+      {
+        method: patch ? "PATCH" : "GET",
+        headers: this.#debugHeaders(input),
+        redirect: "error",
+        signal,
+        ...(patch ? { body: JSON.stringify(patch) } : {}),
+      },
+    );
+    if (response.status === 409) {
+      let code: unknown;
+      try {
+        code = (await readJson(response)).error;
+      } catch {
+        /* Safe error only. */
+      }
+      throw new ConversationEngineError(code === "busy" ? "busy" : "conflict");
+    }
+    await this.#checkResponse(response);
+    return readJson(response, 256 * 1024);
+  }
+
+  async inspect(
+    input: ConversationEngineBinding,
+    signal?: AbortSignal,
+  ): Promise<ConversationEngineInspection> {
+    this.#binding(input);
+    const lifetime = requestLifetime(signal, Math.min(this.#timeoutMs, 30_000));
+    const paths = [
+      `/v2/comp/instance/${input.instanceId}/insight/character`,
+      `/bff/v1/comp/affinity/${input.sessionId}`,
+      `/bff/v1/comp/affinity/${input.sessionId}/event`,
+      `/v2/comp/session/${input.sessionId}/effects`,
+    ];
+    try {
+      const results = await Promise.allSettled([
+        ...paths.map(async (path) => {
+          const response = await this.#fetch(`${this.#baseUrl}${path}`, {
+            method: "GET",
+            headers: this.#headers(input.userId, "application/json"),
+            redirect: "error",
+            signal: lifetime.signal,
+          });
+          await this.#checkResponse(response);
+          return readJson(response, 256 * 1024);
+        }),
+        this.#debugBridge ? this.#debugRequest(input, lifetime.signal) : Promise.resolve(null),
+      ]);
+      const rejected = results.find((result) => result.status === "rejected");
+      if (rejected?.status === "rejected") throw rejected.reason;
+      const values = results.map((result) => (result.status === "fulfilled" ? result.value : null));
+      return parseErosInspection(
+        input.sessionId,
+        input.instanceId,
+        input.characterId,
+        values.slice(0, 4) as Record<string, unknown>[],
+        values[4]!,
+      );
+    } catch (error) {
+      if (error instanceof ConversationEngineError) throw error;
+      throw new ConversationEngineError("unavailable", true);
+    } finally {
+      lifetime.dispose();
+    }
+  }
+
+  async updateState(
+    input: ConversationEngineBinding &
+      Omit<UpdateConversationEngineState, "botId" | "historyGeneration">,
+    signal?: AbortSignal,
+  ): Promise<void> {
+    this.#binding(input);
+    const axes = ConversationEngineAxesSchema.parse(input.axes);
+    const grades = z
+      .object({
+        warmthGrade: z.number().int().min(1).max(3),
+        patienceGrade: z.number().int().min(1).max(3),
+        expectedRevision: z.string().min(1).max(128),
+      })
+      .parse(input);
+    const lifetime = requestLifetime(signal, Math.min(this.#timeoutMs, 30_000));
+    try {
+      const result = await this.#debugRequest(input, lifetime.signal, { ...axes, ...grades });
+      parseErosDebug(input.sessionId, input.instanceId, input.characterId, result);
+    } catch (error) {
+      if (error instanceof ConversationEngineError) throw error;
+      throw new ConversationEngineError("uncertain");
+    } finally {
+      lifetime.dispose();
+    }
   }
 
   async #checkResponse(response: Response): Promise<void> {

@@ -1,3 +1,15 @@
+import type {
+  ConversationEngineInspection,
+  UpdateConversationEngineState,
+} from "@rakazo/contracts";
+
+export interface ConversationEngineBinding {
+  userId: string;
+  sessionId: string;
+  instanceId: string;
+  characterId: string;
+}
+
 /** A stateful conversational service owns its prompt, transcript and memory.
  * It is selected before local agent context construction, not as an LLM transport. */
 export interface ConversationEngineCapabilities {
@@ -32,6 +44,15 @@ export type ConversationEngineEvent =
     };
 
 export interface ConversationEngine extends ConversationEngineDescriptor {
+  inspect?(
+    input: ConversationEngineBinding,
+    signal?: AbortSignal,
+  ): Promise<ConversationEngineInspection>;
+  updateState?(
+    input: ConversationEngineBinding &
+      Omit<UpdateConversationEngineState, "botId" | "historyGeneration">,
+    signal?: AbortSignal,
+  ): Promise<void>;
   provision(
     input: { userId: string; characterId: string },
     signal?: AbortSignal,
@@ -44,6 +65,8 @@ export interface ConversationEngine extends ConversationEngineDescriptor {
 
 export type ConversationEngineErrorCode =
   | "unavailable"
+  | "conflict"
+  | "busy"
   | "invalid_request"
   | "duplicate_in_progress"
   | "duplicate_failed"

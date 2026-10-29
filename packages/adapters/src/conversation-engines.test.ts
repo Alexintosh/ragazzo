@@ -20,7 +20,13 @@ describe("optional deployment conversation engines", () => {
   });
 
   it("projects only browser-safe descriptors", () => {
-    const engines = createConversationEngines({ CONVERSATION_ENGINES: JSON.stringify([valid]) });
+    const debugBridge = {
+      baseUrl: "http://debug:8081",
+      secret: "synthetic-debug-secret-never-public",
+    };
+    const engines = createConversationEngines({
+      CONVERSATION_ENGINES: JSON.stringify([{ ...valid, debugBridge }]),
+    });
     expect(describeConversationEngines(engines)).toEqual([
       {
         id: "eros",
@@ -33,6 +39,9 @@ describe("optional deployment conversation engines", () => {
     expect(JSON.stringify(describeConversationEngines(engines))).not.toContain(valid.callerSecret);
     expect(JSON.stringify(describeConversationEngines(engines))).not.toContain(valid.baseUrl);
     expect(JSON.stringify([...engines.values()])).not.toContain(valid.jwtSecret);
+    expect(JSON.stringify(describeConversationEngines(engines))).not.toContain(debugBridge.secret);
+    expect(JSON.stringify(describeConversationEngines(engines))).not.toContain(debugBridge.baseUrl);
+    expect(JSON.stringify([...engines.values()])).not.toContain(debugBridge.secret);
   });
 
   it.each([
@@ -41,6 +50,25 @@ describe("optional deployment conversation engines", () => {
     JSON.stringify([{ ...valid, id: "unknown" }]),
     JSON.stringify([{ ...valid, jwtSecret: "short" }]),
     JSON.stringify([{ ...valid, callerSecret: "short" }]),
+    JSON.stringify([{ ...valid, debugBridge: { baseUrl: "http://debug:8081", secret: "short" } }]),
+    JSON.stringify([
+      {
+        ...valid,
+        debugBridge: {
+          baseUrl: "http://public.example",
+          secret: "synthetic-debug-secret-never-public",
+        },
+      },
+    ]),
+    JSON.stringify([
+      {
+        ...valid,
+        debugBridge: {
+          baseUrl: "http://169.254.169.254",
+          secret: "synthetic-debug-secret-never-public",
+        },
+      },
+    ]),
     JSON.stringify([{ ...valid, characters: [] }]),
     JSON.stringify([{ ...valid, characters: [{ id: "not-a-uuid", name: "Character" }] }]),
     JSON.stringify([{ ...valid, arbitrary: true }]),

@@ -12,7 +12,19 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../../lib/rpc", () => {
   const rpc = {
-    bots: { get: vi.fn(), update: vi.fn(), restoreInstructions: vi.fn() },
+    bots: {
+      get: vi.fn(),
+      update: vi.fn(),
+      restoreInstructions: vi.fn(),
+      conversationEngineState: vi.fn().mockResolvedValue({
+        status: "uninitialized",
+        engineId: "eros",
+        character: { id: "00000000-0000-4000-8000-000000000001", name: "Aster" },
+        historyGeneration: 0,
+        inspection: null,
+      }),
+      updateConversationEngineState: vi.fn(),
+    },
     voice: { voices: vi.fn().mockResolvedValue([]) },
     models: {
       credentials: vi.fn().mockResolvedValue([]),
@@ -772,6 +784,7 @@ it("hides local engine controls and omits local execution settings when saving a
     erosCharacterId: "00000000-0000-4000-8000-000000000001",
   });
   expect(container.textContent).toContain("Eros");
+  expect(container.querySelector('[data-testid="conversation-engine-state"]')).not.toBeNull();
   expect(container.querySelector('[data-testid="roleplay-settings"]')).toBeNull();
   await expandAdvanced();
   expect(container.querySelector('[id$="-model"]')).toBeNull();

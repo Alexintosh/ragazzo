@@ -107,6 +107,28 @@ Offline gateway checks:
 python3 -B -m unittest discover -s infra/companion -p test_model_gateway.py
 ```
 
+## Character and engine debugging
+
+Eros bot settings show native character insights, relationship axes and tiers, the latest evaluation changes, and the current emotional need. These reads use the existing story/session binding; opening settings never creates another conversation. Send the first message before inspecting a new bot. Use Refresh after a reply: Eros can finish its affinity and feeling processing after delivering the text.
+
+The optional debug bridge adds the full deployed character instructions, personality guidance, timezone, and the **saved feeling summary** with its timestamp. Emotional need and the saved feeling are separate fields. A missing summary means Eros has not saved one; the UI does not invent it. Persona fields are read-only because genomes can be shared by many conversations.
+
+With the bridge enabled, explicit debug edits change native trust, intrigue, intimacy and tension (0–1), plus warmth and patience grades (1–3). Displayed warmth/patience scores and bond/chemistry tiers come from Eros's native calculation. Edits clear the old feeling summary; a later native evaluation may produce a new one. Existing native events are retained. Persisted derived projection columns are left for native processing to refresh; consumers should use the native affinity API rather than those cached columns.
+
+Saving requires the same conversation generation and an unchanged engine revision. Active local work, unresolved deliveries, native queued work and recent native processing block edits. The bridge waits for a 30-second quiet period and evidence that the latest ordinary turn settled. An unacknowledged failed turn can require a new successfully settled turn before editing is available. Older failed turns do not permanently block later settled ones. Refresh after conflicts or an unconfirmed save; the client does not automatically repeat writes.
+
+### Enable the optional bridge
+
+This bridge is original integration code against the pinned Eros schema, not a general database API. Revalidate its SQL and grants when upgrading Eros. It uses a separate database login with column grants and scoped row policies, dedicated authentication, and short-lived signed user/session/instance/character claims. Clients cannot choose upstream identities or service URLs. It cannot read message text or edit shared personas. Only the Rakazo backend receives its credentials.
+
+1. Generate independent URL-safe `DEBUG_DATABASE_PASSWORD` and `DEBUG_BRIDGE_SECRET` values in the private companion environment. Set `COMPANION_DEBUG_IMAGE` to an already installed image with Node 18 or later. No image is downloaded by this recipe.
+2. Apply [`debug-bridge-role.sql`](../infra/companion/debug-bridge-role.sql) as the companion database administrator, providing its `debug_password` psql variable privately. This grants the dedicated role access; it does not grant Rakazo direct database access.
+3. Run `node scripts/build-companion-debug.mjs`. This bundles the bridge with dependencies already installed in the repository into the ignored `.cache/companion` directory.
+4. Include [`docker-compose.debug.yml`](../infra/companion/docker-compose.debug.yml) alongside the base file and any local model gateway override, then run `up -d debug-bridge`.
+5. Add `"debugBridge":{"baseUrl":"http://127.0.0.1:5186","secret":"<dedicated-debug-bridge-secret>"}` to the existing Eros entry in `CONVERSATION_ENGINES`. Restart the Rakazo API and workers. Containerized APIs on the companion service network use `http://companion-debug:8082` instead.
+
+The bridge publishes only loopback port 5186 and runs without root, writable root filesystems or Linux capabilities. It joins the database and service networks; PostgreSQL remains unpublished. The base Eros engine remains operational without the bridge. Configured-but-unreachable debugging reports an error instead of silently presenting stale or fabricated values. Keep all private environment and local override files out of version control.
+
 ## Turn lifecycle and retention
 
 Each Rakazo story/history generation gets a persisted random Eros user UUID and external session binding, separate from real account IDs. Eros has user-global memories shared across personas; this synthetic identity boundary prevents sharing between Rakazo stories. The adapter's default memory scope remains Eros's native `neutral_and_relationship` injection setting. Scope controls do not disable memory writes.
