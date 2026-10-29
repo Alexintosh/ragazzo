@@ -155,6 +155,7 @@ export * from "./release-watch.js";
 export * from "./remote-mcp.js";
 export * from "./resend-email.js";
 export * from "./roleplay-runtime.js";
+export * from "./roleplay-spontaneous.js";
 export * from "./routine-watch.js";
 export * from "./run-secret.js";
 export * from "./run-wakeup.js";

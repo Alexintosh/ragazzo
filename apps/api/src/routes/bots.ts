@@ -46,6 +46,11 @@ import {
 import { deleteAgentSecret, listAgentSecrets, putAgentSecret } from "../agent-secrets.js";
 import { resolveNativeProjectConfig } from "../native-project-config.js";
 import { assertNativeSetupAdmission } from "../native-setup-admission.js";
+import {
+  assertRoleplaySpontaneousTimezone,
+  loadRoleplayRelationship,
+  updateRoleplayRelationship,
+} from "../roleplay-relationship.js";
 import type { RouterDeps } from "../router.js";
 import { loadBotRuntimeModels, setBotRuntimeModel } from "../runtime-model-settings.js";
 import { loadMessagePage } from "../thread-message-pages.js";
@@ -233,6 +238,12 @@ export function botsRoutes(ctx: RouterContext) {
       listArchived: authed.bots.listArchived.handler(async ({ context }) =>
         repos.listBots(context.actor, { archived: true }),
       ),
+      roleplayRelationship: authed.bots.roleplayRelationship.handler(({ context, input }) =>
+        loadRoleplayRelationship(deps, context.actor, input.botId),
+      ),
+      updateRoleplayRelationship: authed.bots.updateRoleplayRelationship.handler(
+        ({ context, input }) => updateRoleplayRelationship(deps, context.actor, input),
+      ),
       get: authed.bots.get.handler(async ({ context, input }) => {
         const found = (await repos.listBots(context.actor)).find((bot) => bot.id === input.botId);
         if (!found) throw new IsolationError();
@@ -265,6 +276,7 @@ export function botsRoutes(ctx: RouterContext) {
           throw new ORPCError("BAD_REQUEST", {
             message: "Roleplay requires Docker on this server",
           });
+        await assertRoleplaySpontaneousTimezone(deps, context.actor, input.roleplayCharacter);
         if (
           input.executionTarget === "host" &&
           !input.registeredHostId &&
@@ -410,6 +422,7 @@ export function botsRoutes(ctx: RouterContext) {
       }),
       update: authed.bots.update.handler(async ({ context, input }) => {
         const existing = await repos.getBot(context.actor, input.botId);
+        await assertRoleplaySpontaneousTimezone(deps, context.actor, input.roleplayCharacter);
         if (input.roleplayCharacter !== undefined && existing.botKind !== "roleplay")
           throw new ORPCError("BAD_REQUEST", { message: "Characters require a roleplay bot" });
         if (

@@ -21,6 +21,8 @@ export function activityPreview(
   input: { trigger: string; prompt: string; sourceBlocks?: unknown },
   max = 120,
 ): Pick<RunActivityRow, "promptSnippet" | "agentMessage"> {
+  // The task stores a concurrency guard, not a user-facing prompt.
+  if (input.trigger === "roleplay_spontaneous") return { promptSnippet: "", agentMessage: null };
   if (input.trigger !== "bot_message")
     return { promptSnippet: promptSnippet(input.prompt, max), agentMessage: null };
   const parsed = MessageBlock.array().safeParse(input.sourceBlocks);
@@ -65,7 +67,7 @@ export async function listSpaceRuns(
       userId: actor.userId,
       bot: { archivedAt: null },
       // Background ticket work belongs on the board, not in the activity list.
-      trigger: { notIn: [...BACKGROUND_RUN_TRIGGERS] },
+      trigger: { notIn: [...BACKGROUND_RUN_TRIGGERS, "roleplay_spontaneous"] },
       ...(filter === "active"
         ? { status: { in: [...ACTIVE_RUN_STATUSES] } }
         : { status: { in: [...TERMINAL_STATUSES] } }),

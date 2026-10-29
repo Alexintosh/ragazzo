@@ -147,6 +147,7 @@ import {
   RegisteredHostSchema,
   RegisterHostInput,
 } from "./registered-hosts.js";
+import { RoleplayRelationshipDebugSchema, RoleplayRelationshipSchema } from "./roleplay.js";
 import { RoutineWatchSchema } from "./routine-watch.js";
 import { RoutineHistorySchema, RoutineRunCursorSchema, RunsListOutputSchema } from "./runs.js";
 import { RuntimeModelsSchema, SetRuntimeModelInput } from "./runtime-models.js";
@@ -408,6 +409,17 @@ export const appContract = {
     list: oc.output(z.array(BotSchema)),
     listArchived: oc.output(z.array(BotSchema)),
     get: oc.input(botId).output(BotSchema),
+    roleplayRelationship: oc.input(botId).output(RoleplayRelationshipDebugSchema),
+    updateRoleplayRelationship: oc
+      .input(
+        z.object({
+          botId: Id,
+          relationship: RoleplayRelationshipSchema,
+          historyGeneration: z.number().int().min(0),
+          expectedRevision: z.string().min(1).max(128),
+        }),
+      )
+      .output(RoleplayRelationshipDebugSchema),
     create: oc.input(CreateBotInput).output(BotSchema),
     importPreview: oc.input(AgentImportPreviewInput).output(AgentImportPlanSchema),
     importCreate: oc.input(AgentImportCreateInput).output(BotSchema),

@@ -26,6 +26,7 @@ import {
   createPostgresReconciliationLeadership,
   createProductAnalytics,
   createReservedGraphileJobWorkerHost,
+  createRoleplaySpontaneousReconciler,
   createRoutineRetryNoticeReconciler,
   createRunExecutor,
   createRunSandbox,
@@ -57,8 +58,8 @@ import {
   RunWorkerHost,
   reconcileCloudAgents,
   reconcileComputerUpdates,
-  reconcileWorkflows,
   reconcileRegisteredHostRevocations,
+  reconcileWorkflows,
   resolveDeploymentModel,
   resolvePiSessionRoot,
   resolveSandboxProvider,
@@ -329,6 +330,10 @@ async function main() {
     events,
     notifications,
     leadership: createPostgresReconciliationLeadership(pool),
+    reconcileRoleplaySpontaneous: createRoleplaySpontaneousReconciler(
+      { prisma, jobs },
+      { enabled: process.env.ROLEPLAY_ENABLED === "true" },
+    ),
     reconcileModelCredits: createModelCreditReconciler({
       prisma,
       lookup: deploymentModelUsageLookup(),
@@ -336,7 +341,8 @@ async function main() {
     reconcileCloudAgents: () => reconcileCloudAgents({ prisma, jobs, cloudAgent }),
     reconcileComputerUpdates: () => reconcileComputerUpdates({ prisma, jobs }),
     reconcileWorkflows: () => reconcileWorkflows({ prisma, jobs, sandbox }),
-    reconcileRegisteredHostRevocations: () => reconcileRegisteredHostRevocations({ prisma, secrets }),
+    reconcileRegisteredHostRevocations: () =>
+      reconcileRegisteredHostRevocations({ prisma, secrets }),
     reconcileRoutineRetryNotices: inMemoryJobs
       ? undefined
       : createRoutineRetryNoticeReconciler(pool, (runId) =>

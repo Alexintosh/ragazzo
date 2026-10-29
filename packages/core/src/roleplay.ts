@@ -4,11 +4,14 @@ import type {
   RoleplayLorebookEntry,
 } from "@rakazo/contracts";
 import { RoleplayContinuitySchema } from "@rakazo/contracts";
+import type { RoleplayTemporalContext } from "./roleplay-temporal.js";
+import { buildRoleplayTemporalContext } from "./roleplay-temporal.js";
 
 export interface RoleplayMessage {
   seq: number;
   role: "user" | "assistant";
   content: string;
+  createdAt?: string;
 }
 
 /** This state belongs to one story, never a user's or character's global memory. */
@@ -77,14 +80,22 @@ export function roleplayStoryState(
         message.seq >= 0 &&
         message.seq <= state.summarizedUpToSeq! &&
         message.role === "user" &&
-        typeof message.content === "string",
+        typeof message.content === "string" &&
+        (message.createdAt === undefined ||
+          (typeof message.createdAt === "string" &&
+            Number.isFinite(Date.parse(message.createdAt)))),
     )
   )
     return fresh;
   const continuity = RoleplayContinuitySchema.safeParse(state.continuity);
   return {
     ...fresh,
-    retainedInputs: retainedInputs.map(({ seq, content }) => ({ seq, content, role: "user" })),
+    retainedInputs: retainedInputs.map(({ seq, content, createdAt }) => ({
+      seq,
+      content,
+      role: "user",
+      ...(createdAt ? { createdAt } : {}),
+    })),
     summary: state.summary,
     summarizedUpToSeq: state.summarizedUpToSeq!,
     turnCount: state.turnCount!,
@@ -97,6 +108,21 @@ export function roleplayStoryState(
 /** Conservative byte-based estimate, independent of a provider's tokenizer. */
 export function roleplayTokens(text: string): number {
   return Math.ceil(new TextEncoder().encode(text).length / 3);
+}
+
+/** Put original message dating into the model-visible text, independent of provider timestamp support. */
+export function formatRoleplayMessageContent(
+  message: Pick<RoleplayMessage, "content" | "createdAt">,
+): string {
+  return message.createdAt
+    ? `[Message createdAt: ${message.createdAt}]\n${message.content}`
+    : message.content;
+}
+
+export function roleplayMessageTokens(
+  message: Pick<RoleplayMessage, "content" | "createdAt">,
+): number {
+  return roleplayTokens(formatRoleplayMessageContent(message)) + 8;
 }
 
 export function roleplayMacros(text: string, characterName: string, playerName = "Player"): string {
@@ -165,6 +191,7 @@ export function buildRoleplayPrompt(input: {
   continuity?: RoleplayContinuity;
   playerName?: string;
   loreTokenLimit?: number;
+  temporal?: RoleplayTemporalContext;
 }): {
   instructions: string;
   history: RoleplayMessage[];
@@ -185,6 +212,7 @@ export function buildRoleplayPrompt(input: {
   const instructions = [
     ROLEPLAY_NARRATIVE_INSTRUCTION,
     character.conversationStyle === "chat" ? ROLEPLAY_CHAT_INSTRUCTION : "",
+    input.temporal ? buildRoleplayTemporalContext(input.temporal, character.conversationStyle) : "",
     ...lore.before,
     section("Character", character.name),
     section("Description", character.description),
@@ -218,7 +246,7 @@ export function roleplayMemoryWindow(
   let tokens = 0;
   let start = history.length;
   while (start > 0) {
-    const cost = roleplayTokens(history[start - 1]!.content) + 8;
+    const cost = roleplayMessageTokens(history[start - 1]!);
     if (tokens + cost > tokenBudget) break;
     tokens += cost;
     start--;

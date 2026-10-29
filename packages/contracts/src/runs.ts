@@ -7,6 +7,7 @@ export const COMPUTER_RATE_LIMIT_ERROR = "Too many computer requests. Try again 
 export const RUN_TRIGGERS = [
   "user",
   "routine",
+  "roleplay_spontaneous",
   "resume",
   "follow_up",
   "reaction",

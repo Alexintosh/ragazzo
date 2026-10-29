@@ -1,7 +1,7 @@
 import type { AssistantMessage, Context, Message } from "@earendil-works/pi-ai";
 import type { AgentRunModel, AgentRuntimeEvent } from "@rakazo/adapter-kit";
 import type { RoleplayMessage } from "@rakazo/core";
-import { MISSING_MODEL_RUN_ERROR } from "@rakazo/core";
+import { formatRoleplayMessageContent, MISSING_MODEL_RUN_ERROR } from "@rakazo/core";
 import { withCloudflareAuth } from "./cloudflare-ai-gateway.js";
 import {
   assistantText,
@@ -22,7 +22,7 @@ export interface RoleplayRunRequest {
   threadId: string;
   botId: string;
   historyGeneration: number;
-  purpose: "dialogue" | "memory" | "continuity";
+  purpose: "dialogue" | "memory" | "continuity" | "spontaneous";
   model: AgentRunModel;
   instructions: string;
   history: RoleplayMessage[];
@@ -104,10 +104,14 @@ export class InternalRoleplayRuntime implements RoleplayRuntime {
     const model = modelForCompletion(resolved.model, request.model.maxTokens);
     const messages: Message[] = request.history.map((message) =>
       message.role === "user"
-        ? { role: "user", content: message.content, timestamp: 0 }
+        ? {
+            role: "user",
+            content: formatRoleplayMessageContent(message),
+            timestamp: message.createdAt ? new Date(message.createdAt).getTime() : 0,
+          }
         : {
             role: "assistant",
-            content: [{ type: "text", text: message.content }],
+            content: [{ type: "text", text: formatRoleplayMessageContent(message) }],
             api: model.api,
             provider: model.provider,
             model: model.id,
@@ -120,7 +124,7 @@ export class InternalRoleplayRuntime implements RoleplayRuntime {
               cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
             },
             stopReason: "stop",
-            timestamp: 0,
+            timestamp: message.createdAt ? new Date(message.createdAt).getTime() : 0,
           },
     );
     messages.push({ role: "user", content: request.prompt, timestamp: Date.now() });
@@ -150,7 +154,10 @@ export class InternalRoleplayRuntime implements RoleplayRuntime {
           () => undefined,
           request.model.callObserver,
           {
-            operationKind: request.purpose === "dialogue" ? "answer" : "compaction",
+            operationKind:
+              request.purpose === "dialogue" || request.purpose === "spontaneous"
+                ? "answer"
+                : "compaction",
             runId: request.runId,
           },
           { recordUsage: request.onUsage },

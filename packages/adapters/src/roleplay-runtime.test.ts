@@ -248,3 +248,34 @@ describe("dedicated roleplay runtime", () => {
     },
   );
 });
+
+it("preserves original transcript timestamps for spontaneous provider context without tools", async () => {
+  let context: Context | undefined;
+  fake.stream.mockImplementation((model: Model<"openai-completions">, supplied: Context) => {
+    context = supplied;
+    const stream = new AssistantMessageEventStream();
+    const message = answer(model, JSON.stringify({ decision: "skip" }));
+    queueMicrotask(() => {
+      stream.push({ type: "done", reason: "stop", message });
+      stream.end(message);
+    });
+    return stream;
+  });
+  const createdAt = "2026-10-27T19:00:00Z";
+  const runtime = new InternalRoleplayRuntime();
+  for await (const _event of runtime.run(
+    {
+      ...request,
+      purpose: "spontaneous",
+      history: request.history.map((message) => ({ ...message, createdAt })),
+    },
+    new AbortController().signal,
+  )) {
+    /* consume */
+  }
+  expect(context?.tools).toBeUndefined();
+  expect(JSON.stringify(context?.messages)).toContain(`[Message createdAt: ${createdAt}]`);
+  expect(context?.messages[0]?.timestamp).toBe(Date.parse(createdAt));
+  expect(context?.messages[1]?.timestamp).toBe(Date.parse(createdAt));
+  expect(fake.agent).not.toHaveBeenCalled();
+});

@@ -213,3 +213,67 @@ describe("roleplay creation contract", () => {
     ).toBe(false);
   });
 });
+
+describe("spontaneous settings and dated continuity", () => {
+  const legacy = {
+    scene: "",
+    relationship: "New acquaintances",
+    sharedDetails: [],
+    openThreads: [],
+    callbacks: [],
+  };
+  const event = {
+    id: "cafe",
+    description: "Meet at the cafe",
+    date: "2026-10-30",
+    status: "planned",
+    sourceMessageSeq: 2,
+    sourceMessageAt: "2026-10-29T10:00:00Z",
+  };
+
+  it("preserves legacy continuity and optional settings without an implicit opt-in", () => {
+    expect(RoleplayContinuitySchema.parse(legacy)).toEqual(legacy);
+    const character = parseRoleplayCharacterJson(JSON.stringify(plain)).character;
+    expect(RoleplayCharacterSchema.parse(character)).not.toHaveProperty("spontaneous");
+    expect(
+      RoleplayCharacterSchema.parse({
+        ...character,
+        spontaneous: { enabled: true, frequency: "gentle", allowLateNight: false },
+      }).spontaneous?.enabled,
+    ).toBe(true);
+  });
+
+  it.each([undefined, "chara_card_v2", "chara_card_v3"])(
+    "cannot activate messaging through imported %s cards",
+    (spec) => {
+      const data = {
+        ...plain,
+        spontaneous: { enabled: true, frequency: "frequent", allowLateNight: true },
+        extensions: { rakazo: { conversation_style: "chat", spontaneous: { enabled: true } } },
+      };
+      const imported = parseRoleplayCharacterJson(JSON.stringify(spec ? { spec, data } : data));
+      expect(imported.character).not.toHaveProperty("spontaneous");
+      expect(imported.character.conversationStyle).toBe("chat");
+    },
+  );
+
+  it("bounds numeric character state and dated provenance while keeping descriptions", () => {
+    const continuity = {
+      ...legacy,
+      relationshipState: { warmth: 40, intimacy: 5, love: 0 },
+      datedEvents: [event],
+    };
+    expect(RoleplayContinuitySchema.parse(continuity)).toEqual(continuity);
+    for (const invalid of [
+      { relationshipState: { warmth: 101, intimacy: 0, love: 0 } },
+      { relationshipState: { warmth: 0, intimacy: -1, love: 0 } },
+      { relationshipState: { warmth: 0, intimacy: 0, love: 0.5 } },
+      { datedEvents: Array(13).fill(event) },
+      { datedEvents: [{ ...event, date: "2026-02-30" }] },
+      { datedEvents: [{ ...event, sourceMessageAt: "tomorrow" }] },
+      { datedEvents: [{ ...event, status: "happened-because-date-passed" }] },
+      { datedEvents: [{ ...event, sourceMessageSeq: -1 }] },
+    ])
+      expect(RoleplayContinuitySchema.safeParse({ ...legacy, ...invalid }).success).toBe(false);
+  });
+});

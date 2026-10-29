@@ -2,6 +2,13 @@ import type { MessageBlock, RoleplayCharacter } from "@rakazo/contracts";
 import { describe, expect, it, vi } from "vitest";
 import type { PrismaClient } from "./client.js";
 import { finalizeRun } from "./events.js";
+import type * as SpontaneousDb from "./roleplay-spontaneous.js";
+
+const spontaneous = vi.hoisted(() => ({ snapshot: vi.fn() }));
+vi.mock("./roleplay-spontaneous.js", async (original) => ({
+  ...(await original<typeof SpontaneousDb>()),
+  roleplaySpontaneousSnapshot: (...args: unknown[]) => spontaneous.snapshot(...args),
+}));
 
 const character: RoleplayCharacter = {
   name: "Aria",
@@ -220,5 +227,81 @@ describe("atomic roleplay chat finalization", () => {
     await expect(finalizeRun(f.prisma, input)).resolves.toBe(false);
     expect(f.read().messages).toEqual([]);
     expect(f.read().roleplayState).toBeNull();
+  });
+});
+
+describe("atomic spontaneous finalization", () => {
+  const guard = {
+    historyGeneration: 0,
+    nextMessageSeq: 5,
+    character: "character",
+    timezone: "UTC",
+    sourceMessageId: "actual-user",
+    botUpdatedAt: "revision",
+    userUpdatedAt: "revision",
+  };
+  it("commits accepted bubbles only after reading eligibility under all locks", async () => {
+    const f = fixture();
+    spontaneous.snapshot.mockImplementation(async (tx) => {
+      const lockTables = tx.$queryRaw.mock.calls.map(([sql]: [TemplateStringsArray]) =>
+        sql.join("?"),
+      );
+      expect(lockTables[0]).toContain("threads");
+      expect(lockTables[1]).toContain("bots");
+      expect(lockTables[2]).toContain('"user"');
+      return { guard };
+    });
+    await expect(finalizeRun(f.prisma, { ...input, spontaneousGuard: guard })).resolves.toEqual({
+      continuationRunId: null,
+    });
+    expect(f.read().messages).toHaveLength(3);
+  });
+  it.each([
+    "user-arrived",
+    "cleared-history",
+    "preferences-edited",
+    "timezone-edited",
+    "disabled",
+    "archived",
+    "quiet-window",
+  ])("suppresses %s atomically without state/bubbles/errors", async (change) => {
+    const f = fixture();
+    const changed =
+      change === "user-arrived"
+        ? { ...guard, nextMessageSeq: 6 }
+        : change === "cleared-history"
+          ? { ...guard, historyGeneration: 1 }
+          : change === "preferences-edited"
+            ? { ...guard, botUpdatedAt: "new-revision" }
+            : change === "timezone-edited"
+              ? { ...guard, userUpdatedAt: "new-revision" }
+              : null;
+    spontaneous.snapshot.mockResolvedValue(changed ? { guard: changed } : null);
+    await expect(finalizeRun(f.prisma, { ...input, spontaneousGuard: guard })).resolves.toEqual({
+      continuationRunId: null,
+      suppressed: true,
+    });
+    expect(f.read()).toMatchObject({
+      status: "completed",
+      messages: [],
+      roleplayState: null,
+      finishedAttempts: 1,
+      finishedTasks: 1,
+    });
+    expect(f.read().events.map((event) => event.type)).toEqual(["run.completed"]);
+  });
+  it("silently completes skip and malformed/provider decisions without a visible error", async () => {
+    const f = fixture();
+    spontaneous.snapshot.mockResolvedValue({ guard });
+    await expect(
+      finalizeRun(f.prisma, {
+        ...input,
+        spontaneousGuard: guard,
+        outcome: "failed",
+        error: "private provider error",
+      }),
+    ).resolves.toEqual({ continuationRunId: null, suppressed: true });
+    expect(f.read().messages).toHaveLength(0);
+    expect(JSON.stringify(f.read().events)).not.toContain("private provider error");
   });
 });

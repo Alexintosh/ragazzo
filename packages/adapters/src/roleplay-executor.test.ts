@@ -1,5 +1,6 @@
 import type { RoleplayCharacter } from "@rakazo/contracts";
 import { roleplayStoryState, roleplayTokens, STEERING_CONTINUATION_PROMPT } from "@rakazo/core";
+import type * as Database from "@rakazo/db";
 import type { Run } from "@rakazo/db";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type * as ComputerLifecycle from "./computer-lifecycle.js";
@@ -13,6 +14,11 @@ const fake = vi.hoisted(() => ({
   resolveModel: vi.fn(),
   release: vi.fn(),
   notify: vi.fn(),
+  snapshot: vi.fn(),
+}));
+vi.mock("@rakazo/db", async (original) => ({
+  ...(await original<typeof Database>()),
+  roleplaySpontaneousSnapshot: (...args: unknown[]) => fake.snapshot(...args),
 }));
 vi.mock("./computer-lifecycle.js", async (original) => ({
   ...(await original<typeof ComputerLifecycle>()),
@@ -189,6 +195,7 @@ function fixture() {
     return { continuationRunId: null as string | null };
   });
   const prisma = {
+    user: { findUnique: vi.fn(async () => ({ timezone: "Europe/Lisbon" })) },
     run: {
       findUnique: vi.fn(async () => ({ ...run })),
       findUniqueOrThrow: vi.fn(async () => ({ ...run })),
@@ -213,10 +220,13 @@ function fixture() {
       })),
     },
     message: {
-      findFirst: vi.fn(async () => ({
-        seq: 99,
-        blocks: [{ kind: "text", text: "I follow the map." }],
-      })),
+      findFirst: vi.fn(
+        async (_args: { where: { seq?: unknown } }) =>
+          ({
+            seq: 99,
+            blocks: [{ kind: "text", text: "I follow the map." }],
+          }) as { seq: number; blocks: Array<{ kind: string; text: string }>; createdAt?: Date },
+      ),
       findMany: vi.fn(async ({ where }) =>
         where.id
           ? [
@@ -343,7 +353,12 @@ describe("roleplay chat continuity", () => {
           [{ kind: "text", text: "Bring the lantern.\n\nCareful now." }],
         ],
         roleplayState: expect.objectContaining({
-          continuity: { ...continuity, scene: "The path ahead", sharedDetails: ["[redacted]"] },
+          continuity: {
+            ...continuity,
+            scene: "The path ahead",
+            sharedDetails: ["[redacted]"],
+            relationshipState: { warmth: 10, intimacy: 0, love: 0 },
+          },
         }),
       }),
     );
@@ -466,7 +481,7 @@ describe("roleplay chat continuity", () => {
     expect(f.finalizeRun).toHaveBeenCalledExactlyOnceWith(
       expect.objectContaining({
         outcome: "completed",
-        roleplayState: expect.objectContaining({ continuity: updated }),
+        roleplayState: expect.objectContaining({ continuity: expect.objectContaining(updated) }),
       }),
     );
   });
@@ -980,6 +995,20 @@ describe("roleplay executor boundary", () => {
       seq: 100,
       blocks: [{ kind: "text", text: "I step into the passage." }],
     });
+    const originalFindMany = f.prisma.message.findMany.getMockImplementation()!;
+    f.prisma.message.findMany.mockImplementation(async (args) =>
+      args.where.id
+        ? [
+            {
+              seq: 100,
+              role: "user",
+              botId: null,
+              threadId: "story",
+              blocks: [{ kind: "text", text: "I step into the passage." }],
+            },
+          ]
+        : originalFindMany(args),
+    );
     vi.mocked(f.deps.events.claimSteering).mockResolvedValue([
       {
         id: "steering",
@@ -1145,4 +1174,165 @@ describe("roleplay executor boundary", () => {
     expect(f.thread.roleplayState).toBeNull();
     expect(fake.release).toHaveBeenCalled();
   });
+});
+
+describe("spontaneous roleplay execution", () => {
+  const guard = {
+    historyGeneration: 0,
+    nextMessageSeq: 101,
+    character: "hash",
+    timezone: "Europe/Lisbon",
+    sourceMessageId: "source",
+    botUpdatedAt: "revision",
+    userUpdatedAt: "revision",
+  };
+  function spontaneousFixture() {
+    const f = fixture();
+    f.run.trigger = "roleplay_spontaneous";
+    f.bot.roleplayCharacter = {
+      ...character,
+      conversationStyle: "chat",
+      spontaneous: { enabled: true, frequency: "balanced", allowLateNight: false },
+    };
+    f.prisma.task.findUniqueOrThrow.mockResolvedValue({
+      id: "task",
+      botId: "aria",
+      threadId: "story",
+      spaceId: "space",
+      prompt: JSON.stringify(guard),
+    });
+    fake.snapshot.mockReset().mockResolvedValue({ guard });
+    return f;
+  }
+  const execute = (f: ReturnType<typeof fixture>) =>
+    executeRoleplayRun(f.deps, f.runtime, f.run as unknown as Run, {
+      workerId: "worker",
+      fence: 1,
+    });
+  it.each([
+    JSON.stringify({ decision: "skip" }),
+    "malformed",
+    JSON.stringify({ decision: "send", messages: [] }),
+  ])("keeps decision %s invisible and records a completed attempt", async (decision) => {
+    const f = spontaneousFixture();
+    f.runtime.run = vi.fn(async function* (request) {
+      f.requests.push(request);
+      yield { type: "text" as const, text: decision };
+      yield { type: "done" as const, text: decision };
+    });
+    await execute(f);
+    expect(f.requests.map((request) => request.purpose)).toEqual(["spontaneous"]);
+    expect(f.finalizeRun).toHaveBeenCalledWith(
+      expect.objectContaining({ outcome: "completed", blocks: [], spontaneousGuard: guard }),
+    );
+    expect(f.finalizeRun.mock.calls[0]![0]).not.toHaveProperty("roleplayState");
+    expect(vi.mocked(f.deps.events.append).mock.calls.map(([event]) => event.type)).toEqual([
+      "run.started",
+    ]);
+    expect(fake.notify).not.toHaveBeenCalled();
+  });
+  it("accepts max-three redacted bubbles, marks unread, and cannot increase relationship scores", async () => {
+    const f = spontaneousFixture();
+    const relationshipState = { warmth: 50, intimacy: 20, love: 10 };
+    f.thread.roleplayState = {
+      ...roleplayStoryState(null, { threadId: "story", botId: "aria", historyGeneration: 0 }),
+      continuity: { ...continuity, relationshipState },
+    };
+    f.runtime.run = vi.fn(async function* (request) {
+      f.requests.push(request);
+      const text =
+        request.purpose === "spontaneous"
+          ? JSON.stringify({
+              decision: "send",
+              messages: ["Hi", "fake-model-secret", "How did it go?"],
+            })
+          : JSON.stringify({
+              ...continuity,
+              relationshipState: { warmth: 100, intimacy: 100, love: 100 },
+            });
+      yield { type: "text" as const, text };
+      yield { type: "done" as const, text };
+    });
+    await execute(f);
+    expect(f.requests.map((request) => request.purpose)).toEqual(["spontaneous", "continuity"]);
+    expect(f.finalizeRun).toHaveBeenCalledWith(
+      expect.objectContaining({
+        blocks: [{ kind: "text", text: "Hi" }],
+        additionalMessages: [
+          [{ kind: "text", text: "[redacted]" }],
+          [{ kind: "text", text: "How did it go?" }],
+        ],
+        markUnread: true,
+        roleplayState: expect.objectContaining({
+          continuity: expect.objectContaining({ relationshipState }),
+        }),
+      }),
+    );
+    expect(vi.mocked(f.deps.events.append).mock.calls.map(([event]) => event.type)).toEqual([
+      "run.started",
+    ]);
+    expect(fake.notify).toHaveBeenCalledOnce();
+  });
+  it("skips changed eligibility before provisioning or model credentials", async () => {
+    const f = spontaneousFixture();
+    fake.snapshot.mockResolvedValue(null);
+    await execute(f);
+    expect(fake.provision).not.toHaveBeenCalled();
+    expect(fake.resolveModel).not.toHaveBeenCalled();
+    expect(f.runtime.run).not.toHaveBeenCalled();
+    expect(f.finalizeRun).toHaveBeenCalledWith(
+      expect.objectContaining({ blocks: [], outcome: "completed" }),
+    );
+  });
+  it("does not notify for an atomic-finalization rejection after model completion", async () => {
+    const f = spontaneousFixture();
+    f.runtime.run = vi.fn(async function* () {
+      yield { type: "done" as const, text: JSON.stringify({ decision: "send", messages: ["Hi"] }) };
+    });
+    f.finalizeRun.mockResolvedValue({ continuationRunId: null, suppressed: true } as never);
+    await execute(f);
+    expect(fake.notify).not.toHaveBeenCalled();
+    expect(
+      vi
+        .mocked(f.deps.events.append)
+        .mock.calls.some(([event]) => event.type === "thread.progress"),
+    ).toBe(false);
+  });
+  it("silently finishes provider failures and enqueues real user continuations", async () => {
+    const f = spontaneousFixture();
+    f.runtime.run = vi.fn(async function* () {
+      yield { type: "text" as const, text: "private decision fragment" };
+      throw new Error("provider private detail");
+    });
+    f.finalizeRun.mockResolvedValue({ continuationRunId: "real-user-turn" });
+    await execute(f);
+    expect(f.finalizeRun).toHaveBeenCalledWith(
+      expect.objectContaining({ outcome: "completed", blocks: [] }),
+    );
+    expect(JSON.stringify(f.finalizeRun.mock.calls)).not.toContain("provider private detail");
+    expect(f.deps.jobs.enqueue).toHaveBeenCalledWith(
+      expect.objectContaining({ payload: { runId: "real-user-turn" } }),
+    );
+    expect(fake.notify).not.toHaveBeenCalled();
+  });
+});
+
+it("grounds a returning user's gap in the prior interaction and preserves input timestamps", async () => {
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(new Date("2026-10-29T12:00:00Z"));
+  const f = fixture();
+  const prior = new Date("2026-10-26T18:00:00Z");
+  const current = new Date("2026-10-29T11:59:59Z");
+  f.prisma.message.findFirst.mockImplementation(async (args) => ({
+    seq: 99,
+    blocks: [{ kind: "text", text: "Tomorrow I am leaving." }],
+    createdAt: args.where.seq ? prior : current,
+  }));
+  await executeRoleplayRun(f.deps, f.runtime, f.run as unknown as Run, {
+    workerId: "worker",
+    fence: 1,
+  });
+  expect(f.requests[0]?.instructions).toContain(`"lastInteractionAt":"${prior.toISOString()}"`);
+  expect(f.requests[0]?.instructions).toContain('"elapsedMilliseconds":237600000');
+  expect(f.requests[0]?.prompt).toContain(`[Message createdAt: ${current.toISOString()}]`);
 });

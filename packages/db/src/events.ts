@@ -47,6 +47,12 @@ import {
   partialReplyClientNonce,
   RunHistoryWriteError,
 } from "./messages.js";
+import type { RoleplaySpontaneousGuard } from "./roleplay-spontaneous.js";
+import {
+  lockRoleplaySpontaneousPreferences,
+  roleplaySpontaneousSnapshot,
+  sameRoleplaySpontaneousGuard,
+} from "./roleplay-spontaneous.js";
 import { deleteRunSecretsInTransaction } from "./run-secrets.js";
 import { isRunResponse, readRunTimingFields } from "./run-timing.js";
 import { RUN_TURN_CHECKPOINT_KIND } from "./run-turn-checkpoint.js";
@@ -143,9 +149,11 @@ export interface ClaimedSteeringMessage {
 
 export interface FinalizeRunResult {
   continuationRunId: string | null;
+  suppressed?: boolean;
 }
 
 interface FinalizeRunBase {
+  spontaneousGuard?: RoleplaySpontaneousGuard;
   spaceId: string;
   threadId: string;
   botId: string;
@@ -1671,7 +1679,10 @@ export async function finalizeRun(
     "bot.id": input.botId,
   });
   void captureRunAnalytics(prisma, analytics, input.runId, `run.${input.outcome}`);
-  return { continuationRunId: committed.continuationRunId };
+  return {
+    continuationRunId: committed.continuationRunId,
+    ...(committed.suppressed ? { suppressed: true } : {}),
+  };
 }
 
 /** Stamps one turn-level wall-clock duration on the final tool block. */
@@ -1704,6 +1715,7 @@ async function finalizeRunOnce(
   seq: number;
   continuationRunId: string | null;
   firstResponse: boolean;
+  suppressed?: boolean;
 } | null> {
   return prisma.$transaction(async (tx: Prisma.TransactionClient) => {
     await tx.$queryRaw`SELECT id FROM threads WHERE id = ${input.threadId} FOR UPDATE`;
@@ -1713,6 +1725,33 @@ async function finalizeRunOnce(
     } catch (error) {
       if (error instanceof RunHistoryWriteError) return null;
       throw error;
+    }
+    let suppressed = false;
+    if (input.spontaneousGuard) {
+      await lockRoleplaySpontaneousPreferences(tx, {
+        botId: input.botId,
+        userId: writableRun!.userId,
+      });
+      const snapshot = await roleplaySpontaneousSnapshot(
+        tx,
+        { ...input, userId: writableRun!.userId },
+        new Date(),
+        input.runId,
+        true,
+      );
+      suppressed =
+        !snapshot ||
+        !sameRoleplaySpontaneousGuard(input.spontaneousGuard, snapshot.guard) ||
+        input.outcome !== "completed" ||
+        !input.blocks.length;
+      if (suppressed)
+        input = {
+          ...input,
+          outcome: "completed",
+          blocks: [],
+          additionalMessages: undefined,
+          roleplayState: undefined,
+        };
     }
     if (input.outcome === "completed" && input.additionalMessages !== undefined) {
       const replies = [input.blocks, ...input.additionalMessages];
@@ -1873,8 +1912,15 @@ async function finalizeRunOnce(
       });
     }
     const continuationRunId = await createPendingSteeringRun(tx, input);
-    await tx.bot.update({ where: { id: input.botId }, data: { updatedAt: now } });
-    return { threadId: lastEvent.threadId, seq: lastEvent.seq, continuationRunId, firstResponse };
+    if (input.outcome === "failed" || input.blocks.length)
+      await tx.bot.update({ where: { id: input.botId }, data: { updatedAt: now } });
+    return {
+      threadId: lastEvent.threadId,
+      seq: lastEvent.seq,
+      continuationRunId,
+      firstResponse,
+      ...(suppressed ? { suppressed: true } : {}),
+    };
   }, FINALIZE_TRANSACTION_OPTIONS);
 }
 

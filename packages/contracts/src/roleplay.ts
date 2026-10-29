@@ -3,10 +3,39 @@ import * as z from "zod";
 export const ROLEPLAY_IMPORT_MAX_BYTES = 1_048_576;
 export const ROLEPLAY_CONTINUITY_MAX_BYTES = 16_384;
 export const RoleplayConversationStyleSchema = z.enum(["narrative", "chat"]);
+export const RoleplayRelationshipSchema = z.strictObject({
+  warmth: z.number().int().min(0).max(100),
+  intimacy: z.number().int().min(0).max(100),
+  love: z.number().int().min(0).max(100),
+});
+export type RoleplayRelationship = z.infer<typeof RoleplayRelationshipSchema>;
+export const RoleplayRelationshipDebugSchema = z.strictObject({
+  relationship: RoleplayRelationshipSchema,
+  historyGeneration: z.number().int().nonnegative(),
+  revision: z.string(),
+});
+export type RoleplayRelationshipDebug = z.infer<typeof RoleplayRelationshipDebugSchema>;
+export const RoleplaySpontaneousSettingsSchema = z.strictObject({
+  enabled: z.boolean(),
+  frequency: z.enum(["gentle", "balanced", "frequent"]),
+  allowLateNight: z.boolean(),
+});
+export type RoleplaySpontaneousSettings = z.infer<typeof RoleplaySpontaneousSettingsSchema>;
+export const RoleplayDatedEventSchema = z.strictObject({
+  id: z.string().min(1).max(100),
+  description: z.string().max(400),
+  date: z.iso.date(),
+  status: z.enum(["planned", "cancelled", "resolved"]),
+  sourceMessageSeq: z.number().int().nonnegative(),
+  sourceMessageAt: z.iso.datetime({ offset: true }),
+});
+export type RoleplayDatedEvent = z.infer<typeof RoleplayDatedEventSchema>;
 export const RoleplayContinuitySchema = z
   .strictObject({
     scene: z.string().max(800),
     relationship: z.string().max(800),
+    relationshipState: RoleplayRelationshipSchema.optional(),
+    datedEvents: z.array(RoleplayDatedEventSchema).max(12).optional(),
     sharedDetails: z.array(z.string().max(400)).max(12),
     openThreads: z.array(z.string().max(400)).max(8),
     callbacks: z.array(z.string().max(400)).max(8),
@@ -35,6 +64,7 @@ export const RoleplayCharacterSchema = z
   .object({
     name: z.string().trim().min(1).max(500),
     conversationStyle: RoleplayConversationStyleSchema.optional(),
+    spontaneous: RoleplaySpontaneousSettingsSchema.optional(),
     description: text,
     personality: text,
     scenario: text,
@@ -132,6 +162,8 @@ export function parseRoleplayCharacterJson(source: string): {
   }
   if (data.group_only_greetings !== undefined)
     warnings.add("Group-only greetings are not imported.");
+  if (data.spontaneous !== undefined || root.spontaneous !== undefined)
+    warnings.add("Spontaneous messaging settings are not imported. Enable them in settings.");
   const bookValue = data.character_book ?? data.lorebook ?? data.globalLore;
   let lorebook: RoleplayCharacter["lorebook"] = null;
   if (bookValue !== undefined && bookValue !== null) {
