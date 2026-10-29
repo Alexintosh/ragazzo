@@ -32,6 +32,15 @@ const debug = {
   patienceGrade: 1,
   revision: "revision-1",
   editable: true,
+  time: {
+    timezone: "Europe/Lisbon",
+    currentTime: time,
+    localTime: "2026-01-01 00:00:00",
+    affinityElapsedHours: 24,
+    feelingElapsedHours: 1,
+  },
+  editBlockedReason: null,
+  retryAfterSeconds: null,
   privateField: "must never reach a client",
 };
 function fixture(overrides: Record<string, unknown> = {}) {
@@ -91,6 +100,7 @@ describe("Eros engine inspection boundary", () => {
     expect(result.emotionalNeed).toBe("high");
     expect(result.affinity?.warmth).toBe(0.5);
     expect(result.debug?.axes).toEqual(axes);
+    expect(result.debug?.time).toEqual(debug.time);
     expect(JSON.stringify(result)).not.toContain("privateField");
     expect(JSON.stringify(result)).not.toContain(binding.sessionId);
     const [url, request] = f.fetch.mock.calls.find(([url]) => String(url).includes("debug:8081"))!;
@@ -172,5 +182,26 @@ describe("Eros engine inspection boundary", () => {
       ).rejects.toThrow(/^Conversation engine: (conflict|uncertain)$/);
       expect(fetch).toHaveBeenCalledTimes(1);
     }
+  });
+
+  it("forwards bounded elapsed time through the same session CAS without allowing timezone edits", async () => {
+    const f = fixture();
+    const input = {
+      ...binding,
+      axes,
+      warmthGrade: 2,
+      patienceGrade: 1,
+      expectedRevision: "revision-1",
+    };
+    await f.engine.updateState({ ...input, elapsedHours: 720 });
+    expect(JSON.parse(String(f.fetch.mock.calls[0]?.[1]?.body))).toEqual({
+      ...axes,
+      warmthGrade: 2,
+      patienceGrade: 1,
+      expectedRevision: "revision-1",
+      elapsedHours: 720,
+    });
+    await expect(f.engine.updateState({ ...input, elapsedHours: 721 })).rejects.toThrow();
+    expect(f.fetch).toHaveBeenCalledTimes(1);
   });
 });

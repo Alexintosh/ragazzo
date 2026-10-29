@@ -649,6 +649,10 @@ msgstr "고급 설정"
 msgid "Advanced..."
 msgstr "고급..."
 
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Affinity elapsed hours"
+msgstr ""
+
 #: src/pages/shell/roleplay-settings.tsx
 msgid "After character"
 msgstr ""
@@ -1014,6 +1018,10 @@ msgstr ""
 msgid "Board"
 msgstr ""
 
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Bond"
+msgstr ""
+
 #: src/pages/shell/computer-view.tsx
 #: src/pages/shell/use-computer.tsx
 msgid "Booting live desktop…"
@@ -1232,6 +1240,7 @@ msgstr ""
 msgid "Changing…"
 msgstr "변경 중…"
 
+#: src/pages/shell/conversation-engine-state.tsx
 #: src/pages/shell/create-bot-dialog.tsx
 #: src/pages/shell/roleplay-settings.tsx
 msgid "Character"
@@ -1239,6 +1248,18 @@ msgstr ""
 
 #: src/pages/shell/roleplay-settings.tsx
 msgid "Character content must be at most 1 MB."
+msgstr ""
+
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Character insights"
+msgstr ""
+
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Character instructions"
+msgstr ""
+
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Character instructions unavailable."
 msgstr ""
 
 #: src/pages/shell/create-bot-dialog.tsx
@@ -1356,6 +1377,10 @@ msgstr ""
 #: src/pages/HostComputerPrompt.tsx
 msgid "Checking…"
 msgstr "확인 중…"
+
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Chemistry"
+msgstr ""
 
 #: src/pages/Shell.tsx
 #: src/pages/shell/agent-import.tsx
@@ -1787,7 +1812,6 @@ msgstr ""
 msgid "Conversation"
 msgstr ""
 
-#: src/pages/shell/bot-panel.tsx
 #: src/pages/shell/create-bot-dialog.tsx
 msgid "Conversation engine"
 msgstr ""
@@ -2060,6 +2084,10 @@ msgstr ""
 msgid "Could not load credentials."
 msgstr ""
 
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Could not load Eros state"
+msgstr ""
+
 #: src/pages/shell/conversation-files-panel.tsx
 msgid "Could not load files."
 msgstr ""
@@ -2219,6 +2247,10 @@ msgstr "자동 검토를 저장할 수 없습니다"
 
 #: src/pages/shell/roleplay-settings.tsx
 msgid "Could not save character"
+msgstr ""
+
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Could not save Eros state"
 msgstr ""
 
 #: src/pages/GroupPanel.tsx
@@ -2441,6 +2473,10 @@ msgstr "Cron 표현식"
 msgid "Current password"
 msgstr "현재 비밀번호"
 
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Current situation"
+msgstr ""
+
 #: src/pages/shell/bot-credentials.tsx
 msgid "Custom header"
 msgstr ""
@@ -2606,6 +2642,10 @@ msgstr "거부"
 msgid "Description"
 msgstr "설명"
 
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Desires"
+msgstr ""
+
 #: src/components/DesktopUpdates.tsx
 msgid "Desktop app"
 msgstr ""
@@ -2636,6 +2676,7 @@ msgstr "도구 비활성화"
 msgid "Disabled"
 msgstr "비활성화됨"
 
+#: src/pages/shell/conversation-engine-state.tsx
 #: src/pages/shell/conversation-tasks.tsx
 #: src/pages/shell/roleplay-relationship-debug.tsx
 #: src/pages/shell/roleplay-settings.tsx
@@ -2672,6 +2713,10 @@ msgstr "{disconnectName} 연결을 해제했습니다."
 #: src/pages/VoiceSettingsOverlay.tsx
 msgid "Disconnecting…"
 msgstr "연결 해제 중…"
+
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Dislikes"
+msgstr ""
 
 #: src/components/AskCard.tsx
 #: src/components/ComputerUpdateProgress.tsx
@@ -2813,6 +2858,10 @@ msgstr ""
 msgid "Edit workflow"
 msgstr ""
 
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Editing unavailable."
+msgstr ""
+
 #: src/pages/shell/bot-model-picker.tsx
 msgid "Effort"
 msgstr ""
@@ -2828,6 +2877,10 @@ msgstr "이 이메일은 가입이 허용되지 않습니다"
 #: src/lib/user-error.ts
 msgid "Email verification required"
 msgstr "이메일 인증이 필요합니다"
+
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Emotional need"
+msgstr ""
 
 #. placeholder {0}: humanizeTool(toolName)
 #: src/pages/shell/bot-panel.tsx
@@ -2848,6 +2901,10 @@ msgstr ""
 
 #: src/pages/ExternalConversationSettings.tsx
 msgid "Engage when... Ignore..."
+msgstr ""
+
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Engine time"
 msgstr ""
 
 #: src/pages/shell/roleplay-settings.tsx
@@ -2901,6 +2958,14 @@ msgstr "이미지 한도는 1에서 1000 사이의 정수로 입력하세요."
 msgid "Enter an API key before testing."
 msgstr "테스트하기 전에 API 키를 입력하세요."
 
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Enter elapsed hours from 0 to 720."
+msgstr ""
+
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Enter numbers from 0 to 1."
+msgstr ""
+
 #: src/pages/shell/roleplay-relationship-debug.tsx
 msgid "Enter whole numbers from 0 to 100."
 msgstr "0부터 100까지의 정수를 입력하세요."
@@ -2917,6 +2982,14 @@ msgstr "환경 변수"
 #: src/pages/shell/import-status.ts
 msgid "Environment variables: {names}"
 msgstr "환경 변수: {names}"
+
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Eros character and state"
+msgstr ""
+
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Eros debug"
+msgstr ""
 
 #: src/lib/roster-status.ts
 #: src/pages/shell/sidebar-roster.tsx
@@ -3063,6 +3136,18 @@ msgstr "실패했습니다."
 #: src/components/teach/SkillDraftCard.tsx
 msgid "Failure handling"
 msgstr "실패했을 때 처리"
+
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Feeling elapsed hours"
+msgstr ""
+
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Feeling summary"
+msgstr ""
+
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Feeling updated at"
+msgstr ""
 
 #: src/pages/RoutineEditor.tsx
 msgid "Fields that mark a change"
@@ -3223,6 +3308,10 @@ msgstr "그룹 설정"
 msgid "Group updates"
 msgstr ""
 
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Habits"
+msgstr ""
+
 #: src/components/call/CallCard.tsx
 msgid "Hang up"
 msgstr "통화 종료"
@@ -3286,6 +3375,7 @@ msgstr "대화 기록 숨기기"
 #: src/lib/ticket-priority.ts
 #: src/pages/model-settings/compatible-model-fields.tsx
 #: src/pages/Onboarding.tsx
+#: src/pages/shell/conversation-engine-state.tsx
 msgid "High"
 msgstr "높음"
 
@@ -3515,9 +3605,14 @@ msgstr "간격 숫자"
 msgid "Interval unit"
 msgstr "간격 단위"
 
+#: src/pages/shell/conversation-engine-state.tsx
 #: src/pages/shell/roleplay-relationship-debug.tsx
 msgid "Intimacy"
 msgstr "친밀감"
+
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Intrigue"
+msgstr ""
 
 #: src/lib/user-error.ts
 msgid "Invalid code"
@@ -3602,12 +3697,20 @@ msgstr "마지막 확인 {0}: 변경됨"
 msgid "Last check {0}: no changes"
 msgstr "마지막 확인 {0}: 변경 없음"
 
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Last turn is not settled."
+msgstr ""
+
 #: src/pages/shell/roleplay-settings.tsx
 msgid "Late-night messages"
 msgstr "심야 메시지"
 
 #: src/components/DesktopUpdates.tsx
 msgid "Later"
+msgstr ""
+
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Latest evaluation"
 msgstr ""
 
 #: src/pages/MessagingSettingsPanel.tsx
@@ -3621,6 +3724,10 @@ msgstr "MEMORY.md와 함께 봇이 의미를 기준으로 사실을 저장하고
 #: src/pages/AccountSettingsOverlay.tsx
 msgid "Light"
 msgstr "라이트"
+
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Likes"
+msgstr ""
 
 #: src/pages/RoutineEditor.tsx
 msgid "Linear issue"
@@ -3714,6 +3821,7 @@ msgstr "음성 서비스를 불러오는 중…"
 #: src/pages/PeerMessagesOverlay.tsx
 #: src/pages/RoutineCalendar.tsx
 #: src/pages/RoutineRunHistory.tsx
+#: src/pages/shell/conversation-engine-state.tsx
 #: src/pages/shell/roleplay-relationship-debug.tsx
 #: src/pages/shell/transcript.tsx
 msgid "Loading…"
@@ -3729,6 +3837,10 @@ msgstr ""
 
 #: src/pages/shell/registered-host-picker.tsx
 msgid "Local host"
+msgstr ""
+
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Location"
 msgstr ""
 
 #: src/components/ModelCredits.tsx
@@ -3760,6 +3872,7 @@ msgstr "사랑"
 #: src/lib/ticket-priority.ts
 #: src/pages/model-settings/compatible-model-fields.tsx
 #: src/pages/Onboarding.tsx
+#: src/pages/shell/conversation-engine-state.tsx
 msgid "Low"
 msgstr "낮음"
 
@@ -3862,6 +3975,7 @@ msgstr "MCP 서버"
 
 #: src/pages/model-settings/compatible-model-fields.tsx
 #: src/pages/Onboarding.tsx
+#: src/pages/shell/conversation-engine-state.tsx
 msgid "Medium"
 msgstr "보통"
 
@@ -4282,6 +4396,14 @@ msgstr ""
 msgid "No bots match"
 msgstr ""
 
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "No character insights yet."
+msgstr ""
+
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "No conversation state yet."
+msgstr ""
+
 #: src/pages/shell/conversation-files-panel.tsx
 msgid "No files found."
 msgstr ""
@@ -4383,6 +4505,10 @@ msgstr ""
 msgid "Not a valid skill"
 msgstr "올바른 스킬이 아닙니다"
 
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Not available"
+msgstr ""
+
 #: src/components/McpServerHealthLine.tsx
 msgid "Not checked yet"
 msgstr "아직 확인되지 않음"
@@ -4453,6 +4579,14 @@ msgstr "OAuth 연결 실패"
 #: src/pages/PluginsOverlay.tsx
 msgid "OAuth expired"
 msgstr "OAuth 만료됨"
+
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Observed at"
+msgstr ""
+
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Occupation"
+msgstr ""
 
 #: src/pages/shell/conversation-tasks.tsx
 msgid "Older tasks"
@@ -4670,6 +4804,14 @@ msgstr "API 키를 붙여넣으세요"
 msgid "Paste your API key, then test again."
 msgstr "API 키를 붙여넣은 뒤 다시 테스트하세요."
 
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Patience"
+msgstr ""
+
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Patience grade"
+msgstr ""
+
 #: src/pages/RoutineEditor.tsx
 #: src/pages/shell/import-status.ts
 msgid "Paused"
@@ -4691,8 +4833,16 @@ msgstr "페르소나"
 msgid "Personal"
 msgstr ""
 
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Personal values"
+msgstr ""
+
 #: src/pages/shell/roleplay-settings.tsx
 msgid "Personality"
+msgstr ""
+
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Personality guidance"
 msgstr ""
 
 #: src/components/call/VoiceChatCard.tsx
@@ -4990,6 +5140,7 @@ msgstr "리디렉션 URI"
 #: src/pages/RoutineRunHistory.tsx
 #: src/pages/shell/bot-model-picker.tsx
 #: src/pages/shell/bot-runtime-settings.tsx
+#: src/pages/shell/conversation-engine-state.tsx
 msgid "Refresh"
 msgstr "새로고침"
 
@@ -5020,6 +5171,10 @@ msgstr "가입이 마감되었습니다"
 #: src/pages/shell/roleplay-relationship-debug.tsx
 msgid "Relationship debug"
 msgstr "관계 디버그"
+
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Relationships"
+msgstr ""
 
 #: src/pages/shell/computer-release-actions.tsx
 msgid "Release control"
@@ -5157,6 +5312,10 @@ msgstr "답장"
 
 #: src/pages/shell/composer.tsx
 msgid "Reply cancelled"
+msgstr ""
+
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Reply in progress."
 msgstr ""
 
 #. placeholder {0}: replyNameRef.current
@@ -5420,6 +5579,7 @@ msgstr "토요일"
 msgid "Save"
 msgstr "저장"
 
+#: src/pages/shell/conversation-engine-state.tsx
 #: src/pages/shell/roleplay-relationship-debug.tsx
 #: src/pages/shell/roleplay-settings.tsx
 msgid "Save changes"
@@ -5664,6 +5824,10 @@ msgstr "설정: 일반"
 msgid "Settings: Usage"
 msgstr "설정: 사용량"
 
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Settling…"
+msgstr ""
+
 #: src/pages/shell/native-runtime-setup.tsx
 msgid "Setup cancelled"
 msgstr ""
@@ -5812,6 +5976,14 @@ msgstr "가입하기"
 msgid "Sign-in required"
 msgstr ""
 
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Simulate elapsed hours (0–720)"
+msgstr ""
+
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Simulates relationship time and clears the feeling summary. The engine clock and message dates stay unchanged."
+msgstr ""
+
 #: src/pages/shell/bot-credentials.tsx
 msgid "Site"
 msgstr ""
@@ -5946,6 +6118,14 @@ msgstr ""
 msgid "Start {trialDays}-day free trial"
 msgstr ""
 
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Start a conversation to edit."
+msgstr ""
+
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Start a conversation to see character insights and Eros state."
+msgstr ""
+
 #: src/pages/shell/thread-queue.tsx
 msgid "Start as task"
 msgstr ""
@@ -5979,6 +6159,10 @@ msgstr "시작하는 중…"
 
 #: src/pages/shell/conversation-tasks.tsx
 msgid "Starts a new execution. Earlier actions may already have taken effect. Review the instructions to avoid repeating them."
+msgstr ""
+
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "State changed. Discard edits to use the latest values."
 msgstr ""
 
 #: src/pages/ActivityList.tsx
@@ -6164,6 +6348,10 @@ msgstr "Teams 메시지"
 msgid "Teams not enabled"
 msgstr ""
 
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Tension"
+msgstr ""
+
 #: src/components/teach/SkillDraftCard.tsx
 msgid "Test"
 msgstr "시험 실행"
@@ -6193,6 +6381,10 @@ msgstr "봇과 가져오기로 추가된 항목이 제거됩니다."
 #: src/lib/model-connection-preflight.ts
 msgid "The connection timed out."
 msgstr "연결 시간이 초과되었습니다."
+
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "The feeling summary may update after the reply."
+msgstr ""
 
 #: src/pages/shell/roleplay-settings.tsx
 msgid "The first message is used when a story starts or is reset."
@@ -6372,11 +6564,16 @@ msgstr ""
 msgid "Thursday"
 msgstr "목요일"
 
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Time"
+msgstr ""
+
 #: src/pages/RoutineSchedule.tsx
 msgid "Time of day"
 msgstr "실행 시각"
 
 #: src/pages/AccountSettingsOverlay.tsx
+#: src/pages/shell/conversation-engine-state.tsx
 msgid "Timezone"
 msgstr ""
 
@@ -6475,6 +6672,10 @@ msgstr ""
 
 #: src/pages/BillingSettingsPanel.tsx
 msgid "Trial ends {day}"
+msgstr ""
+
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Trust"
 msgstr ""
 
 #: src/pages/ActivityList.tsx
@@ -6737,9 +6938,17 @@ msgstr "채팅 보기"
 msgid "Voice"
 msgstr "음성"
 
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Vulnerabilities"
+msgstr ""
+
 #: src/lib/model-connection-preflight.ts
 msgid "Wait a moment and test again."
 msgstr "잠시 기다린 뒤 다시 테스트하세요."
+
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Wait for the reply to finish."
+msgstr ""
 
 #: src/pages/shell/thread-queue.tsx
 msgid "Waiting for approval"
@@ -6761,9 +6970,14 @@ msgstr "줄에서 기다리는 중…"
 msgid "Waiting…"
 msgstr "기다리는 중…"
 
+#: src/pages/shell/conversation-engine-state.tsx
 #: src/pages/shell/roleplay-relationship-debug.tsx
 msgid "Warmth"
 msgstr "따뜻함"
+
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Warmth grade"
+msgstr ""
 
 #: src/components/ModelCredits.tsx
 msgid "Web, desktop and mobile"

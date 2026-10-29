@@ -199,6 +199,7 @@ export async function updateConversationEngineState(
             axes: input.axes,
             warmthGrade: input.warmthGrade,
             patienceGrade: input.patienceGrade,
+            ...(input.elapsedHours === undefined ? {} : { elapsedHours: input.elapsedHours }),
           },
           signal,
         );

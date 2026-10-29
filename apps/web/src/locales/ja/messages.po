@@ -649,6 +649,10 @@ msgstr "詳細設定"
 msgid "Advanced..."
 msgstr "詳細設定..."
 
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Affinity elapsed hours"
+msgstr ""
+
 #: src/pages/shell/roleplay-settings.tsx
 msgid "After character"
 msgstr ""
@@ -1014,6 +1018,10 @@ msgstr "ブロック中"
 msgid "Board"
 msgstr "ボード"
 
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Bond"
+msgstr ""
+
 #: src/pages/shell/computer-view.tsx
 #: src/pages/shell/use-computer.tsx
 msgid "Booting live desktop…"
@@ -1232,6 +1240,7 @@ msgstr ""
 msgid "Changing…"
 msgstr "変更中…"
 
+#: src/pages/shell/conversation-engine-state.tsx
 #: src/pages/shell/create-bot-dialog.tsx
 #: src/pages/shell/roleplay-settings.tsx
 msgid "Character"
@@ -1239,6 +1248,18 @@ msgstr ""
 
 #: src/pages/shell/roleplay-settings.tsx
 msgid "Character content must be at most 1 MB."
+msgstr ""
+
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Character insights"
+msgstr ""
+
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Character instructions"
+msgstr ""
+
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Character instructions unavailable."
 msgstr ""
 
 #: src/pages/shell/create-bot-dialog.tsx
@@ -1356,6 +1377,10 @@ msgstr ""
 #: src/pages/HostComputerPrompt.tsx
 msgid "Checking…"
 msgstr "確認中…"
+
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Chemistry"
+msgstr ""
 
 #: src/pages/Shell.tsx
 #: src/pages/shell/agent-import.tsx
@@ -1787,7 +1812,6 @@ msgstr "クレジットで続行"
 msgid "Conversation"
 msgstr ""
 
-#: src/pages/shell/bot-panel.tsx
 #: src/pages/shell/create-bot-dialog.tsx
 msgid "Conversation engine"
 msgstr ""
@@ -2060,6 +2084,10 @@ msgstr "ボットを読み込めませんでした。再読み込みしてもう
 msgid "Could not load credentials."
 msgstr "認証情報を読み込めませんでした。"
 
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Could not load Eros state"
+msgstr ""
+
 #: src/pages/shell/conversation-files-panel.tsx
 msgid "Could not load files."
 msgstr ""
@@ -2219,6 +2247,10 @@ msgstr "自動レビューを保存できませんでした"
 
 #: src/pages/shell/roleplay-settings.tsx
 msgid "Could not save character"
+msgstr ""
+
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Could not save Eros state"
 msgstr ""
 
 #: src/pages/GroupPanel.tsx
@@ -2441,6 +2473,10 @@ msgstr "Cron式"
 msgid "Current password"
 msgstr "現在のパスワード"
 
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Current situation"
+msgstr ""
+
 #: src/pages/shell/bot-credentials.tsx
 msgid "Custom header"
 msgstr "カスタムヘッダー"
@@ -2606,6 +2642,10 @@ msgstr "拒否"
 msgid "Description"
 msgstr "説明"
 
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Desires"
+msgstr ""
+
 #: src/components/DesktopUpdates.tsx
 msgid "Desktop app"
 msgstr "デスクトップアプリ"
@@ -2636,6 +2676,7 @@ msgstr "ツールを無効にする"
 msgid "Disabled"
 msgstr "無効"
 
+#: src/pages/shell/conversation-engine-state.tsx
 #: src/pages/shell/conversation-tasks.tsx
 #: src/pages/shell/roleplay-relationship-debug.tsx
 #: src/pages/shell/roleplay-settings.tsx
@@ -2672,6 +2713,10 @@ msgstr "{disconnectName}を切断しました。"
 #: src/pages/VoiceSettingsOverlay.tsx
 msgid "Disconnecting…"
 msgstr "切断中…"
+
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Dislikes"
+msgstr ""
 
 #: src/components/AskCard.tsx
 #: src/components/ComputerUpdateProgress.tsx
@@ -2813,6 +2858,10 @@ msgstr ""
 msgid "Edit workflow"
 msgstr ""
 
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Editing unavailable."
+msgstr ""
+
 #: src/pages/shell/bot-model-picker.tsx
 msgid "Effort"
 msgstr ""
@@ -2828,6 +2877,10 @@ msgstr "このメールアドレスは登録できません"
 #: src/lib/user-error.ts
 msgid "Email verification required"
 msgstr "メールアドレスの確認が必要です"
+
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Emotional need"
+msgstr ""
 
 #. placeholder {0}: humanizeTool(toolName)
 #: src/pages/shell/bot-panel.tsx
@@ -2849,6 +2902,10 @@ msgstr "{day}に終了"
 #: src/pages/ExternalConversationSettings.tsx
 msgid "Engage when... Ignore..."
 msgstr "対応する場合… 無視する場合…"
+
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Engine time"
+msgstr ""
 
 #: src/pages/shell/roleplay-settings.tsx
 msgid "Enter a character name (1–500 characters)."
@@ -2901,6 +2958,14 @@ msgstr "画像の上限には1〜1000の整数を入力してください。"
 msgid "Enter an API key before testing."
 msgstr "テストする前にAPIキーを入力してください。"
 
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Enter elapsed hours from 0 to 720."
+msgstr ""
+
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Enter numbers from 0 to 1."
+msgstr ""
+
 #: src/pages/shell/roleplay-relationship-debug.tsx
 msgid "Enter whole numbers from 0 to 100."
 msgstr "0から100までの整数を入力してください。"
@@ -2917,6 +2982,14 @@ msgstr "環境変数"
 #: src/pages/shell/import-status.ts
 msgid "Environment variables: {names}"
 msgstr "環境変数: {names}"
+
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Eros character and state"
+msgstr ""
+
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Eros debug"
+msgstr ""
 
 #: src/lib/roster-status.ts
 #: src/pages/shell/sidebar-roster.tsx
@@ -3063,6 +3136,18 @@ msgstr "失敗しました。"
 #: src/components/teach/SkillDraftCard.tsx
 msgid "Failure handling"
 msgstr "失敗時の対応"
+
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Feeling elapsed hours"
+msgstr ""
+
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Feeling summary"
+msgstr ""
+
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Feeling updated at"
+msgstr ""
 
 #: src/pages/RoutineEditor.tsx
 msgid "Fields that mark a change"
@@ -3223,6 +3308,10 @@ msgstr "グループ設定"
 msgid "Group updates"
 msgstr "更新をまとめる"
 
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Habits"
+msgstr ""
+
 #: src/components/call/CallCard.tsx
 msgid "Hang up"
 msgstr "通話を終了"
@@ -3286,6 +3375,7 @@ msgstr "文字起こしを非表示"
 #: src/lib/ticket-priority.ts
 #: src/pages/model-settings/compatible-model-fields.tsx
 #: src/pages/Onboarding.tsx
+#: src/pages/shell/conversation-engine-state.tsx
 msgid "High"
 msgstr "高"
 
@@ -3515,9 +3605,14 @@ msgstr "間隔の値"
 msgid "Interval unit"
 msgstr "間隔の単位"
 
+#: src/pages/shell/conversation-engine-state.tsx
 #: src/pages/shell/roleplay-relationship-debug.tsx
 msgid "Intimacy"
 msgstr "親密さ"
+
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Intrigue"
+msgstr ""
 
 #: src/lib/user-error.ts
 msgid "Invalid code"
@@ -3602,6 +3697,10 @@ msgstr "前回の確認 {0}: 変更あり"
 msgid "Last check {0}: no changes"
 msgstr "前回の確認 {0}: 変更なし"
 
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Last turn is not settled."
+msgstr ""
+
 #: src/pages/shell/roleplay-settings.tsx
 msgid "Late-night messages"
 msgstr "深夜のメッセージ"
@@ -3609,6 +3708,10 @@ msgstr "深夜のメッセージ"
 #: src/components/DesktopUpdates.tsx
 msgid "Later"
 msgstr "後で"
+
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Latest evaluation"
+msgstr ""
 
 #: src/pages/MessagingSettingsPanel.tsx
 msgid "Leave"
@@ -3621,6 +3724,10 @@ msgstr "MEMORY.md に加えて、ボットが意味に基づいて事実を保�
 #: src/pages/AccountSettingsOverlay.tsx
 msgid "Light"
 msgstr "ライト"
+
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Likes"
+msgstr ""
 
 #: src/pages/RoutineEditor.tsx
 msgid "Linear issue"
@@ -3714,6 +3821,7 @@ msgstr "音声プロバイダーを読み込み中…"
 #: src/pages/PeerMessagesOverlay.tsx
 #: src/pages/RoutineCalendar.tsx
 #: src/pages/RoutineRunHistory.tsx
+#: src/pages/shell/conversation-engine-state.tsx
 #: src/pages/shell/roleplay-relationship-debug.tsx
 #: src/pages/shell/transcript.tsx
 msgid "Loading…"
@@ -3729,6 +3837,10 @@ msgstr "ローカルコンピューターへのアクセスには最新のデス
 
 #: src/pages/shell/registered-host-picker.tsx
 msgid "Local host"
+msgstr ""
+
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Location"
 msgstr ""
 
 #: src/components/ModelCredits.tsx
@@ -3760,6 +3872,7 @@ msgstr "愛情"
 #: src/lib/ticket-priority.ts
 #: src/pages/model-settings/compatible-model-fields.tsx
 #: src/pages/Onboarding.tsx
+#: src/pages/shell/conversation-engine-state.tsx
 msgid "Low"
 msgstr "低"
 
@@ -3862,6 +3975,7 @@ msgstr "MCPサーバー"
 
 #: src/pages/model-settings/compatible-model-fields.tsx
 #: src/pages/Onboarding.tsx
+#: src/pages/shell/conversation-engine-state.tsx
 msgid "Medium"
 msgstr "中"
 
@@ -4282,6 +4396,14 @@ msgstr "ボットなし"
 msgid "No bots match"
 msgstr "一致するボットはありません"
 
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "No character insights yet."
+msgstr ""
+
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "No conversation state yet."
+msgstr ""
+
 #: src/pages/shell/conversation-files-panel.tsx
 msgid "No files found."
 msgstr ""
@@ -4383,6 +4505,10 @@ msgstr "通常"
 msgid "Not a valid skill"
 msgstr "有効なスキルではありません"
 
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Not available"
+msgstr ""
+
 #: src/components/McpServerHealthLine.tsx
 msgid "Not checked yet"
 msgstr "未確認"
@@ -4453,6 +4579,14 @@ msgstr "OAuth接続に失敗しました"
 #: src/pages/PluginsOverlay.tsx
 msgid "OAuth expired"
 msgstr "OAuthの有効期限切れ"
+
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Observed at"
+msgstr ""
+
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Occupation"
+msgstr ""
 
 #: src/pages/shell/conversation-tasks.tsx
 msgid "Older tasks"
@@ -4670,6 +4804,14 @@ msgstr "APIキーを貼り付け"
 msgid "Paste your API key, then test again."
 msgstr "APIキーを貼り付けてから、もう一度テストしてください。"
 
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Patience"
+msgstr ""
+
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Patience grade"
+msgstr ""
+
 #: src/pages/RoutineEditor.tsx
 #: src/pages/shell/import-status.ts
 msgid "Paused"
@@ -4691,8 +4833,16 @@ msgstr "ペルソナ"
 msgid "Personal"
 msgstr "個人"
 
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Personal values"
+msgstr ""
+
 #: src/pages/shell/roleplay-settings.tsx
 msgid "Personality"
+msgstr ""
+
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Personality guidance"
 msgstr ""
 
 #: src/components/call/VoiceChatCard.tsx
@@ -4990,6 +5140,7 @@ msgstr "リダイレクトURI"
 #: src/pages/RoutineRunHistory.tsx
 #: src/pages/shell/bot-model-picker.tsx
 #: src/pages/shell/bot-runtime-settings.tsx
+#: src/pages/shell/conversation-engine-state.tsx
 msgid "Refresh"
 msgstr "更新"
 
@@ -5020,6 +5171,10 @@ msgstr "新規登録は締め切られています"
 #: src/pages/shell/roleplay-relationship-debug.tsx
 msgid "Relationship debug"
 msgstr "関係のデバッグ"
+
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Relationships"
+msgstr ""
 
 #: src/pages/shell/computer-release-actions.tsx
 msgid "Release control"
@@ -5158,6 +5313,10 @@ msgstr "返信"
 #: src/pages/shell/composer.tsx
 msgid "Reply cancelled"
 msgstr "返信をキャンセルしました"
+
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Reply in progress."
+msgstr ""
 
 #. placeholder {0}: replyNameRef.current
 #: src/pages/shell/composer.tsx
@@ -5420,6 +5579,7 @@ msgstr "土曜日"
 msgid "Save"
 msgstr "保存"
 
+#: src/pages/shell/conversation-engine-state.tsx
 #: src/pages/shell/roleplay-relationship-debug.tsx
 #: src/pages/shell/roleplay-settings.tsx
 msgid "Save changes"
@@ -5664,6 +5824,10 @@ msgstr "設定: 一般"
 msgid "Settings: Usage"
 msgstr "設定: 使用量"
 
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Settling…"
+msgstr ""
+
 #: src/pages/shell/native-runtime-setup.tsx
 msgid "Setup cancelled"
 msgstr ""
@@ -5812,6 +5976,14 @@ msgstr "新規登録"
 msgid "Sign-in required"
 msgstr ""
 
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Simulate elapsed hours (0–720)"
+msgstr ""
+
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Simulates relationship time and clears the feeling summary. The engine clock and message dates stay unchanged."
+msgstr ""
+
 #: src/pages/shell/bot-credentials.tsx
 msgid "Site"
 msgstr "サイト"
@@ -5946,6 +6118,14 @@ msgstr ""
 msgid "Start {trialDays}-day free trial"
 msgstr "{trialDays}日間の無料トライアルを開始"
 
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Start a conversation to edit."
+msgstr ""
+
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Start a conversation to see character insights and Eros state."
+msgstr ""
+
 #: src/pages/shell/thread-queue.tsx
 msgid "Start as task"
 msgstr ""
@@ -5979,6 +6159,10 @@ msgstr "開始中…"
 
 #: src/pages/shell/conversation-tasks.tsx
 msgid "Starts a new execution. Earlier actions may already have taken effect. Review the instructions to avoid repeating them."
+msgstr ""
+
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "State changed. Discard edits to use the latest values."
 msgstr ""
 
 #: src/pages/ActivityList.tsx
@@ -6164,6 +6348,10 @@ msgstr "Teamsメッセージ"
 msgid "Teams not enabled"
 msgstr "Teamsが有効になっていません"
 
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Tension"
+msgstr ""
+
 #: src/components/teach/SkillDraftCard.tsx
 msgid "Test"
 msgstr "テスト"
@@ -6193,6 +6381,10 @@ msgstr "ボットと、そのインポートで追加されたものが削除さ
 #: src/lib/model-connection-preflight.ts
 msgid "The connection timed out."
 msgstr "接続がタイムアウトしました。"
+
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "The feeling summary may update after the reply."
+msgstr ""
 
 #: src/pages/shell/roleplay-settings.tsx
 msgid "The first message is used when a story starts or is reset."
@@ -6372,11 +6564,16 @@ msgstr "今週"
 msgid "Thursday"
 msgstr "木曜日"
 
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Time"
+msgstr ""
+
 #: src/pages/RoutineSchedule.tsx
 msgid "Time of day"
 msgstr "時刻"
 
 #: src/pages/AccountSettingsOverlay.tsx
+#: src/pages/shell/conversation-engine-state.tsx
 msgid "Timezone"
 msgstr "タイムゾーン"
 
@@ -6476,6 +6673,10 @@ msgstr "トライアル"
 #: src/pages/BillingSettingsPanel.tsx
 msgid "Trial ends {day}"
 msgstr "トライアル終了: {day}"
+
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Trust"
+msgstr ""
 
 #: src/pages/ActivityList.tsx
 #: src/pages/Onboarding.tsx
@@ -6737,9 +6938,17 @@ msgstr "チャットを表示"
 msgid "Voice"
 msgstr "音声"
 
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Vulnerabilities"
+msgstr ""
+
 #: src/lib/model-connection-preflight.ts
 msgid "Wait a moment and test again."
 msgstr "しばらく待ってから再度テストしてください。"
+
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Wait for the reply to finish."
+msgstr ""
 
 #: src/pages/shell/thread-queue.tsx
 msgid "Waiting for approval"
@@ -6761,9 +6970,14 @@ msgstr "順番待ち…"
 msgid "Waiting…"
 msgstr "待機中…"
 
+#: src/pages/shell/conversation-engine-state.tsx
 #: src/pages/shell/roleplay-relationship-debug.tsx
 msgid "Warmth"
 msgstr "親しみ"
+
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Warmth grade"
+msgstr ""
 
 #: src/components/ModelCredits.tsx
 msgid "Web, desktop and mobile"

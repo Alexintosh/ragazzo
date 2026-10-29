@@ -5,6 +5,20 @@ const grade = z.number().int().min(1).max(3);
 const timestamp = z.string().max(128);
 const text = z.string().max(65_536);
 
+export const ConversationEngineTimeSchema = z.object({
+  timezone: z.string().max(120).nullable(),
+  currentTime: timestamp,
+  localTime: z.string().max(128).nullable(),
+  affinityElapsedHours: z.number().min(0).nullable(),
+  feelingElapsedHours: z.number().min(0).nullable(),
+});
+export const ConversationEngineEditBlockedReasonSchema = z.enum([
+  "missing_affinity",
+  "processing",
+  "settling",
+  "unacknowledged_turn",
+]);
+
 export const ConversationEngineAxesSchema = z.object({
   trust: score,
   intrigue: score,
@@ -81,6 +95,9 @@ export const ConversationEngineInspectionSchema = z.object({
       patienceGrade: grade.nullable(),
       revision: z.string().min(1).max(128).nullable(),
       editable: z.boolean(),
+      time: ConversationEngineTimeSchema.nullable().optional(),
+      editBlockedReason: ConversationEngineEditBlockedReasonSchema.nullable().optional(),
+      retryAfterSeconds: z.number().int().min(0).max(30).nullable().optional(),
     })
     .nullable(),
 });
@@ -102,5 +119,6 @@ export const UpdateConversationEngineStateInput = z.object({
   axes: ConversationEngineAxesSchema,
   warmthGrade: grade,
   patienceGrade: grade,
+  elapsedHours: z.number().min(0).max(720).optional(),
 });
 export type UpdateConversationEngineState = z.infer<typeof UpdateConversationEngineStateInput>;

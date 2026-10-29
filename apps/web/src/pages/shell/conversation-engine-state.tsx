@@ -9,7 +9,10 @@ type Inspection = NonNullable<ConversationEngineState["inspection"]>;
 type Debug = NonNullable<Inspection["debug"]>;
 export type EngineStateEdit = Omit<UpdateConversationEngineState, "botId" | "historyGeneration">;
 const editableAxes = ["trust", "intrigue", "intimacy", "tension"] as const;
-type Draft = Record<(typeof editableAxes)[number] | "warmthGrade" | "patienceGrade", string>;
+type Draft = Record<
+  (typeof editableAxes)[number] | "warmthGrade" | "patienceGrade" | "elapsedHours" | "revision",
+  string
+>;
 const draftFrom = (debug: Debug): Draft => ({
   trust: String(debug.axes!.trust),
   intrigue: String(debug.axes!.intrigue),
@@ -17,6 +20,8 @@ const draftFrom = (debug: Debug): Draft => ({
   tension: String(debug.axes!.tension),
   warmthGrade: String(debug.warmthGrade),
   patienceGrade: String(debug.patienceGrade),
+  elapsedHours: "",
+  revision: debug.revision!,
 });
 
 /** Reads the bound conversation only; opening settings never creates an engine session. */
@@ -42,18 +47,19 @@ export function ConversationEngineStatePanel({
   load.current = onLoad;
   const active = useRef(true);
   const inFlight = useRef(false);
-  function accept(next: ConversationEngineState) {
+  const dirtyRef = useRef(false);
+  function accept(next: ConversationEngineState, preserveDraft = true) {
     setState(next);
-    setDraft(
-      next.inspection?.debug?.editable &&
-        next.inspection.debug.axes &&
-        next.inspection.debug.warmthGrade &&
-        next.inspection.debug.patienceGrade &&
-        next.inspection.debug.revision
-        ? draftFrom(next.inspection.debug)
+    const nextDebug = next.inspection?.debug;
+    setDraft((previous) =>
+      nextDebug?.axes && nextDebug.warmthGrade && nextDebug.patienceGrade && nextDebug.revision
+        ? preserveDraft && dirtyRef.current && previous
+          ? previous
+          : draftFrom(nextDebug)
         : null,
     );
   }
+
   async function refresh() {
     if (inFlight.current) return;
     inFlight.current = true;
@@ -81,6 +87,24 @@ export function ConversationEngineStatePanel({
   const dirty = Boolean(
     debug && draft && JSON.stringify(draft) !== JSON.stringify(draftFrom(debug)),
   );
+  const staleDraft = Boolean(dirty && draft && draft.revision !== debug?.revision);
+  dirtyRef.current = dirty;
+  useEffect(() => {
+    if (
+      !busy &&
+      (debug?.editable !== false ||
+        debug.editBlockedReason === "missing_affinity" ||
+        debug.editBlockedReason === "unacknowledged_turn")
+    )
+      return;
+    const timer = window.setInterval(() => void refresh(), 5_000);
+    return () => window.clearInterval(timer);
+  }, [busy, debug?.editable, debug?.editBlockedReason]);
+  const wasBusy = useRef(busy);
+  useEffect(() => {
+    if (wasBusy.current && !busy) void refresh();
+    wasBusy.current = busy;
+  }, [busy]);
   async function save() {
     if (
       !state ||
@@ -89,6 +113,7 @@ export function ConversationEngineStatePanel({
       !debug.revision ||
       !draft ||
       pending ||
+      staleDraft ||
       busy ||
       inFlight.current
     )
@@ -105,12 +130,22 @@ export function ConversationEngineStatePanel({
       setFailure(t`Enter numbers from 0 to 1.`);
       return;
     }
+    if (
+      draft.elapsedHours.trim() &&
+      (!Number.isFinite(Number(draft.elapsedHours)) ||
+        Number(draft.elapsedHours) < 0 ||
+        Number(draft.elapsedHours) > 720)
+    ) {
+      setFailure(t`Enter elapsed hours from 0 to 720.`);
+      return;
+    }
     inFlight.current = true;
     setPending(true);
     setFailure(null);
     try {
       const next = await onSave(state, {
-        expectedRevision: debug.revision,
+        expectedRevision: draft.revision,
+        ...(draft.elapsedHours.trim() ? { elapsedHours: Number(draft.elapsedHours) } : {}),
         axes: {
           ...debug.axes,
           ...Object.fromEntries(editableAxes.map((key) => [key, Number(draft[key])])),
@@ -118,7 +153,7 @@ export function ConversationEngineStatePanel({
         warmthGrade: Number(draft.warmthGrade),
         patienceGrade: Number(draft.patienceGrade),
       });
-      if (active.current) accept(next);
+      if (active.current) accept(next, false);
     } catch (error) {
       if (active.current) setFailure(errorText(error, t`Could not save Eros state`));
     } finally {
@@ -132,6 +167,18 @@ export function ConversationEngineStatePanel({
     intimacy: t`Intimacy`,
     tension: t`Tension`,
   };
+  const blockedReason =
+    debug?.editBlockedReason === "missing_affinity"
+      ? t`Start a conversation to edit.`
+      : debug?.editBlockedReason === "processing"
+        ? t`Reply in progress.`
+        : debug?.editBlockedReason === "settling"
+          ? t`Settling…`
+          : debug?.editBlockedReason === "unacknowledged_turn"
+            ? t`Last turn is not settled.`
+            : busy
+              ? t`Wait for the reply to finish.`
+              : t`Editing unavailable.`;
   const profile = inspection?.profile;
   const insights: [string, string | string[] | null | undefined][] = profile
     ? [
@@ -173,9 +220,6 @@ export function ConversationEngineStatePanel({
         ) : null}
         {debug ? (
           <>
-            {debug.persona.timezone ? (
-              <Value label={t`Timezone`}>{debug.persona.timezone}</Value>
-            ) : null}
             <Value label={t`Character instructions`}>{debug.persona.systemPrompt}</Value>
             {debug.persona.tipPersonality ? (
               <Value label={t`Personality guidance`}>{debug.persona.tipPersonality}</Value>
@@ -207,6 +251,51 @@ export function ConversationEngineStatePanel({
           </Disclosure>
         ) : null}
       </Disclosure>
+      {debug?.time ? (
+        <Disclosure label={t`Time`}>
+          <Value label={t`Timezone`}>{debug.time.timezone ?? t`Not available`}</Value>
+          <Value label={t`Engine time`}>{debug.time.localTime ?? debug.time.currentTime}</Value>
+          <Value label={t`Affinity elapsed hours`}>
+            {debug.time.affinityElapsedHours == null
+              ? t`Not available`
+              : Math.round(debug.time.affinityElapsedHours * 100) / 100}
+          </Value>
+          <Value label={t`Feeling elapsed hours`}>
+            {debug.time.feelingElapsedHours == null
+              ? t`Not available`
+              : Math.round(debug.time.feelingElapsedHours * 100) / 100}
+          </Value>
+          {draft ? (
+            <div className="space-y-1">
+              <label htmlFor={`${id}-elapsedHours`} className="text-sm">
+                <Trans>Simulate elapsed hours (0–720)</Trans>
+              </label>
+              <Input
+                id={`${id}-elapsedHours`}
+                inputMode="decimal"
+                type="number"
+                min={0}
+                max={720}
+                step="any"
+                disabled={pending || busy || !debug.editable}
+                value={draft.elapsedHours}
+                onChange={(event) => setDraft({ ...draft, elapsedHours: event.target.value })}
+              />
+              <p className="text-xs text-muted-foreground">
+                <Trans>
+                  Simulates relationship time and clears the feeling summary. The engine clock and
+                  message dates stay unchanged.
+                </Trans>
+              </p>
+            </div>
+          ) : null}
+        </Disclosure>
+      ) : null}
+      {busy || debug?.editable === false ? (
+        <p role="status" className="text-xs text-muted-foreground">
+          {blockedReason}
+        </p>
+      ) : null}
       <Disclosure label={t`Eros debug`}>
         {inspection ? (
           <>
@@ -242,16 +331,22 @@ export function ConversationEngineStatePanel({
               </div>
             ) : null}
             {debug && draft ? (
-              <fieldset disabled={pending || busy} className="space-y-3">
+              <fieldset disabled={pending || busy || !debug.editable} className="space-y-3">
                 <div className="grid grid-cols-2 gap-3">
                   {editableAxes.map((key) => (
                     <div key={key} className="space-y-1">
                       <label htmlFor={`${id}-${key}`} className="text-sm">
-                        {axisLabels[key]}
+                        {axisLabels[key]}{" "}
+                        <span className="text-xs text-muted-foreground">(0–1)</span>
                       </label>
                       <Input
                         id={`${id}-${key}`}
+                        aria-label={axisLabels[key]}
                         inputMode="decimal"
+                        type="number"
+                        min={0}
+                        max={1}
+                        step="any"
                         value={draft[key]}
                         onChange={(event) => setDraft({ ...draft, [key]: event.target.value })}
                       />
@@ -281,22 +376,6 @@ export function ConversationEngineStatePanel({
                     </div>
                   ))}
                 </div>
-                {dirty ? (
-                  <div className="flex gap-2">
-                    <Button onClick={() => void save()}>
-                      {pending ? t`Saving…` : t`Save changes`}
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      onClick={() => {
-                        setDraft(draftFrom(debug));
-                        setFailure(null);
-                      }}
-                    >
-                      <Trans>Discard</Trans>
-                    </Button>
-                  </div>
-                ) : null}
               </fieldset>
             ) : inspection.affinity ? (
               <div className="grid grid-cols-2 gap-3">
@@ -319,6 +398,32 @@ export function ConversationEngineStatePanel({
           </p>
         )}
       </Disclosure>
+      {staleDraft ? (
+        <p role="status" className="text-xs text-muted-foreground">
+          <Trans>State changed. Discard edits to use the latest values.</Trans>
+        </p>
+      ) : null}
+      {dirty && debug ? (
+        <div className="flex gap-2">
+          <Button
+            disabled={pending || busy || !debug.editable || staleDraft}
+            onClick={() => void save()}
+          >
+            <Trans>Save changes</Trans>
+          </Button>
+          <Button
+            variant="ghost"
+            disabled={pending}
+            onClick={() => {
+              setDraft(draftFrom(debug));
+              setFailure(null);
+            }}
+          >
+            <Trans>Discard</Trans>
+          </Button>
+        </div>
+      ) : null}
+
       {failure ? (
         <p role="alert" className="text-xs text-destructive">
           {failure}

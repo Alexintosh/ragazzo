@@ -649,6 +649,10 @@ msgstr "מתקדם"
 msgid "Advanced..."
 msgstr "מתקדם..."
 
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Affinity elapsed hours"
+msgstr ""
+
 #: src/pages/shell/roleplay-settings.tsx
 msgid "After character"
 msgstr ""
@@ -1014,6 +1018,10 @@ msgstr "חסום"
 msgid "Board"
 msgstr "לוח"
 
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Bond"
+msgstr ""
+
 #: src/pages/shell/computer-view.tsx
 #: src/pages/shell/use-computer.tsx
 msgid "Booting live desktop…"
@@ -1232,6 +1240,7 @@ msgstr ""
 msgid "Changing…"
 msgstr "משנה…"
 
+#: src/pages/shell/conversation-engine-state.tsx
 #: src/pages/shell/create-bot-dialog.tsx
 #: src/pages/shell/roleplay-settings.tsx
 msgid "Character"
@@ -1239,6 +1248,18 @@ msgstr ""
 
 #: src/pages/shell/roleplay-settings.tsx
 msgid "Character content must be at most 1 MB."
+msgstr ""
+
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Character insights"
+msgstr ""
+
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Character instructions"
+msgstr ""
+
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Character instructions unavailable."
 msgstr ""
 
 #: src/pages/shell/create-bot-dialog.tsx
@@ -1356,6 +1377,10 @@ msgstr ""
 #: src/pages/HostComputerPrompt.tsx
 msgid "Checking…"
 msgstr "בודק…"
+
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Chemistry"
+msgstr ""
 
 #: src/pages/Shell.tsx
 #: src/pages/shell/agent-import.tsx
@@ -1787,7 +1812,6 @@ msgstr ""
 msgid "Conversation"
 msgstr ""
 
-#: src/pages/shell/bot-panel.tsx
 #: src/pages/shell/create-bot-dialog.tsx
 msgid "Conversation engine"
 msgstr ""
@@ -2060,6 +2084,10 @@ msgstr "לא ניתן לטעון את הבוטים. יש לטעון מחדש כ�
 msgid "Could not load credentials."
 msgstr "לא ניתן לטעון את פרטי הגישה."
 
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Could not load Eros state"
+msgstr ""
+
 #: src/pages/shell/conversation-files-panel.tsx
 msgid "Could not load files."
 msgstr ""
@@ -2219,6 +2247,10 @@ msgstr "לא ניתן לשמור את Auto Review"
 
 #: src/pages/shell/roleplay-settings.tsx
 msgid "Could not save character"
+msgstr ""
+
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Could not save Eros state"
 msgstr ""
 
 #: src/pages/GroupPanel.tsx
@@ -2441,6 +2473,10 @@ msgstr "ביטוי Cron"
 msgid "Current password"
 msgstr "סיסמה נוכחית"
 
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Current situation"
+msgstr ""
+
 #: src/pages/shell/bot-credentials.tsx
 msgid "Custom header"
 msgstr "כותרת מותאמת אישית"
@@ -2606,6 +2642,10 @@ msgstr "דחייה"
 msgid "Description"
 msgstr "תיאור"
 
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Desires"
+msgstr ""
+
 #: src/components/DesktopUpdates.tsx
 msgid "Desktop app"
 msgstr "אפליקציית הדסקטופ"
@@ -2636,6 +2676,7 @@ msgstr "השבתת כלי"
 msgid "Disabled"
 msgstr "מושבת"
 
+#: src/pages/shell/conversation-engine-state.tsx
 #: src/pages/shell/conversation-tasks.tsx
 #: src/pages/shell/roleplay-relationship-debug.tsx
 #: src/pages/shell/roleplay-settings.tsx
@@ -2672,6 +2713,10 @@ msgstr "{disconnectName} נותק."
 #: src/pages/VoiceSettingsOverlay.tsx
 msgid "Disconnecting…"
 msgstr "מנתק…"
+
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Dislikes"
+msgstr ""
 
 #: src/components/AskCard.tsx
 #: src/components/ComputerUpdateProgress.tsx
@@ -2813,6 +2858,10 @@ msgstr ""
 msgid "Edit workflow"
 msgstr ""
 
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Editing unavailable."
+msgstr ""
+
 #: src/pages/shell/bot-model-picker.tsx
 msgid "Effort"
 msgstr ""
@@ -2828,6 +2877,10 @@ msgstr "האימייל הזה לא מורשה להירשם"
 #: src/lib/user-error.ts
 msgid "Email verification required"
 msgstr "נדרש אימות אימייל"
+
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Emotional need"
+msgstr ""
 
 #. placeholder {0}: humanizeTool(toolName)
 #: src/pages/shell/bot-panel.tsx
@@ -2849,6 +2902,10 @@ msgstr "מסתיים ב-{day}"
 #: src/pages/ExternalConversationSettings.tsx
 msgid "Engage when... Ignore..."
 msgstr "להגיב כאשר... להתעלם מ..."
+
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Engine time"
+msgstr ""
 
 #: src/pages/shell/roleplay-settings.tsx
 msgid "Enter a character name (1–500 characters)."
@@ -2901,6 +2958,14 @@ msgstr "יש להזין מספר שלם בין 1 ל-1000 עבור מגבלת ה�
 msgid "Enter an API key before testing."
 msgstr "יש להזין מפתח API לפני הבדיקה."
 
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Enter elapsed hours from 0 to 720."
+msgstr ""
+
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Enter numbers from 0 to 1."
+msgstr ""
+
 #: src/pages/shell/roleplay-relationship-debug.tsx
 msgid "Enter whole numbers from 0 to 100."
 msgstr "יש להזין מספרים שלמים מ־0 עד 100."
@@ -2917,6 +2982,14 @@ msgstr "משתני סביבה"
 #: src/pages/shell/import-status.ts
 msgid "Environment variables: {names}"
 msgstr "משתני סביבה: {names}"
+
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Eros character and state"
+msgstr ""
+
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Eros debug"
+msgstr ""
 
 #: src/lib/roster-status.ts
 #: src/pages/shell/sidebar-roster.tsx
@@ -3063,6 +3136,18 @@ msgstr "נכשל."
 #: src/components/teach/SkillDraftCard.tsx
 msgid "Failure handling"
 msgstr "טיפול בכשלים"
+
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Feeling elapsed hours"
+msgstr ""
+
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Feeling summary"
+msgstr ""
+
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Feeling updated at"
+msgstr ""
 
 #: src/pages/RoutineEditor.tsx
 msgid "Fields that mark a change"
@@ -3223,6 +3308,10 @@ msgstr "הגדרות קבוצה"
 msgid "Group updates"
 msgstr "עדכוני קבוצה"
 
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Habits"
+msgstr ""
+
 #: src/components/call/CallCard.tsx
 msgid "Hang up"
 msgstr "ניתוק שיחה"
@@ -3286,6 +3375,7 @@ msgstr "הסתרת התמליל"
 #: src/lib/ticket-priority.ts
 #: src/pages/model-settings/compatible-model-fields.tsx
 #: src/pages/Onboarding.tsx
+#: src/pages/shell/conversation-engine-state.tsx
 msgid "High"
 msgstr "גבוהה"
 
@@ -3515,9 +3605,14 @@ msgstr "גודל המרווח"
 msgid "Interval unit"
 msgstr "יחידת המרווח"
 
+#: src/pages/shell/conversation-engine-state.tsx
 #: src/pages/shell/roleplay-relationship-debug.tsx
 msgid "Intimacy"
 msgstr "אינטימיות"
+
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Intrigue"
+msgstr ""
 
 #: src/lib/user-error.ts
 msgid "Invalid code"
@@ -3602,6 +3697,10 @@ msgstr ""
 msgid "Last check {0}: no changes"
 msgstr ""
 
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Last turn is not settled."
+msgstr ""
+
 #: src/pages/shell/roleplay-settings.tsx
 msgid "Late-night messages"
 msgstr "הודעות בשעות הלילה"
@@ -3609,6 +3708,10 @@ msgstr "הודעות בשעות הלילה"
 #: src/components/DesktopUpdates.tsx
 msgid "Later"
 msgstr "מאוחר יותר"
+
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Latest evaluation"
+msgstr ""
 
 #: src/pages/MessagingSettingsPanel.tsx
 msgid "Leave"
@@ -3621,6 +3724,10 @@ msgstr "מאפשר לבוטים לשמור ולשלוף עובדות לפי מש
 #: src/pages/AccountSettingsOverlay.tsx
 msgid "Light"
 msgstr "בהיר"
+
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Likes"
+msgstr ""
 
 #: src/pages/RoutineEditor.tsx
 msgid "Linear issue"
@@ -3714,6 +3821,7 @@ msgstr "טוען ספקי קול…"
 #: src/pages/PeerMessagesOverlay.tsx
 #: src/pages/RoutineCalendar.tsx
 #: src/pages/RoutineRunHistory.tsx
+#: src/pages/shell/conversation-engine-state.tsx
 #: src/pages/shell/roleplay-relationship-debug.tsx
 #: src/pages/shell/transcript.tsx
 msgid "Loading…"
@@ -3729,6 +3837,10 @@ msgstr ""
 
 #: src/pages/shell/registered-host-picker.tsx
 msgid "Local host"
+msgstr ""
+
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Location"
 msgstr ""
 
 #: src/components/ModelCredits.tsx
@@ -3760,6 +3872,7 @@ msgstr "אהבה"
 #: src/lib/ticket-priority.ts
 #: src/pages/model-settings/compatible-model-fields.tsx
 #: src/pages/Onboarding.tsx
+#: src/pages/shell/conversation-engine-state.tsx
 msgid "Low"
 msgstr "נמוך"
 
@@ -3862,6 +3975,7 @@ msgstr "שרתי MCP"
 
 #: src/pages/model-settings/compatible-model-fields.tsx
 #: src/pages/Onboarding.tsx
+#: src/pages/shell/conversation-engine-state.tsx
 msgid "Medium"
 msgstr "בינוני"
 
@@ -4282,6 +4396,14 @@ msgstr "אין בוטים"
 msgid "No bots match"
 msgstr "אין בוטים תואמים"
 
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "No character insights yet."
+msgstr ""
+
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "No conversation state yet."
+msgstr ""
+
 #: src/pages/shell/conversation-files-panel.tsx
 msgid "No files found."
 msgstr ""
@@ -4383,6 +4505,10 @@ msgstr "רגיל"
 msgid "Not a valid skill"
 msgstr "מיומנות לא תקינה"
 
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Not available"
+msgstr ""
+
 #: src/components/McpServerHealthLine.tsx
 msgid "Not checked yet"
 msgstr "טרם נבדק"
@@ -4453,6 +4579,14 @@ msgstr "חיבור OAuth נכשל"
 #: src/pages/PluginsOverlay.tsx
 msgid "OAuth expired"
 msgstr "תוקף OAuth פג"
+
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Observed at"
+msgstr ""
+
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Occupation"
+msgstr ""
 
 #: src/pages/shell/conversation-tasks.tsx
 msgid "Older tasks"
@@ -4670,6 +4804,14 @@ msgstr "יש להדביק את מפתח ה-API"
 msgid "Paste your API key, then test again."
 msgstr "יש להדביק את מפתח ה-API ולבדוק שוב."
 
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Patience"
+msgstr ""
+
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Patience grade"
+msgstr ""
+
 #: src/pages/RoutineEditor.tsx
 #: src/pages/shell/import-status.ts
 msgid "Paused"
@@ -4691,8 +4833,16 @@ msgstr "פרסונה"
 msgid "Personal"
 msgstr ""
 
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Personal values"
+msgstr ""
+
 #: src/pages/shell/roleplay-settings.tsx
 msgid "Personality"
+msgstr ""
+
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Personality guidance"
 msgstr ""
 
 #: src/components/call/VoiceChatCard.tsx
@@ -4990,6 +5140,7 @@ msgstr "כתובת הפניה (Redirect URI)"
 #: src/pages/RoutineRunHistory.tsx
 #: src/pages/shell/bot-model-picker.tsx
 #: src/pages/shell/bot-runtime-settings.tsx
+#: src/pages/shell/conversation-engine-state.tsx
 msgid "Refresh"
 msgstr "רענון"
 
@@ -5020,6 +5171,10 @@ msgstr "ההרשמה סגורה"
 #: src/pages/shell/roleplay-relationship-debug.tsx
 msgid "Relationship debug"
 msgstr "ניפוי שגיאות בקשר"
+
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Relationships"
+msgstr ""
 
 #: src/pages/shell/computer-release-actions.tsx
 msgid "Release control"
@@ -5158,6 +5313,10 @@ msgstr "תשובה"
 #: src/pages/shell/composer.tsx
 msgid "Reply cancelled"
 msgstr "התשובה בוטלה"
+
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Reply in progress."
+msgstr ""
 
 #. placeholder {0}: replyNameRef.current
 #: src/pages/shell/composer.tsx
@@ -5420,6 +5579,7 @@ msgstr "שבת"
 msgid "Save"
 msgstr "שמירה"
 
+#: src/pages/shell/conversation-engine-state.tsx
 #: src/pages/shell/roleplay-relationship-debug.tsx
 #: src/pages/shell/roleplay-settings.tsx
 msgid "Save changes"
@@ -5664,6 +5824,10 @@ msgstr "הגדרות: כללי"
 msgid "Settings: Usage"
 msgstr "הגדרות: שימוש"
 
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Settling…"
+msgstr ""
+
 #: src/pages/shell/native-runtime-setup.tsx
 msgid "Setup cancelled"
 msgstr ""
@@ -5812,6 +5976,14 @@ msgstr "הרשמה"
 msgid "Sign-in required"
 msgstr ""
 
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Simulate elapsed hours (0–720)"
+msgstr ""
+
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Simulates relationship time and clears the feeling summary. The engine clock and message dates stay unchanged."
+msgstr ""
+
 #: src/pages/shell/bot-credentials.tsx
 msgid "Site"
 msgstr "אתר"
@@ -5946,6 +6118,14 @@ msgstr ""
 msgid "Start {trialDays}-day free trial"
 msgstr "התחלת תקופת ניסיון חינם של {trialDays} ימים"
 
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Start a conversation to edit."
+msgstr ""
+
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Start a conversation to see character insights and Eros state."
+msgstr ""
+
 #: src/pages/shell/thread-queue.tsx
 msgid "Start as task"
 msgstr ""
@@ -5979,6 +6159,10 @@ msgstr "מתחיל…"
 
 #: src/pages/shell/conversation-tasks.tsx
 msgid "Starts a new execution. Earlier actions may already have taken effect. Review the instructions to avoid repeating them."
+msgstr ""
+
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "State changed. Discard edits to use the latest values."
 msgstr ""
 
 #: src/pages/ActivityList.tsx
@@ -6164,6 +6348,10 @@ msgstr "הודעת Teams"
 msgid "Teams not enabled"
 msgstr "Teams לא מופעל"
 
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Tension"
+msgstr ""
+
 #: src/components/teach/SkillDraftCard.tsx
 msgid "Test"
 msgstr "בדיקה"
@@ -6193,6 +6381,10 @@ msgstr "הבוט ומה שהייבוא שלו הוסיף יוסרו."
 #: src/lib/model-connection-preflight.ts
 msgid "The connection timed out."
 msgstr "תם הזמן הקצוב לחיבור."
+
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "The feeling summary may update after the reply."
+msgstr ""
 
 #: src/pages/shell/roleplay-settings.tsx
 msgid "The first message is used when a story starts or is reset."
@@ -6372,11 +6564,16 @@ msgstr "השבוע"
 msgid "Thursday"
 msgstr "יום חמישי"
 
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Time"
+msgstr ""
+
 #: src/pages/RoutineSchedule.tsx
 msgid "Time of day"
 msgstr "שעה ביום"
 
 #: src/pages/AccountSettingsOverlay.tsx
+#: src/pages/shell/conversation-engine-state.tsx
 msgid "Timezone"
 msgstr ""
 
@@ -6476,6 +6673,10 @@ msgstr "תקופת ניסיון"
 #: src/pages/BillingSettingsPanel.tsx
 msgid "Trial ends {day}"
 msgstr "תקופת הניסיון מסתיימת {day}"
+
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Trust"
+msgstr ""
 
 #: src/pages/ActivityList.tsx
 #: src/pages/Onboarding.tsx
@@ -6737,9 +6938,17 @@ msgstr "צפייה בצ׳אט"
 msgid "Voice"
 msgstr "קול"
 
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Vulnerabilities"
+msgstr ""
+
 #: src/lib/model-connection-preflight.ts
 msgid "Wait a moment and test again."
 msgstr "יש להמתין רגע ולבדוק שוב."
+
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Wait for the reply to finish."
+msgstr ""
 
 #: src/pages/shell/thread-queue.tsx
 msgid "Waiting for approval"
@@ -6761,9 +6970,14 @@ msgstr "ממתין בתור…"
 msgid "Waiting…"
 msgstr "ממתין…"
 
+#: src/pages/shell/conversation-engine-state.tsx
 #: src/pages/shell/roleplay-relationship-debug.tsx
 msgid "Warmth"
 msgstr "חום"
+
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Warmth grade"
+msgstr ""
 
 #: src/components/ModelCredits.tsx
 msgid "Web, desktop and mobile"

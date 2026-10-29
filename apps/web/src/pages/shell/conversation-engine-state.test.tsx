@@ -104,6 +104,14 @@ const initial: ConversationEngineState = {
       patienceGrade: 2,
       revision: "revision-one",
       editable: true,
+      editBlockedReason: null,
+      time: {
+        timezone: "UTC",
+        currentTime: "2026-10-01T12:00:00Z",
+        localTime: "2026-10-01 12:00:00",
+        affinityElapsedHours: 0,
+        feelingElapsedHours: 1 / 60,
+      },
     },
   },
 };
@@ -128,7 +136,9 @@ async function render(busy = false) {
   );
 }
 function field(label: string) {
-  const el = [...container.querySelectorAll("label")].find((el) => el.textContent === label)!;
+  const el = [...container.querySelectorAll("label")].find((el) =>
+    el.textContent?.startsWith(label),
+  )!;
   return container.querySelector<HTMLInputElement>(`[id="${el.htmlFor}"]`)!;
 }
 async function change(label: string, value: string) {
@@ -140,7 +150,9 @@ async function change(label: string, value: string) {
 }
 async function click(label: string) {
   await act(async () => {
-    [...container.querySelectorAll("button")].find((el) => el.textContent === label)!.click();
+    [...container.querySelectorAll("button")]
+      .find((el) => el.textContent?.startsWith(label))!
+      .click();
   });
 }
 
@@ -182,6 +194,70 @@ describe("ConversationEngineStatePanel", () => {
     await click("Refresh");
     expect(load).toHaveBeenCalledTimes(2);
   });
+  it("shows blocked native inputs and automatically unlocks after settling", async () => {
+    vi.useFakeTimers();
+    try {
+      const settling = structuredClone(initial);
+      settling.inspection!.debug!.editable = false;
+      settling.inspection!.debug!.editBlockedReason = "settling";
+      load.mockResolvedValueOnce(settling);
+      await render();
+      expect(field("Trust").closest("fieldset")?.disabled).toBe(true);
+      expect(container.textContent).toContain("Settling…");
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(5_000);
+      });
+      expect(field("Trust").closest("fieldset")?.disabled).toBe(false);
+      expect(load).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+  it("preserves drafts through a refresh and validates per-conversation elapsed time", async () => {
+    await render();
+    await change("Trust", "0.8");
+    await change("Simulate elapsed hours", "721");
+    await click("Save changes");
+    expect(save).not.toHaveBeenCalled();
+    expect(container.textContent).toContain("Enter elapsed hours from 0 to 720.");
+    await change("Simulate elapsed hours", "48");
+    await click("Refresh");
+    expect(field("Trust").value).toBe("0.8");
+    expect(field("Simulate elapsed hours").value).toBe("48");
+    await click("Save changes");
+    expect(save.mock.lastCall?.[1]).toMatchObject({
+      elapsedHours: 48,
+      axes: { trust: 0.8 },
+    });
+    expect(field("Simulate elapsed hours").value).toBe("");
+  });
+  it("keeps the draft revision when refreshed state changes", async () => {
+    await render();
+    await change("Trust", "0.8");
+    const next = structuredClone(initial);
+    next.inspection!.debug!.revision = "revision-two";
+    next.inspection!.debug!.axes!.intrigue = 0.9;
+    load.mockResolvedValueOnce(next);
+    await click("Refresh");
+    await click("Save changes");
+    expect(save).not.toHaveBeenCalled();
+    expect(container.textContent).toContain(
+      "State changed. Discard edits to use the latest values.",
+    );
+    await click("Discard");
+    expect(field("Intrigue").value).toBe("0.9");
+    await change("Trust", "0.8");
+    await click("Save changes");
+    expect(save.mock.lastCall?.[1]).toMatchObject({ expectedRevision: "revision-two" });
+  });
+  it("refreshes after a reply ends without overwriting unsaved edits", async () => {
+    await render();
+    await change("Trust", "0.8");
+    await render(true);
+    await render(false);
+    expect(load).toHaveBeenCalledTimes(2);
+    expect(field("Trust").value).toBe("0.8");
+  });
   it("handles absent bridge and empty state without inventing emotional values", async () => {
     const state = structuredClone(initial);
     state.inspection!.debug = null;
@@ -190,7 +266,11 @@ describe("ConversationEngineStatePanel", () => {
     await render();
     expect(container.querySelector("input")).toBeNull();
     expect(container.textContent).toContain("Not available");
-    load.mockResolvedValueOnce({ ...initial, status: "uninitialized", inspection: null });
+    load.mockResolvedValueOnce({
+      ...initial,
+      status: "uninitialized",
+      inspection: null,
+    });
     await click("Refresh");
     expect(container.textContent).toContain("Start a conversation");
     expect(container.textContent).not.toContain("Curious about");

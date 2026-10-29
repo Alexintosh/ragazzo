@@ -157,6 +157,31 @@ describe("conversation engine state API", () => {
     expect(f.inspect).not.toHaveBeenCalled();
   });
 
+  it("bounds simulated elapsed time and preserves the server-owned binding when saving it", async () => {
+    const f = fixture();
+    for (const elapsedHours of [-1, 721, Number.NaN, "12"]) {
+      expect(
+        UpdateConversationEngineStateInput.safeParse({ ...f.input, elapsedHours }).success,
+      ).toBe(false);
+    }
+    const input = UpdateConversationEngineStateInput.parse({ ...f.input, elapsedHours: 48.5 });
+    await updateConversationEngineState(f.deps, actor, input);
+    expect(f.updateState).toHaveBeenCalledWith(
+      {
+        userId: "stored-user",
+        sessionId: "stored-session",
+        instanceId: "stored-instance",
+        characterId,
+        expectedRevision: input.expectedRevision,
+        axes: input.axes,
+        warmthGrade: 2,
+        patienceGrade: 2,
+        elapsedHours: 48.5,
+      },
+      undefined,
+    );
+  });
+
   it("preserves native CAS conflicts and reports a confirmed save whose refresh fails", async () => {
     const f = fixture();
     f.updateState.mockRejectedValueOnce(new ConversationEngineError("conflict"));

@@ -357,6 +357,7 @@ export class ErosConversationEngine implements ConversationEngine {
         warmthGrade: z.number().int().min(1).max(3),
         patienceGrade: z.number().int().min(1).max(3),
         expectedRevision: z.string().min(1).max(128),
+        elapsedHours: z.number().min(0).max(720).optional(),
       })
       .parse(input);
     const lifetime = requestLifetime(signal, Math.min(this.#timeoutMs, 30_000));

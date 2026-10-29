@@ -1,7 +1,9 @@
 import type { ConversationEngineInspection } from "@rakazo/contracts";
 import {
   ConversationEngineAxesSchema,
+  ConversationEngineEditBlockedReasonSchema,
   ConversationEngineInspectionSchema,
+  ConversationEngineTimeSchema,
 } from "@rakazo/contracts";
 import { z } from "zod";
 
@@ -170,6 +172,9 @@ export function parseErosDebug(
       patienceGrade: grade.nullable(),
       revision: z.string().min(1).max(128).nullable(),
       editable: z.boolean(),
+      time: ConversationEngineTimeSchema.nullable().optional(),
+      editBlockedReason: ConversationEngineEditBlockedReasonSchema.nullable().optional(),
+      retryAfterSeconds: z.number().int().min(0).max(30).nullable().optional(),
     })
     .parse(raw);
   if (
@@ -194,5 +199,8 @@ export function parseErosDebug(
     patienceGrade: result.patienceGrade,
     revision: result.revision,
     editable: result.editable,
+    time: result.time ?? null,
+    editBlockedReason: result.editBlockedReason ?? null,
+    retryAfterSeconds: result.retryAfterSeconds ?? null,
   };
 }

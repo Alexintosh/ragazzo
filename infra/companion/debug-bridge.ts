@@ -120,8 +120,8 @@ function editValues(value: unknown) {
   const body = record(value);
   const keys = ["expectedRevision", ...AXES, "warmthGrade", "patienceGrade"];
   if (
-    Object.keys(body).length !== keys.length ||
-    Object.keys(body).some((key) => !keys.includes(key))
+    keys.some((key) => !(key in body)) ||
+    Object.keys(body).some((key) => ![...keys, "elapsedHours"].includes(key))
   ) {
     throw new BridgeError("invalid_request", 400);
   }
@@ -143,6 +143,14 @@ function editValues(value: unknown) {
       throw new BridgeError("invalid_request", 400);
     }
   }
+  if (
+    "elapsedHours" in body &&
+    (typeof body.elapsedHours !== "number" ||
+      !Number.isFinite(body.elapsedHours) ||
+      body.elapsedHours < 0 ||
+      body.elapsedHours > 720)
+  )
+    throw new BridgeError("invalid_request", 400);
   return body;
 }
 
@@ -158,7 +166,52 @@ function textValue(value: unknown, max: number, nullable = true): string | null 
   return value;
 }
 
-function output(row: Record<string, unknown>, raw: string | null, busy: boolean) {
+function timeState(row: Record<string, unknown>, affinity: Record<string, unknown> | null) {
+  const currentTime = textValue(row.currentTime, 128, false)!;
+  const current = new Date(currentTime);
+  if (!Number.isFinite(current.getTime())) throw new BridgeError("unavailable", 503);
+  // The native persona clock uses the valid genome zone, then request locale,
+  // then Singapore. Rakazo sends no request timezone. Never edit shared genomes.
+  let timezone = textValue(row.timezone, 80)?.trim() || "Asia/Singapore";
+  try {
+    new Intl.DateTimeFormat("en", { timeZone: timezone }).format(current);
+  } catch {
+    timezone = "Asia/Singapore";
+  }
+  const elapsed = (value: unknown) => {
+    if (value === null || value === undefined) return null;
+    const timestamp = Date.parse(textValue(value, 128, false)!);
+    if (!Number.isFinite(timestamp)) throw new BridgeError("unavailable", 503);
+    return Math.max(0, (current.getTime() - timestamp) / 3_600_000);
+  };
+  return {
+    timezone,
+    currentTime: current.toISOString(),
+    localTime: new Intl.DateTimeFormat("sv-SE", {
+      timeZone: timezone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hourCycle: "h23",
+    }).format(current),
+    affinityElapsedHours: elapsed(affinity?.updated_at),
+    feelingElapsedHours: affinity?.feeling_clause ? elapsed(affinity.feeling_clause_at) : null,
+  };
+}
+
+function blockedReason(raw: string | null, settlement: DebugSettlement) {
+  if (raw === null) return "missing_affinity";
+  if (settlement.activeTurns) return "processing";
+  if (settlement.recentMessages || settlement.recentAffinity) return "settling";
+  if (settlement.hasLatestTurn && !settlement.latestAcknowledged && !settlement.latestFailed)
+    return "unacknowledged_turn";
+  return null;
+}
+
+function output(row: Record<string, unknown>, raw: string | null, settlement: DebugSettlement) {
   const affinity = raw === null ? null : record(JSON.parse(raw));
   if (affinity) {
     for (const name of AXES) {
@@ -192,14 +245,18 @@ function output(row: Record<string, unknown>, raw: string | null, busy: boolean)
     patienceGrade: affinity ? Number(affinity.patience_grade) : null,
     axes: affinity ? Object.fromEntries(AXES.map((name) => [name, affinity[name]])) : null,
     revision: raw === null ? null : revision(raw),
-    editable: affinity !== null && !busy,
+    editable: affinity !== null && !isDebugBusy(settlement),
+    time: timeState(row, affinity),
+    editBlockedReason: blockedReason(raw, settlement),
+    retryAfterSeconds:
+      settlement.recentMessages || settlement.recentAffinity ? settlement.retryAfterSeconds : null,
   };
 }
 
 const OWNED_STATE = `SELECT s.id AS "sessionId", s.instance_id AS "instanceId",
   i.genome_id AS "characterId", g.name AS "characterName", g.system_prompt AS "systemPrompt",
   g.tip_personality AS "tipPersonality", g.art_metadata->>'timezone' AS timezone,
-  row_to_json(a)::text AS "affinityJson"
+  row_to_json(a)::text AS "affinityJson", clock_timestamp()::text AS "currentTime"
   FROM engine.chat_sessions s
   JOIN engine.persona_instances i ON i.id=s.instance_id
   JOIN engine.persona_genomes g ON g.id=i.genome_id
@@ -223,7 +280,11 @@ const BUSY = `WITH latest_turn AS (
   EXISTS (SELECT 1 FROM engine.chat_messages m WHERE m.session_id=$1
     AND m.sent_at > clock_timestamp()-interval '30 seconds') AS "recentMessages",
   EXISTS (SELECT 1 FROM engine.companion_affinity a WHERE a.session_id=$1
-    AND a.updated_at > clock_timestamp()-interval '30 seconds') AS "recentAffinity",
+    AND GREATEST(a.updated_at,a.feeling_clause_at) > clock_timestamp()-interval '30 seconds') AS "recentAffinity",
+  GREATEST(0,LEAST(30,CEIL(EXTRACT(EPOCH FROM (
+    GREATEST((SELECT max(sent_at) FROM engine.chat_messages WHERE session_id=$1),
+      (SELECT GREATEST(updated_at,feeling_clause_at) FROM engine.companion_affinity WHERE session_id=$1))
+    + interval '30 seconds' - clock_timestamp())))))::integer AS "retryAfterSeconds",
   EXISTS (SELECT 1 FROM latest_turn) AS "hasLatestTurn",
   EXISTS (SELECT 1 FROM latest_turn m JOIN engine.companion_affinity_events e ON e.user_message_id=m.id
     JOIN engine.companion_affinity a ON a.id=e.affinity_id WHERE a.session_id=$1) AS "latestAcknowledged",
@@ -238,6 +299,7 @@ export interface DebugSettlement {
   hasLatestTurn: boolean;
   latestAcknowledged: boolean;
   latestFailed: boolean;
+  retryAfterSeconds: number;
 }
 
 export function isDebugBusy(settlement: DebugSettlement): boolean {
@@ -259,6 +321,12 @@ function readSettlement(row: Record<string, unknown> | undefined): DebugSettleme
     "latestFailed",
   ];
   if (!row || keys.some((key) => typeof row[key] !== "boolean"))
+    throw new BridgeError("unavailable", 503);
+  if (
+    !Number.isInteger(row.retryAfterSeconds) ||
+    Number(row.retryAfterSeconds) < 0 ||
+    Number(row.retryAfterSeconds) > 30
+  )
     throw new BridgeError("unavailable", 503);
   return row as unknown as DebugSettlement;
 }
@@ -311,29 +379,34 @@ export function createDebugBridge(config: DebugBridgeConfig) {
         if (raw === null || !equal(revision(raw), String(edits.expectedRevision)))
           throw new BridgeError("conflict", 409);
       }
-      let busy = isDebugBusy(readSettlement((await client.query(BUSY, [scope.sessionId])).rows[0]));
+      let settlement = readSettlement((await client.query(BUSY, [scope.sessionId])).rows[0]);
       if (edits) {
-        if (busy) throw new BridgeError("busy", 409);
+        if (isDebugBusy(settlement)) throw new BridgeError("busy", 409);
         const changed = (
           await client.query(
             `UPDATE engine.companion_affinity a SET
           trust=$4, intrigue=$5, intimacy=$6, tension=$7, warmth_grade=$8, patience_grade=$9,
-          feeling_clause=NULL, feeling_clause_at=clock_timestamp(), updated_at=clock_timestamp()
+          feeling_clause=NULL, feeling_clause_at=clock_timestamp(),
+          updated_at=clock_timestamp()-make_interval(secs => $10::double precision * 3600)
           WHERE a.session_id=$1 AND a.user_id=$2 AND a.instance_id=$3
-          RETURNING row_to_json(a)::text AS "affinityJson"`,
+          RETURNING row_to_json(a)::text AS "affinityJson", clock_timestamp()::text AS "currentTime"`,
             [
               ...args.slice(0, 3),
               ...AXES.map((name) => edits[name]),
               edits.warmthGrade,
               edits.patienceGrade,
+              edits.elapsedHours ?? 0,
             ],
           )
         ).rows[0];
         if (!changed) throw new BridgeError("conflict", 409);
         raw = textValue(changed.affinityJson, 64 * 1024, false);
-        busy = true; // The same quiet period applies to the new revision.
+        row.currentTime = changed.currentTime;
+        // feeling_clause_at is a real-time fence, even when updated_at is aged.
+        // Native summaries derived before this edit cannot overwrite it.
+        settlement = { ...settlement, recentAffinity: true, retryAfterSeconds: 30 };
       }
-      const result = output(row, raw, busy);
+      const result = output(row, raw, settlement);
       if (Buffer.byteLength(JSON.stringify(result)) > MAX_RESPONSE_BYTES)
         throw new BridgeError("unavailable", 503);
       await client.query("COMMIT");

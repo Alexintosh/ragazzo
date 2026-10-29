@@ -649,6 +649,10 @@ msgstr "高级"
 msgid "Advanced..."
 msgstr "高级..."
 
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Affinity elapsed hours"
+msgstr ""
+
 #: src/pages/shell/roleplay-settings.tsx
 msgid "After character"
 msgstr ""
@@ -1014,6 +1018,10 @@ msgstr ""
 msgid "Board"
 msgstr ""
 
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Bond"
+msgstr ""
+
 #: src/pages/shell/computer-view.tsx
 #: src/pages/shell/use-computer.tsx
 msgid "Booting live desktop…"
@@ -1232,6 +1240,7 @@ msgstr ""
 msgid "Changing…"
 msgstr "正在修改…"
 
+#: src/pages/shell/conversation-engine-state.tsx
 #: src/pages/shell/create-bot-dialog.tsx
 #: src/pages/shell/roleplay-settings.tsx
 msgid "Character"
@@ -1239,6 +1248,18 @@ msgstr ""
 
 #: src/pages/shell/roleplay-settings.tsx
 msgid "Character content must be at most 1 MB."
+msgstr ""
+
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Character insights"
+msgstr ""
+
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Character instructions"
+msgstr ""
+
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Character instructions unavailable."
 msgstr ""
 
 #: src/pages/shell/create-bot-dialog.tsx
@@ -1356,6 +1377,10 @@ msgstr ""
 #: src/pages/HostComputerPrompt.tsx
 msgid "Checking…"
 msgstr "正在检查…"
+
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Chemistry"
+msgstr ""
 
 #: src/pages/Shell.tsx
 #: src/pages/shell/agent-import.tsx
@@ -1787,7 +1812,6 @@ msgstr ""
 msgid "Conversation"
 msgstr ""
 
-#: src/pages/shell/bot-panel.tsx
 #: src/pages/shell/create-bot-dialog.tsx
 msgid "Conversation engine"
 msgstr ""
@@ -2060,6 +2084,10 @@ msgstr ""
 msgid "Could not load credentials."
 msgstr ""
 
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Could not load Eros state"
+msgstr ""
+
 #: src/pages/shell/conversation-files-panel.tsx
 msgid "Could not load files."
 msgstr ""
@@ -2219,6 +2247,10 @@ msgstr "无法保存自动审核"
 
 #: src/pages/shell/roleplay-settings.tsx
 msgid "Could not save character"
+msgstr ""
+
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Could not save Eros state"
 msgstr ""
 
 #: src/pages/GroupPanel.tsx
@@ -2441,6 +2473,10 @@ msgstr "Cron 表达式"
 msgid "Current password"
 msgstr "当前密码"
 
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Current situation"
+msgstr ""
+
 #: src/pages/shell/bot-credentials.tsx
 msgid "Custom header"
 msgstr ""
@@ -2606,6 +2642,10 @@ msgstr "拒绝"
 msgid "Description"
 msgstr "描述"
 
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Desires"
+msgstr ""
+
 #: src/components/DesktopUpdates.tsx
 msgid "Desktop app"
 msgstr ""
@@ -2636,6 +2676,7 @@ msgstr "禁用工具"
 msgid "Disabled"
 msgstr "已禁用"
 
+#: src/pages/shell/conversation-engine-state.tsx
 #: src/pages/shell/conversation-tasks.tsx
 #: src/pages/shell/roleplay-relationship-debug.tsx
 #: src/pages/shell/roleplay-settings.tsx
@@ -2672,6 +2713,10 @@ msgstr "已断开 {disconnectName}。"
 #: src/pages/VoiceSettingsOverlay.tsx
 msgid "Disconnecting…"
 msgstr "正在断开…"
+
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Dislikes"
+msgstr ""
 
 #: src/components/AskCard.tsx
 #: src/components/ComputerUpdateProgress.tsx
@@ -2813,6 +2858,10 @@ msgstr ""
 msgid "Edit workflow"
 msgstr ""
 
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Editing unavailable."
+msgstr ""
+
 #: src/pages/shell/bot-model-picker.tsx
 msgid "Effort"
 msgstr ""
@@ -2828,6 +2877,10 @@ msgstr "该邮箱不允许注册"
 #: src/lib/user-error.ts
 msgid "Email verification required"
 msgstr "需要验证邮箱"
+
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Emotional need"
+msgstr ""
 
 #. placeholder {0}: humanizeTool(toolName)
 #: src/pages/shell/bot-panel.tsx
@@ -2848,6 +2901,10 @@ msgstr ""
 
 #: src/pages/ExternalConversationSettings.tsx
 msgid "Engage when... Ignore..."
+msgstr ""
+
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Engine time"
 msgstr ""
 
 #: src/pages/shell/roleplay-settings.tsx
@@ -2901,6 +2958,14 @@ msgstr "请输入 1 到 1000 之间的整数作为图像限制。"
 msgid "Enter an API key before testing."
 msgstr "测试前请输入 API 密钥。"
 
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Enter elapsed hours from 0 to 720."
+msgstr ""
+
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Enter numbers from 0 to 1."
+msgstr ""
+
 #: src/pages/shell/roleplay-relationship-debug.tsx
 msgid "Enter whole numbers from 0 to 100."
 msgstr "请输入 0 到 100 之间的整数。"
@@ -2917,6 +2982,14 @@ msgstr "环境变量"
 #: src/pages/shell/import-status.ts
 msgid "Environment variables: {names}"
 msgstr "环境变量：{names}"
+
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Eros character and state"
+msgstr ""
+
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Eros debug"
+msgstr ""
 
 #: src/lib/roster-status.ts
 #: src/pages/shell/sidebar-roster.tsx
@@ -3063,6 +3136,18 @@ msgstr "失败。"
 #: src/components/teach/SkillDraftCard.tsx
 msgid "Failure handling"
 msgstr "失败处理"
+
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Feeling elapsed hours"
+msgstr ""
+
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Feeling summary"
+msgstr ""
+
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Feeling updated at"
+msgstr ""
 
 #: src/pages/RoutineEditor.tsx
 msgid "Fields that mark a change"
@@ -3223,6 +3308,10 @@ msgstr "群组设置"
 msgid "Group updates"
 msgstr ""
 
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Habits"
+msgstr ""
+
 #: src/components/call/CallCard.tsx
 msgid "Hang up"
 msgstr "挂断"
@@ -3286,6 +3375,7 @@ msgstr "隐藏文字记录"
 #: src/lib/ticket-priority.ts
 #: src/pages/model-settings/compatible-model-fields.tsx
 #: src/pages/Onboarding.tsx
+#: src/pages/shell/conversation-engine-state.tsx
 msgid "High"
 msgstr "高"
 
@@ -3515,9 +3605,14 @@ msgstr "间隔数量"
 msgid "Interval unit"
 msgstr "间隔单位"
 
+#: src/pages/shell/conversation-engine-state.tsx
 #: src/pages/shell/roleplay-relationship-debug.tsx
 msgid "Intimacy"
 msgstr "亲密度"
+
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Intrigue"
+msgstr ""
 
 #: src/lib/user-error.ts
 msgid "Invalid code"
@@ -3602,12 +3697,20 @@ msgstr "上次检查 {0}：有变化"
 msgid "Last check {0}: no changes"
 msgstr "上次检查 {0}：无变化"
 
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Last turn is not settled."
+msgstr ""
+
 #: src/pages/shell/roleplay-settings.tsx
 msgid "Late-night messages"
 msgstr "深夜消息"
 
 #: src/components/DesktopUpdates.tsx
 msgid "Later"
+msgstr ""
+
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Latest evaluation"
 msgstr ""
 
 #: src/pages/MessagingSettingsPanel.tsx
@@ -3621,6 +3724,10 @@ msgstr "让机器人在 MEMORY.md 之外，按语义保存和回忆事实。"
 #: src/pages/AccountSettingsOverlay.tsx
 msgid "Light"
 msgstr "浅色"
+
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Likes"
+msgstr ""
 
 #: src/pages/RoutineEditor.tsx
 msgid "Linear issue"
@@ -3714,6 +3821,7 @@ msgstr "正在加载语音提供方…"
 #: src/pages/PeerMessagesOverlay.tsx
 #: src/pages/RoutineCalendar.tsx
 #: src/pages/RoutineRunHistory.tsx
+#: src/pages/shell/conversation-engine-state.tsx
 #: src/pages/shell/roleplay-relationship-debug.tsx
 #: src/pages/shell/transcript.tsx
 msgid "Loading…"
@@ -3729,6 +3837,10 @@ msgstr ""
 
 #: src/pages/shell/registered-host-picker.tsx
 msgid "Local host"
+msgstr ""
+
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Location"
 msgstr ""
 
 #: src/components/ModelCredits.tsx
@@ -3760,6 +3872,7 @@ msgstr "爱意"
 #: src/lib/ticket-priority.ts
 #: src/pages/model-settings/compatible-model-fields.tsx
 #: src/pages/Onboarding.tsx
+#: src/pages/shell/conversation-engine-state.tsx
 msgid "Low"
 msgstr "低"
 
@@ -3862,6 +3975,7 @@ msgstr "MCP 服务器"
 
 #: src/pages/model-settings/compatible-model-fields.tsx
 #: src/pages/Onboarding.tsx
+#: src/pages/shell/conversation-engine-state.tsx
 msgid "Medium"
 msgstr "中"
 
@@ -4282,6 +4396,14 @@ msgstr ""
 msgid "No bots match"
 msgstr ""
 
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "No character insights yet."
+msgstr ""
+
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "No conversation state yet."
+msgstr ""
+
 #: src/pages/shell/conversation-files-panel.tsx
 msgid "No files found."
 msgstr ""
@@ -4383,6 +4505,10 @@ msgstr ""
 msgid "Not a valid skill"
 msgstr "不是有效的技能"
 
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Not available"
+msgstr ""
+
 #: src/components/McpServerHealthLine.tsx
 msgid "Not checked yet"
 msgstr "尚未检查"
@@ -4453,6 +4579,14 @@ msgstr "OAuth 连接失败"
 #: src/pages/PluginsOverlay.tsx
 msgid "OAuth expired"
 msgstr "OAuth 已过期"
+
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Observed at"
+msgstr ""
+
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Occupation"
+msgstr ""
 
 #: src/pages/shell/conversation-tasks.tsx
 msgid "Older tasks"
@@ -4670,6 +4804,14 @@ msgstr "粘贴你的 API 密钥"
 msgid "Paste your API key, then test again."
 msgstr "请粘贴你的 API 密钥，然后重新测试。"
 
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Patience"
+msgstr ""
+
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Patience grade"
+msgstr ""
+
 #: src/pages/RoutineEditor.tsx
 #: src/pages/shell/import-status.ts
 msgid "Paused"
@@ -4691,8 +4833,16 @@ msgstr "人设"
 msgid "Personal"
 msgstr ""
 
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Personal values"
+msgstr ""
+
 #: src/pages/shell/roleplay-settings.tsx
 msgid "Personality"
+msgstr ""
+
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Personality guidance"
 msgstr ""
 
 #: src/components/call/VoiceChatCard.tsx
@@ -4990,6 +5140,7 @@ msgstr "重定向 URI"
 #: src/pages/RoutineRunHistory.tsx
 #: src/pages/shell/bot-model-picker.tsx
 #: src/pages/shell/bot-runtime-settings.tsx
+#: src/pages/shell/conversation-engine-state.tsx
 msgid "Refresh"
 msgstr "刷新"
 
@@ -5020,6 +5171,10 @@ msgstr "注册已关闭"
 #: src/pages/shell/roleplay-relationship-debug.tsx
 msgid "Relationship debug"
 msgstr "关系调试"
+
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Relationships"
+msgstr ""
 
 #: src/pages/shell/computer-release-actions.tsx
 msgid "Release control"
@@ -5157,6 +5312,10 @@ msgstr "回复"
 
 #: src/pages/shell/composer.tsx
 msgid "Reply cancelled"
+msgstr ""
+
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Reply in progress."
 msgstr ""
 
 #. placeholder {0}: replyNameRef.current
@@ -5420,6 +5579,7 @@ msgstr "周六"
 msgid "Save"
 msgstr "保存"
 
+#: src/pages/shell/conversation-engine-state.tsx
 #: src/pages/shell/roleplay-relationship-debug.tsx
 #: src/pages/shell/roleplay-settings.tsx
 msgid "Save changes"
@@ -5664,6 +5824,10 @@ msgstr "设置：通用"
 msgid "Settings: Usage"
 msgstr "设置：用量"
 
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Settling…"
+msgstr ""
+
 #: src/pages/shell/native-runtime-setup.tsx
 msgid "Setup cancelled"
 msgstr ""
@@ -5812,6 +5976,14 @@ msgstr "注册"
 msgid "Sign-in required"
 msgstr ""
 
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Simulate elapsed hours (0–720)"
+msgstr ""
+
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Simulates relationship time and clears the feeling summary. The engine clock and message dates stay unchanged."
+msgstr ""
+
 #: src/pages/shell/bot-credentials.tsx
 msgid "Site"
 msgstr ""
@@ -5946,6 +6118,14 @@ msgstr ""
 msgid "Start {trialDays}-day free trial"
 msgstr ""
 
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Start a conversation to edit."
+msgstr ""
+
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Start a conversation to see character insights and Eros state."
+msgstr ""
+
 #: src/pages/shell/thread-queue.tsx
 msgid "Start as task"
 msgstr ""
@@ -5979,6 +6159,10 @@ msgstr "正在开始…"
 
 #: src/pages/shell/conversation-tasks.tsx
 msgid "Starts a new execution. Earlier actions may already have taken effect. Review the instructions to avoid repeating them."
+msgstr ""
+
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "State changed. Discard edits to use the latest values."
 msgstr ""
 
 #: src/pages/ActivityList.tsx
@@ -6164,6 +6348,10 @@ msgstr "Teams 消息"
 msgid "Teams not enabled"
 msgstr ""
 
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Tension"
+msgstr ""
+
 #: src/components/teach/SkillDraftCard.tsx
 msgid "Test"
 msgstr "测试"
@@ -6193,6 +6381,10 @@ msgstr "此 Bot 及其导入添加的内容将被移除。"
 #: src/lib/model-connection-preflight.ts
 msgid "The connection timed out."
 msgstr "连接超时。"
+
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "The feeling summary may update after the reply."
+msgstr ""
 
 #: src/pages/shell/roleplay-settings.tsx
 msgid "The first message is used when a story starts or is reset."
@@ -6372,11 +6564,16 @@ msgstr ""
 msgid "Thursday"
 msgstr "周四"
 
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Time"
+msgstr ""
+
 #: src/pages/RoutineSchedule.tsx
 msgid "Time of day"
 msgstr "时间"
 
 #: src/pages/AccountSettingsOverlay.tsx
+#: src/pages/shell/conversation-engine-state.tsx
 msgid "Timezone"
 msgstr ""
 
@@ -6475,6 +6672,10 @@ msgstr ""
 
 #: src/pages/BillingSettingsPanel.tsx
 msgid "Trial ends {day}"
+msgstr ""
+
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Trust"
 msgstr ""
 
 #: src/pages/ActivityList.tsx
@@ -6737,9 +6938,17 @@ msgstr "查看聊天"
 msgid "Voice"
 msgstr "语音"
 
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Vulnerabilities"
+msgstr ""
+
 #: src/lib/model-connection-preflight.ts
 msgid "Wait a moment and test again."
 msgstr "请稍候并重新测试。"
+
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Wait for the reply to finish."
+msgstr ""
 
 #: src/pages/shell/thread-queue.tsx
 msgid "Waiting for approval"
@@ -6761,9 +6970,14 @@ msgstr "排队等候…"
 msgid "Waiting…"
 msgstr "等待中…"
 
+#: src/pages/shell/conversation-engine-state.tsx
 #: src/pages/shell/roleplay-relationship-debug.tsx
 msgid "Warmth"
 msgstr "温暖度"
+
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Warmth grade"
+msgstr ""
 
 #: src/components/ModelCredits.tsx
 msgid "Web, desktop and mobile"

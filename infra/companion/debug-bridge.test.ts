@@ -12,6 +12,7 @@ const character = "44444444-4444-4444-8444-444444444444";
 const jwtSecret = "test-jwt-secret-".repeat(4);
 const bridgeSecret = "test-debug-secret-".repeat(4);
 const now = 1800000000000;
+const databaseTime = "2026-01-02T00:00:00.000Z";
 
 function token(overrides: Record<string, unknown> = {}) {
   const head = Buffer.from(JSON.stringify({ alg: "HS256", typ: "JWT" })).toString("base64url");
@@ -44,7 +45,13 @@ function request(overrides: Partial<DebugBridgeRequest> = {}): DebugBridgeReques
 }
 
 function setup(
-  options: { owned?: boolean; busy?: boolean; missing?: boolean; fail?: boolean } = {},
+  options: {
+    owned?: boolean;
+    busy?: boolean;
+    missing?: boolean;
+    fail?: boolean;
+    timezone?: string | null;
+  } = {},
 ) {
   const calls: { sql: string; args: unknown[] }[] = [];
   const settlement: DebugSettlement = {
@@ -54,6 +61,7 @@ function setup(
     hasLatestTurn: false,
     latestAcknowledged: false,
     latestFailed: false,
+    retryAfterSeconds: 0,
   };
   let affinity = {
     trust: 0.2,
@@ -86,7 +94,8 @@ function setup(
                     characterName: "Example",
                     systemPrompt: "Example persona.",
                     tipPersonality: null,
-                    timezone: "Europe/Lisbon",
+                    timezone: options.timezone === undefined ? "Europe/Lisbon" : options.timezone,
+                    currentTime: databaseTime,
                     affinityJson: options.missing ? null : JSON.stringify(affinity),
                   },
                 ],
@@ -105,9 +114,13 @@ function setup(
           patience_grade: args[8] as number,
           feeling_clause: null as unknown as string,
           feeling_clause_at: "2026-01-02T00:00:00.000001+00:00",
-          updated_at: "2026-01-02T00:00:00.000002+00:00",
+          updated_at: new Date(
+            Date.parse(databaseTime) - Number(args[9]) * 3_600_000,
+          ).toISOString(),
         };
-        return { rows: [{ affinityJson: JSON.stringify(affinity) }] };
+        settlement.recentAffinity = true;
+        settlement.retryAfterSeconds = 30;
+        return { rows: [{ affinityJson: JSON.stringify(affinity), currentTime: databaseTime }] };
       }
       return { rows: [] };
     },
@@ -267,9 +280,88 @@ describe("optional Eros debug bridge", () => {
       feelingClause: null,
       feelingClauseAt: null,
       editable: false,
+      editBlockedReason: "missing_affinity",
       systemPrompt: "Example persona.",
     });
     expect(fixture.calls.some((call) => /INSERT|UPDATE/.test(call.sql))).toBe(false);
+  });
+
+  it("reports the native persona clock and elapsed state time from the database clock", async () => {
+    const fixture = setup();
+    const state = (await fixture.dispatch(request())).body;
+    expect(state).toMatchObject({
+      time: {
+        timezone: "Europe/Lisbon",
+        currentTime: databaseTime,
+        localTime: "2026-01-02 00:00:00",
+        affinityElapsedHours: expect.closeTo(24, 3),
+        feelingElapsedHours: expect.closeTo(24, 3),
+      },
+      editBlockedReason: null,
+      retryAfterSeconds: null,
+    });
+  });
+
+  it("uses the native Singapore fallback for missing or invalid persona zones", async () => {
+    for (const timezone of [null, "", "Not/AZone"]) {
+      expect((await setup({ timezone }).dispatch(request())).body).toMatchObject({
+        time: { timezone: "Asia/Singapore", localTime: "2026-01-02 08:00:00" },
+      });
+    }
+  });
+
+  it("reports why edits are blocked without withholding the editable state snapshot", async () => {
+    const fixture = setup();
+    for (const [field, reason] of [
+      ["activeTurns", "processing"],
+      ["recentMessages", "settling"],
+      ["hasLatestTurn", "unacknowledged_turn"],
+    ] as const) {
+      fixture.settlement[field] = true;
+      expect((await fixture.dispatch(request())).body).toMatchObject({
+        editable: false,
+        editBlockedReason: reason,
+        axes: { trust: 0.2 },
+        revision: expect.any(String),
+      });
+      fixture.settlement[field] = false;
+    }
+  });
+
+  it("ages only the session affinity while preserving the real-time feeling fence and quiet guard", async () => {
+    const fixture = setup();
+    const changed = await patch(fixture, { elapsedHours: 48.5 });
+    expect(changed.status).toBe(200);
+    expect(changed.body).toMatchObject({
+      feelingClause: null,
+      time: { affinityElapsedHours: 48.5, feelingElapsedHours: null },
+      editable: false,
+      editBlockedReason: "settling",
+      retryAfterSeconds: 30,
+    });
+    const update = fixture.calls.find((call) =>
+      call.sql.startsWith("UPDATE engine.companion_affinity"),
+    );
+    expect(update?.args[9]).toBe(48.5);
+    expect(update?.sql).toContain("feeling_clause_at=clock_timestamp()");
+    expect(update?.sql).toContain("updated_at=clock_timestamp()-make_interval");
+    expect(
+      fixture.calls.some((call) =>
+        /UPDATE engine\.(persona_genomes|persona_instances)/.test(call.sql),
+      ),
+    ).toBe(false);
+    // Backdated affinity is never evidence that new native work has settled.
+    fixture.settlement.recentAffinity = false;
+    for (const field of ["recentMessages", "activeTurns", "hasLatestTurn"] as const) {
+      fixture.settlement[field] = true;
+      expect(await patch(fixture, { elapsedHours: 720 })).toEqual({
+        status: 409,
+        body: { error: "busy" },
+      });
+      fixture.settlement[field] = false;
+    }
+    const busyQuery = fixture.calls.find((call) => call.sql.includes('AS "activeTurns"'))?.sql;
+    expect(busyQuery).toContain("GREATEST(a.updated_at,a.feeling_clause_at)");
   });
 
   it("rejects invalid edits, unknown fields, and grades outside 1–3", async () => {
@@ -282,6 +374,11 @@ describe("optional Eros debug bridge", () => {
       { patienceGrade: 1.5 },
       { unexpected: "sql" },
       { expectedRevision: "bad" },
+      { elapsedHours: -1 },
+      { elapsedHours: 721 },
+      { elapsedHours: Number.NaN },
+      { elapsedHours: "12" },
+      { timezone: "UTC" },
     ]) {
       const fixture = setup();
       expect(await patch(fixture, changes)).toEqual({
@@ -369,6 +466,7 @@ describe("optional Eros debug bridge", () => {
       hasLatestTurn: true,
       latestAcknowledged: false,
       latestFailed: false,
+      retryAfterSeconds: 0,
     };
     expect(isDebugBusy(base)).toBe(true);
     expect(isDebugBusy({ ...base, latestFailed: true })).toBe(false);

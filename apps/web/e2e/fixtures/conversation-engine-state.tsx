@@ -61,6 +61,14 @@ const initial: ConversationEngineState = {
       patienceGrade: 2,
       revision: "revision-one",
       editable: true,
+      editBlockedReason: null,
+      time: {
+        timezone: "UTC",
+        currentTime: "2026-10-01T12:00:00Z",
+        localTime: "2026-10-01 12:00:00",
+        affinityElapsedHours: 0,
+        feelingElapsedHours: 1 / 60,
+      },
     },
   },
 };
@@ -85,6 +93,16 @@ createRoot(document.getElementById("root")!).render(
                   warmthGrade: edit.warmthGrade,
                   patienceGrade: edit.patienceGrade,
                   revision: "revision-two",
+                  ...(edit.elapsedHours !== undefined
+                    ? {
+                        feeling: null,
+                        time: {
+                          ...state.inspection!.debug!.time!,
+                          affinityElapsedHours: edit.elapsedHours,
+                          feelingElapsedHours: null,
+                        },
+                      }
+                    : {}),
                 },
               },
             };

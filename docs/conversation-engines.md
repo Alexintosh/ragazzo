@@ -115,6 +115,10 @@ The optional debug bridge adds the full deployed character instructions, persona
 
 With the bridge enabled, explicit debug edits change native trust, intrigue, intimacy and tension (0–1), plus warmth and patience grades (1–3). Displayed warmth/patience scores and bond/chemistry tiers come from Eros's native calculation. Edits clear the old feeling summary; a later native evaluation may produce a new one. Existing native events are retained. Persisted derived projection columns are left for native processing to refresh; consumers should use the native affinity API rather than those cached columns.
 
+The **Time** panel shows the native database clock in the effective character timezone and elapsed relationship/feeling time. Its optional 0–720 hour simulation backdates only the current session’s affinity timestamp, so Eros applies its own decay calculation. It does not move the engine wall clock, rewrite message dates, or change a shared genome’s timezone. A time edit clears the old feeling and retains a real-time summary fence; backdating cannot bypass the quiet period.
+
+Editable fields remain visible during temporary processing, with a reason for the block. The panel refreshes while processing or settling and after a reply ends. Drafts retain their original revision; if the engine changes underneath an edit, discard the draft to load the latest values before editing again.
+
 Saving requires the same conversation generation and an unchanged engine revision. Active local work, unresolved deliveries, native queued work and recent native processing block edits. The bridge waits for a 30-second quiet period and evidence that the latest ordinary turn settled. An unacknowledged failed turn can require a new successfully settled turn before editing is available. Older failed turns do not permanently block later settled ones. Refresh after conflicts or an unconfirmed save; the client does not automatically repeat writes.
 
 ### Enable the optional bridge
