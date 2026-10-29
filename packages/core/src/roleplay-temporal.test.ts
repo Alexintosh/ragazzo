@@ -1,10 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
+  createRoleplayMetadataFilter,
   formatRoleplayMessageContent,
   roleplayMemoryWindow,
   roleplayMessageTokens,
   roleplayStoryState,
   roleplayTokens,
+  roleplayTranscriptMetadata,
+  stripRoleplayMetadata,
 } from "./roleplay.js";
 import {
   buildRoleplayContinuityRequest,
@@ -97,7 +100,7 @@ describe("dated story context", () => {
     ).toBeNull();
   });
 
-  it("budgets model-visible timestamp wrappers in the memory window", () => {
+  it("budgets dating context separately while keeping dialogue verbatim", () => {
     const message = {
       seq: 1,
       role: "user" as const,
@@ -105,9 +108,10 @@ describe("dated story context", () => {
       createdAt: "2026-10-29T12:00:00Z",
     };
     const content = formatRoleplayMessageContent(message);
-    expect(content).toBe("[Message createdAt: 2026-10-29T12:00:00Z]\nTomorrow");
-    const budget = roleplayMessageTokens(message);
-    expect(budget).toBe(roleplayTokens(content) + 8);
+    expect(content).toBe("Tomorrow");
+    expect(roleplayMessageTokens(message)).toBe(roleplayTokens(content) + 8);
+    const budget =
+      roleplayMessageTokens(message) + roleplayTokens(roleplayTranscriptMetadata([message]));
     expect(roleplayMemoryWindow([message], budget).recent).toEqual([message]);
     expect(roleplayMemoryWindow([message], budget - 1).older).toEqual([message]);
   });
@@ -166,5 +170,37 @@ describe("character relationship state", () => {
         { realUserTurn: true },
       ),
     ).toEqual({ warmth: 50, intimacy: 50, love: 50 });
+  });
+});
+
+const legacyWrapper = "[Message createdAt: 2026-10-29T09:59:32.797Z]";
+
+describe("internal dating output boundary", () => {
+  it("removes the retired wrapper across every streaming fragment boundary", () => {
+    const raw = `Hello. ${legacyWrapper} How are you?`;
+    const expected = "Hello.  How are you?";
+    for (let split = 0; split <= raw.length; split++) {
+      const filter = createRoleplayMetadataFilter([]);
+      const first = filter.push(raw.slice(0, split));
+      expect(first).not.toContain("[Message createdAt:");
+      expect(first + filter.push(raw.slice(split)) + filter.finish()).toBe(expected);
+    }
+    const filter = createRoleplayMetadataFilter([]);
+    expect([...raw].map((char) => filter.push(char)).join("") + filter.finish()).toBe(expected);
+    expect(stripRoleplayMetadata(raw, [])).toBe(expected);
+    expect(stripRoleplayMetadata("Hello [Message createdAt: 2026-10-29T09:", [])).toBe("Hello ");
+  });
+
+  it("preserves user-authored literal wrappers and ordinary date text", () => {
+    const user = { content: `Please quote ${legacyWrapper}` };
+    expect(stripRoleplayMetadata(user.content, [user])).toBe(user.content);
+    for (const text of [
+      "Meet at 09:59",
+      "[Message createdAt: tomorrow]",
+      "[Message createdAt: note]",
+      "[hello]",
+    ]) {
+      expect(stripRoleplayMetadata(text, [])).toBe(text);
+    }
   });
 });

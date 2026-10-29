@@ -42,7 +42,8 @@ export function buildRoleplayTemporalContext(
       lastInteractionAt: Number.isFinite(previous) ? context.lastInteractionAt : null,
       elapsedMilliseconds: elapsed,
     }),
-    "Resolve relative dates such as tomorrow against the original message's createdAt timestamp in the known user timezone, never against today's date. When a timestamp or timezone is missing, leave the date uncertain. Newer explicit corrections and cancellations supersede older plans. A date passing does not establish that an event happened; ask or leave it unresolved unless the user confirmed its outcome. Do not invent intervening activity or demand an explanation for absence.",
+    "Keep metadata internal; never echo its labels or timestamp wrappers. This runtime cannot set timers or schedule messages in requested minutes; spontaneous check-ins follow application policy. Never claim a reminder is set or promise exact-time contact. Explain the limitation naturally when asked; suggest a user-set reminder.",
+    "Resolve relative dates from the original message createdAt in the known user timezone; leave dates uncertain if either is missing. Newer corrections and cancellations replace older plans. Passing dates do not confirm events: ask or leave unresolved without user confirmation. Never invent intervening activity or demand explanations for absence.",
     style === "chat"
       ? "Real elapsed time may inform a natural chat greeting or a relevant, tentative check-in. Keep any gap acknowledgment proportionate and optional."
       : "Wall-clock time and fiction time are separate. Resume the established fictional scene without automatically advancing its clock, characters, or events because real time elapsed.",

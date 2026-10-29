@@ -8,6 +8,7 @@ import {
   roleplayMemoryWindow,
   roleplayStoryState,
   roleplayTokens,
+  roleplayTranscriptMetadata,
   selectRoleplayLore,
 } from "./roleplay.js";
 
@@ -209,4 +210,40 @@ describe("story memory isolation", () => {
     ).toBeLessThanOrEqual(45);
     expect(roleplayMemoryWindow(history, 0).older).toEqual(history);
   });
+});
+
+it("places original input and history dating in system context without changing dialogue", () => {
+  const history = [
+    { seq: 1, role: "user" as const, content: "Tomorrow?", createdAt: "2026-10-27T12:00:00Z" },
+    { seq: 2, role: "assistant" as const, content: "Sure.", createdAt: "2026-10-27T12:00:05Z" },
+  ];
+  const currentInputs = [
+    {
+      seq: 3,
+      role: "user" as const,
+      content: "Actually Friday.",
+      createdAt: "2026-10-28T12:00:00Z",
+    },
+  ];
+  const request = buildRoleplayPrompt({
+    character,
+    history,
+    currentInputs,
+    prompt: currentInputs[0]!.content,
+    temporal: { now: "2026-10-29T12:00:00Z", timezone: "Europe/Lisbon" },
+  });
+  expect(request.history).toEqual(history);
+  expect(request.prompt).toBe("Actually Friday.");
+  const metadata = roleplayTranscriptMetadata(history, currentInputs);
+  expect(request.instructions.split("\n\n")).toContain(metadata);
+  expect(JSON.parse(metadata.split("\n")[1]!)).toEqual({
+    history: history.map(({ seq, role, createdAt }, index) => ({
+      position: index + 1,
+      seq,
+      role,
+      createdAt,
+    })),
+    currentInputs: [{ position: 1, seq: 3, role: "user", createdAt: "2026-10-28T12:00:00Z" }],
+  });
+  expect(JSON.stringify(request)).not.toContain("[Message createdAt:");
 });

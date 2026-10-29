@@ -29,6 +29,8 @@ Contact requires an actual user-started conversation and a valid known user time
 
 Each optional generation returns a structured send-or-skip decision. A send contains one to three plain text bubbles grounded in the existing conversation. Skipping is expected when there is no suitable reason to contact the user. There are no proactive tools, attachments, fabricated photos or external activity. Current media support remains text plus the existing read-aloud feature; image, video, audio attachment generation and autonomous external browsing are deferred.
 
+Settings, story state, timestamps and already-created tasks/runs are durable in the database. After a worker restart, the initiative scanner recalculates eligibility from those records and the general job reconciler recovers queued or expired-lease runs. No contact is sent while the worker is offline, and current quiet hours, preferences and newer messages are checked again before delivery. The RP runtime has no exact-time reminder tool: a line such as “I'll write in 45 minutes” does not register a timer or guarantee a message at that time. Spontaneous contact follows the inactivity windows above; it is not a user-programmable reminder schedule.
+
 ## Enable and roll out
 
 `ROLEPLAY_ENABLED` defaults to `false`. Set it to `true` on **both API and workers** only after all processes support the dedicated roleplay execution path. Docker must be configured and its computer image installed.

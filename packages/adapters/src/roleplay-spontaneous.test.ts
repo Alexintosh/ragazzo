@@ -137,6 +137,20 @@ describe("roleplay initiative reconciler", () => {
     expect(f.tasks).toHaveLength(1);
     expect(f.runs).toHaveLength(1);
   });
+  it("preserves the same durable attempt when the scheduler is recreated after a restart", async () => {
+    const f = fixture();
+    const options = { enabled: true, now: () => new Date("2026-10-29T12:00:00Z") };
+    await createRoleplaySpontaneousReconciler(f.deps, options)();
+    // A process restart loses its in-memory queue and cursors, not the persisted task/run.
+    f.queued.length = 0;
+    const restarted = createRoleplaySpontaneousReconciler(f.deps, options);
+    await restarted();
+    expect(f.tasks).toHaveLength(1);
+    expect(f.runs).toHaveLength(1);
+    expect(f.runs[0]).toMatchObject({ status: "queued", trigger: "roleplay_spontaneous" });
+    // The general job reconciler recovers this queued run; the initiative scanner must not duplicate it.
+    expect(f.queued).toEqual([]);
+  });
   it("advances bounded owner cursors instead of repeatedly scanning the first owner", async () => {
     const f = fixture();
     fake.snapshot.mockResolvedValue(null);

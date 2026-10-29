@@ -1,7 +1,7 @@
 import type { AssistantMessage, Context, Message } from "@earendil-works/pi-ai";
 import type { AgentRunModel, AgentRuntimeEvent } from "@rakazo/adapter-kit";
 import type { RoleplayMessage } from "@rakazo/core";
-import { formatRoleplayMessageContent, MISSING_MODEL_RUN_ERROR } from "@rakazo/core";
+import { MISSING_MODEL_RUN_ERROR } from "@rakazo/core";
 import { withCloudflareAuth } from "./cloudflare-ai-gateway.js";
 import {
   assistantText,
@@ -106,12 +106,12 @@ export class InternalRoleplayRuntime implements RoleplayRuntime {
       message.role === "user"
         ? {
             role: "user",
-            content: formatRoleplayMessageContent(message),
+            content: message.content,
             timestamp: message.createdAt ? new Date(message.createdAt).getTime() : 0,
           }
         : {
             role: "assistant",
-            content: [{ type: "text", text: formatRoleplayMessageContent(message) }],
+            content: [{ type: "text", text: message.content }],
             api: model.api,
             provider: model.provider,
             model: model.id,

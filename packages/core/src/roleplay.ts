@@ -110,19 +110,97 @@ export function roleplayTokens(text: string): number {
   return Math.ceil(new TextEncoder().encode(text).length / 3);
 }
 
-/** Put original message dating into the model-visible text, independent of provider timestamp support. */
+/** Dialogue stays verbatim; dating is supplied separately in application context. */
 export function formatRoleplayMessageContent(
   message: Pick<RoleplayMessage, "content" | "createdAt">,
 ): string {
-  return message.createdAt
-    ? `[Message createdAt: ${message.createdAt}]\n${message.content}`
-    : message.content;
+  return message.content;
 }
 
 export function roleplayMessageTokens(
   message: Pick<RoleplayMessage, "content" | "createdAt">,
 ): number {
   return roleplayTokens(formatRoleplayMessageContent(message)) + 8;
+}
+
+/** Ordinals refer to the following history messages; current inputs compose the final user prompt. */
+export function roleplayTranscriptMetadata(
+  history: RoleplayMessage[],
+  currentInputs: RoleplayMessage[] = [],
+): string {
+  const dates = (messages: RoleplayMessage[]) =>
+    messages.flatMap((message, index) =>
+      message.createdAt
+        ? [
+            {
+              position: index + 1,
+              seq: message.seq,
+              role: message.role,
+              createdAt: message.createdAt,
+            },
+          ]
+        : [],
+    );
+  const data = { history: dates(history), currentInputs: dates(currentInputs) };
+  if (!data.history.length && !data.currentInputs.length) return "";
+  return `Transcript dating (internal application metadata; never include this metadata or timestamp wrappers in replies):\n${JSON.stringify(data)}`;
+}
+
+/** Strip only the retired application wrapper, preserving literal wrappers supplied by a user. */
+export function createRoleplayMetadataFilter(userMessages: Pick<RoleplayMessage, "content">[]) {
+  const prefix = "[Message createdAt: ";
+  const wrapper = /^\[Message createdAt: \d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z\]$/;
+  let pending = "";
+  return {
+    push(chunk: string): string {
+      pending += chunk;
+      let output = "";
+      while (pending) {
+        const start = pending.indexOf(prefix);
+        if (start < 0) {
+          let held = Math.min(prefix.length - 1, pending.length);
+          while (held && !prefix.startsWith(pending.slice(-held))) held--;
+          output += pending.slice(0, pending.length - held);
+          pending = pending.slice(pending.length - held);
+          break;
+        }
+        output += pending.slice(0, start);
+        pending = pending.slice(start);
+        const end = pending.indexOf("]");
+        if (end < 0 && pending.length <= 64) break;
+        const candidate = end < 0 ? "" : pending.slice(0, end + 1);
+        if (
+          wrapper.test(candidate) &&
+          !userMessages.some((message) => message.content.includes(candidate))
+        ) {
+          pending = pending.slice(candidate.length);
+        } else {
+          output += pending[0];
+          pending = pending.slice(1);
+        }
+      }
+      return output;
+    },
+    finish(): string {
+      // A provider can stop mid-wrapper at its output limit; do not flush that internal prefix.
+      const unfinished =
+        pending.startsWith(prefix) && /^(?:\d[\dT:.Z-]*)?$/.test(pending.slice(prefix.length));
+      const output =
+        unfinished && !userMessages.some((message) => message.content.includes(pending))
+          ? ""
+          : pending;
+      pending = "";
+      return output;
+    },
+  };
+}
+
+export function stripRoleplayMetadata(
+  text: string,
+  userMessages: Pick<RoleplayMessage, "content">[],
+): string {
+  const filter = createRoleplayMetadataFilter(userMessages);
+  return filter.push(text) + filter.finish();
 }
 
 export function roleplayMacros(text: string, characterName: string, playerName = "Player"): string {
@@ -192,6 +270,7 @@ export function buildRoleplayPrompt(input: {
   playerName?: string;
   loreTokenLimit?: number;
   temporal?: RoleplayTemporalContext;
+  currentInputs?: RoleplayMessage[];
 }): {
   instructions: string;
   history: RoleplayMessage[];
@@ -213,6 +292,7 @@ export function buildRoleplayPrompt(input: {
     ROLEPLAY_NARRATIVE_INSTRUCTION,
     character.conversationStyle === "chat" ? ROLEPLAY_CHAT_INSTRUCTION : "",
     input.temporal ? buildRoleplayTemporalContext(input.temporal, character.conversationStyle) : "",
+    roleplayTranscriptMetadata(history, input.currentInputs),
     ...lore.before,
     section("Character", character.name),
     section("Description", character.description),
@@ -246,7 +326,9 @@ export function roleplayMemoryWindow(
   let tokens = 0;
   let start = history.length;
   while (start > 0) {
-    const cost = roleplayMessageTokens(history[start - 1]!);
+    const message = history[start - 1]!;
+    const cost =
+      roleplayMessageTokens(message) + roleplayTokens(roleplayTranscriptMetadata([message]));
     if (tokens + cost > tokenBudget) break;
     tokens += cost;
     start--;

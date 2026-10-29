@@ -274,7 +274,11 @@ it("preserves original transcript timestamps for spontaneous provider context wi
     /* consume */
   }
   expect(context?.tools).toBeUndefined();
-  expect(JSON.stringify(context?.messages)).toContain(`[Message createdAt: ${createdAt}]`);
+  expect(context?.messages.slice(0, 2).map((message) => message.content)).toEqual([
+    [{ type: "text", text: "A gate opens." }],
+    "I step inside.",
+  ]);
+  expect(JSON.stringify(context?.messages)).not.toContain("[Message createdAt:");
   expect(context?.messages[0]?.timestamp).toBe(Date.parse(createdAt));
   expect(context?.messages[1]?.timestamp).toBe(Date.parse(createdAt));
   expect(fake.agent).not.toHaveBeenCalled();

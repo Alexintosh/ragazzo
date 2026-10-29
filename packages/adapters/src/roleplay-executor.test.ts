@@ -559,6 +559,7 @@ describe("roleplay chat continuity", () => {
         role: seq % 2 ? "user" : "bot",
         botId: "aria",
         blocks: [{ kind: "text", text: `Scene ${seq}: ${"ancient map ".repeat(120)}` }],
+        createdAt: new Date("2026-10-27T12:00:00Z"),
       })),
     );
     fake.resolveModel.mockResolvedValue({
@@ -853,6 +854,7 @@ describe("roleplay executor boundary", () => {
         role: seq % 2 ? "user" : "bot",
         botId: "aria",
         blocks: [{ kind: "text", text: `Scene ${seq}: ${"ancient map ".repeat(120)}` }],
+        createdAt: new Date("2026-10-27T12:00:00Z"),
       })),
     );
     fake.resolveModel.mockResolvedValue({
@@ -1334,5 +1336,43 @@ it("grounds a returning user's gap in the prior interaction and preserves input 
   });
   expect(f.requests[0]?.instructions).toContain(`"lastInteractionAt":"${prior.toISOString()}"`);
   expect(f.requests[0]?.instructions).toContain('"elapsedMilliseconds":237600000');
-  expect(f.requests[0]?.prompt).toContain(`[Message createdAt: ${current.toISOString()}]`);
+  expect(f.requests[0]?.prompt).toBe("Tomorrow I am leaving.");
+  expect(f.requests[0]?.instructions).toContain(
+    `"currentInputs":[{"position":1,"seq":99,"role":"user","createdAt":"${current.toISOString()}"}]`,
+  );
+});
+
+it("never publishes or persists a generated legacy timestamp wrapper, including split deltas", async () => {
+  const f = fixture();
+  const wrapper = "[Message createdAt: 2026-10-29T09:59:32.797Z]";
+  f.runtime.run = async function* () {
+    for (const text of [
+      "Hello. ",
+      "[Message cre",
+      "atedAt: 2026-10-29T",
+      "09:59:32.797Z]",
+      " Welcome.",
+    ]) {
+      yield { type: "text", text };
+    }
+    yield { type: "done", text: `Final. ${wrapper} Welcome.` };
+  };
+  await executeRoleplayRun(f.deps, f.runtime, f.run as unknown as Run, {
+    workerId: "worker",
+    fence: 1,
+  });
+  const progress = vi
+    .mocked(f.deps.events.append)
+    .mock.calls.map(([event]) => event)
+    .filter((event) => event.type === "thread.progress");
+  const published = progress
+    .map((event) => event.payload.text ?? event.payload.delta ?? "")
+    .join("");
+  expect(published).toBe("Hello.  Welcome.");
+  expect(f.finalizeRun).toHaveBeenCalledWith(
+    expect.objectContaining({
+      outcome: "completed",
+      blocks: [{ kind: "text", text: "Final.  Welcome." }],
+    }),
+  );
 });
