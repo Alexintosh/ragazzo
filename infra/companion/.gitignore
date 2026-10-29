@@ -1,3 +1,4 @@
 .env
 model-config.toml
 personas/
+docker-compose.local.yml

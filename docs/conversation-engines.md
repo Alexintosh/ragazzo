@@ -31,7 +31,7 @@ The recipe requires those images to be present and has `pull_policy: never`. It 
 
 Both services run without root, Linux capabilities, privilege escalation or writable root filesystems. PostgreSQL uses a dedicated named volume and an internal network, without a published database port. Eros publishes only `127.0.0.1:5185` and has a separate service network for outbound model requests. The service deliberately has model-provider network access; it is not an air-gapped sandbox. Nothing mounts Rakazo's database, host files beyond the supplied configuration, or the Docker socket.
 
-This recipe has been reviewed statically; starting it and validating the pinned images on the deployment host is an operator step. Resource limits are starting values, not capacity measurements.
+The pinned recipe has been started with a dedicated database and a synthetic conversation. Restarting the engine retained its session binding. Resource limits are starting values, not capacity measurements; validate your own model and embedding configuration before use.
 
 From the repository root:
 
@@ -91,7 +91,21 @@ When API/workers run on the host, use `http://127.0.0.1:5185`. When they run in 
 
 The recipe disables periodic dreaming, snapshots, world/town/stories, the asynchronous queue worker and the scheduled profile rebuilder. Per-turn native processing still runs for tasks configured by the operator; disabling scheduled profile rebuilding does not disable a rebuild triggered by enough newly extracted facts. Raw prompt logging, BYOK, BYOC and export/erasure secret endpoints are not enabled. Enabling additional upstream features requires a separate configuration review rather than changing the Rakazo adapter.
 
-The evaluation panel's English prompt substitution remains an experimental gateway feature. This integration sends requests directly to the native service and does not install that gateway or translate engine-owned prompts. An English persona can request English replies; it does not translate native affinity, reasoning or extraction instructions. Do not assume the panel's language setting carries over.
+### Optional model gateway and prompt translation
+
+[`infra/companion/model-gateway.py`](../infra/companion/model-gateway.py) is a stdlib-only gateway for an operator-configured OpenAI-compatible model endpoint. It is optional: the base Compose recipe does not start it. Add it in the ignored `infra/companion/docker-compose.local.yml` and include that file in each Compose command when using this deployment variant. Run it as an unprivileged, read-only service on the service network, with no published port or database-network access. Supply a Python runtime already available in your environment.
+
+Set `MODEL_BASE_URL` to the upstream `/v1` URL and `GATEWAY_TOKEN` to a dedicated credential accepted only by this gateway. Set the engine's provider credential to that token. Optional `MODEL_API_KEY` is sent only upstream; the gateway token is never forwarded. `MODEL_ID` can restrict requests to a single model. Route native chat and embeddings to the gateway's `/v1/chat/completions` and `/v1/embeddings` endpoints. Unsupported upstream embeddings remain unsupported: the gateway does not synthesize vectors or enable memory extraction.
+
+The gateway authenticates requests, refuses redirects, bounds concurrency and payloads, and does not log requests, prompts or credentials. Its health endpoint checks gateway liveness, not upstream model availability. Its socket and response-read deadlines bound stalled calls; a blocking upstream read can extend beyond the nominal overall deadline by one socket timeout.
+
+For experimental English instructions, set `PROMPT_LANGUAGE=en` and mount an explicitly trusted Python catalog read-only at `PROMPT_CATALOG_PATH`. The catalog implements `transform(body, language)` returning `(body, metadata)`; metadata is discarded. This is executable operator code, not an uploaded character card. The gateway does not install or fetch a catalog. The evaluated catalog translates recognized chat, affinity evaluation and affinity summary prompts; unknown branches and character/history content remain unchanged. An English persona alone does not translate the engine's native prompts. Keep the exact catalog file available across restarts and validate its coverage when upgrading Eros.
+
+Offline gateway checks:
+
+```sh
+python3 -B -m unittest discover -s infra/companion -p test_model_gateway.py
+```
 
 ## Turn lifecycle and retention
 
@@ -111,4 +125,4 @@ Eros is an independently deployed AGPL-3.0-only service; Rakazo's adapter contai
 
 Deterministic tests cover the HTTP protocol, character admission, safe catalog projection, tenant isolation, encrypted turn persistence, lease contention, replay after interruption and Stop, and deletion preflight. PostgreSQL regression tests also cover the existing internal roleplay and account-deletion paths. A real two-turn Eros trial exercised the Rakazo executor with a synthetic owner: both turns completed, each saved one reply, and a fresh executor reused the persisted session without invoking local roleplay context or computer capabilities. This is an orchestration check, not a calibrated conversation-quality evaluation.
 
-The web creation selector was checked in desktop and mobile viewports with a synthetic catalog. The separate persistent Compose recipe has not been started by this verification; it remains an explicit deployment step.
+The web creation selector was checked in desktop and mobile viewports with a synthetic catalog. The separate persistent Compose recipe also passed a real synthetic chat through the optional gateway and resumed the same session after an engine restart. This verifies chat routing and session persistence, not embedding availability or long-term memory extraction.
