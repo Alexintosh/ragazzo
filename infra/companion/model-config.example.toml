@@ -1,0 +1,30 @@
+# Original minimal routing example, not a complete memory/extraction setup.
+# Replace both endpoint URLs and every model ID before using it.
+# Add the native extraction tasks to enable long-term memory and profiles;
+# see docs/conversation-engines.md and the pinned Eros model-config reference.
+
+[providers.openrouter]
+chat = "https://models.example/v1/chat/completions"
+embeddings = "https://models.example/v1/embeddings"
+
+[tasks.chat_companion]
+model = "your-chat-model"
+fallback = []
+temperature = 0.7
+max_tokens = 1600
+
+[tasks.affinity_evaluation]
+model = "your-structured-output-model"
+fallback = []
+temperature = 0.3
+max_tokens = 400
+
+[tasks.affinity_summary]
+model = "your-structured-output-model"
+fallback = []
+temperature = 0.3
+max_tokens = 200
+
+[tasks.embedding]
+# Must return actual vectors of exactly 512 dimensions for both reads/writes.
+model = "your-512-dimensional-embedding-model@openrouter"

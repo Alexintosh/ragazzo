@@ -1,0 +1,135 @@
+# Independent opt-in deployment. No Rakazo DB, runtime, panel or Docker socket mounts.
+# See ../../docs/conversation-engines.md before starting it.
+x-engine: &engine
+  image: ghcr.io/etherfunlab/eros-engine@sha256:8fc6240a83dbecead160b852f2cefabfd407a101078dc59856d4a1ff246fcb4d
+  platform: linux/arm64
+  pull_policy: never
+  user: "65532:65532"
+  read_only: true
+  cap_drop: [ALL]
+  security_opt: [no-new-privileges:true]
+  pids_limit: 128
+  mem_limit: 1g
+  cpus: 1.0
+  logging: &bounded-logs
+    driver: local
+    options:
+      max-size: 10m
+      max-file: "3"
+  tmpfs:
+    - /tmp:rw,noexec,nosuid,size=16m,mode=1777
+  environment: &database-environment
+    DATABASE_URL: postgres://companion:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in the companion .env}@postgres:5432/companion
+  networks: [database]
+
+services:
+  postgres:
+    image: pgvector/pgvector@sha256:a45475a5bc7882f19e9ca17d49b67f665fa04d500350de2c47af325662445aec
+    platform: linux/arm64
+    pull_policy: never
+    user: postgres
+    restart: unless-stopped
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    pids_limit: 128
+    mem_limit: 1g
+    cpus: 1.0
+    shm_size: 128m
+    logging: *bounded-logs
+    environment:
+      POSTGRES_USER: companion
+      POSTGRES_DB: companion
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in the companion .env}
+      # A custom subdirectory makes persistence independent of image-major PGDATA defaults.
+      PGDATA: /var/lib/postgresql/rakazo-companion
+    volumes:
+      - companion-data:/var/lib/postgresql
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=64m,mode=1777
+      - /var/run/postgresql:rw,noexec,nosuid,size=16m,mode=1777
+    networks: [database]
+    healthcheck:
+      test: [CMD, pg_isready, -U, companion, -d, companion]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  migrate:
+    <<: *engine
+    profiles: [setup]
+    command: [migrate]
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  seed:
+    <<: *engine
+    profiles: [setup]
+    command: [seed-personas, /operator/personas]
+    volumes:
+      - type: bind
+        source: ./personas
+        target: /operator/personas
+        read_only: true
+        bind:
+          create_host_path: false
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  engine:
+    <<: *engine
+    restart: unless-stopped
+    command: [serve]
+    environment:
+      <<: *database-environment
+      BIND_ADDR: 0.0.0.0:8080
+      MODEL_CONFIG_PATH: /operator/model-config.toml
+      SUPABASE_JWT_SECRET: ${SUPABASE_JWT_SECRET:?Set the dedicated SUPABASE_JWT_SECRET in the companion .env}
+      CALLER_SECRET: ${CALLER_SECRET:?Set the dedicated CALLER_SECRET in the companion .env}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:?Set OPENROUTER_API_KEY in the companion .env}
+      VOYAGE_API_KEY: ${VOYAGE_API_KEY:-}
+      DREAMING_DISABLED: "1"
+      DREAMING_VOICE_DISABLED: "1"
+      SNAPSHOT_DISABLED: "1"
+      WORLD_DISABLED: "1"
+      WORLD_PROMPT_DISABLED: "1"
+      WORLD_TOWN_DISABLED: "1"
+      WORLD_STORIES_DISABLED: "1"
+      WORLD_STORIES_PROMPT_DISABLED: "1"
+      CHAT_QUEUE_DISABLED: "1"
+      PROFILE_REBUILD_DISABLED: "1"
+      PROMPT_LOG_DIR: ""
+    ports:
+      - 127.0.0.1:5185:8080
+    volumes:
+      - type: bind
+        source: ./model-config.toml
+        target: /operator/model-config.toml
+        read_only: true
+        bind:
+          create_host_path: false
+    networks:
+      database:
+      service:
+        aliases: [companion-engine]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: [CMD, curl, --fail, --silent, --max-time, "3", http://127.0.0.1:8080/healthz]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  companion-data:
+
+networks:
+  database:
+    internal: true
+  # Outbound access is intentional: model and embedding calls leave through this network.
+  # Only explicitly attached Rakazo API/worker containers can resolve its service alias.
+  service:
+    name: rakazo-companion-service

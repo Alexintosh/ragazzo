@@ -1,5 +1,7 @@
 # Experimental roleplay bots
 
+This page describes the internal roleplay engine. The optional [Eros conversation engine](./conversation-engines.md) has its own service, character configuration and lifecycle; its bots do not use the Docker computer or local continuity pipeline described below.
+
 Roleplay is a dedicated bot type, separate from operational agents. In **New bot**, enable **RP** beside the name and import a character JSON. An original example is available in `examples/roleplay/lighthouse-keeper.json`.
 
 Supported imports: plain character objects and Character Card v2/v3 JSON, up to 1 MB. The importer reads character description, personality, scenario, example dialogue, first greeting, narrative directions and lorebook entries. Plain cards may specify `conversationStyle: "narrative" | "chat"`; Character Card v2/v3 imports also support `data.extensions.rakazo.conversation_style` with those values. Older cards keep narrative behavior. Narrative follows the card’s direction; chat writes the character’s messages and may send up to three bubbles separated by blank lines. `examples/roleplay/sara.json` opts into chat. Literal primary/secondary keys, case sensitivity, constant entries, ordering, before/after-character placement, scan depth and a bounded lore budget are supported. `{{char}}` and `{{user}}` expand to the character name and `Player`.
