@@ -6,6 +6,7 @@ import {
   toComputerRef,
 } from "@rakazo/adapters";
 import {
+  accountDeletionCandidateSpaces,
   claimSpacesLeavingWithAccount,
   deleteSpaceLeavingWithAccount,
   recordComputerRunEnd,
@@ -34,16 +35,9 @@ export async function deleteAccountContent(deps: SpaceDeletionDeps, userId: stri
     ...(botId ? { botId } : {}),
     signal: new AbortController().signal,
   });
-  if (deps.nativeSetupCleanup) {
-    // Commit before enumerating registrations; host admission takes this same row lock.
-    await runAsSystem("account native setup admission fence", () =>
-      deps.prisma.user.update({
-        where: { id: userId },
-        data: { nativeSetupDisabledAt: new Date() },
-      }),
-    );
-  }
+  await fenceAccountConversationEngineDeletion(deps.prisma, userId);
   const leaving = await claimSpacesLeavingWithAccount(deps.prisma, userId);
+  await assertAccountConversationEngineDeletion(deps.prisma, userId);
   if (deps.nativeSetupCleanup) {
     const owners = await runAsSystem("account runtime setup teardown owners", () =>
       nativeSetupOwners(deps.prisma, { userId }),
@@ -60,6 +54,7 @@ export async function deleteAccountContent(deps: SpaceDeletionDeps, userId: stri
       archivedAt: true,
       computerId: true,
       webhookSecretId: true,
+      conversationEngine: true,
     },
   });
   await settleAll(
@@ -146,4 +141,56 @@ async function settleAll(work: Promise<unknown>[]) {
     (result): result is PromiseRejectedResult => result.status === "rejected",
   );
   if (failed) throw failed.reason;
+}
+
+/** Keep billing and teardown untouched when external engine data still needs operator cleanup. */
+export async function assertAccountConversationEngineDeletion(
+  prisma: Pick<SpaceDeletionDeps["prisma"], "member" | "space" | "bot">,
+  userId: string,
+) {
+  await runAsSystem("account external engine deletion preflight", async () => {
+    const candidates = await accountDeletionCandidateSpaces(prisma, userId);
+    const externalBots = await prisma.bot.findMany({
+      where: {
+        conversationEngine: "eros",
+        OR: [
+          { userId },
+          {
+            spaceId: { in: candidates.map((space) => space.id) },
+            space: {
+              OR: [
+                { memberships: { every: { userId } } },
+                { deletionClaimId: `account-deletion:${userId}` },
+              ],
+            },
+          },
+        ],
+      },
+      select: { id: true },
+    });
+    if (externalBots.length)
+      throw new Error(
+        "External engine data requires operator cleanup before deleting this account.",
+      );
+  });
+}
+
+/** Shares the user-row lock with Eros creation. Must run before any billing or teardown I/O. */
+export async function fenceAccountConversationEngineDeletion(
+  prisma: SpaceDeletionDeps["prisma"],
+  userId: string,
+) {
+  return runAsSystem("account deletion admission fence", () =>
+    prisma.$transaction(async (tx) => {
+      const rows = await tx.$queryRaw<Array<{ nativeSetupDisabledAt: Date | null }>>`
+      SELECT "nativeSetupDisabledAt" FROM "user" WHERE id = ${userId} FOR UPDATE
+    `;
+      if (rows.length !== 1) throw new Error("Account not found");
+      await assertAccountConversationEngineDeletion(tx, userId);
+      const previous = rows[0]!.nativeSetupDisabledAt;
+      const fencedAt = previous ?? new Date();
+      await tx.user.update({ where: { id: userId }, data: { nativeSetupDisabledAt: fencedAt } });
+      return { previous, fencedAt };
+    }),
+  );
 }

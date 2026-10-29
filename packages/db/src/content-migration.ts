@@ -13,7 +13,14 @@ export type ContentMigrationMode = "encrypt" | "reencrypt" | "decrypt";
 
 interface TableSpec {
   model: keyof typeof ENCRYPTED_MODELS;
-  delegate: "bot" | "message" | "event" | "memoryDocument" | "memoryRevision" | "thread";
+  delegate:
+    | "bot"
+    | "message"
+    | "event"
+    | "memoryDocument"
+    | "memoryRevision"
+    | "thread"
+    | "companionTurn";
   column: string;
   json: boolean;
   /** Preserve @updatedAt so a migration does not reorder recently edited documents. */
@@ -33,6 +40,21 @@ interface ScannedRow {
 }
 
 const TABLES: TableSpec[] = [
+  ...(["input", "response", "error"] as const).map(
+    (column): TableSpec => ({
+      model: "CompanionTurn",
+      delegate: "companionTurn",
+      column,
+      json: false,
+      updatedAt: true,
+      scan: (cursor, limit, spaceIds) => Prisma.sql`
+      SELECT id, ${Prisma.raw(`"${column}"`)} AS value, "spaceId", "sessionId" AS owner FROM companion_turns
+      WHERE id > ${cursor} ${spaceFilter(Prisma.sql`"spaceId"`, spaceIds)} AND ${Prisma.raw(`"${column}"`)} IS NOT NULL ORDER BY id LIMIT ${limit}`,
+      spaceId: Prisma.sql`"spaceId"`,
+      writePlaintext: (id, value) =>
+        Prisma.sql`UPDATE companion_turns SET ${Prisma.raw(`"${column}"`)} = ${String(value)} WHERE id = ${id}`,
+    }),
+  ),
   {
     model: "Bot",
     delegate: "bot",

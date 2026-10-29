@@ -3,8 +3,9 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { Pool } from "pg";
 import { afterAll, describe, expect, it } from "vitest";
 import { PrismaClient } from "./client.js";
+import { isCiphertext } from "./content-crypto.js";
 import { contentEncryptionOf, withContentEncryption } from "./content-encryption.js";
-import type { SpaceKeyStore } from "./content-keys.js";
+import type { SpaceKeyRecord, SpaceKeyStore } from "./content-keys.js";
 import { ContentKeyRing, LocalKeyProvider } from "./content-keys.js";
 
 // No query reaches the database: every case fails before the driver is used.
@@ -72,6 +73,15 @@ describe("withContentEncryption", () => {
     ).rejects.toThrow(/Upserts/);
   });
 
+  it("protects companion turn content and requires its durable row identity", async () => {
+    await expect(
+      prisma.companionTurn.create({ data: { input: "private" } as never }),
+    ).rejects.toThrow(/sessionId/);
+    await expect(
+      prisma.companionTurn.update({ where: { runId: "run" }, data: { response: "private" } }),
+    ).rejects.toThrow(/updated by id/);
+  });
+
   it("requires creates to name their owner", async () => {
     await expect(
       prisma.memoryRevision.create({ data: { revision: 1, content: "x" } as never }),
@@ -131,5 +141,58 @@ describe("withContentEncryption with encryption off", () => {
         },
       }),
     ).rejects.toThrow(/nested write/);
+  });
+});
+
+describe("companion turn encryption", () => {
+  it("seals durable input, reply, and errors and binds them to the session", async () => {
+    const keys: SpaceKeyRecord[] = [];
+    const memory: SpaceKeyStore = {
+      forSpace: async (spaceId) => keys.filter((key) => key.spaceId === spaceId),
+      byId: async (id) => keys.find((key) => key.id === id),
+      insert: async (record) => {
+        keys.push(record);
+        return record;
+      },
+      sampleByMasterKey: async () => keys,
+      rowContext: async () => ({ spaceId: "space", owner: "session" }),
+    };
+    let stored: Record<string, unknown> = {};
+    const encrypted = withContentEncryption(
+      new PrismaClient({ adapter: new PrismaPg(pool) }),
+      new ContentKeyRing(new LocalKeyProvider([{ id: "a", key: Buffer.alloc(32, 1) }]), memory),
+    ).$extends({
+      query: {
+        $allModels: {
+          async $allOperations({ args }) {
+            const data = (args as { data?: Record<string, unknown> }).data;
+            if (data) stored = structuredClone(data);
+            return { ...stored };
+          },
+        },
+      },
+    }) as unknown as PrismaClient;
+    const result = await encrypted.companionTurn.create({
+      data: {
+        id: "turn",
+        runId: "run",
+        sessionId: "session",
+        spaceId: "space",
+        userId: "user",
+        clientMessageId: "client",
+        input: "private input",
+        response: "private reply",
+        error: "private error",
+      },
+    });
+    for (const field of ["input", "response", "error"] as const)
+      expect(isCiphertext(stored[field])).toBe(true);
+    expect(result).toMatchObject({
+      input: "private input",
+      response: "private reply",
+      error: "private error",
+    });
+    stored.sessionId = "foreign-session";
+    await expect(encrypted.companionTurn.findUnique({ where: { id: "turn" } })).rejects.toThrow();
   });
 });

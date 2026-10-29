@@ -76,6 +76,7 @@ import {
   persistLivePluginConnections,
   selectRunConnections,
 } from "./connection-context.js";
+import { executeConversationEngineRun } from "./conversation-engine-executor.js";
 import { formatCurrentTimeInstruction } from "./current-time.js";
 import { resolveDeploymentModel } from "./deployment-model.js";
 import type { ExecutorDeps } from "./executor-deps.js";
@@ -288,6 +289,7 @@ export function createRunExecutor(deps: ExecutorDeps) {
         where: { id: run.botId },
         select: {
           botKind: true,
+          conversationEngine: true,
           computerId: true,
           computerSwitching: true,
           runtimeKind: true,
@@ -305,6 +307,10 @@ export function createRunExecutor(deps: ExecutorDeps) {
           },
         },
       });
+      if (leaseTarget.conversationEngine === "eros") {
+        await executeConversationEngineRun(deps, run, { workerId, fence }, onRunStarted);
+        return;
+      }
       if (leaseTarget.botKind === "roleplay") {
         await executeRoleplayRun(deps, roleplayRuntime, run, { workerId, fence }, onRunStarted);
         return;

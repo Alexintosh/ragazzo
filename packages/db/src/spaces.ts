@@ -326,6 +326,7 @@ export async function listClaimedSpaceBots(
     where: { spaceId: input.spaceId, space: { deletionClaimId: input.claimId } },
     select: {
       id: true,
+      conversationEngine: true,
       userId: true,
       spaceId: true,
       name: true,
@@ -467,13 +468,14 @@ export async function personalOrganizationIds(
  * so the last step can release it before final cleanup starts. A space another deletion is
  * still working on fails the account deletion until that claim finishes or goes stale.
  */
-export async function claimSpacesLeavingWithAccount(
-  prisma: PrismaClient,
+/** Read-only candidate enumeration shared with deletion preflight. Claims still recheck membership under lock. */
+export async function accountDeletionCandidateSpaces(
+  prisma: Pick<PrismaClient, "member" | "space">,
   userId: string,
-): Promise<string[]> {
+) {
   const organizationIds = await personalOrganizationIds(prisma, userId);
   const claimId = accountDeletionClaimId(userId);
-  const candidates = await prisma.space.findMany({
+  return prisma.space.findMany({
     where: {
       OR: [
         { organizationId: { in: organizationIds } },
@@ -484,6 +486,14 @@ export async function claimSpacesLeavingWithAccount(
     select: { id: true },
     orderBy: { createdAt: "asc" },
   });
+}
+
+export async function claimSpacesLeavingWithAccount(
+  prisma: PrismaClient,
+  userId: string,
+): Promise<string[]> {
+  const claimId = accountDeletionClaimId(userId);
+  const candidates = await accountDeletionCandidateSpaces(prisma, userId);
   const claimed: string[] = [];
   for (const { id } of candidates) {
     const won = await withTransactionRetry(() =>

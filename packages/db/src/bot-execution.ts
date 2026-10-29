@@ -72,6 +72,8 @@ export async function setBotExecution(
         where: { id: input.botId, spaceId: actor.spaceId, userId: actor.userId, archivedAt: null },
         include: { computer: true },
       });
+      if (bot?.conversationEngine === "eros")
+        throw new BotExecutionSettingsError("Eros manages its execution environment");
       if (!bot?.computer) throw new IsolationError();
       validateBotExecution(input, bot.botKind === "roleplay" ? "roleplay" : "agent");
       const active = await tx.run.findFirst({

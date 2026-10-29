@@ -530,3 +530,66 @@ it("finds incoming calls independently of the sidebar message window", async () 
   expect((await createRepos(prisma).listBots(actor))[0]?.incomingCall).toBeNull();
   expect(messageQuery).not.toHaveBeenCalled();
 });
+
+describe("Eros bot creation", () => {
+  const input = {
+    name: "Companion",
+    title: "",
+    description: "",
+    instructions: "",
+    notifyOnFinish: false,
+    botKind: "roleplay" as const,
+    conversationEngine: "eros" as const,
+    erosCharacterId: "cc0b7acf-d979-4e48-b027-26b04570ea57",
+  };
+  it("creates no computer, local memory, or greeting for externally owned conversation state", async () => {
+    let created: Record<string, unknown> = {};
+    const prisma = {
+      deploymentSettings: { findUnique: vi.fn(async () => null) },
+      $queryRaw: vi.fn(async (query) =>
+        (query.sql ?? String(query)).includes("nativeSetupDisabledAt")
+          ? [{ nativeSetupDisabledAt: null }]
+          : [],
+      ),
+      spaceMember: {
+        findUnique: vi.fn(async () => ({ organizationId: "org", space: { deletingAt: null } })),
+      },
+      bot: {
+        aggregate: vi.fn(async () => ({ _max: { position: null } })),
+        findMany: vi.fn(async () => []),
+        create: vi.fn(async ({ data }) => {
+          created = data;
+          return data;
+        }),
+        findFirstOrThrow: vi.fn(async () => ({ ...baseBot, ...created })),
+      },
+      thread: { create: vi.fn(async () => ({ id: "thread-1" })) },
+      computer: { create: vi.fn() },
+      message: { create: vi.fn() },
+      memoryDocument: { create: vi.fn() },
+      $transaction: vi.fn(async (fn) => fn(prisma)),
+    };
+    const bot = await createRepos(prisma as unknown as PrismaClient).createBot(actor, input);
+    expect(bot).toMatchObject({
+      conversationEngine: "eros",
+      erosCharacterId: input.erosCharacterId,
+      roleplayCharacter: null,
+    });
+    expect(created).toMatchObject({ computerId: null, fleetManagement: false, runtimeKind: "pi" });
+    expect(prisma.computer.create).not.toHaveBeenCalled();
+    expect(prisma.message.create).not.toHaveBeenCalled();
+    expect(prisma.memoryDocument.create).not.toHaveBeenCalled();
+  });
+  it("rejects invalid engine ownership before database access", async () => {
+    const repos = createRepos({} as PrismaClient);
+    await expect(repos.createBot(actor, { ...input, botKind: "agent" })).rejects.toThrow(
+      "Eros requires",
+    );
+    await expect(
+      repos.createBot(actor, { ...input, conversationEngine: "internal" }),
+    ).rejects.toThrow("Eros characters require");
+    await expect(
+      repos.createBot(actor, { ...input, erosCharacterId: "invalid" }),
+    ).rejects.toThrow();
+  });
+});

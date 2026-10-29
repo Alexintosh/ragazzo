@@ -67,8 +67,10 @@ export async function commitBotUpdate(
       await tx.$queryRaw`SELECT id FROM bots WHERE id = ${options.botId} FOR UPDATE`;
       const bot = await tx.bot.findUniqueOrThrow({
         where: { id: options.botId },
-        select: { botKind: true, roleplayCharacter: true },
+        select: { botKind: true, conversationEngine: true, roleplayCharacter: true },
       });
+      if (bot.conversationEngine === "eros")
+        throw new BotExecutionSettingsError("Eros owns its character settings");
       if (bot.botKind !== "roleplay")
         throw new BotExecutionSettingsError("Characters require a roleplay bot");
       if (

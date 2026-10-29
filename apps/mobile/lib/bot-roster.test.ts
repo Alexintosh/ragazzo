@@ -7,6 +7,8 @@ function bot(id = "bot-1"): Bot {
   return {
     id,
     botKind: "agent",
+    conversationEngine: "internal",
+    erosCharacterId: null,
     roleplayCharacter: null,
     runtimeKind: "pi",
     executionTarget: "default",

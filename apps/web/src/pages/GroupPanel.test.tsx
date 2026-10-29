@@ -78,6 +78,8 @@ function fakeBot(id: string, name: string, title: string): Bot {
     id,
     spaceId: "space-1",
     botKind: "agent",
+    conversationEngine: "internal",
+    erosCharacterId: null,
     roleplayCharacter: null,
     runtimeKind: "pi",
     executionTarget: "default",
@@ -364,9 +366,10 @@ describe("GroupSettings", () => {
   });
 });
 
-
 it("excludes Roleplay bots from group member choices", async () => {
-  await render({ bots: [...bots, { ...fakeBot("rp", "Aster", "Character"), botKind: "roleplay" }] });
+  await render({
+    bots: [...bots, { ...fakeBot("rp", "Aster", "Character"), botKind: "roleplay" }],
+  });
   await click("Show all");
   expect(container.textContent).not.toContain("Aster");
 });

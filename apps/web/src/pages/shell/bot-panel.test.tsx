@@ -111,6 +111,8 @@ function bot(description = "Billing", overrides: Partial<Bot> = {}): Bot {
     id: "bot-1",
     spaceId: "space-1",
     botKind: "agent",
+    conversationEngine: "internal",
+    erosCharacterId: null,
     roleplayCharacter: null,
     runtimeKind: "pi",
     executionTarget: "default",
@@ -761,4 +763,30 @@ it("saves roleplay changes independently and keeps the draft after a rejected ch
   expect(container.querySelector('[data-testid="roleplay-settings"]')?.textContent).not.toContain(
     "Save changes",
   );
+});
+
+it("hides local engine controls and omits local execution settings when saving an Eros bot", async () => {
+  await render("Companion", {
+    botKind: "roleplay",
+    conversationEngine: "eros",
+    erosCharacterId: "00000000-0000-4000-8000-000000000001",
+  });
+  expect(container.textContent).toContain("Eros");
+  expect(container.querySelector('[data-testid="roleplay-settings"]')).toBeNull();
+  await expandAdvanced();
+  expect(container.querySelector('[id$="-model"]')).toBeNull();
+  expect(container.querySelector('[id$="-runtime"]')).toBeNull();
+  await setDescription("Changed companion label");
+  await clickSave();
+  const patch = onSave.mock.lastCall?.[0];
+  expect(patch).toMatchObject({ description: "Changed companion label" });
+  for (const field of [
+    "runtimeKind",
+    "computerMode",
+    "modelProvider",
+    "modelId",
+    "thinkingLevel",
+    "memoryScope",
+  ])
+    expect(patch).not.toHaveProperty(field);
 });

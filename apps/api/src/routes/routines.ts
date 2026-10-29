@@ -43,6 +43,10 @@ export function routinesRoutes(ctx: RouterContext) {
       create: authed.routines.create.handler(async ({ context, input }) => {
         assertRoutineSchedule(input);
         const bot = await repos.getBot(context.actor, input.botId);
+        if (bot.conversationEngine === "eros")
+          throw new ORPCError("BAD_REQUEST", {
+            message: "This engine does not support scheduled messages",
+          });
         assertRoleplayRoutine(bot.botKind, input);
         if (input.watch) {
           try {
@@ -80,6 +84,10 @@ export function routinesRoutes(ctx: RouterContext) {
         });
         if (!existing) throw new ORPCError("NOT_FOUND");
         const bot = await repos.getBot(context.actor, existing.botId);
+        if (bot.conversationEngine === "eros")
+          throw new ORPCError("BAD_REQUEST", {
+            message: "This engine does not support scheduled messages",
+          });
         assertRoleplayRoutine(bot.botKind, {
           watch: input.watch === undefined ? existing.watch : input.watch,
           webhookEnabled: input.webhookEnabled ?? existing.webhookEnabled,
@@ -320,6 +328,10 @@ export function routinesRoutes(ctx: RouterContext) {
           });
           if (existing) return { runId: existing.id };
         }
+        if (bot.conversationEngine === "eros")
+          throw new ORPCError("BAD_REQUEST", {
+            message: "This engine does not support scheduled messages",
+          });
         assertRoleplayRoutine(bot.botKind, routine);
         const skillRecords =
           bot.botKind === "roleplay" ? [] : await agentSkills.listWithContent(context.actor);

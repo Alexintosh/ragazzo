@@ -205,12 +205,23 @@ export function threadsRoutes(ctx: RouterContext) {
         const target = await resolveThreadTarget(deps.prisma, context.actor, input);
         if (target.kind === "bot" && target.bot.botKind === "roleplay") {
           if (!deps.env.roleplayEnabled)
-            throw new ORPCError("BAD_REQUEST", { message: "Roleplay is not enabled on this server" });
+            throw new ORPCError("BAD_REQUEST", {
+              message: "Roleplay is not enabled on this server",
+            });
           if (input.artifactIds?.length)
-            throw new ORPCError("BAD_REQUEST", { message: "Roleplay currently supports text messages only" });
+            throw new ORPCError("BAD_REQUEST", {
+              message: "Roleplay currently supports text messages only",
+            });
         }
-        const nativeBot = target.kind === "bot" && ["codex", "claude", "acp"].includes(target.bot.runtimeKind ?? "pi");
-        if (!nativeBot && (await modelSetup(deps, context.actor)).needsModel) {
+        const nativeBot =
+          target.kind === "bot" &&
+          ["codex", "claude", "acp"].includes(target.bot.runtimeKind ?? "pi");
+        const externalEngine = target.kind === "bot" && target.bot.conversationEngine === "eros";
+        if (externalEngine && !deps.conversationEngines?.has("eros"))
+          throw new ORPCError("BAD_REQUEST", {
+            message: "This conversation engine is unavailable",
+          });
+        if (!nativeBot && !externalEngine && (await modelSetup(deps, context.actor)).needsModel) {
           throw new ORPCError("BAD_REQUEST", { message: MODEL_REQUIRED_SEND_ERROR });
         }
         if (target.kind === "bot") {
@@ -229,7 +240,9 @@ export function threadsRoutes(ctx: RouterContext) {
       react: authed.threads.react.handler(async ({ context, input }) => {
         const target = await resolveThreadTarget(deps.prisma, context.actor, input);
         // Without a model or while teaching, the reaction is still saved; it just starts no turn.
-        const nativeBot = target.kind === "bot" && ["codex", "claude", "acp"].includes(target.bot.runtimeKind ?? "pi");
+        const nativeBot =
+          target.kind === "bot" &&
+          ["codex", "claude", "acp"].includes(target.bot.runtimeKind ?? "pi");
         const mayStartTurn =
           (target.kind !== "bot" || target.bot.botKind !== "roleplay") &&
           (nativeBot || !(await modelSetup(deps, context.actor)).needsModel) &&
@@ -261,6 +274,11 @@ export function threadsRoutes(ctx: RouterContext) {
       }),
       clear: authed.threads.clear.handler(async ({ context, input }) => {
         const target = await resolveThreadTarget(deps.prisma, context.actor, input);
+        if (target.kind === "bot" && target.bot.conversationEngine === "eros")
+          throw new ORPCError("BAD_REQUEST", {
+            message:
+              "This engine retains its own history. Create a new bot for a separate conversation.",
+          });
         const { cancelledRunIds, historyCompactionGeneration } = await clearThreadMessageHistory(
           deps,
           context.actor,

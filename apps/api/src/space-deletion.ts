@@ -127,6 +127,9 @@ export async function deleteSpaceWithContent(
       await assertClaim();
     };
 
+    const claimedBots = await listClaimedSpaceBots(deps.prisma, claimedInput);
+    if (claimedBots.some((bot) => bot.conversationEngine === "eros"))
+      throw new Error("External engine data requires operator cleanup before deleting this space.");
     if (deps.nativeSetupCleanup) {
       await teardown(async () => {
         const owners = await runAsSystem("claimed Space setup teardown owners", () =>
@@ -136,7 +139,7 @@ export async function deleteSpaceWithContent(
       }, "Space runtime setup teardown timed out");
     }
 
-    for (const bot of await listClaimedSpaceBots(deps.prisma, claimedInput)) {
+    for (const bot of claimedBots) {
       try {
         await teardown(
           () =>

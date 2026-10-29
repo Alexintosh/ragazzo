@@ -1090,6 +1090,7 @@ function SpaceShell() {
                 !inGroup &&
                 active &&
                 activeSnapshot &&
+                active.conversationEngine !== "eros" &&
                 !activeSnapshot.messages.some((message) => message.role === "user")
                   ? active.runtimeKind
                   : undefined
@@ -1098,6 +1099,7 @@ function SpaceShell() {
               onSend={composer.sendMessage}
               onQueue={workQueue.queue ? workQueue.enqueue : undefined}
               onStop={stopRun}
+              stopReceiving={active?.conversationEngine === "eros"}
               phoneCallsEnabled={bootstrapMe?.phoneCallsEnabled === true}
               dictationTranscribe={voiceStatus ? Boolean(voiceStatus.transcribe) : undefined}
               artifactTarget={transcriptArtifactTarget}

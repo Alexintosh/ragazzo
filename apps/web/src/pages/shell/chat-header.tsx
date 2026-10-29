@@ -48,7 +48,7 @@ export function ChatHeader({
         >
           <Menu strokeWidth={1.7} className="size-[19px]" />
         </Button>
-        {!inGroup && active ? (
+        {!inGroup && active && active.conversationEngine !== "eros" ? (
           <div className="pointer-events-auto absolute start-3 top-16 max-w-[calc(100%_-_1.5rem)] md:static md:max-w-full">
             <BotModelPicker bot={active} onSaved={onModelSaved} />
           </div>

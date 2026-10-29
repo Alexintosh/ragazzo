@@ -6,6 +6,7 @@ import type {
   AutoReviewProvider,
   BrowserProvider,
   ConnectorProvider,
+  ConversationEngine,
   JobPublisher,
   ManagedConnectorProvider,
   MediaGenerationProvider,
@@ -25,6 +26,7 @@ import type { RoleplayRuntime } from "./roleplay-runtime.js";
 import type { TicketChangeNotifier } from "./ticket-changes.js";
 
 export interface ExecutorDeps {
+  conversationEngines?: ReadonlyMap<string, ConversationEngine>;
   /** Enable only after all API and worker processes have the dedicated roleplay runtime. */
   roleplayEnabled?: boolean;
   roleplayRuntime?: RoleplayRuntime;

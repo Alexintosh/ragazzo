@@ -2,6 +2,7 @@ export * from "./analytics.js";
 export * from "./background-jobs.js";
 export * from "./billing-errors.js";
 export * from "./cloud-agents.js";
+export * from "./conversation-engine.js";
 export * from "./decisions.js";
 export * from "./interfaces.js";
 export * from "./media-generation.js";

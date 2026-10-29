@@ -1,0 +1,380 @@
+import { createHmac } from "node:crypto";
+import type {
+  ConversationEngine,
+  ConversationEngineCharacter,
+  ConversationEngineEvent,
+} from "@rakazo/adapter-kit";
+import { ConversationEngineError } from "@rakazo/adapter-kit";
+import {
+  ipVersion,
+  isCloudMetadataHost,
+  isLinkLocalAddress,
+  isLoopbackHost,
+  isNonPublicAddress,
+  normalizeHost,
+} from "@rakazo/contracts";
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const MAX_STREAM_BYTES = 2 * 1024 * 1024;
+const MAX_FRAME_CHARS = 128 * 1024;
+const MAX_TEXT_CHARS = 128 * 1024;
+const MAX_JSON_BYTES = 16 * 1024;
+
+export interface ErosConversationEngineConfig {
+  id: "eros";
+  baseUrl: string;
+  jwtSecret: string;
+  callerSecret?: string;
+  characters: readonly ConversationEngineCharacter[];
+}
+
+export interface ConversationEngineTransportOptions {
+  fetch?: typeof globalThis.fetch;
+  /** Test/embedding override, always bounded to ten minutes. */
+  timeoutMs?: number;
+}
+
+/** Only the deployment composition root supplies this URL, never a bot or request. */
+export function normalizeConversationEngineBaseUrl(raw: string): string {
+  let url: URL;
+  try {
+    url = new URL(raw);
+  } catch {
+    throw new Error("Invalid conversation engine service URL");
+  }
+  const hostname = normalizeHost(url.hostname);
+  if (
+    !["http:", "https:"].includes(url.protocol) ||
+    url.username ||
+    url.password ||
+    url.search ||
+    url.hash ||
+    isCloudMetadataHost(hostname) ||
+    (ipVersion(hostname) !== 0 && isLinkLocalAddress(hostname))
+  ) {
+    throw new Error("Invalid conversation engine service URL");
+  }
+  // Private services may use Docker DNS or an explicitly configured internal host.
+  // Credentials sent to public services require TLS.
+  const privateHttp =
+    isLoopbackHost(hostname) ||
+    (ipVersion(hostname) !== 0 && isNonPublicAddress(hostname)) ||
+    (!hostname.includes(".") && ipVersion(hostname) === 0) ||
+    hostname.endsWith(".internal");
+  if (url.protocol === "http:" && !privateHttp) {
+    throw new Error("Conversation engine public services require HTTPS");
+  }
+  return url.toString().replace(/\/+$/, "");
+}
+
+export function isConversationEngineUuid(value: string): boolean {
+  return UUID.test(value);
+}
+
+function object(value: unknown): Record<string, unknown> {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    throw new ConversationEngineError("uncertain", true);
+  }
+  return value as Record<string, unknown>;
+}
+
+async function readJson(response: Response): Promise<Record<string, unknown>> {
+  if (!response.body) throw new ConversationEngineError("uncertain", true);
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder("utf-8", { fatal: true });
+  let size = 0;
+  let body = "";
+  try {
+    while (true) {
+      const next = await reader.read();
+      if (next.done) break;
+      size += next.value.byteLength;
+      if (size > MAX_JSON_BYTES) throw new ConversationEngineError("uncertain", true);
+      body += decoder.decode(next.value, { stream: true });
+    }
+    body += decoder.decode();
+    return object(JSON.parse(body));
+  } finally {
+    await reader.cancel().catch(() => {});
+    reader.releaseLock();
+  }
+}
+
+function requestLifetime(signal: AbortSignal | undefined, timeoutMs: number) {
+  const controller = new AbortController();
+  const abort = () => controller.abort();
+  signal?.addEventListener("abort", abort, { once: true });
+  if (signal?.aborted) abort();
+  const timeout = setTimeout(abort, timeoutMs);
+  timeout.unref();
+  return {
+    signal: controller.signal,
+    dispose() {
+      clearTimeout(timeout);
+      signal?.removeEventListener("abort", abort);
+      controller.abort();
+    },
+  };
+}
+
+/** One SSE event per yield, with limits before decoding/parsing untrusted data. */
+async function* frames(response: Response): AsyncGenerator<Record<string, unknown>> {
+  if (!response.body) throw new ConversationEngineError("uncertain", true);
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder("utf-8", { fatal: true });
+  let bytes = 0;
+  let buffer = "";
+  let data: string[] = [];
+  let frameChars = 0;
+  try {
+    while (true) {
+      const chunk = await reader.read();
+      if (chunk.done) break;
+      bytes += chunk.value.byteLength;
+      if (bytes > MAX_STREAM_BYTES) throw new ConversationEngineError("uncertain", true);
+      buffer += decoder.decode(chunk.value, { stream: true });
+      while (buffer.includes("\n")) {
+        const newline = buffer.indexOf("\n");
+        const line = buffer.slice(0, newline).replace(/\r$/, "");
+        buffer = buffer.slice(newline + 1);
+        frameChars += line.length;
+        if (frameChars > MAX_FRAME_CHARS) throw new ConversationEngineError("uncertain", true);
+        if (line === "") {
+          if (data.length) yield object(JSON.parse(data.join("\n")));
+          data = [];
+          frameChars = 0;
+        } else if (line.startsWith("data:")) {
+          data.push(line.slice(5).replace(/^ /, ""));
+        }
+      }
+      if (buffer.length + frameChars > MAX_FRAME_CHARS) {
+        throw new ConversationEngineError("uncertain", true);
+      }
+    }
+    // An unfinished event is never a terminal success. The caller requires final.
+    decoder.decode();
+  } finally {
+    await reader.cancel().catch(() => {});
+    reader.releaseLock();
+  }
+}
+
+/** HTTP integration with Eros 2.5.2; no upstream runtime or source is embedded. */
+export class ErosConversationEngine implements ConversationEngine {
+  readonly id = "eros";
+  readonly name = "Eros";
+  readonly capabilities = Object.freeze({ streaming: true, tools: false, cancel: false });
+  readonly characters: readonly ConversationEngineCharacter[];
+  readonly #baseUrl: string;
+  readonly #jwtSecret: string;
+  readonly #callerSecret: string | undefined;
+  readonly #fetch: typeof globalThis.fetch;
+  readonly #timeoutMs: number;
+
+  constructor(
+    config: ErosConversationEngineConfig,
+    options: ConversationEngineTransportOptions = {},
+  ) {
+    this.#baseUrl = normalizeConversationEngineBaseUrl(config.baseUrl);
+    if (config.jwtSecret.length < 32 || (config.callerSecret && config.callerSecret.length < 32)) {
+      throw new Error("Conversation engine credentials require at least 32 characters");
+    }
+    if (
+      !config.characters.length ||
+      config.characters.some((character) => !UUID.test(character.id) || !character.name.trim()) ||
+      new Set(config.characters.map((character) => character.id)).size !== config.characters.length
+    ) {
+      throw new Error("Invalid conversation engine characters");
+    }
+    const timeoutMs = options.timeoutMs ?? 120_000;
+    if (!Number.isFinite(timeoutMs) || timeoutMs < 1 || timeoutMs > 600_000) {
+      throw new Error("Invalid conversation engine timeout");
+    }
+    this.#jwtSecret = config.jwtSecret;
+    this.#callerSecret = config.callerSecret;
+    this.#fetch = options.fetch ?? globalThis.fetch;
+    this.#timeoutMs = timeoutMs;
+    this.characters = Object.freeze(
+      config.characters.map(({ id, name }) => Object.freeze({ id, name: name.trim() })),
+    );
+  }
+
+  #headers(userId: string, accept: string): Record<string, string> {
+    if (!UUID.test(userId)) throw new ConversationEngineError("invalid_request");
+    const now = Math.floor(Date.now() / 1000);
+    const header = Buffer.from(JSON.stringify({ alg: "HS256", typ: "JWT" })).toString("base64url");
+    const payload = Buffer.from(
+      JSON.stringify({ sub: userId, iat: now, exp: now + 300, iss: "rakazo", aud: "eros-engine" }),
+    ).toString("base64url");
+    const body = `${header}.${payload}`;
+    const signature = createHmac("sha256", this.#jwtSecret).update(body).digest("base64url");
+    return {
+      authorization: `Bearer ${body}.${signature}`,
+      "content-type": "application/json",
+      accept,
+      ...(this.#callerSecret ? { "x-caller-secret": this.#callerSecret } : {}),
+    };
+  }
+
+  async #checkResponse(response: Response): Promise<void> {
+    if (response.ok) return;
+    let code: unknown;
+    try {
+      code = (await readJson(response)).code;
+    } catch {
+      // An error body is diagnostic only; never copy it into a user-visible error.
+    }
+    if (response.status === 409 && code === "duplicate_in_progress") {
+      throw new ConversationEngineError("duplicate_in_progress", true);
+    }
+    if (response.status === 409 && code === "duplicate_failed") {
+      throw new ConversationEngineError("duplicate_failed");
+    }
+    if (response.status === 429) throw new ConversationEngineError("unavailable", true);
+    if (response.status >= 400 && response.status < 500) {
+      throw new ConversationEngineError("failed");
+    }
+    throw new ConversationEngineError("uncertain", true);
+  }
+
+  async provision(input: { userId: string; characterId: string }, signal?: AbortSignal) {
+    if (!this.characters.some((character) => character.id === input.characterId)) {
+      throw new ConversationEngineError("invalid_request");
+    }
+    const headers = this.#headers(input.userId, "application/json");
+    const lifetime = requestLifetime(signal, this.#timeoutMs);
+    try {
+      const response = await this.#fetch(`${this.#baseUrl}/comp/chat/start`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ genome_id: input.characterId, channel: "text" }),
+        redirect: "error",
+        signal: lifetime.signal,
+      });
+      await this.#checkResponse(response);
+      const result = await readJson(response);
+      if (
+        typeof result.session_id !== "string" ||
+        !UUID.test(result.session_id) ||
+        typeof result.instance_id !== "string" ||
+        !UUID.test(result.instance_id)
+      ) {
+        throw new ConversationEngineError("uncertain", true);
+      }
+      return { sessionId: result.session_id, instanceId: result.instance_id };
+    } catch (error) {
+      if (error instanceof ConversationEngineError) throw error;
+      throw new ConversationEngineError("uncertain", true);
+    } finally {
+      lifetime.dispose();
+    }
+  }
+
+  async *stream(
+    input: { userId: string; sessionId: string; clientMessageId: string; text: string },
+    signal?: AbortSignal,
+  ): AsyncGenerator<ConversationEngineEvent> {
+    if (
+      !UUID.test(input.sessionId) ||
+      !UUID.test(input.clientMessageId) ||
+      input.text.length > 8192 ||
+      !input.text.trim() ||
+      [...input.text].length > 4096
+    ) {
+      throw new ConversationEngineError("invalid_request");
+    }
+    const headers = this.#headers(input.userId, "text/event-stream");
+    const lifetime = requestLifetime(signal, this.#timeoutMs);
+    let text = "";
+    let messageId: string | undefined;
+    let done = false;
+    let ghost = false;
+    let truncated = false;
+    try {
+      const response = await this.#fetch(
+        `${this.#baseUrl}/comp/chat/${input.sessionId}/message/stream`,
+        {
+          method: "POST",
+          headers,
+          body: JSON.stringify({ content: input.text, client_msg_id: input.clientMessageId }),
+          redirect: "error",
+          signal: lifetime.signal,
+        },
+      );
+      await this.#checkResponse(response);
+      if (!/^text\/event-stream(?:\s*;|$)/i.test(response.headers.get("content-type") ?? "")) {
+        await response.body?.cancel().catch(() => {});
+        throw new ConversationEngineError("uncertain", true);
+      }
+      for await (const frame of frames(response)) {
+        switch (frame.type) {
+          case "meta": {
+            if (typeof frame.message_id !== "string" || !frame.message_id) {
+              throw new ConversationEngineError("uncertain", true);
+            }
+            if (messageId !== undefined && !done) {
+              throw new ConversationEngineError("uncertain", true);
+            }
+            if (messageId !== undefined && frame.continues_from == null) {
+              text = "";
+              yield { type: "replace", text };
+            } else if (messageId !== undefined && frame.continues_from !== messageId) {
+              throw new ConversationEngineError("uncertain", true);
+            }
+            messageId = frame.message_id;
+            ghost = frame.action_type === "ghost";
+            done = false;
+            break;
+          }
+          case "delta": {
+            if (
+              !messageId ||
+              done ||
+              frame.message_id !== messageId ||
+              typeof frame.content !== "string"
+            ) {
+              throw new ConversationEngineError("uncertain", true);
+            }
+            text += frame.content;
+            if (text.length > MAX_TEXT_CHARS) throw new ConversationEngineError("uncertain", true);
+            yield { type: "text", text: frame.content };
+            break;
+          }
+          case "done": {
+            if (
+              !messageId ||
+              done ||
+              frame.message_id !== messageId ||
+              typeof frame.truncated !== "boolean"
+            ) {
+              throw new ConversationEngineError("uncertain", true);
+            }
+            done = true;
+            truncated = frame.truncated;
+            ghost ||= frame.ghost_fallback === true;
+            break;
+          }
+          case "final": {
+            if (!messageId || !done) throw new ConversationEngineError("uncertain", true);
+            // Eros persists text before final, then starts asynchronous memory and
+            // affinity work. No API acknowledges completion of those background jobs.
+            yield { type: "final", text, ghost, truncated };
+            return;
+          }
+          case "error":
+            throw new ConversationEngineError("failed");
+          default:
+            // Reasoning and future presentation frames never execute Rakazo tools.
+            break;
+        }
+      }
+      throw new ConversationEngineError("uncertain", true);
+    } catch (error) {
+      if (error instanceof ConversationEngineError) throw error;
+      // A timeout, disconnect or malformed frame cannot prove the detached turn stopped.
+      throw new ConversationEngineError("uncertain", true);
+    } finally {
+      lifetime.dispose();
+    }
+  }
+}

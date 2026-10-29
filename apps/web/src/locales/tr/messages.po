@@ -1232,6 +1232,7 @@ msgstr ""
 msgid "Changing…"
 msgstr "Değiştiriliyor…"
 
+#: src/pages/shell/create-bot-dialog.tsx
 #: src/pages/shell/roleplay-settings.tsx
 msgid "Character"
 msgstr ""
@@ -1784,6 +1785,11 @@ msgstr ""
 
 #: src/pages/shell/computer-overlay.tsx
 msgid "Conversation"
+msgstr ""
+
+#: src/pages/shell/bot-panel.tsx
+#: src/pages/shell/create-bot-dialog.tsx
+msgid "Conversation engine"
 msgstr ""
 
 #: src/pages/shell/chat-header.tsx
@@ -3182,6 +3188,10 @@ msgstr "Genel"
 msgid "Generated"
 msgstr ""
 
+#: src/pages/shell/composer.tsx
+msgid "Generation may finish in the conversation engine."
+msgstr ""
+
 #: src/pages/shell/roleplay-settings.tsx
 msgid "Gentle"
 msgstr "Seyrek"
@@ -3487,6 +3497,10 @@ msgstr ""
 #: src/pages/PluginsOverlay.tsx
 msgid "Integrations"
 msgstr "Entegrasyonlar"
+
+#: src/pages/shell/create-bot-dialog.tsx
+msgid "Internal"
+msgstr ""
 
 #: src/pages/RoutineEditor.tsx
 #: src/pages/RoutineSchedule.tsx
@@ -5562,6 +5576,10 @@ msgstr "Güvenlik"
 msgid "Select a bot"
 msgstr "Bir bot seç"
 
+#: src/pages/shell/create-bot-dialog.tsx
+msgid "Select a character"
+msgstr ""
+
 #: src/pages/memory-providers/ConnectionModeFields.tsx
 msgid "Self-hosted"
 msgstr "Kendi sunucunuz"
@@ -6003,6 +6021,10 @@ msgstr "Durdur"
 
 #: src/components/ComputerMaintenanceActions.tsx
 msgid "Stop computer"
+msgstr ""
+
+#: src/pages/shell/composer.tsx
+msgid "Stop receiving"
 msgstr ""
 
 #: src/pages/shell/message-view.tsx

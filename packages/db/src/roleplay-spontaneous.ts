@@ -52,7 +52,7 @@ export async function roleplaySpontaneousSnapshot(
   const { userId, spaceId, botId, threadId } = identity;
   const [bot, thread, user] = await Promise.all([
     db.bot.findFirst({
-      where: { id: botId, userId, spaceId, archivedAt: null },
+      where: { id: botId, userId, spaceId, archivedAt: null, conversationEngine: "internal" },
       select: { roleplayCharacter: true, botKind: true, updatedAt: true },
     }),
     db.thread.findFirst({

@@ -1,6 +1,10 @@
 import { setTimeout as sleep } from "node:timers/promises";
 import type { JobPublisher, JobWorkerHost } from "@rakazo/adapter-kit";
-import { ComposioConnector, IntegrationProviderSettings } from "@rakazo/adapters";
+import {
+  ComposioConnector,
+  createConversationEngines,
+  IntegrationProviderSettings,
+} from "@rakazo/adapters";
 import { phoneCallSettings } from "@rakazo/core";
 import { loadRootEnv } from "@rakazo/core/node/load-root-env";
 import { startWorkerHealth } from "./health.js";
@@ -249,6 +253,7 @@ async function main() {
     accessToken: process.env.EXPO_ACCESS_TOKEN,
   });
   const executor = createRunExecutor({
+    conversationEngines: createConversationEngines(),
     roleplayEnabled: process.env.ROLEPLAY_ENABLED === "true",
     runtimes: { codex: nativeRuntime, claude: claudeRuntime, acp: acpRuntime },
     maxUploadSizeBytes: uploadSizeFromEnv(process.env),

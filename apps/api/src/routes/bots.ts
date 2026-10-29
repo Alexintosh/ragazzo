@@ -6,6 +6,7 @@ import {
   archiveBot,
   cancelComputerRunWork,
   checkpointAndStopComputer,
+  describeConversationEngines,
   forgetBotSecret,
   hasActiveComputerControl,
   listBotSecretMetadata,
@@ -238,6 +239,17 @@ export function botsRoutes(ctx: RouterContext) {
       listArchived: authed.bots.listArchived.handler(async ({ context }) =>
         repos.listBots(context.actor, { archived: true }),
       ),
+      conversationEngines: authed.bots.conversationEngines.handler(() =>
+        deps.env.roleplayEnabled
+          ? describeConversationEngines(deps.conversationEngines ?? new Map())
+              .filter((engine) => engine.id === "eros")
+              .map((engine) => ({
+                ...engine,
+                id: "eros" as const,
+                characters: [...engine.characters],
+              }))
+          : [],
+      ),
       roleplayRelationship: authed.bots.roleplayRelationship.handler(({ context, input }) =>
         loadRoleplayRelationship(deps, context.actor, input.botId),
       ),
@@ -272,10 +284,22 @@ export function botsRoutes(ctx: RouterContext) {
       create: authed.bots.create.handler(async ({ context, input }) => {
         if (input.botKind === "roleplay" && !deps.env.roleplayEnabled)
           throw new ORPCError("BAD_REQUEST", { message: "Roleplay is not enabled on this server" });
-        if (input.botKind === "roleplay" && deps.env.sandboxProvider !== "docker")
+        if (
+          input.botKind === "roleplay" &&
+          input.conversationEngine !== "eros" &&
+          deps.env.sandboxProvider !== "docker"
+        )
           throw new ORPCError("BAD_REQUEST", {
             message: "Roleplay requires Docker on this server",
           });
+        if (input.conversationEngine === "eros") {
+          const engine = describeConversationEngines(deps.conversationEngines ?? new Map()).find(
+            (item) => item.id === "eros",
+          );
+          if (!engine?.characters.some((item) => item.id === input.erosCharacterId))
+            throw new ORPCError("BAD_REQUEST", { message: "Choose an available engine character" });
+          return repos.createBot(context.actor, input);
+        }
         await assertRoleplaySpontaneousTimezone(deps, context.actor, input.roleplayCharacter);
         if (
           input.executionTarget === "host" &&
@@ -369,13 +393,19 @@ export function botsRoutes(ctx: RouterContext) {
         const source = await repos.getBot(context.actor, input.botId);
         if (source.botKind === "roleplay" && !deps.env.roleplayEnabled)
           throw new ORPCError("BAD_REQUEST", { message: "Roleplay is not enabled on this server" });
-        if (source.botKind === "roleplay" && deps.env.sandboxProvider !== "docker")
+        if (
+          source.botKind === "roleplay" &&
+          source.conversationEngine !== "eros" &&
+          deps.env.sandboxProvider !== "docker"
+        )
           throw new ORPCError("BAD_REQUEST", {
             message: "Roleplay requires Docker on this server",
           });
         const duplicate = await repos
           .createBot(context.actor, {
             botKind: source.botKind === "roleplay" ? "roleplay" : "agent",
+            conversationEngine: source.conversationEngine === "eros" ? "eros" : "internal",
+            erosCharacterId: source.erosCharacterId,
             roleplayCharacter:
               source.roleplayCharacter == null
                 ? null
@@ -422,6 +452,17 @@ export function botsRoutes(ctx: RouterContext) {
       }),
       update: authed.bots.update.handler(async ({ context, input }) => {
         const existing = await repos.getBot(context.actor, input.botId);
+        if (
+          existing.conversationEngine === "eros" &&
+          (input.roleplayCharacter !== undefined ||
+            input.instructions !== undefined ||
+            input.modelId !== undefined ||
+            input.modelProvider !== undefined ||
+            input.thinkingLevel !== undefined)
+        )
+          throw new ORPCError("BAD_REQUEST", {
+            message: "Character and model settings are managed by this engine",
+          });
         await assertRoleplaySpontaneousTimezone(deps, context.actor, input.roleplayCharacter);
         if (input.roleplayCharacter !== undefined && existing.botKind !== "roleplay")
           throw new ORPCError("BAD_REQUEST", { message: "Characters require a roleplay bot" });
@@ -607,6 +648,10 @@ export function botsRoutes(ctx: RouterContext) {
         try {
           // Verify ownership before resolving a path on any host; the commit rechecks it under lock.
           const bot = await repos.getBot(context.actor, input.botId);
+          if (bot.conversationEngine === "eros")
+            throw new ORPCError("BAD_REQUEST", {
+              message: "Execution is managed by this conversation engine",
+            });
           validateBotExecution(input, bot.botKind === "roleplay" ? "roleplay" : "agent");
           const execution = await resolveNativeProjectConfig(
             deps,
@@ -630,6 +675,10 @@ export function botsRoutes(ctx: RouterContext) {
       }),
       setComputer: authed.bots.setComputer.handler(async ({ context, input }) => {
         const bot = await repos.getBot(context.actor, input.botId);
+        if (bot.conversationEngine === "eros")
+          throw new ORPCError("BAD_REQUEST", {
+            message: "This conversation engine does not use a computer",
+          });
         if (!bot.computer) throw new IsolationError();
         if (bot.botKind === "roleplay" && input.mode !== "dedicated")
           throw new ORPCError("BAD_REQUEST", {

@@ -536,6 +536,9 @@ model RegisteredHostCleanup {
 model Bot {
   botKind String @default("agent")
   roleplayCharacter Json?
+  conversationEngine String @default("internal")
+  erosCharacterId String?
+  companionSessions CompanionSession[]
   screenGeneration Int @default(0)
   id                String            @id @default(cuid())
   spaceId           String
@@ -680,6 +683,7 @@ model ChatGroupMember {
 }
 
 model Thread {
+  companionSessions CompanionSession[]
   roleplayState Json?
   id                          String     @id @default(cuid())
   spaceId                     String
@@ -845,6 +849,7 @@ model NativeExecutionReservation {
 }
 
 model Run {
+  companionTurn CompanionTurn?
   id                   String            @id @default(cuid())
   spaceId              String
   space                Space             @relation(fields: [spaceId], references: [id], onDelete: Cascade)
@@ -2058,4 +2063,50 @@ model MessagingInstallSession {
   expiresAt DateTime
   @@index([expiresAt])
   @@map("messaging_install_sessions")
+}
+
+/// External companion state is retained until explicit remote teardown succeeds.
+model CompanionSession {
+  id String @id @default(cuid())
+  spaceId String
+  userId String
+  botId String
+  bot Bot @relation(fields: [botId], references: [id], onDelete: Restrict)
+  threadId String
+  thread Thread @relation(fields: [threadId], references: [id], onDelete: Restrict)
+  historyGeneration Int
+  engineUserId String @unique
+  engineSessionId String? @unique
+  engineInstanceId String?
+  leaseRunId String?
+  leaseFence Int?
+  leaseExpiresAt DateTime?
+  status String @default("active")
+  turns CompanionTurn[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@unique([threadId, historyGeneration])
+  @@index([spaceId, userId])
+  @@map("companion_sessions")
+}
+
+model CompanionTurn {
+  id String @id @default(cuid())
+  runId String @unique
+  run Run @relation(fields: [runId], references: [id], onDelete: Restrict)
+  sessionId String
+  session CompanionSession @relation(fields: [sessionId], references: [id], onDelete: Restrict)
+  spaceId String
+  userId String
+  clientMessageId String @unique
+  status String @default("prepared")
+  engineUserMessageId String?
+  input String
+  response String?
+  error String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([sessionId, status])
+  @@index([spaceId, userId])
+  @@map("companion_turns")
 }

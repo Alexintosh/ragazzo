@@ -67,6 +67,7 @@ export const Composer = memo(function Composer({
   onSend,
   onQueue,
   onStop,
+  stopReceiving = false,
   phoneCallsEnabled,
   dictationTranscribe,
   replyTarget,
@@ -105,6 +106,7 @@ export const Composer = memo(function Composer({
   onSend: (text: string, mentions: ComposerMention[], clientNonce: string) => Promise<boolean>;
   onQueue?: (text: string, clientNonce: string) => Promise<boolean>;
   onStop: () => Promise<void>;
+  stopReceiving?: boolean;
   phoneCallsEnabled?: boolean;
   /** Hold-to-talk falls back to the voice provider's transcription; undefined while unknown. */
   dictationTranscribe?: boolean;
@@ -952,7 +954,10 @@ export const Composer = memo(function Composer({
               <Button
                 variant="outline"
                 size="icon"
-                aria-label={t`Stop`}
+                aria-label={stopReceiving ? t`Stop receiving` : t`Stop`}
+                title={
+                  stopReceiving ? t`Generation may finish in the conversation engine.` : undefined
+                }
                 disabled={sending}
                 onClick={() => void onStop()}
                 className="size-8 rounded-full border border-border bg-muted text-foreground/80 shadow-sm transition-colors hover:bg-accent hover:text-foreground"

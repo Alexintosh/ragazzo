@@ -1,5 +1,7 @@
 import type { Actor, Bot, BotSection, MessageBlock, SpaceBot } from "@rakazo/contracts";
 import {
+  BotSchema,
+  ConversationEngineSchema,
   canonicalPiProviderId,
   InstructionVersionSchema,
   initialBotMemory,
@@ -70,6 +72,8 @@ function mapBot(
   bot: {
     id: string;
     botKind?: string;
+    conversationEngine?: string;
+    erosCharacterId?: string | null;
     roleplayCharacter?: unknown;
     spaceId: string;
     name: string;
@@ -120,6 +124,8 @@ function mapBot(
   return {
     id: bot.id,
     botKind: bot.botKind === "roleplay" ? "roleplay" : "agent",
+    conversationEngine: ConversationEngineSchema.parse(bot.conversationEngine ?? "internal"),
+    erosCharacterId: bot.erosCharacterId ?? null,
     roleplayCharacter:
       bot.roleplayCharacter == null ? null : RoleplayCharacterSchema.parse(bot.roleplayCharacter),
     spaceId: bot.spaceId,
@@ -518,6 +524,8 @@ export function createRepos(
       actor: Actor,
       input: {
         botKind?: Bot["botKind"];
+        conversationEngine?: Bot["conversationEngine"];
+        erosCharacterId?: string | null;
         roleplayCharacter?: Bot["roleplayCharacter"];
         name: string;
         title: string;
@@ -550,8 +558,18 @@ export function createRepos(
       },
     ): Promise<Bot> {
       const roleplay = input.botKind === "roleplay";
+      const conversationEngine = ConversationEngineSchema.parse(
+        input.conversationEngine ?? "internal",
+      );
+      const eros = conversationEngine === "eros";
+      if (input.erosCharacterId != null)
+        BotSchema.shape.erosCharacterId.parse(input.erosCharacterId);
+      if (eros && (!roleplay || !input.erosCharacterId || input.roleplayCharacter != null))
+        throw new BotExecutionSettingsError("Eros requires a roleplay bot with an Eros character");
+      if (!eros && input.erosCharacterId != null)
+        throw new BotExecutionSettingsError("Eros characters require the Eros engine");
       if (roleplay) {
-        RoleplayCharacterSchema.parse(input.roleplayCharacter);
+        if (!eros) RoleplayCharacterSchema.parse(input.roleplayCharacter);
         if (input.fleetManagement || input.parentBotId || input.disabledBuiltinTools?.length)
           throw new BotExecutionSettingsError("Roleplay bots cannot use agent tools or delegation");
       } else if (input.roleplayCharacter != null) {
@@ -611,6 +629,13 @@ export function createRepos(
             spaceId: actor.spaceId,
             userId: actor.userId,
           });
+          if (eros) {
+            // Account teardown fences this same user row before claiming its spaces.
+            const owners = await tx.$queryRaw<Array<{ nativeSetupDisabledAt: Date | null }>>`
+              SELECT "nativeSetupDisabledAt" FROM "user" WHERE id = ${actor.userId} FOR UPDATE
+            `;
+            if (owners.length !== 1 || owners[0]!.nativeSetupDisabledAt) throw new IsolationError();
+          }
           const positions = await tx.bot.aggregate({
             where: { spaceId: actor.spaceId, userId: actor.userId },
             _max: { position: true },
@@ -635,19 +660,23 @@ export function createRepos(
             });
             if (!host) throw new BotExecutionSettingsError("Registered host is unavailable");
           }
-          const computer = await ensureComputerRecord(tx, {
-            mode: roleplay ? "dedicated" : (input.computerMode ?? "team"),
-            spaceId: actor.spaceId,
-            userId: actor.userId,
-            botId: avatar.id,
-            kind,
-            executionTarget: execution.executionTarget,
-            registeredHostId: execution.registeredHostId,
-          });
+          const computer = eros
+            ? null
+            : await ensureComputerRecord(tx, {
+                mode: roleplay ? "dedicated" : (input.computerMode ?? "team"),
+                spaceId: actor.spaceId,
+                userId: actor.userId,
+                botId: avatar.id,
+                kind,
+                executionTarget: execution.executionTarget,
+                registeredHostId: execution.registeredHostId,
+              });
           const created = await tx.bot.create({
             data: {
               id: avatar.id,
               botKind: input.botKind ?? "agent",
+              conversationEngine,
+              erosCharacterId: input.erosCharacterId ?? null,
               ...(input.roleplayCharacter != null
                 ? { roleplayCharacter: input.roleplayCharacter as Prisma.InputJsonValue }
                 : {}),
@@ -662,7 +691,7 @@ export function createRepos(
               color: avatar.color,
               position: (positions._max.position ?? -1) + 1,
               parentBotId: input.parentBotId ?? null,
-              computerId: computer.id,
+              computerId: computer?.id ?? null,
               ...execution,
               spawnKey: input.spawnKey,
               modelProvider,
@@ -678,7 +707,7 @@ export function createRepos(
               userId: actor.userId,
             },
           });
-          const greeting = roleplay ? input.roleplayCharacter?.firstMessage : null;
+          const greeting = roleplay && !eros ? input.roleplayCharacter?.firstMessage : null;
           if (greeting)
             await createThreadMessageInTransaction(tx, {
               threadId: thread.id,
@@ -742,6 +771,13 @@ export function createRepos(
         if (!input.spawnKey || !isSpawnKeyConflict(error)) throw error;
         const existing = await findBySpawnKey();
         if (!existing || existing.userId !== actor.userId) throw error;
+        if (
+          (existing.conversationEngine ?? "internal") !== conversationEngine ||
+          (existing.erosCharacterId ?? null) !== (input.erosCharacterId ?? null)
+        )
+          throw new BotExecutionSettingsError(
+            "Conversation engine and external character cannot be changed",
+          );
         if (existing.botKind !== (input.botKind ?? "agent"))
           throw new BotExecutionSettingsError("Bot kind cannot be changed");
         if (!existing.archivedAt) {
@@ -759,6 +795,13 @@ export function createRepos(
             if (!isSpawnKeyConflict(retryError)) throw retryError;
             const winner = await findBySpawnKey();
             if (!winner || winner.userId !== actor.userId || winner.archivedAt) throw retryError;
+            if (
+              (winner.conversationEngine ?? "internal") !== conversationEngine ||
+              (winner.erosCharacterId ?? null) !== (input.erosCharacterId ?? null)
+            )
+              throw new BotExecutionSettingsError(
+                "Conversation engine and external character cannot be changed",
+              );
             bot = winner;
           }
         }

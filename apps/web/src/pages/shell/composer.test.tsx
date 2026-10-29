@@ -971,3 +971,13 @@ describe("text-only composer", () => {
     expect(onAttachmentPick).not.toHaveBeenCalled();
   });
 });
+
+it("describes remote engine stopping as stopping receipt", () => {
+  const onStop = vi.fn(async () => undefined);
+  renderComposer(async () => true, { running: true, stopReceiving: true, onStop });
+  const stop = container!.querySelector<HTMLButtonElement>('[aria-label="Stop receiving"]')!;
+  expect(stop.title).toContain("Generation may finish");
+  expect(container!.querySelector('[aria-label="Stop"]')).toBeNull();
+  act(() => stop.click());
+  expect(onStop).toHaveBeenCalledOnce();
+});

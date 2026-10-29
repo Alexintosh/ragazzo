@@ -2,6 +2,7 @@ import type {
   AdapterContext,
   AgentHomeStore,
   ArtifactStore,
+  ConversationEngine,
   JobPublisher,
   MemoryStore,
   ProductAnalytics,
@@ -63,6 +64,7 @@ export { HEARTBEAT_MS, SESSION_RECHECK_MS } from "./routes/shared.js";
 export { callMarkerClientNonce } from "./routes/threads.js";
 
 export interface RouterDeps {
+  conversationEngines?: ReadonlyMap<string, ConversationEngine>;
   hostProjectDirectory?: (
     input: { hostId: string | null; path: string },
     context: AdapterContext,

@@ -406,6 +406,20 @@ export const appContract = {
       .output(z.object({ ok: z.literal(true) })),
   },
   bots: {
+    conversationEngines: oc.input(z.object({})).output(
+      z.array(
+        z.object({
+          id: z.literal("eros"),
+          name: z.string(),
+          characters: z.array(z.object({ id: z.string().uuid(), name: z.string() })),
+          capabilities: z.object({
+            streaming: z.boolean(),
+            tools: z.boolean(),
+            cancel: z.boolean(),
+          }),
+        }),
+      ),
+    ),
     list: oc.output(z.array(BotSchema)),
     listArchived: oc.output(z.array(BotSchema)),
     get: oc.input(botId).output(BotSchema),

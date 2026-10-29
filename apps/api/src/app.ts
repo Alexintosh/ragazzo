@@ -36,6 +36,7 @@ import {
   createBackgroundJobHandlers,
   createCloudAgentConnection,
   createConnectorStack,
+  createConversationEngines,
   createHostComputerTransport,
   createHostDirectoriesTransport,
   createHostProjectDirectoryTransport,
@@ -128,7 +129,10 @@ import { requestLogging } from "@rakazo/logging/hono";
 import { MarkdownMemoryStore } from "@rakazo/memory";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
-import { deleteAccountContent } from "./account-deletion.js";
+import {
+  deleteAccountContent,
+  fenceAccountConversationEngineDeletion,
+} from "./account-deletion.js";
 import { mountAppAssociation, nativePasskeys } from "./app-association.js";
 import { storeInboundAttachment } from "./artifacts.js";
 import { createBillingService } from "./billing.js";
@@ -511,8 +515,20 @@ async function buildApp(overrides: CreateAppOverrides): Promise<AppHandles> {
     extraOrigins: MOBILE_AUTH_ORIGINS,
     androidAppCertFingerprints: env.passkeyAndroidCertFingerprints,
     beforeDeleteUser: async (userId) => {
-      // First, so a provider failure aborts deletion before anything is destroyed.
-      await billing?.cancelForDeletedUser(userId);
+      const admission = await fenceAccountConversationEngineDeletion(prisma, userId);
+      // Fence engine creation before provider I/O; restore admission if billing rejects.
+      try {
+        await billing?.cancelForDeletedUser(userId);
+      } catch (error) {
+        if (!admission.previous)
+          await runAsSystem("restore account admission after billing failure", () =>
+            prisma.user.updateMany({
+              where: { id: userId, nativeSetupDisabledAt: admission.fencedAt },
+              data: { nativeSetupDisabledAt: null },
+            }),
+          );
+        throw error;
+      }
       await deleteAccountContent(
         {
           prisma,
@@ -556,7 +572,9 @@ async function buildApp(overrides: CreateAppOverrides): Promise<AppHandles> {
   // One cache serves models.list, selection validation, and run-time model
   // resolution alike, so a list call warms the run path in this process.
   const codexCatalog = new CodexCatalogCache();
+  const conversationEngines = createConversationEngines();
   const executor = createRunExecutor({
+    conversationEngines,
     roleplayEnabled: env.roleplayEnabled,
     roleplayRuntime,
     runtimes: { codex: nativeRuntime, claude: claudeRuntime, acp: acpRuntime },
@@ -739,6 +757,7 @@ async function buildApp(overrides: CreateAppOverrides): Promise<AppHandles> {
       ),
       openSignup: env.messagingOpenSignup,
     },
+    conversationEngines,
     env: {
       phoneCallsEnabled: env.phoneCallsEnabled,
       phoneCallRingSeconds: env.phoneCallRingSeconds,

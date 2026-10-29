@@ -37,6 +37,7 @@ type ThreadComposerProps = {
   botId?: string;
   onCall: boolean;
   working: boolean;
+  stopReceiving?: boolean;
   sending: boolean;
   styles: { circleButton: ViewStyle; composerFill: ViewStyle };
   attachmentsEnabled?: boolean;
@@ -61,6 +62,7 @@ export function ThreadComposer({
   botId,
   onCall,
   working,
+  stopReceiving = false,
   sending,
   styles,
   attachmentsEnabled = true,
@@ -546,7 +548,10 @@ export function ThreadComposer({
         </GlassSurface>
         {working ? (
           <Pressable
-            accessibilityLabel={t("Stop")}
+            accessibilityLabel={t(stopReceiving ? "Stop receiving" : "Stop")}
+            accessibilityHint={
+              stopReceiving ? t("Generation may finish in the conversation engine") : undefined
+            }
             disabled={sending}
             onPress={() => void stop()}
             style={{ width: 44, height: 44, opacity: sending ? 0.5 : 1 }}

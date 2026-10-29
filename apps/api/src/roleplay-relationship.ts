@@ -74,6 +74,7 @@ export async function loadRoleplayRelationship(
   if (!bot) throw new IsolationError();
   if (
     bot.botKind !== "roleplay" ||
+    bot.conversationEngine === "eros" ||
     !bot.thread ||
     bot.thread.groupId ||
     bot.thread.externalConversationId ||
@@ -117,6 +118,7 @@ export async function updateRoleplayRelationship(
       const thread = current.thread;
       if (
         current.botKind !== "roleplay" ||
+        current.conversationEngine === "eros" ||
         !thread ||
         thread.id !== bot.thread!.id ||
         thread.groupId ||

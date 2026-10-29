@@ -591,6 +591,7 @@ export function Thread({ sessionEpoch, userId }: { sessionEpoch: number; userId:
         >
           <ThreadComposer
             onFocus={keyboardLayout.onFocus}
+            stopReceiving={currentBot?.conversationEngine === "eros"}
             key={threadKey}
             ref={composer.composerRef}
             agentSkills={currentBot?.botKind === "roleplay" ? [] : agentSkills}

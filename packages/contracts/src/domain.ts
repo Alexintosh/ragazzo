@@ -89,6 +89,9 @@ export const InstructionVersionSchema = z.object({
   createdAt: z.string(),
 });
 
+export const ConversationEngineSchema = z.enum(["internal", "eros"]);
+export type ConversationEngine = z.infer<typeof ConversationEngineSchema>;
+
 export const RuntimeKindSchema = z.enum(["pi", "codex", "claude", "acp"]);
 /** Standard provider capabilities; UI and orchestration share the same fail-closed policy. */
 export const NativeRuntimeCapabilities = {
@@ -148,6 +151,8 @@ export type SetBotExecutionInput = z.infer<typeof SetBotExecutionInput>;
 
 export const BotSchema = z.object({
   botKind: BotKindSchema.default("agent"),
+  conversationEngine: ConversationEngineSchema.default("internal"),
+  erosCharacterId: z.uuid().nullable().default(null),
   roleplayCharacter: RoleplayCharacterSchema.nullable().default(null),
   id: Id,
   spaceId: Id,
@@ -438,6 +443,8 @@ export const BOT_INSTRUCTIONS_MAX_LENGTH = 20000;
 export const CreateBotInput = z
   .object({
     botKind: BotKindSchema.default("agent"),
+    conversationEngine: ConversationEngineSchema.default("internal"),
+    erosCharacterId: z.uuid().nullable().optional(),
     roleplayCharacter: RoleplayCharacterSchema.nullable().optional(),
     name: z.string().trim().min(1).max(BOT_NAME_MAX_LENGTH),
     title: z.string().max(BOT_TITLE_MAX_LENGTH).default(""),
@@ -459,12 +466,32 @@ export const CreateBotInput = z
   })
   .superRefine((value, ctx) => {
     if (value.botKind === "roleplay") {
-      if (!value.roleplayCharacter)
+      if (value.conversationEngine === "internal" && !value.roleplayCharacter)
         ctx.addIssue({
           code: "custom",
           path: ["roleplayCharacter"],
           message: "Import a character for this roleplay bot",
         });
+      if (value.conversationEngine === "eros") {
+        if (!value.erosCharacterId)
+          ctx.addIssue({
+            code: "custom",
+            path: ["erosCharacterId"],
+            message: "Choose an Eros character",
+          });
+        if (value.roleplayCharacter != null)
+          ctx.addIssue({
+            code: "custom",
+            path: ["roleplayCharacter"],
+            message: "Eros owns its character settings",
+          });
+      } else if (value.erosCharacterId != null) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["erosCharacterId"],
+          message: "Eros characters require the Eros engine",
+        });
+      }
       for (const [field, invalid] of Object.entries({
         runtimeKind: value.runtimeKind !== undefined && value.runtimeKind !== "pi",
         executionTarget: value.executionTarget !== undefined && value.executionTarget !== "docker",
@@ -480,7 +507,11 @@ export const CreateBotInput = z
             path: [field],
             message: "Roleplay bots use the internal runtime in Docker",
           });
-    } else if (value.roleplayCharacter != null) {
+    } else if (
+      value.conversationEngine !== "internal" ||
+      value.erosCharacterId != null ||
+      value.roleplayCharacter != null
+    ) {
       ctx.addIssue({
         code: "custom",
         path: ["roleplayCharacter"],

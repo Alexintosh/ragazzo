@@ -1232,6 +1232,7 @@ msgstr ""
 msgid "Changing…"
 msgstr "正在修改…"
 
+#: src/pages/shell/create-bot-dialog.tsx
 #: src/pages/shell/roleplay-settings.tsx
 msgid "Character"
 msgstr ""
@@ -1784,6 +1785,11 @@ msgstr ""
 
 #: src/pages/shell/computer-overlay.tsx
 msgid "Conversation"
+msgstr ""
+
+#: src/pages/shell/bot-panel.tsx
+#: src/pages/shell/create-bot-dialog.tsx
+msgid "Conversation engine"
 msgstr ""
 
 #: src/pages/shell/chat-header.tsx
@@ -3182,6 +3188,10 @@ msgstr "通用"
 msgid "Generated"
 msgstr ""
 
+#: src/pages/shell/composer.tsx
+msgid "Generation may finish in the conversation engine."
+msgstr ""
+
 #: src/pages/shell/roleplay-settings.tsx
 msgid "Gentle"
 msgstr "轻柔"
@@ -3487,6 +3497,10 @@ msgstr ""
 #: src/pages/PluginsOverlay.tsx
 msgid "Integrations"
 msgstr "集成"
+
+#: src/pages/shell/create-bot-dialog.tsx
+msgid "Internal"
+msgstr ""
 
 #: src/pages/RoutineEditor.tsx
 #: src/pages/RoutineSchedule.tsx
@@ -5562,6 +5576,10 @@ msgstr "安全"
 msgid "Select a bot"
 msgstr "选择 Bot"
 
+#: src/pages/shell/create-bot-dialog.tsx
+msgid "Select a character"
+msgstr ""
+
 #: src/pages/memory-providers/ConnectionModeFields.tsx
 msgid "Self-hosted"
 msgstr "自托管"
@@ -6003,6 +6021,10 @@ msgstr "停止"
 
 #: src/components/ComputerMaintenanceActions.tsx
 msgid "Stop computer"
+msgstr ""
+
+#: src/pages/shell/composer.tsx
+msgid "Stop receiving"
 msgstr ""
 
 #: src/pages/shell/message-view.tsx

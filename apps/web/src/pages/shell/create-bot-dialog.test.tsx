@@ -14,6 +14,29 @@ vi.mock("@lingui/react/macro", () => {
   return { useLingui: () => ({ t }), Trans: ({ children }: { children: ReactNode }) => children };
 });
 
+const conversationEngines = vi.hoisted(() =>
+  vi.fn(
+    async () =>
+      [] as Array<{
+        id: "eros";
+        name: string;
+        characters: Array<{ id: string; name: string }>;
+      }>,
+  ),
+);
+vi.mock("../../lib/space-rpc", async (importOriginal) => {
+  const actual = await importOriginal<Record<string, unknown>>();
+  const { rpc } = await import("../../lib/rpc");
+  const bots = new Proxy(rpc.bots, {
+    get: (target, key) =>
+      key === "conversationEngines" ? conversationEngines : Reflect.get(target, key),
+  });
+  const client = new Proxy(rpc, {
+    get: (target, key) => (key === "bots" ? bots : Reflect.get(target, key)),
+  });
+  return { ...actual, useSpaceRpc: () => client };
+});
+
 import { CreateBotDialog } from "./create-bot-dialog";
 
 let container: HTMLDivElement;
@@ -27,6 +50,7 @@ beforeEach(() => {
     addEventListener: () => undefined,
     removeEventListener: () => undefined,
   })) as unknown as typeof window.matchMedia;
+  conversationEngines.mockResolvedValue([]);
   container = document.createElement("div");
   document.body.append(container);
   root = createRoot(container);
@@ -276,5 +300,60 @@ describe("Roleplay creation", () => {
     expect(
       document.querySelector<HTMLInputElement>('input[placeholder="Name your Bot"]')?.value,
     ).toBe("New character");
+  });
+});
+
+describe("Eros creation", () => {
+  it("only offers engines supplied by the server", async () => {
+    await render(async () => undefined);
+    await click(button("Roleplay"));
+    expect(document.querySelector('option[value="eros"]')).toBeNull();
+    expect(document.querySelector('option[value="internal"]')).not.toBeNull();
+  });
+
+  it("requires a provisioned character and omits local character and runtime settings", async () => {
+    conversationEngines.mockResolvedValue([
+      {
+        id: "eros",
+        name: "Eros",
+        characters: [{ id: "00000000-0000-4000-8000-000000000001", name: "Aster" }],
+      },
+    ]);
+    const onCreate = vi.fn(async (_input: CreateBotDialogInput) => undefined);
+    await render(onCreate);
+    await click(button("Roleplay"));
+    await act(async () => {
+      const select = document.querySelector<HTMLSelectElement>(
+        '[aria-label="Conversation engine"]',
+      )!;
+      select.value = "eros";
+      select.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    expect(document.querySelector('input[type="file"]')).toBeNull();
+    expect(button("Create").disabled).toBe(true);
+    await act(async () => {
+      const select = document.querySelector<HTMLSelectElement>('[aria-label="Character"]')!;
+      select.value = "00000000-0000-4000-8000-000000000001";
+      select.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    expect(button("Create").disabled).toBe(false);
+    await click(button("Create"));
+    const input = onCreate.mock.calls[0]![0];
+    expect(input).toMatchObject({
+      name: "Aster",
+      botKind: "roleplay",
+      conversationEngine: "eros",
+      erosCharacterId: "00000000-0000-4000-8000-000000000001",
+    });
+    for (const field of [
+      "roleplayCharacter",
+      "runtimeKind",
+      "executionTarget",
+      "computerMode",
+      "registeredHostId",
+      "projectPath",
+    ]) {
+      expect(input).not.toHaveProperty(field);
+    }
   });
 });

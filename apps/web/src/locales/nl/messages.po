@@ -1232,6 +1232,7 @@ msgstr ""
 msgid "Changing…"
 msgstr "Bezig met wijzigen…"
 
+#: src/pages/shell/create-bot-dialog.tsx
 #: src/pages/shell/roleplay-settings.tsx
 msgid "Character"
 msgstr ""
@@ -1784,6 +1785,11 @@ msgstr ""
 
 #: src/pages/shell/computer-overlay.tsx
 msgid "Conversation"
+msgstr ""
+
+#: src/pages/shell/bot-panel.tsx
+#: src/pages/shell/create-bot-dialog.tsx
+msgid "Conversation engine"
 msgstr ""
 
 #: src/pages/shell/chat-header.tsx
@@ -3182,6 +3188,10 @@ msgstr "Algemeen"
 msgid "Generated"
 msgstr ""
 
+#: src/pages/shell/composer.tsx
+msgid "Generation may finish in the conversation engine."
+msgstr ""
+
 #: src/pages/shell/roleplay-settings.tsx
 msgid "Gentle"
 msgstr "Rustig"
@@ -3487,6 +3497,10 @@ msgstr "Integratiedomein"
 #: src/pages/PluginsOverlay.tsx
 msgid "Integrations"
 msgstr "Integraties"
+
+#: src/pages/shell/create-bot-dialog.tsx
+msgid "Internal"
+msgstr ""
 
 #: src/pages/RoutineEditor.tsx
 #: src/pages/RoutineSchedule.tsx
@@ -5562,6 +5576,10 @@ msgstr "Beveiliging"
 msgid "Select a bot"
 msgstr "Selecteer een bot"
 
+#: src/pages/shell/create-bot-dialog.tsx
+msgid "Select a character"
+msgstr ""
+
 #: src/pages/memory-providers/ConnectionModeFields.tsx
 msgid "Self-hosted"
 msgstr "Zelf gehost"
@@ -6003,6 +6021,10 @@ msgstr "Stoppen"
 
 #: src/components/ComputerMaintenanceActions.tsx
 msgid "Stop computer"
+msgstr ""
+
+#: src/pages/shell/composer.tsx
+msgid "Stop receiving"
 msgstr ""
 
 #: src/pages/shell/message-view.tsx

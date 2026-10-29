@@ -328,7 +328,9 @@ test("Roleplay requires a character import and keeps environment settings hidden
     return;
   }
   if (process.env.SANDBOX_PROVIDER !== "docker") {
-    await expect(dialog.getByRole("alert")).toContainText("Roleplay requires Docker on this server");
+    await expect(dialog.getByRole("alert")).toContainText(
+      "Roleplay requires Docker on this server",
+    );
     await expect(create).toBeEnabled();
     return;
   }
@@ -352,4 +354,38 @@ test("Roleplay requires a character import and keeps environment settings hidden
   });
   await expect(page.getByText("What do you want me on first?", { exact: true })).toHaveCount(0);
   await captureScreenshot(page, testInfo, "roleplay-created-chat");
+});
+
+test("roleplay progressively reveals provisioned Eros characters", async ({ page }, testInfo) => {
+  await page.route("**/rpc/bots/conversationEngines", (route) =>
+    route.fulfill({
+      json: {
+        json: [
+          {
+            id: "eros",
+            name: "Eros",
+            characters: [{ id: "00000000-0000-4000-8000-000000000001", name: "Aster" }],
+            capabilities: { streaming: true, tools: false, cancel: false },
+          },
+        ],
+      },
+    }),
+  );
+  await page.goto("/e2e/fixtures/create-bot-dialog.html");
+  const dialog = page.getByTestId("create-bot-dialog");
+  await expect(dialog.getByRole("combobox", { name: "Conversation engine" })).toHaveCount(0);
+  await dialog.getByRole("button", { name: "Roleplay", exact: true }).click();
+  const engine = dialog.getByRole("combobox", { name: "Conversation engine" });
+  await expect(engine.locator('option[value="eros"]')).toHaveCount(1);
+  await engine.selectOption("eros");
+  await expect(dialog.getByLabel("Character JSON", { exact: true })).toHaveCount(0);
+  await expect(dialog.getByRole("button", { name: "Create", exact: true })).toBeDisabled();
+  await dialog
+    .getByRole("combobox", { name: "Character", exact: true })
+    .selectOption("00000000-0000-4000-8000-000000000001");
+  await expect(dialog.getByPlaceholder("Name your Bot")).toHaveValue("Aster");
+  await expect(dialog.getByRole("button", { name: "Create", exact: true })).toBeEnabled();
+  await captureScreenshot(page, testInfo, "create-eros-character-desktop");
+  await page.setViewportSize({ width: 390, height: 844 });
+  await captureScreenshot(page, testInfo, "create-eros-character-mobile");
 });

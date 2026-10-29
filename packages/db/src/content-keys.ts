@@ -136,6 +136,7 @@ export interface SpaceKeyRecord {
 
 /** Tables whose rows the ring can resolve to a space and an owner. */
 export type SpaceSource =
+  | "companion_turns"
   | "bots"
   | "threads"
   | "messages"
@@ -165,6 +166,7 @@ export interface RowContext {
 
 /** Column holding each table's owner. Application code never changes these. */
 export const ROW_OWNER: Record<SpaceSource, string> = {
+  companion_turns: "sessionId",
   bots: "userId",
   threads: "userId",
   messages: "threadId",
@@ -179,6 +181,7 @@ export interface Queryable {
 
 const COLUMNS = `id, "spaceId", version, "masterKeyId", "wrappedKey"`;
 const ROW_CONTEXT: Record<SpaceSource, string> = {
+  companion_turns: `SELECT "spaceId", "sessionId" AS owner FROM companion_turns WHERE id = $1`,
   bots: `SELECT "spaceId", "userId" AS owner FROM bots WHERE id = $1`,
   threads: `SELECT "spaceId", "userId" AS owner FROM threads WHERE id = $1`,
   events: `SELECT "spaceId", "threadId" AS owner FROM events WHERE id = $1`,

@@ -24,10 +24,15 @@ function migrationClient(lockMatches = true) {
   };
   const tx = {
     ...Object.fromEntries(
-      ["bot", "thread", "message", "event", "memoryDocument", "memoryRevision"].map((name) => [
-        name,
-        delegate,
-      ]),
+      [
+        "bot",
+        "thread",
+        "message",
+        "event",
+        "memoryDocument",
+        "memoryRevision",
+        "companionTurn",
+      ].map((name) => [name, delegate]),
     ),
     $queryRaw: vi.fn(async (sql: Prisma.Sql) => {
       locks.push(sql);
@@ -72,9 +77,9 @@ describe("content migration space isolation (offline)", () => {
     async (mode) => {
       const { prisma, mutations, scans, locks, ring } = migrationClient();
       await migrateContent(prisma, { ...scope, mode });
-      expect(scans).toHaveLength(7);
-      expect(locks).toHaveLength(7);
-      expect(mutations).toEqual(Array(7).fill(fixture));
+      expect(scans).toHaveLength(10);
+      expect(locks).toHaveLength(10);
+      expect(mutations).toEqual(Array(10).fill(fixture));
       expect(ring.remember.mock.calls.every((call) => call[1] === fixture)).toBe(true);
     },
   );

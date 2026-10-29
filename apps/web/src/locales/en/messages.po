@@ -1232,6 +1232,7 @@ msgstr "Changes apply to the next reply. Story history and memory are kept."
 msgid "Changing…"
 msgstr "Changing…"
 
+#: src/pages/shell/create-bot-dialog.tsx
 #: src/pages/shell/roleplay-settings.tsx
 msgid "Character"
 msgstr "Character"
@@ -1785,6 +1786,11 @@ msgstr "Continue with credits"
 #: src/pages/shell/computer-overlay.tsx
 msgid "Conversation"
 msgstr "Conversation"
+
+#: src/pages/shell/bot-panel.tsx
+#: src/pages/shell/create-bot-dialog.tsx
+msgid "Conversation engine"
+msgstr "Conversation engine"
 
 #: src/pages/shell/chat-header.tsx
 #: src/pages/shell/conversation-files-panel.tsx
@@ -3182,6 +3188,10 @@ msgstr "General"
 msgid "Generated"
 msgstr "Generated"
 
+#: src/pages/shell/composer.tsx
+msgid "Generation may finish in the conversation engine."
+msgstr "Generation may finish in the conversation engine."
+
 #: src/pages/shell/roleplay-settings.tsx
 msgid "Gentle"
 msgstr "Gentle"
@@ -3487,6 +3497,10 @@ msgstr "Integration domain"
 #: src/pages/PluginsOverlay.tsx
 msgid "Integrations"
 msgstr "Integrations"
+
+#: src/pages/shell/create-bot-dialog.tsx
+msgid "Internal"
+msgstr "Internal"
 
 #: src/pages/RoutineEditor.tsx
 #: src/pages/RoutineSchedule.tsx
@@ -5562,6 +5576,10 @@ msgstr "Security"
 msgid "Select a bot"
 msgstr "Select a bot"
 
+#: src/pages/shell/create-bot-dialog.tsx
+msgid "Select a character"
+msgstr "Select a character"
+
 #: src/pages/memory-providers/ConnectionModeFields.tsx
 msgid "Self-hosted"
 msgstr "Self-hosted"
@@ -6004,6 +6022,10 @@ msgstr "Stop"
 #: src/components/ComputerMaintenanceActions.tsx
 msgid "Stop computer"
 msgstr "Stop computer"
+
+#: src/pages/shell/composer.tsx
+msgid "Stop receiving"
+msgstr "Stop receiving"
 
 #: src/pages/shell/message-view.tsx
 msgid "Stop speaking"

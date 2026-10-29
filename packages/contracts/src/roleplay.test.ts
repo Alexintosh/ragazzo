@@ -195,6 +195,37 @@ describe("roleplay creation contract", () => {
         .success,
     ).toBe(true);
   });
+  it("selects a separate Eros-owned conversation without local character state", () => {
+    const input = {
+      name: "Mira",
+      botKind: "roleplay",
+      conversationEngine: "eros",
+      erosCharacterId: "cc0b7acf-d979-4e48-b027-26b04570ea57",
+    };
+    expect(CreateBotInput.parse(input)).toMatchObject(input);
+    expect(CreateBotInput.parse({ name: "Agent" }).conversationEngine).toBe("internal");
+    expect(BotSchema.shape.conversationEngine.parse(undefined)).toBe("internal");
+    for (const patch of [
+      { botKind: "agent" },
+      { erosCharacterId: null },
+      { erosCharacterId: "unvalidated" },
+      { roleplayCharacter: character },
+      { runtimeKind: "codex" },
+      { executionTarget: "host" },
+      { projectPath: "/workspace" },
+      { registeredHostId: "host" },
+      { fleetManagement: true },
+    ]) {
+      expect(CreateBotInput.safeParse({ ...input, ...patch }).success).toBe(false);
+    }
+    expect(
+      CreateBotInput.safeParse({
+        ...input,
+        conversationEngine: "internal",
+        roleplayCharacter: character,
+      }).success,
+    ).toBe(false);
+  });
   it.each([
     { runtimeKind: "codex" },
     { executionTarget: "host" },

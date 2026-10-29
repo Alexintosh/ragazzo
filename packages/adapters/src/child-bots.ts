@@ -22,6 +22,7 @@ import {
   createRepos,
   createThreadMessageInTransaction,
   expireComputerExecutionLeases,
+  IsolationError,
   legacyTeamHomeKey,
   recordComputerRunEnd,
   withTransactionRetry,
@@ -219,6 +220,7 @@ type BotLifecycleDeps = {
 };
 
 type LifecycleBot = {
+  conversationEngine?: string;
   id: string;
   spaceId: string;
   name: string;
@@ -476,6 +478,23 @@ export async function destroyBot(
     strictTeardown?: boolean;
   },
 ) {
+  // Some lifecycle callers carry a compact bot DTO. Engine ownership is immutable,
+  // but an omitted field must be resolved before any external teardown starts.
+  let conversationEngine = bot.conversationEngine;
+  if (conversationEngine === undefined) {
+    const current = await deps.prisma.bot.findUnique({
+      where: { id: bot.id },
+      select: { conversationEngine: true, spaceId: true, userId: true },
+    });
+    if (!current) return;
+    if (current.spaceId !== bot.spaceId || current.userId !== bot.userId)
+      throw new IsolationError();
+    conversationEngine = current.conversationEngine;
+  }
+  if (conversationEngine !== "internal")
+    throw new Error(
+      "External engine data requires operator cleanup before deletion. Archive this bot instead.",
+    );
   await deps.messagingInstallations?.removeForBot(bot);
   const [dedicatedComputers, activeRuns, routines] = await Promise.all([
     botDedicatedComputers(deps, bot),

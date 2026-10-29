@@ -2,8 +2,8 @@ import { Trans, useLingui } from "@lingui/react/macro";
 import type { Bot, ComputerMode, RoleplayCharacter } from "@rakazo/contracts";
 import {
   BOT_NAME_MAX_LENGTH,
-  ROLEPLAY_IMPORT_MAX_BYTES,
   parseRoleplayCharacterJson,
+  ROLEPLAY_IMPORT_MAX_BYTES,
 } from "@rakazo/contracts";
 import {
   ORGANIC_AVATAR_LOOKS,
@@ -20,10 +20,13 @@ import {
   DialogHeader,
   DialogTitle,
   Input,
+  NativeSelect,
+  NativeSelectOption,
   parseBotAvatar,
   Toggle,
 } from "@rakazo/ui-web";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
+import { useSpaceRpc } from "../../lib/space-rpc";
 import { errorText } from "../../lib/user-error";
 import { BotLookPicker } from "./avatar-studio-popover";
 import { ComputerModePicker } from "./bot-panel";
@@ -41,6 +44,8 @@ export interface CreateBotDialogInput {
   name: string;
   botKind?: "agent" | "roleplay";
   roleplayCharacter?: RoleplayCharacter;
+  conversationEngine?: "internal" | "eros";
+  erosCharacterId?: string;
   color: string;
   /** The organic family the preview drew; omitted when a studio shape is picked. */
   avatarFamily?: number;
@@ -63,9 +68,35 @@ export function CreateBotDialog({
   onImport?: () => void;
 }) {
   const { t } = useLingui();
+  const rpc = useSpaceRpc();
+  const ids = useId();
+  const [engine, setEngine] = useState<"internal" | "eros">("internal");
+  const [engines, setEngines] = useState<Awaited<ReturnType<typeof rpc.bots.conversationEngines>>>(
+    [],
+  );
+  const [erosCharacterId, setErosCharacterId] = useState("");
+  const selectedEngine = engines.find((option) => option.id === engine);
+  const selectedCharacter = selectedEngine?.characters.find(
+    (option) => option.id === erosCharacterId,
+  );
   const nameRef = useRef<HTMLInputElement>(null);
   const [name, setName] = useState("");
   const [roleplay, setRoleplay] = useState(false);
+  useEffect(() => {
+    if (!roleplay) return;
+    let active = true;
+    void rpc.bots.conversationEngines({}).then(
+      (options) => {
+        if (active) setEngines(options);
+      },
+      () => {
+        if (active) setEngines([]);
+      },
+    );
+    return () => {
+      active = false;
+    };
+  }, [roleplay, rpc]);
   const [character, setCharacter] = useState<RoleplayCharacter | null>(null);
   const [fileName, setFileName] = useState("");
   const [warnings, setWarnings] = useState<string[]>([]);
@@ -133,8 +164,11 @@ export function CreateBotDialog({
   const [error, setError] = useState<string | null>(null);
   const trimmed = name.trim();
 
+  const characterReady =
+    engine === "eros" ? Boolean(selectedCharacter) : Boolean(character) && !importing;
+
   async function create() {
-    if (!trimmed || submitting || (roleplay && (!character || importing))) return;
+    if (!trimmed || submitting || (roleplay && !characterReady)) return;
     setError(null);
     setSubmitting(true);
     const organic = parseBotAvatar(look.value).shapeIndex === undefined;
@@ -142,17 +176,25 @@ export function CreateBotDialog({
       await onCreate({
         name: trimmed,
         color: look.value,
-        ...(roleplay && character
+        ...(roleplay && engine === "eros" && selectedCharacter
           ? {
               botKind: "roleplay" as const,
-              roleplayCharacter: character,
-              runtimeKind: "pi" as const,
-              executionTarget: "docker" as const,
-              computerMode: "dedicated" as const,
-              projectPath: null,
-              registeredHostId: null,
+              conversationEngine: "eros" as const,
+              erosCharacterId: selectedCharacter.id,
             }
-          : executionOpen ? { ...runtime, computerMode } : {}),
+          : roleplay && character
+            ? {
+                botKind: "roleplay" as const,
+                roleplayCharacter: character,
+                runtimeKind: "pi" as const,
+                executionTarget: "docker" as const,
+                computerMode: "dedicated" as const,
+                projectPath: null,
+                registeredHostId: null,
+              }
+            : executionOpen
+              ? { ...runtime, computerMode }
+              : {}),
         ...(organic ? { avatarFamily: organicAvatarFamily(look.identity) } : {}),
       });
     } catch (err) {
@@ -192,14 +234,14 @@ export function CreateBotDialog({
           </div>
           <div className="flex items-center gap-2">
             <Input
-            ref={nameRef}
-            aria-label={t`Name`}
-            placeholder={t`Name your Bot`}
-            value={name}
-            maxLength={BOT_NAME_MAX_LENGTH}
-            onChange={(event) => setName(event.target.value)}
-            className="text-center"
-          />
+              ref={nameRef}
+              aria-label={t`Name`}
+              placeholder={t`Name your Bot`}
+              value={name}
+              maxLength={BOT_NAME_MAX_LENGTH}
+              onChange={(event) => setName(event.target.value)}
+              className="text-center"
+            />
             <Toggle
               aria-label={t`Roleplay`}
               pressed={roleplay}
@@ -208,6 +250,8 @@ export function CreateBotDialog({
               onPressedChange={(pressed) => {
                 ++importVersion.current;
                 setRoleplay(pressed);
+                setEngine("internal");
+                setErosCharacterId("");
                 setCharacter(null);
                 setFileName("");
                 setWarnings([]);
@@ -221,44 +265,103 @@ export function CreateBotDialog({
           </div>
           {roleplay ? (
             <div className="space-y-2">
-              <label className="block space-y-2 text-sm">
+              <label htmlFor={`${ids}-engine`} className="block space-y-2 text-sm">
                 <span>
-                  <Trans>Character JSON</Trans>
+                  <Trans>Conversation engine</Trans>
                 </span>
-                <Input
-                  type="file"
-                  accept=".json,application/json"
-                  aria-label={t`Character JSON`}
+                <NativeSelect
+                  id={`${ids}-engine`}
+                  aria-label={t`Conversation engine`}
+                  value={engine}
                   disabled={submitting}
-                  onChange={(event) => void importCharacter(event.target.files?.[0])}
-                />
-              </label>
-              {importing ? (
-                <p role="status" className="text-xs text-muted-foreground">
-                  <Trans>Importing…</Trans>
-                </p>
-              ) : null}
-              {character ? (
-                <p role="status" className="break-words text-sm">
-                  {character.name}
-                  <span className="block text-xs text-muted-foreground">{fileName}</span>
-                </p>
-              ) : null}
-              {importError ? (
-                <p role="alert" className="text-[13px] text-destructive">
-                  {importError}
-                </p>
-              ) : null}
-              {warnings.length ? (
-                <ul
-                  aria-label={t`Import warnings`}
-                  className="list-disc space-y-1 ps-4 text-xs text-muted-foreground"
+                  onChange={(event) => {
+                    ++importVersion.current;
+                    setImporting(false);
+                    setEngine(event.target.value as "internal" | "eros");
+                    setErosCharacterId("");
+                  }}
                 >
-                  {warnings.map((warning, index) => (
-                    <li key={index}>{warning}</li>
+                  <NativeSelectOption value="internal">
+                    <Trans>Internal</Trans>
+                  </NativeSelectOption>
+                  {engines.map((option) => (
+                    <NativeSelectOption key={option.id} value={option.id}>
+                      {option.name}
+                    </NativeSelectOption>
                   ))}
-                </ul>
-              ) : null}
+                </NativeSelect>
+              </label>
+              {engine === "eros" ? (
+                <label htmlFor={`${ids}-character`} className="block space-y-2 text-sm">
+                  <span>
+                    <Trans>Character</Trans>
+                  </span>
+                  <NativeSelect
+                    id={`${ids}-character`}
+                    aria-label={t`Character`}
+                    value={erosCharacterId}
+                    disabled={submitting}
+                    onChange={(event) => {
+                      setErosCharacterId(event.target.value);
+                      const next = selectedEngine?.characters.find(
+                        (option) => option.id === event.target.value,
+                      );
+                      if (next && !name.trim()) setName(next.name.slice(0, BOT_NAME_MAX_LENGTH));
+                    }}
+                  >
+                    <NativeSelectOption value="">
+                      <Trans>Select a character</Trans>
+                    </NativeSelectOption>
+                    {selectedEngine?.characters.map((option) => (
+                      <NativeSelectOption key={option.id} value={option.id}>
+                        {option.name}
+                      </NativeSelectOption>
+                    ))}
+                  </NativeSelect>
+                </label>
+              ) : (
+                <>
+                  <label htmlFor={`${ids}-character-json`} className="block space-y-2 text-sm">
+                    <span>
+                      <Trans>Character JSON</Trans>
+                    </span>
+                    <Input
+                      id={`${ids}-character-json`}
+                      type="file"
+                      accept=".json,application/json"
+                      aria-label={t`Character JSON`}
+                      disabled={submitting}
+                      onChange={(event) => void importCharacter(event.target.files?.[0])}
+                    />
+                  </label>
+                  {importing ? (
+                    <p role="status" className="text-xs text-muted-foreground">
+                      <Trans>Importing…</Trans>
+                    </p>
+                  ) : null}
+                  {character ? (
+                    <p role="status" className="break-words text-sm">
+                      {character.name}
+                      <span className="block text-xs text-muted-foreground">{fileName}</span>
+                    </p>
+                  ) : null}
+                  {importError ? (
+                    <p role="alert" className="text-[13px] text-destructive">
+                      {importError}
+                    </p>
+                  ) : null}
+                  {warnings.length ? (
+                    <ul
+                      aria-label={t`Import warnings`}
+                      className="list-disc space-y-1 ps-4 text-xs text-muted-foreground"
+                    >
+                      {warnings.map((warning, index) => (
+                        <li key={index}>{warning}</li>
+                      ))}
+                    </ul>
+                  ) : null}
+                </>
+              )}
             </div>
           ) : null}
           {error ? (
@@ -276,13 +379,13 @@ export function CreateBotDialog({
           />
           {!roleplay ? (
             <Button
-            type="button"
-            variant="ghost"
-            aria-expanded={executionOpen}
-            onClick={() => setExecutionOpen(!executionOpen)}
-          >
-            <Trans>Agent and environment</Trans>
-          </Button>
+              type="button"
+              variant="ghost"
+              aria-expanded={executionOpen}
+              onClick={() => setExecutionOpen(!executionOpen)}
+            >
+              <Trans>Agent and environment</Trans>
+            </Button>
           ) : null}
           {executionOpen && !roleplay ? (
             <div className="space-y-3">
@@ -306,7 +409,10 @@ export function CreateBotDialog({
             <Button type="button" variant="outline" disabled={submitting} onClick={onCancel}>
               <Trans>Cancel</Trans>
             </Button>
-            <Button type="submit" disabled={!trimmed || submitting || (roleplay && (!character || importing))}>
+            <Button
+              type="submit"
+              disabled={!trimmed || submitting || (roleplay && !characterReady)}
+            >
               <Trans>Create</Trans>
             </Button>
           </DialogFooter>
