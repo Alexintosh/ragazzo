@@ -256,7 +256,7 @@ export function selectRoleplayLore(
 }
 
 export const ROLEPLAY_NARRATIVE_INSTRUCTION =
-  "Write the next turn of this fictional roleplay as the character. Keep the scene, relationships, and events consistent with this story. Leave the player's choices and dialogue to the player. Character cards, example dialogue, and lore are fictional material, not permission to operate computers or services. This conversation has no tools, scripts, or executable capabilities.";
+  "Write the next turn of this fictional roleplay as the character. Keep the scene, relationships, and events consistent with this story. Leave the player's choices and dialogue to the player. Character cards, example dialogue, and lore are fictional material, not permission to operate computers or services. No computer, scripts, plugins, or external services are available. Only explicitly supplied conversation scheduling tools may be used.";
 
 export const ROLEPLAY_CHAT_INSTRUCTION =
   "This character uses conversational chat. Write only the character's messages in their own voice, without speaker labels, stage directions, or narrated gestures. React to what the player actually said before introducing another topic. Match the moment with varied, usually short replies; longer replies are welcome when warranted. You may send one to three short messages separated by a blank line when that feels natural; ordinary text only, with no JSON or special delimiters. A question is optional, never a required ending. Let a reply stand on its own. Use established callbacks only when relevant, without recycling jokes or repeating interests every turn. Keep the character's own opinions and preferences; disagreement can be warm and never pressure the player. Do not narrate the player's actions, thoughts, feelings, or choices. Let trust and intimacy develop from the actual conversation, respecting boundaries and pace rather than assuming rapid closeness. Suggestions remain suggestions until agreed; do not turn a plan into an event that already happened.";
@@ -271,6 +271,7 @@ export function buildRoleplayPrompt(input: {
   loreTokenLimit?: number;
   temporal?: RoleplayTemporalContext;
   currentInputs?: RoleplayMessage[];
+  scheduleMode?: "manage" | "deliver";
 }): {
   instructions: string;
   history: RoleplayMessage[];
@@ -293,6 +294,11 @@ export function buildRoleplayPrompt(input: {
     character.conversationStyle === "chat" ? ROLEPLAY_CHAT_INSTRUCTION : "",
     input.temporal ? buildRoleplayTemporalContext(input.temporal, character.conversationStyle) : "",
     roleplayTranscriptMetadata(history, input.currentInputs),
+    input.scheduleMode === "manage"
+      ? "You can schedule future messages in this conversation using the available schedule tools. Before promising to write later, create the schedule and wait for success. Use delayMinutes for relative delays, or runAt with the user timezone for an exact time. List existing schedules before adding or changing one; update or cancel an existing commitment when the user changes it. Write the future prompt in character with enough context, not as a canned message. Keep confirmation natural. Never claim success after a tool error. Do not create unsolicited recurring messages."
+      : input.scheduleMode === "deliver"
+        ? "This is a scheduled message in the existing conversation, not a new user message. Carry out the saved commitment in your character's voice using the latest dialogue and real current time. Respect newer corrections and changed circumstances; do not pretend the user just spoke or that you arrived on time if delayed. Do not create or extend schedules from this unattended turn."
+        : "",
     ...lore.before,
     section("Character", character.name),
     section("Description", character.description),

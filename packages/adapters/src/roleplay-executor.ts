@@ -46,6 +46,7 @@ import {
 import type { ExecutorDeps } from "./executor-deps.js";
 import { resolveRuntimeModel } from "./pi-runtime-models.js";
 import type { RoleplayRunRequest, RoleplayRuntime } from "./roleplay-runtime.js";
+import { createRoleplayScheduling } from "./roleplay-schedule-tools.js";
 import { renewRunLease, requeueComputerRun } from "./run-lifecycle.js";
 import { resolveRunModel } from "./run-model.js";
 import {
@@ -158,6 +159,8 @@ export async function executeRoleplayRun(
   let completed = false;
   let botName = "Bot";
   const spontaneous = run.trigger === "roleplay_spontaneous";
+  const scheduled = run.trigger === "routine";
+  const autonomous = spontaneous || scheduled;
   let spontaneousGuard: RoleplaySpontaneousGuard | undefined;
   const secrets = [...deps.secrets];
   let lastRenewedAt = Date.now();
@@ -222,7 +225,7 @@ export async function executeRoleplayRun(
       task.botId !== bot.id ||
       task.threadId !== thread.id ||
       task.spaceId !== run.spaceId ||
-      !["user", "follow_up", "roleplay_spontaneous"].includes(run.trigger)
+      !["user", "follow_up", "roleplay_spontaneous", "routine"].includes(run.trigger)
     )
       throw new Error("Roleplay is available only in direct story conversations");
     const character = RoleplayCharacterSchema.parse(bot.roleplayCharacter);
@@ -329,22 +332,24 @@ export async function executeRoleplayRun(
       !steering.length
     )
       throw new Error("The story continuation has no queued user message");
-    const source = await deps.prisma.message.findFirst({
-      where: {
-        threadId: thread.id,
-        role: "user",
-        ...(steering.length
-          ? { id: { in: steering.map((item) => item.messageId) } }
-          : run.sourceMessageId
-            ? { id: run.sourceMessageId }
-            : { runId: run.id }),
-      },
-      orderBy: { seq: "asc" },
-      select: { seq: true, blocks: true, createdAt: true },
-    });
-    if (!source) throw new Error("The story turn has no user message");
+    const source = scheduled
+      ? null
+      : await deps.prisma.message.findFirst({
+          where: {
+            threadId: thread.id,
+            role: "user",
+            ...(steering.length
+              ? { id: { in: steering.map((item) => item.messageId) } }
+              : run.sourceMessageId
+                ? { id: run.sourceMessageId }
+                : { runId: run.id }),
+          },
+          orderBy: { seq: "asc" },
+          select: { seq: true, blocks: true, createdAt: true },
+        });
+    if (!scheduled && !source) throw new Error("The story turn has no user message");
     const latestInteraction = await deps.prisma.message.findFirst({
-      where: { threadId: thread.id, ...(!spontaneous ? { seq: { lt: source.seq } } : {}) },
+      where: { threadId: thread.id, ...(!autonomous ? { seq: { lt: source!.seq } } : {}) },
       orderBy: { seq: "desc" },
       select: { createdAt: true },
     });
@@ -354,14 +359,16 @@ export async function executeRoleplayRun(
       lastInteractionAt: latestInteraction?.createdAt?.toISOString(),
     };
 
-    assertRoleplayInputBlocks(source.blocks);
+    if (source) assertRoleplayInputBlocks(source.blocks);
     for (const item of steering) assertRoleplayInputBlocks(item.blocks);
-    let promptText = steering.length
-      ? steering
-          .map((item) => narrativeText(item.blocks))
-          .filter(Boolean)
-          .join("\n\n")
-      : narrativeText(source.blocks);
+    let promptText = scheduled
+      ? task.prompt
+      : steering.length
+        ? steering
+            .map((item) => narrativeText(item.blocks))
+            .filter(Boolean)
+            .join("\n\n")
+        : narrativeText(source!.blocks);
     if (!spontaneous && !promptText.trim()) throw new Error("The story turn has no text message");
     const inputRows = steering.length
       ? await deps.prisma.message.findMany({
@@ -373,24 +380,26 @@ export async function executeRoleplayRun(
           select: { seq: true, blocks: true, createdAt: true },
           orderBy: { seq: "asc" },
         })
-      : [source];
-    const currentInputs: RoleplayMessage[] = (spontaneous ? [] : inputRows).map((message) => ({
+      : source
+        ? [source]
+        : [];
+    const currentInputs: RoleplayMessage[] = (autonomous ? [] : inputRows).map((message) => ({
       seq: message.seq,
       role: "user",
       content: narrativeText(message.blocks),
       createdAt: message.createdAt?.toISOString(),
     }));
-    if (!spontaneous) promptText = currentInputs.map(formatRoleplayMessageContent).join("\n\n");
+    if (!autonomous) promptText = currentInputs.map(formatRoleplayMessageContent).join("\n\n");
     const messages = await deps.prisma.message.findMany({
       where: {
         threadId: thread.id,
         seq: {
           gt: state.summarizedUpToSeq,
-          lt: run.trigger === "follow_up" || spontaneous ? thread.nextMessageSeq : source.seq,
+          lt: run.trigger === "follow_up" || autonomous ? thread.nextMessageSeq : source!.seq,
         },
         // A preceding reply may have committed after the player queued this turn.
         OR: [
-          { role: "user", seq: { lt: spontaneous ? thread.nextMessageSeq : source.seq } },
+          { role: "user", seq: { lt: autonomous ? thread.nextMessageSeq : source!.seq } },
           { role: "bot", botId: bot.id },
         ],
       },
@@ -434,17 +443,39 @@ export async function executeRoleplayRun(
     const contextWindow =
       model.contextWindow ?? resolveRuntimeModel(model).model?.contextWindow ?? 16_384;
     const outputBudget = Math.min(model.maxTokens ?? 4096, Math.floor(contextWindow / 3));
-    const inputBudget = Math.max(1, contextWindow - outputBudget - 1024 - (spontaneous ? 768 : 0));
+    let scheduling = spontaneous ? undefined : createRoleplayScheduling(deps, run);
+    let scheduleMode: "manage" | "deliver" | undefined = spontaneous
+      ? undefined
+      : scheduled
+        ? "deliver"
+        : "manage";
+    const availableInput = contextWindow - outputBudget - 1024 - (spontaneous ? 768 : 0);
+    let toolBudget = scheduling ? roleplayTokens(JSON.stringify(scheduling.tools)) : 0;
     const initialInput = {
       character,
       history: [],
       prompt: spontaneous ? "" : promptText,
       temporal,
       currentInputs,
+      scheduleMode,
       summary: state.summary,
       continuity: undefined,
       loreTokenLimit: 0,
     };
+    const withScheduling = buildRoleplayPrompt(initialInput);
+    // A small model still supports dialogue when its mandatory context cannot also fit tools.
+    // Capability instructions follow the actual advertised surface, never an imaginary timer.
+    if (
+      scheduling &&
+      roleplayTokens(withScheduling.instructions + withScheduling.prompt) + 32 + toolBudget >
+        availableInput
+    ) {
+      scheduling = undefined;
+      toolBudget = 0;
+      scheduleMode = scheduled ? "deliver" : undefined;
+      initialInput.scheduleMode = scheduleMode;
+    }
+    const inputBudget = Math.max(1, availableInput - toolBudget);
     const bare = buildRoleplayPrompt(initialInput);
     const bareTokens = roleplayTokens(bare.instructions + bare.prompt) + 32;
     if (bareTokens > inputBudget)
@@ -484,6 +515,7 @@ export async function executeRoleplayRun(
         prompt: spontaneous ? "" : promptText,
         temporal,
         currentInputs,
+        scheduleMode,
         summary: state.summary,
         continuity: promptContinuity,
         loreTokenLimit: 0,
@@ -505,6 +537,7 @@ export async function executeRoleplayRun(
       prompt: spontaneous ? "" : promptText,
       temporal,
       currentInputs,
+      scheduleMode,
       summary: state.summary,
       continuity: promptContinuity,
       loreTokenLimit: remaining,
@@ -567,7 +600,29 @@ export async function executeRoleplayRun(
         lastProgress = Date.now();
       };
       for await (const event of runtime.run(
-        { ...base, model: { ...model, maxTokens: outputBudget }, purpose: "dialogue", ...prompt },
+        {
+          ...base,
+          model: { ...model, maxTokens: outputBudget },
+          purpose: scheduled ? "routine" : "dialogue",
+          ...prompt,
+          ...(scheduling
+            ? {
+                scheduling: {
+                  tools: scheduling.tools,
+                  execute: async (
+                    name: string,
+                    args: Record<string, unknown>,
+                    toolSignal: AbortSignal,
+                  ) => {
+                    await checkOwnership();
+                    signal.throwIfAborted();
+                    toolSignal.throwIfAborted();
+                    return scheduling.execute(name, args, toolSignal);
+                  },
+                },
+              }
+            : {}),
+        },
         signal,
       )) {
         signal.throwIfAborted();
@@ -607,7 +662,7 @@ export async function executeRoleplayRun(
         secrets,
         outputBudget,
         temporal,
-        !spontaneous,
+        !autonomous,
         character.conversationStyle,
       );
     }
@@ -642,7 +697,8 @@ export async function executeRoleplayRun(
       leaseFence: fence,
       outcome: "completed",
       blocks: replies.length ? [{ kind: "text", text: replies[0]! }] : [],
-      ...(spontaneousGuard ? { spontaneousGuard, markUnread: true } : {}),
+      ...(spontaneousGuard ? { spontaneousGuard } : {}),
+      ...(autonomous ? { markUnread: true } : {}),
       ...(replies.length > 1
         ? { additionalMessages: replies.slice(1).map((text) => [{ kind: "text" as const, text }]) }
         : {}),

@@ -17,6 +17,7 @@ import { getLogger } from "@rakazo/logging";
 import { assertRoutineModel } from "../model-pins.js";
 import { listRoutineRuns } from "../routine-runs.js";
 import {
+  assertRoleplayRoutine,
   assertRoutineSchedule,
   firstWatchCheck,
   listRoutinesDto,
@@ -42,8 +43,7 @@ export function routinesRoutes(ctx: RouterContext) {
       create: authed.routines.create.handler(async ({ context, input }) => {
         assertRoutineSchedule(input);
         const bot = await repos.getBot(context.actor, input.botId);
-        if (bot.botKind === "roleplay")
-          throw new ORPCError("BAD_REQUEST", { message: "Roleplay bots cannot run routines" });
+        assertRoleplayRoutine(bot.botKind, input);
         if (input.watch) {
           try {
             await validateRoutineWatch(
@@ -60,7 +60,10 @@ export function routinesRoutes(ctx: RouterContext) {
         }
         await assertRoutineModel(deps, context.actor, input, codexCatalog);
         const row = await deps.prisma.routine.create({
-          data: routineRowData(context.actor, input, routineNextRunAt(input)),
+          data: {
+            ...routineRowData(context.actor, input, routineNextRunAt(input)),
+            ...(bot.botKind === "roleplay" && bot.thread ? { threadId: bot.thread.id } : {}),
+          },
         });
         await announceRoutine(context.actor, bot, row);
         return mapRoutine(row);
@@ -77,8 +80,13 @@ export function routinesRoutes(ctx: RouterContext) {
         });
         if (!existing) throw new ORPCError("NOT_FOUND");
         const bot = await repos.getBot(context.actor, existing.botId);
-        if (bot.botKind === "roleplay")
-          throw new ORPCError("BAD_REQUEST", { message: "Roleplay bots cannot run routines" });
+        assertRoleplayRoutine(bot.botKind, {
+          watch: input.watch === undefined ? existing.watch : input.watch,
+          webhookEnabled: input.webhookEnabled ?? existing.webhookEnabled,
+          githubEnabled: input.githubEnabled ?? existing.githubEnabled,
+          messageProvider:
+            input.messageProvider === undefined ? existing.messageProvider : input.messageProvider,
+        });
         const active = input.active ?? existing.active;
         const crons = input.crons ?? existing.crons;
         const timezone = input.timezone ?? existing.timezone;
@@ -312,7 +320,9 @@ export function routinesRoutes(ctx: RouterContext) {
           });
           if (existing) return { runId: existing.id };
         }
-        const skillRecords = await agentSkills.listWithContent(context.actor);
+        assertRoleplayRoutine(bot.botKind, routine);
+        const skillRecords =
+          bot.botKind === "roleplay" ? [] : await agentSkills.listWithContent(context.actor);
         const prompt = expandSkillReferencesInPrompt(routine.prompt, skillRecords);
         let run: { id: string };
         try {

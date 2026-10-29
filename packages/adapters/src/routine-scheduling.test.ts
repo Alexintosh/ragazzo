@@ -24,7 +24,7 @@ describe("routine scheduling", () => {
   });
 });
 
-function pendingTimerFixture(reuse = true) {
+function pendingTimerFixture(reuse = true, botKind = "agent") {
   const scheduledAt = new Date(Date.now() - 1_000);
   const routine = {
     id: "routine-1",
@@ -64,7 +64,7 @@ function pendingTimerFixture(reuse = true) {
   };
   const prisma = {
     routine: { findUnique: vi.fn(async () => routine) },
-    bot: { findUnique: vi.fn(async () => ({ id: "bot-1", thread: { id: "thread-1" } })) },
+    bot: { findUnique: vi.fn(async () => ({ id: "bot-1", botKind, thread: { id: "thread-1" } })) },
     agentSkill: { findMany: vi.fn(async () => []) },
     $transaction: vi.fn(async (callback: (client: unknown) => Promise<unknown>) => callback(tx)),
   };
@@ -75,7 +75,7 @@ function pendingTimerFixture(reuse = true) {
     jobs: { enqueue, cancel: vi.fn(), close: vi.fn() },
     events: { append },
   } as unknown as Parameters<typeof createRunExecutor>[0]);
-  return { executor, tx, enqueue, append, scheduledAt };
+  return { executor, tx, enqueue, append, scheduledAt, prisma, routine };
 }
 
 describe("recurring routine catch-up", () => {
@@ -115,4 +115,29 @@ describe("recurring routine catch-up", () => {
     );
     expect(enqueue).toHaveBeenLastCalledWith(expect.objectContaining({ name: "routine.wakeup" }));
   });
+});
+
+it("wakes RP routines without loading operational skills", async () => {
+  const f = pendingTimerFixture(false, "roleplay");
+  f.prisma.agentSkill.findMany.mockImplementation(async () => {
+    throw new Error("RP must not load skills");
+  });
+  await f.executor.wakeRoutine("routine-1", f.scheduledAt.toISOString());
+  expect(f.tx.run.create).toHaveBeenCalledWith(
+    expect.objectContaining({ data: expect.objectContaining({ trigger: "routine" }) }),
+  );
+  expect(f.prisma.agentSkill.findMany).not.toHaveBeenCalled();
+});
+
+it("pauses a legacy RP operational watch before it can execute", async () => {
+  const f = pendingTimerFixture(false, "roleplay");
+  Object.assign(f.routine, { watch: { kind: "command", command: "echo forbidden" } });
+  const updateMany = vi.fn(async () => ({ count: 1 }));
+  Object.assign(f.prisma.routine, { updateMany });
+  await f.executor.wakeRoutine("routine-1", f.scheduledAt.toISOString());
+  expect(updateMany).toHaveBeenCalledWith(
+    expect.objectContaining({ data: { active: false, nextRunAt: null } }),
+  );
+  expect(f.tx.run.create).not.toHaveBeenCalled();
+  expect(f.prisma.agentSkill.findMany).not.toHaveBeenCalled();
 });

@@ -133,6 +133,20 @@ export async function wakeRoutine(deps: ExecutorDeps, routineId: string, schedul
     return;
   }
   if (!bot?.thread) return;
+  // Roleplay schedules share the durable timer, never operational watch/skill capabilities.
+  if (
+    bot.botKind === "roleplay" &&
+    (routine.watch != null ||
+      routine.webhookEnabled ||
+      routine.githubEnabled ||
+      routine.messageProvider)
+  ) {
+    await deps.prisma.routine.updateMany({
+      where: { id: routine.id, active: true },
+      data: { active: false, nextRunAt: null },
+    });
+    return;
+  }
   const targetThread = routine.threadId
     ? await deps.prisma.thread.findFirst({
         where: {
@@ -177,10 +191,13 @@ export async function wakeRoutine(deps: ExecutorDeps, routineId: string, schedul
           new Date(Date.now()),
           routine.timezone,
         );
-  const skillRecords = await listAgentSkillRecords(deps.prisma, {
-    spaceId: routine.spaceId,
-    userId: routine.userId,
-  });
+  const skillRecords =
+    bot.botKind === "roleplay"
+      ? []
+      : await listAgentSkillRecords(deps.prisma, {
+          spaceId: routine.spaceId,
+          userId: routine.userId,
+        });
   const routinePrompt =
     expandSkillReferencesInPrompt(routine.prompt, skillRecords) +
     (watchTick?.run ? watchTick.note : "");

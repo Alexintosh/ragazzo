@@ -1376,3 +1376,93 @@ it("never publishes or persists a generated legacy timestamp wrapper, including 
     }),
   );
 });
+
+describe("roleplay scheduled routine delivery", () => {
+  it("delivers the saved prompt with latest history without a synthetic user turn", async () => {
+    const f = fixture();
+    f.run.trigger = "routine";
+    Object.assign(f.run, { sourceMessageId: null, routineId: "reminder" });
+    f.prisma.message.findFirst.mockResolvedValue(null as never);
+    f.prisma.task.findUniqueOrThrow.mockResolvedValue({
+      id: "task",
+      botId: "aria",
+      threadId: "story",
+      spaceId: "space",
+      prompt: "Check in about our conversation after 45 minutes.",
+    });
+    await executeRoleplayRun(f.deps, f.runtime, f.run as unknown as Run, {
+      workerId: "worker",
+      fence: 1,
+    });
+    expect(f.run.status).toBe("completed");
+    const request = f.requests[0]!;
+    expect(request.purpose).toBe("routine");
+    expect(request.prompt).toBe("Check in about our conversation after 45 minutes.");
+    expect(request.history.some((message) => message.content === "UNCLAIMED FUTURE INPUT")).toBe(
+      true,
+    );
+    expect(request.history.some((message) => message.content.includes("SECRET"))).toBe(false);
+    expect(request.scheduling?.tools.map((tool) => tool.name)).toEqual([
+      "schedule_list",
+      "schedule_cancel",
+    ]);
+    expect(f.finalizeRun).toHaveBeenCalledWith(
+      expect.objectContaining({ markUnread: true, outcome: "completed" }),
+    );
+    expect(f.thread.roleplayState).toMatchObject({ retainedInputs: [] });
+    expect(f.prisma.message.findFirst).not.toHaveBeenCalledWith(
+      expect.objectContaining({ where: expect.objectContaining({ role: "user" }) }),
+    );
+  });
+
+  it("does not increase relationship scores on a scheduled turn", async () => {
+    const f = fixture();
+    f.run.trigger = "routine";
+    Object.assign(f.run, { sourceMessageId: null, routineId: "reminder" });
+    f.bot.roleplayCharacter = { ...character, conversationStyle: "chat" };
+    f.thread.roleplayState = {
+      ...roleplayStoryState(null, { threadId: "story", botId: "aria", historyGeneration: 0 }),
+      continuity: { ...continuity, relationshipState: { warmth: 20, intimacy: 10, love: 0 } },
+    };
+    f.runtime.run = async function* (request) {
+      f.requests.push(request);
+      const text =
+        request.purpose === "continuity"
+          ? JSON.stringify({
+              ...continuity,
+              relationshipState: { warmth: 90, intimacy: 90, love: 90 },
+            })
+          : "How did it go?";
+      yield { type: "done", text };
+    };
+    await executeRoleplayRun(f.deps, f.runtime, f.run as unknown as Run, {
+      workerId: "worker",
+      fence: 1,
+    });
+    expect(f.run.status).toBe("completed");
+    expect(f.thread.roleplayState).toMatchObject({
+      continuity: { relationshipState: { warmth: 20, intimacy: 10, love: 0 } },
+    });
+    expect(
+      f.requests.find((request) => request.purpose === "continuity")?.scheduling,
+    ).toBeUndefined();
+  });
+
+  it("makes scheduling available only to the dialogue completion", async () => {
+    const f = fixture();
+    f.bot.roleplayCharacter = { ...character, conversationStyle: "chat" };
+    await executeRoleplayRun(f.deps, f.runtime, f.run as unknown as Run, {
+      workerId: "worker",
+      fence: 1,
+    });
+    expect(f.requests[0]?.scheduling?.tools.map((tool) => tool.name)).toEqual([
+      "schedule_create",
+      "schedule_list",
+      "schedule_update",
+      "schedule_cancel",
+    ]);
+    expect(
+      f.requests.find((request) => request.purpose === "continuity")?.scheduling,
+    ).toBeUndefined();
+  });
+});

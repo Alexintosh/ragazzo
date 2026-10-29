@@ -42,7 +42,7 @@ export function buildRoleplayTemporalContext(
       lastInteractionAt: Number.isFinite(previous) ? context.lastInteractionAt : null,
       elapsedMilliseconds: elapsed,
     }),
-    "Keep metadata internal; never echo its labels or timestamp wrappers. This runtime cannot set timers or schedule messages in requested minutes; spontaneous check-ins follow application policy. Never claim a reminder is set or promise exact-time contact. Explain the limitation naturally when asked; suggest a user-set reminder.",
+    "Keep metadata internal; never echo its labels or timestamp wrappers. Only successful scheduling tools establish real future contact; never promise a timed message without a confirmed schedule. A passing fictional time is not a real timer.",
     "Resolve relative dates from the original message createdAt in the known user timezone; leave dates uncertain if either is missing. Newer corrections and cancellations replace older plans. Passing dates do not confirm events: ask or leave unresolved without user confirmation. Never invent intervening activity or demand explanations for absence.",
     style === "chat"
       ? "Real elapsed time may inform a natural chat greeting or a relevant, tentative check-in. Keep any gap acknowledgment proportionate and optional."

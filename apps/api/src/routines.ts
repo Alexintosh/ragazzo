@@ -11,6 +11,25 @@ import {
 import type { Prisma } from "@rakazo/db";
 import type { RouterDeps } from "./router.js";
 
+/** RP uses the ordinary timer only; operational trigger capabilities stay unavailable. */
+export function assertRoleplayRoutine(
+  botKind: string,
+  input: {
+    watch?: unknown;
+    webhookEnabled?: boolean;
+    githubEnabled?: boolean;
+    messageProvider?: string | null;
+  },
+): void {
+  if (
+    botKind === "roleplay" &&
+    (input.watch != null || input.webhookEnabled || input.githubEnabled || input.messageProvider)
+  )
+    throw new ORPCError("BAD_REQUEST", {
+      message: "Roleplay routines support scheduled messages only",
+    });
+}
+
 export function assertRoutineSchedule(input: CreateRoutineInput): void {
   if (hasMixedOneShotSchedule(input.crons)) {
     throw new ORPCError("BAD_REQUEST", {
