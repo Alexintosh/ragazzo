@@ -11,7 +11,20 @@ const initial: ConversationEngineState = {
   status: "ready",
   character,
   historyGeneration: 2,
+  settings: { revision: 0, values: {} },
   inspection: {
+    needs: {
+      hunger: "low",
+      social: "mid",
+      stamina: "high",
+      emotional: "mid",
+      outing: "low",
+      indulgence: "low",
+    },
+    effects: [],
+    lifeEvent: null,
+    backgroundEvent: null,
+    items: [],
     profile: {
       location: "Glass Harbor",
       occupation: null,
@@ -48,6 +61,18 @@ const initial: ConversationEngineState = {
     changesAt: null,
     observedAt: "2026-10-01T12:00:00Z",
     debug: {
+      generation: {
+        tasks: [
+          {
+            name: "reply",
+            models: ["local-model"],
+            fallback: [],
+            temperature: 0.7,
+            maxTokens: 2048,
+          },
+        ],
+        profiles: ["fast", "quality"],
+      },
       feeling: "Curious about the unfamiliar chart.",
       feelingUpdatedAt: "2026-10-01T11:59:00Z",
       persona: {
@@ -82,6 +107,52 @@ createRoot(document.getElementById("root")!).render(
         <h1 className="text-xl font-semibold">Aster · Settings</h1>
         <ConversationEngineStatePanel
           onLoad={async () => state}
+          onSaveSettings={async (_previous, values) => {
+            state = { ...state, settings: { revision: state.settings.revision + 1, values } };
+            return state.settings;
+          }}
+          onAction={async (_previous, action) => {
+            if (action.kind === "add_item")
+              state = {
+                ...state,
+                inspection: {
+                  ...state.inspection!,
+                  items: [
+                    ...(state.inspection?.items ?? []),
+                    {
+                      id: crypto.randomUUID(),
+                      kind: action.itemKind,
+                      name: action.name,
+                      source: "caller",
+                      createdAt: "2026-10-01T12:00:00Z",
+                    },
+                  ],
+                },
+              };
+            if (action.kind === "delete_item")
+              state = {
+                ...state,
+                inspection: {
+                  ...state.inspection!,
+                  items: state.inspection!.items!.filter((item) => item.id !== action.itemId),
+                },
+              };
+            if (action.kind === "event")
+              state = {
+                ...state,
+                inspection: {
+                  ...state.inspection!,
+                  lifeEvent: {
+                    kind: "walk",
+                    category: "short",
+                    offline: false,
+                    startedAt: "2026-10-01T12:00:00Z",
+                    endsAt: "2026-10-01T13:00:00Z",
+                  },
+                },
+              };
+            return { status: "completed", message: null };
+          }}
           onSave={async (_previous, edit) => {
             state = {
               ...state,

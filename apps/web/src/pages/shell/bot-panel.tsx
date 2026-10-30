@@ -54,6 +54,7 @@ import { AvatarStudioPopover } from "./avatar-studio-popover";
 import { BotCredentialsSection } from "./bot-credentials";
 import { BotRuntimeSettings, BotRuntimeStatus } from "./bot-runtime-settings";
 import { ChatModelPicker } from "./chat-model-picker";
+import { useEngineActionRecovery } from "./conversation-engine-action-recovery";
 import { ConversationEngineStatePanel } from "./conversation-engine-state";
 import { RoleplayRelationshipDebug } from "./roleplay-relationship-debug";
 import { RoleplaySettings } from "./roleplay-settings";
@@ -232,6 +233,9 @@ export function BotSettings({
   // Shared with the model and voice settings, so a revisit paints at once and refreshes behind.
   const queries = useSpaceQueries();
   const rpc = useSpaceRpc();
+  const engineAction = useEngineActionRecovery(bot.id, (request) =>
+    rpc.bots.runConversationEngineAction({ botId: bot.id, ...request }),
+  );
   const refresh = { refetchOnMount: "always" } as const;
   const voices = useQuery({ ...queries.voice.voices.queryOptions({ input: {} }), ...refresh }).data;
   const credentialsQuery = useQuery({ ...queries.models.credentials.queryOptions(), ...refresh });
@@ -635,6 +639,17 @@ export function BotSettings({
             key={bot.id}
             busy={bot.status !== "idle" && bot.status !== "error"}
             onLoad={() => rpc.bots.conversationEngineState({ botId: bot.id })}
+            onSaveSettings={(state, values) =>
+              rpc.bots.updateConversationEngineSettings({
+                botId: bot.id,
+                historyGeneration: state.historyGeneration,
+                expectedRevision: state.settings.revision,
+                settings: values,
+              })
+            }
+            actionUncertain={engineAction.unresolved}
+            onCheckAction={engineAction.check}
+            onAction={(state, action) => engineAction.run(state.historyGeneration, action)}
             onSave={(state, edit) =>
               rpc.bots.updateConversationEngineState({
                 botId: bot.id,

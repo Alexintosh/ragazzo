@@ -441,6 +441,14 @@ msgstr "帳號標籤"
 msgid "Account menu for {name}"
 msgstr "{name} 的帳號選單"
 
+#: src/pages/shell/conversation-engine-actions.tsx
+msgid "Action outcome is uncertain. Check the conversation before continuing."
+msgstr ""
+
+#: src/pages/shell/conversation-engine-actions.tsx
+msgid "Action recovery storage is unavailable. No new action was sent."
+msgstr ""
+
 #. placeholder {0}: bot.name
 #. placeholder {0}: group.spaceName
 #. placeholder {0}: section.name
@@ -457,6 +465,10 @@ msgstr "空間操作"
 #: src/pages/RoutineEditor.tsx
 msgid "Active"
 msgstr "啟用"
+
+#: src/pages/shell/conversation-engine-actions.tsx
+msgid "Active effects"
+msgstr ""
 
 #: src/pages/shell/sidebar-header.tsx
 msgid "Activity"
@@ -556,6 +568,7 @@ msgid "Add header"
 msgstr "新增標頭"
 
 #: src/pages/ScratchpadSection.tsx
+#: src/pages/shell/conversation-engine-actions.tsx
 msgid "Add item"
 msgstr "新增項目"
 
@@ -612,6 +625,10 @@ msgstr "新增到現有機器人"
 #: src/components/teach/SkillDraftCard.tsx
 msgid "Add to routine"
 msgstr "加入例行任務"
+
+#: src/pages/shell/conversation-engine-settings.tsx
+msgid "Add trait"
+msgstr ""
 
 #: src/pages/PluginsOverlay.tsx
 msgid "Add Treg"
@@ -943,6 +960,10 @@ msgstr "自動化傳送者"
 msgid "Automated senders will appear after they post here."
 msgstr "自動化傳送者在這裡傳送訊息後就會顯示。"
 
+#: src/pages/shell/conversation-engine-actions.tsx
+msgid "Automatic initiative is managed by the Eros deployment."
+msgstr ""
+
 #: src/pages/RoutineEditor.tsx
 msgid "Available after the routine is saved"
 msgstr "儲存例行任務後可用"
@@ -976,6 +997,10 @@ msgstr ""
 msgid "Back to sign in"
 msgstr "返回登入"
 
+#: src/pages/shell/conversation-engine-actions.tsx
+msgid "Background event"
+msgstr ""
+
 #: src/pages/shell/roleplay-settings.tsx
 msgid "Balanced"
 msgstr "均衡"
@@ -1002,6 +1027,10 @@ msgstr "Bearer 權杖"
 msgid "Before character"
 msgstr ""
 
+#: src/pages/shell/conversation-engine-settings.tsx
+msgid "Behavior traits"
+msgstr ""
+
 #: src/pages/SettingsOverlay.tsx
 msgid "Billing"
 msgstr "帳務"
@@ -1019,8 +1048,13 @@ msgstr "受阻"
 msgid "Board"
 msgstr "看板"
 
+#: src/pages/shell/conversation-engine-settings.tsx
 #: src/pages/shell/conversation-engine-state.tsx
 msgid "Bond"
+msgstr ""
+
+#: src/pages/shell/conversation-engine-settings.tsx
+msgid "Bond and chemistry"
 msgstr ""
 
 #: src/pages/shell/computer-view.tsx
@@ -1311,6 +1345,10 @@ msgstr "聊天"
 msgid "Check"
 msgstr ""
 
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Check action"
+msgstr ""
+
 #: src/components/ComputersUnavailableHint.tsx
 #: src/pages/HostComputerPrompt.tsx
 msgid "Check again"
@@ -1379,6 +1417,7 @@ msgstr ""
 msgid "Checking…"
 msgstr "正在檢查…"
 
+#: src/pages/shell/conversation-engine-settings.tsx
 #: src/pages/shell/conversation-engine-state.tsx
 msgid "Chemistry"
 msgstr ""
@@ -1527,6 +1566,10 @@ msgstr "關閉使用者設定"
 #: src/pages/VoiceSettingsOverlay.tsx
 msgid "Close voice settings"
 msgstr "關閉語音設定"
+
+#: src/pages/shell/conversation-engine-actions.tsx
+msgid "Clothing"
+msgstr ""
 
 #: src/pages/memory-providers/ConnectionModeFields.tsx
 msgid "Cloud"
@@ -1920,6 +1963,10 @@ msgstr "無法完成操作"
 msgid "Could not complete OAuth"
 msgstr "無法完成 OAuth"
 
+#: src/pages/shell/conversation-engine-actions.tsx
+msgid "Could not complete the Eros action"
+msgstr ""
+
 #: src/components/DesktopUpdates.tsx
 msgid "Could not complete the update. Try again."
 msgstr "無法完成更新，請再試一次。"
@@ -2250,6 +2297,10 @@ msgstr "無法儲存自動審查"
 msgid "Could not save character"
 msgstr ""
 
+#: src/pages/shell/conversation-engine-settings.tsx
+msgid "Could not save Eros settings"
+msgstr ""
+
 #: src/pages/shell/conversation-engine-state.tsx
 msgid "Could not save Eros state"
 msgstr ""
@@ -2469,13 +2520,21 @@ msgstr "Cron"
 msgid "Cron expression"
 msgstr "Cron 表示式"
 
+#: src/pages/shell/conversation-engine-actions.tsx
+msgid "Current event"
+msgstr ""
+
 #: src/components/AccountAccess.tsx
 #: src/pages/AccountSettingsOverlay.tsx
 msgid "Current password"
 msgstr "目前密碼"
 
-#: src/pages/shell/conversation-engine-state.tsx
+#: src/pages/shell/conversation-engine-fields.tsx
 msgid "Current situation"
+msgstr ""
+
+#: src/pages/shell/conversation-engine-settings.tsx
+msgid "Custom axes"
 msgstr ""
 
 #: src/pages/shell/bot-credentials.tsx
@@ -2636,6 +2695,14 @@ msgstr "已拒絕"
 msgid "Deny"
 msgstr "拒絕"
 
+#: src/pages/shell/conversation-engine-generation.tsx
+msgid "Deployment generation settings"
+msgstr ""
+
+#: src/pages/shell/conversation-engine-generation.tsx
+msgid "Deployment model details are unavailable."
+msgstr ""
+
 #: src/pages/Board.tsx
 #: src/pages/shell/agent-import.tsx
 #: src/pages/shell/bot-panel.tsx
@@ -2643,7 +2710,7 @@ msgstr "拒絕"
 msgid "Description"
 msgstr "描述"
 
-#: src/pages/shell/conversation-engine-state.tsx
+#: src/pages/shell/conversation-engine-fields.tsx
 msgid "Desires"
 msgstr ""
 
@@ -2689,6 +2756,10 @@ msgstr ""
 msgid "Discard recording"
 msgstr "捨棄錄製內容"
 
+#: src/pages/shell/conversation-engine-settings.tsx
+msgid "Discard settings"
+msgstr ""
+
 #: src/pages/McpServersOverlay.tsx
 #: src/pages/MemorySettingsOverlay.tsx
 #: src/pages/MessagingSettingsPanel.tsx
@@ -2715,7 +2786,7 @@ msgstr "已中斷連結 {disconnectName}。"
 msgid "Disconnecting…"
 msgstr "正在中斷…"
 
-#: src/pages/shell/conversation-engine-state.tsx
+#: src/pages/shell/conversation-engine-fields.tsx
 msgid "Dislikes"
 msgstr ""
 
@@ -2820,6 +2891,10 @@ msgstr "技能草稿"
 msgid "Drag, drop, or paste an image"
 msgstr "拖放或貼上圖片"
 
+#: src/pages/shell/conversation-engine-actions.tsx
+msgid "Draw event"
+msgstr ""
+
 #: src/pages/BotContextMenu.tsx
 msgid "Duplicate"
 msgstr "複製"
@@ -2879,6 +2954,10 @@ msgstr "該電子信箱不允許註冊"
 msgid "Email verification required"
 msgstr "需要驗證電子信箱"
 
+#: src/pages/shell/conversation-engine-actions.tsx
+msgid "Emotional"
+msgstr ""
+
 #: src/pages/shell/conversation-engine-state.tsx
 msgid "Emotional need"
 msgstr ""
@@ -2903,6 +2982,11 @@ msgstr "於 {day} 結束"
 #: src/pages/ExternalConversationSettings.tsx
 msgid "Engage when... Ignore..."
 msgstr "何時參與… 忽略哪些內容…"
+
+#: src/pages/shell/conversation-engine-generation.tsx
+#: src/pages/shell/conversation-engine-settings.tsx
+msgid "Engine default"
+msgstr ""
 
 #: src/pages/shell/conversation-engine-state.tsx
 msgid "Engine time"
@@ -3000,6 +3084,10 @@ msgstr "錯誤"
 #: src/components/McpServerHealthLine.tsx
 msgid "Error details"
 msgstr "錯誤詳細資訊"
+
+#: src/pages/shell/conversation-engine-actions.tsx
+msgid "Events and daily life"
+msgstr ""
 
 #: src/lib/cron.ts
 #: src/pages/ExternalConversationSettings.tsx
@@ -3138,6 +3226,10 @@ msgstr "失敗。"
 msgid "Failure handling"
 msgstr "失敗處理"
 
+#: src/pages/shell/conversation-engine-generation.tsx
+msgid "Fallback"
+msgstr ""
+
 #: src/pages/shell/conversation-engine-state.tsx
 msgid "Feeling elapsed hours"
 msgstr ""
@@ -3253,6 +3345,10 @@ msgstr "從"
 msgid "From {0}"
 msgstr "自 {0} 起"
 
+#: src/pages/shell/conversation-engine-settings.tsx
+msgid "Full"
+msgstr ""
+
 #: src/pages/shell/bot-runtime-settings.tsx
 msgid "Full access"
 msgstr ""
@@ -3294,6 +3390,10 @@ msgstr "正在準備"
 msgid "Git event"
 msgstr "Git 事件"
 
+#: src/pages/shell/conversation-engine-actions.tsx
+msgid "Greet now"
+msgstr ""
+
 #: src/lib/identity-display.ts
 #: src/pages/MessagingSettingsPanel.tsx
 #: src/pages/shell/chat-header.tsx
@@ -3309,7 +3409,7 @@ msgstr "群組設定"
 msgid "Group updates"
 msgstr "群組更新"
 
-#: src/pages/shell/conversation-engine-state.tsx
+#: src/pages/shell/conversation-engine-fields.tsx
 msgid "Habits"
 msgstr ""
 
@@ -3376,6 +3476,7 @@ msgstr "隱藏文字紀錄"
 #: src/lib/ticket-priority.ts
 #: src/pages/model-settings/compatible-model-fields.tsx
 #: src/pages/Onboarding.tsx
+#: src/pages/shell/conversation-engine-actions.tsx
 #: src/pages/shell/conversation-engine-state.tsx
 msgid "High"
 msgstr "高"
@@ -3450,6 +3551,10 @@ msgstr "如何檢查"
 msgid "How will you use Rakazo?"
 msgstr "你會如何使用 Rakazo？"
 
+#: src/pages/shell/conversation-engine-actions.tsx
+msgid "Hunger"
+msgstr ""
+
 #: src/pages/shell/registered-host-picker.tsx
 msgid "I trust this host to run commands and access project files."
 msgstr ""
@@ -3521,9 +3626,17 @@ msgstr "包含 API 金鑰"
 msgid "Incoming call"
 msgstr "來電"
 
+#: src/pages/shell/conversation-engine-actions.tsx
+msgid "Indulgence"
+msgstr ""
+
 #: src/pages/shell/bot-panel.tsx
 msgid "Inherit default"
 msgstr "沿用預設"
+
+#: src/pages/shell/conversation-engine-actions.tsx
+msgid "Initiative and greetings"
+msgstr ""
 
 #: src/pages/AccountSettingsOverlay.tsx
 msgid "Input"
@@ -3535,6 +3648,10 @@ msgstr "輸入"
 
 #: src/pages/shell/roleplay-settings.tsx
 msgid "Insertion order"
+msgstr ""
+
+#: src/pages/shell/conversation-engine-settings.tsx
+msgid "Insights only"
 msgstr ""
 
 #: src/pages/shell/bot-runtime-settings.tsx
@@ -3606,11 +3723,13 @@ msgstr "間隔數量"
 msgid "Interval unit"
 msgstr "間隔單位"
 
+#: src/pages/shell/conversation-engine-settings.tsx
 #: src/pages/shell/conversation-engine-state.tsx
 #: src/pages/shell/roleplay-relationship-debug.tsx
 msgid "Intimacy"
 msgstr "親密度"
 
+#: src/pages/shell/conversation-engine-settings.tsx
 #: src/pages/shell/conversation-engine-state.tsx
 msgid "Intrigue"
 msgstr ""
@@ -3618,6 +3737,14 @@ msgstr ""
 #: src/lib/user-error.ts
 msgid "Invalid code"
 msgstr "驗證碼無效"
+
+#: src/pages/shell/conversation-engine-settings.tsx
+msgid "Inventory and outfit"
+msgstr ""
+
+#: src/pages/shell/conversation-engine-actions.tsx
+msgid "Inventory is unavailable from this Eros deployment."
+msgstr ""
 
 #: src/pages/MemorySettingsOverlay.tsx
 #: src/pages/shell/bot-panel.tsx
@@ -3627,6 +3754,18 @@ msgstr "隔離"
 #: src/pages/Artifacts.tsx
 msgid "Isolated preview — no access to your account"
 msgstr "隔離預覽 — 無法存取你的帳號"
+
+#: src/pages/shell/conversation-engine-actions.tsx
+msgid "Item"
+msgstr ""
+
+#: src/pages/shell/conversation-engine-actions.tsx
+msgid "Item name"
+msgstr ""
+
+#: src/pages/shell/conversation-engine-actions.tsx
+msgid "Item type"
+msgstr ""
 
 #: src/pages/shell/shell-dialogs.tsx
 msgid "Its bots and groups are kept and leave the section."
@@ -3726,7 +3865,7 @@ msgstr "讓機器人在 MEMORY.md 之外，依語意儲存和回想事實。"
 msgid "Light"
 msgstr "淺色"
 
-#: src/pages/shell/conversation-engine-state.tsx
+#: src/pages/shell/conversation-engine-fields.tsx
 msgid "Likes"
 msgstr ""
 
@@ -3840,7 +3979,7 @@ msgstr "存取本機電腦需要最新版桌面應用程式。"
 msgid "Local host"
 msgstr ""
 
-#: src/pages/shell/conversation-engine-state.tsx
+#: src/pages/shell/conversation-engine-fields.tsx
 msgid "Location"
 msgstr ""
 
@@ -3873,6 +4012,7 @@ msgstr "愛意"
 #: src/lib/ticket-priority.ts
 #: src/pages/model-settings/compatible-model-fields.tsx
 #: src/pages/Onboarding.tsx
+#: src/pages/shell/conversation-engine-actions.tsx
 #: src/pages/shell/conversation-engine-state.tsx
 msgid "Low"
 msgstr "低"
@@ -3976,6 +4116,7 @@ msgstr "MCP 伺服器"
 
 #: src/pages/model-settings/compatible-model-fields.tsx
 #: src/pages/Onboarding.tsx
+#: src/pages/shell/conversation-engine-actions.tsx
 #: src/pages/shell/conversation-engine-state.tsx
 msgid "Medium"
 msgstr "中"
@@ -4004,6 +4145,10 @@ msgstr "記憶"
 #: src/pages/shell/agent-import.tsx
 msgid "Memory {position}"
 msgstr "記憶 {position}"
+
+#: src/pages/shell/conversation-engine-settings.tsx
+msgid "Memory context"
+msgstr ""
 
 #: src/pages/shell/agent-import.tsx
 msgid "Memory for {title}"
@@ -4137,6 +4282,10 @@ msgstr ""
 msgid "Model connections"
 msgstr "模型連線"
 
+#: src/pages/shell/conversation-engine-settings.tsx
+msgid "Model generation"
+msgstr ""
+
 #: src/pages/model-settings/compatible-model-fields.tsx
 #: src/pages/Onboarding.tsx
 msgid "Model id"
@@ -4152,8 +4301,13 @@ msgstr "模型選項"
 msgid "Model selection unavailable"
 msgstr ""
 
+#: src/pages/shell/conversation-engine-generation.tsx
+msgid "Model tier"
+msgstr ""
+
 #: src/pages/ModelSettingsOverlay.tsx
 #: src/pages/SettingsOverlay.tsx
+#: src/pages/shell/conversation-engine-generation.tsx
 #: src/pages/SpaceSettingOverrides.tsx
 msgid "Models"
 msgstr "模型"
@@ -4274,9 +4428,17 @@ msgstr "敘事"
 msgid "Narrative instructions"
 msgstr ""
 
+#: src/pages/shell/conversation-engine-actions.tsx
+msgid "Needs"
+msgstr ""
+
 #: src/lib/roster-status.ts
 msgid "Needs an answer"
 msgstr "需要回覆"
+
+#: src/pages/shell/conversation-engine-actions.tsx
+msgid "Needs are unavailable from this Eros deployment."
+msgstr ""
 
 #: src/pages/ActivityList.tsx
 msgid "Needs input"
@@ -4294,6 +4456,14 @@ msgstr "需要你處理"
 #: src/pages/shell/import-status.ts
 msgid "Needs: {names}"
 msgstr "需要：{names}"
+
+#: src/pages/shell/conversation-engine-settings.tsx
+msgid "Neutral and relationship"
+msgstr ""
+
+#: src/pages/shell/conversation-engine-settings.tsx
+msgid "Neutral only"
+msgstr ""
 
 #: src/components/ApprovalRulesSettings.tsx
 msgid "Never ask"
@@ -4398,11 +4568,11 @@ msgid "No bots match"
 msgstr "沒有符合的機器人"
 
 #: src/pages/shell/conversation-engine-state.tsx
-msgid "No character insights yet."
+msgid "No conversation state yet."
 msgstr ""
 
-#: src/pages/shell/conversation-engine-state.tsx
-msgid "No conversation state yet."
+#: src/pages/shell/conversation-engine-actions.tsx
+msgid "No current event reported."
 msgstr ""
 
 #: src/pages/shell/conversation-files-panel.tsx
@@ -4415,6 +4585,14 @@ msgstr ""
 
 #: src/pages/shell/project-folder-picker.tsx
 msgid "No folders"
+msgstr ""
+
+#: src/pages/shell/conversation-engine-fields.tsx
+msgid "No insights yet."
+msgstr ""
+
+#: src/pages/shell/conversation-engine-actions.tsx
+msgid "No inventory items."
 msgstr ""
 
 #: src/components/AskCard.tsx
@@ -4447,6 +4625,10 @@ msgstr "還沒有 MCP 伺服器。"
 #: src/pages/GroupPanel.tsx
 msgid "No members yet"
 msgstr "尚無成員"
+
+#: src/pages/shell/conversation-engine-actions.tsx
+msgid "No message generated."
+msgstr ""
 
 #: src/pages/PeerMessagesOverlay.tsx
 msgid "No messages with {peerBotName} yet."
@@ -4498,6 +4680,15 @@ msgstr "尚無工作項目"
 msgid "No trigger"
 msgstr "無觸發器"
 
+#: src/pages/shell/conversation-engine-settings.tsx
+msgid "No user insights available."
+msgstr ""
+
+#: src/pages/shell/conversation-engine-generation.tsx
+#: src/pages/shell/conversation-engine-settings.tsx
+msgid "None"
+msgstr ""
+
 #: src/lib/ticket-priority.ts
 msgid "Normal"
 msgstr "一般"
@@ -4506,6 +4697,7 @@ msgstr "一般"
 msgid "Not a valid skill"
 msgstr "不是有效的技能"
 
+#: src/pages/shell/conversation-engine-generation.tsx
 #: src/pages/shell/conversation-engine-state.tsx
 msgid "Not available"
 msgstr ""
@@ -4585,7 +4777,15 @@ msgstr "OAuth 已過期"
 msgid "Observed at"
 msgstr ""
 
-#: src/pages/shell/conversation-engine-state.tsx
+#: src/pages/shell/conversation-engine-settings.tsx
+msgid "Observed by Eros."
+msgstr ""
+
+#: src/pages/shell/conversation-engine-actions.tsx
+msgid "Observed by Eros. Direct overrides are unavailable."
+msgstr ""
+
+#: src/pages/shell/conversation-engine-fields.tsx
 msgid "Occupation"
 msgstr ""
 
@@ -4726,6 +4926,14 @@ msgstr "原訊息不可用"
 msgid "Other model…"
 msgstr "其他模型…"
 
+#: src/pages/shell/conversation-engine-settings.tsx
+msgid "Outfit"
+msgstr ""
+
+#: src/pages/shell/conversation-engine-actions.tsx
+msgid "Outing"
+msgstr ""
+
 #: src/pages/AccountSettingsOverlay.tsx
 msgid "Output"
 msgstr "輸出"
@@ -4805,6 +5013,7 @@ msgstr "貼上你的 API 金鑰"
 msgid "Paste your API key, then test again."
 msgstr "請貼上你的 API 金鑰，然後重新測試。"
 
+#: src/pages/shell/conversation-engine-settings.tsx
 #: src/pages/shell/conversation-engine-state.tsx
 msgid "Patience"
 msgstr ""
@@ -4834,7 +5043,7 @@ msgstr "人設"
 msgid "Personal"
 msgstr "個人"
 
-#: src/pages/shell/conversation-engine-state.tsx
+#: src/pages/shell/conversation-engine-fields.tsx
 msgid "Personal values"
 msgstr ""
 
@@ -5169,11 +5378,23 @@ msgstr ""
 msgid "Registration is closed"
 msgstr "註冊已關閉"
 
+#: src/pages/shell/conversation-engine-settings.tsx
+msgid "Relationship context"
+msgstr ""
+
 #: src/pages/shell/roleplay-relationship-debug.tsx
 msgid "Relationship debug"
 msgstr "關係偵錯"
 
-#: src/pages/shell/conversation-engine-state.tsx
+#: src/pages/shell/conversation-engine-settings.tsx
+msgid "Relationship evolution"
+msgstr ""
+
+#: src/pages/shell/conversation-engine-settings.tsx
+msgid "Relationship only"
+msgstr ""
+
+#: src/pages/shell/conversation-engine-fields.tsx
 msgid "Relationships"
 msgstr ""
 
@@ -5191,11 +5412,14 @@ msgstr "重新載入"
 #: src/pages/PluginsOverlay.tsx
 #: src/pages/ScratchpadSection.tsx
 #: src/pages/shell/bot-credentials.tsx
+#: src/pages/shell/conversation-engine-actions.tsx
 msgid "Remove"
 msgstr "移除"
 
 #. placeholder {0}: attachment.file.name
+#. placeholder {0}: item.name
 #: src/pages/shell/composer.tsx
+#: src/pages/shell/conversation-engine-actions.tsx
 msgid "Remove {0}"
 msgstr "移除 {0}"
 
@@ -5254,6 +5478,10 @@ msgstr "移除排程"
 #: src/pages/shell/composer.tsx
 msgid "Remove skill {0}"
 msgstr "移除技能 {0}"
+
+#: src/pages/shell/conversation-engine-settings.tsx
+msgid "Remove trait"
+msgstr ""
 
 #: src/pages/RoutineEditor.tsx
 msgid "Remove webhook"
@@ -5556,6 +5784,10 @@ msgstr ""
 msgid "Runtime unavailable"
 msgstr ""
 
+#: src/pages/shell/conversation-engine-generation.tsx
+msgid "Sampling and model routes are managed by the Eros deployment."
+msgstr ""
+
 #: src/lib/cron.ts
 msgid "Saturday"
 msgstr "週六"
@@ -5593,6 +5825,10 @@ msgstr "儲存憑證"
 #: src/pages/shell/bot-credentials.tsx
 msgid "Save new value"
 msgstr "儲存新值"
+
+#: src/pages/shell/conversation-engine-settings.tsx
+msgid "Save settings"
+msgstr ""
 
 #: src/components/ComputerMaintenanceActions.tsx
 msgid "Save the workspace and install current software."
@@ -5817,6 +6053,10 @@ msgstr ""
 msgid "Settings"
 msgstr "設定"
 
+#: src/pages/shell/conversation-engine-settings.tsx
+msgid "Settings changed. Discard edits to use the latest values."
+msgstr ""
+
 #: src/pages/shell/composer-mentions.tsx
 msgid "Settings: General"
 msgstr "設定：一般"
@@ -6032,6 +6272,10 @@ msgstr "未啟用 Slack"
 msgid "Slide up to lock"
 msgstr "向上滑動以鎖定"
 
+#: src/pages/shell/conversation-engine-actions.tsx
+msgid "Social"
+msgstr ""
+
 #: src/pages/shell/agent-import.tsx
 msgid "Some settings are not imported"
 msgstr "部分設定不會匯入"
@@ -6110,6 +6354,10 @@ msgstr "主動訊息"
 #: src/lib/user-error.ts
 msgid "SSO is temporarily unavailable. Try again."
 msgstr "SSO 暫時不可用，請重試。"
+
+#: src/pages/shell/conversation-engine-actions.tsx
+msgid "Stamina"
+msgstr ""
 
 #: src/pages/shell/computer-overlay.tsx
 msgid "Start"
@@ -6309,6 +6557,7 @@ msgstr "表格"
 msgid "Take control"
 msgstr "接管控制權"
 
+#: src/pages/shell/conversation-engine-generation.tsx
 #: src/pages/shell/conversation-tasks.tsx
 msgid "Task"
 msgstr ""
@@ -6349,6 +6598,11 @@ msgstr "Teams 訊息"
 msgid "Teams not enabled"
 msgstr "未啟用 Teams"
 
+#: src/pages/shell/conversation-engine-generation.tsx
+msgid "Temperature"
+msgstr ""
+
+#: src/pages/shell/conversation-engine-settings.tsx
 #: src/pages/shell/conversation-engine-state.tsx
 msgid "Tension"
 msgstr ""
@@ -6404,6 +6658,10 @@ msgstr "模型回傳了無法使用的回覆，請再試一次。"
 #: src/lib/model-connection-preflight.ts
 msgid "The provider is rate-limiting requests."
 msgstr "供應商正在限制請求頻率。"
+
+#: src/pages/shell/conversation-engine-actions.tsx
+msgid "The saved action could not be read. No new action was sent."
+msgstr ""
 
 #: src/pages/MemorySettingsOverlay.tsx
 msgid "The selected memory provider is not available in this build."
@@ -6614,6 +6872,10 @@ msgstr "今天"
 msgid "Token budget"
 msgstr ""
 
+#: src/pages/shell/conversation-engine-generation.tsx
+msgid "Token limit"
+msgstr ""
+
 #: src/pages/AccountSettingsOverlay.tsx
 msgid "Tokens"
 msgstr "Token"
@@ -6647,6 +6909,14 @@ msgstr "工具"
 msgid "Top up anytime"
 msgstr "隨時加值"
 
+#: src/pages/shell/conversation-engine-settings.tsx
+msgid "Trait guidance"
+msgstr ""
+
+#: src/pages/shell/conversation-engine-settings.tsx
+msgid "Trait tag"
+msgstr ""
+
 #: src/components/composer/HoldToTalk.tsx
 msgid "Transcribing…"
 msgstr "轉錄中…"
@@ -6675,6 +6945,7 @@ msgstr "試用"
 msgid "Trial ends {day}"
 msgstr "試用於 {day} 結束"
 
+#: src/pages/shell/conversation-engine-settings.tsx
 #: src/pages/shell/conversation-engine-state.tsx
 msgid "Trust"
 msgstr ""
@@ -6865,6 +7136,10 @@ msgstr "{label}使用預設值"
 msgid "Use folder"
 msgstr ""
 
+#: src/pages/shell/conversation-engine-settings.tsx
+msgid "Use lowercase letters, numbers and underscores for tier and trait tags, and single-line trait guidance."
+msgstr ""
+
 #: src/components/ModelCredits.tsx
 msgid "Use my subscription or API key"
 msgstr "使用我的訂閱或 API 金鑰"
@@ -6884,6 +7159,10 @@ msgstr "使用空間預設模型"
 #: src/pages/memory-providers/HonchoSettingsForm.tsx
 msgid "Use up to 512 letters, digits, _ or -."
 msgstr "最多可使用 512 個英文字母、數字、_ 或 -。"
+
+#: src/pages/shell/conversation-engine-settings.tsx
+msgid "User insights"
+msgstr ""
 
 #: src/pages/memory-providers/HonchoSettingsForm.tsx
 msgid "User peer"
@@ -6939,7 +7218,7 @@ msgstr "檢視聊天"
 msgid "Voice"
 msgstr "語音"
 
-#: src/pages/shell/conversation-engine-state.tsx
+#: src/pages/shell/conversation-engine-fields.tsx
 msgid "Vulnerabilities"
 msgstr ""
 
@@ -6971,6 +7250,7 @@ msgstr "排隊等候…"
 msgid "Waiting…"
 msgstr "等待中…"
 
+#: src/pages/shell/conversation-engine-settings.tsx
 #: src/pages/shell/conversation-engine-state.tsx
 #: src/pages/shell/roleplay-relationship-debug.tsx
 msgid "Warmth"

@@ -19,6 +19,7 @@ export interface DebugBridgeConfig {
   bridgeSecret: string;
   pool: DebugSqlPool;
   now?: () => number;
+  generation?: () => Promise<unknown>;
 }
 
 interface Scope {
@@ -406,7 +407,10 @@ export function createDebugBridge(config: DebugBridgeConfig) {
         // Native summaries derived before this edit cannot overwrite it.
         settlement = { ...settlement, recentAffinity: true, retryAfterSeconds: 30 };
       }
-      const result = output(row, raw, settlement);
+      const result = {
+        ...output(row, raw, settlement),
+        ...(config.generation ? { generation: await config.generation() } : {}),
+      };
       if (Buffer.byteLength(JSON.stringify(result)) > MAX_RESPONSE_BYTES)
         throw new BridgeError("unavailable", 503);
       await client.query("COMMIT");

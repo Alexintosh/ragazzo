@@ -8,10 +8,13 @@ import type {
 import { ConversationEngineError } from "@rakazo/adapter-kit";
 import type {
   ConversationEngineInspection,
+  ConversationEngineSettings,
   UpdateConversationEngineState,
 } from "@rakazo/contracts";
 import {
   ConversationEngineAxesSchema,
+  ConversationEngineItemNameSchema,
+  ConversationEngineSettingsSchema,
   ipVersion,
   isCloudMetadataHost,
   isLinkLocalAddress,
@@ -20,7 +23,12 @@ import {
   normalizeHost,
 } from "@rakazo/contracts";
 import { z } from "zod";
-import { parseErosDebug, parseErosInspection } from "./eros-engine-inspection.js";
+import {
+  parseErosAction,
+  parseErosDebug,
+  parseErosInspection,
+  parseErosItem,
+} from "./eros-engine-inspection.js";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const MAX_STREAM_BYTES = 2 * 1024 * 1024;
@@ -85,6 +93,19 @@ function object(value: unknown): Record<string, unknown> {
     throw new ConversationEngineError("uncertain", true);
   }
   return value as Record<string, unknown>;
+}
+
+function requestSettings(raw: ConversationEngineSettings | undefined) {
+  const result = ConversationEngineSettingsSchema.safeParse(raw ?? {});
+  if (!result.success) throw new ConversationEngineError("invalid_request");
+  const settings = result.data;
+  return {
+    ...(settings.tier === undefined ? {} : { tier: settings.tier }),
+    ...(settings.promptTraits === undefined ? {} : { prompt_traits: settings.promptTraits }),
+    ...(settings.memoryScope === undefined ? {} : { memory_scope: settings.memoryScope }),
+    ...(settings.affinityScope === undefined ? {} : { affinity_scope: settings.affinityScope }),
+    ...(settings.outfit === undefined ? {} : { outfit: settings.outfit }),
+  };
 }
 
 async function readJson(
@@ -312,6 +333,8 @@ export class ErosConversationEngine implements ConversationEngine {
       `/bff/v1/comp/affinity/${input.sessionId}`,
       `/bff/v1/comp/affinity/${input.sessionId}/event`,
       `/v2/comp/session/${input.sessionId}/effects`,
+      `/v2/comp/instance/${input.instanceId}/insight/user`,
+      `/v2/comp/instance/${input.instanceId}/items`,
     ];
     try {
       const results = await Promise.allSettled([
@@ -334,14 +357,144 @@ export class ErosConversationEngine implements ConversationEngine {
         input.sessionId,
         input.instanceId,
         input.characterId,
-        values.slice(0, 4) as Record<string, unknown>[],
-        values[4]!,
+        values.slice(0, 6) as Record<string, unknown>[],
+        values[6]!,
       );
     } catch (error) {
       if (error instanceof ConversationEngineError) throw error;
       throw new ConversationEngineError("unavailable", true);
     } finally {
       lifetime.dispose();
+    }
+  }
+
+  async #nativeMutation(
+    input: ConversationEngineBinding,
+    path: string,
+    method: "POST" | "DELETE",
+    body: Record<string, unknown> | undefined,
+    signal?: AbortSignal,
+  ) {
+    this.#binding(input);
+    const lifetime = requestLifetime(signal, this.#timeoutMs);
+    try {
+      const response = await this.#fetch(`${this.#baseUrl}${path}`, {
+        method,
+        headers: this.#headers(input.userId, "application/json"),
+        redirect: "error",
+        signal: lifetime.signal,
+        ...(body ? { body: JSON.stringify(body) } : {}),
+      });
+      await this.#checkResponse(response);
+      return method === "DELETE" ? null : await readJson(response, 256 * 1024);
+    } catch (error) {
+      if (error instanceof ConversationEngineError) throw error;
+      throw new ConversationEngineError("uncertain");
+    } finally {
+      lifetime.dispose();
+    }
+  }
+
+  async addItem(
+    input: ConversationEngineBinding & { kind: "item" | "clothing"; name: string },
+    signal?: AbortSignal,
+  ) {
+    const item = z
+      .object({ kind: z.enum(["item", "clothing"]), name: ConversationEngineItemNameSchema })
+      .safeParse(input);
+    if (!item.success) throw new ConversationEngineError("invalid_request");
+    const result = await this.#nativeMutation(
+      input,
+      `/v2/comp/instance/${input.instanceId}/items`,
+      "POST",
+      item.data,
+      signal,
+    );
+    try {
+      return parseErosItem(result);
+    } catch {
+      throw new ConversationEngineError("uncertain");
+    }
+  }
+
+  async deleteItem(input: ConversationEngineBinding & { itemId: string }, signal?: AbortSignal) {
+    if (!UUID.test(input.itemId)) throw new ConversationEngineError("invalid_request");
+    await this.#nativeMutation(
+      input,
+      `/v2/comp/instance/${input.instanceId}/items/${input.itemId}`,
+      "DELETE",
+      undefined,
+      signal,
+    );
+  }
+
+  async openSession(
+    input: ConversationEngineBinding & {
+      actionId: string;
+      occasion?: "first_meet" | "returning" | "just_opened";
+      settings?: ConversationEngineSettings;
+    },
+    signal?: AbortSignal,
+  ) {
+    if (
+      !UUID.test(input.actionId) ||
+      (input.occasion !== undefined &&
+        !["first_meet", "returning", "just_opened"].includes(input.occasion))
+    )
+      throw new ConversationEngineError("invalid_request");
+    const { outfit: _outfit, ...settings } = requestSettings(input.settings);
+    const body = {
+      ...settings,
+      ...(input.occasion ? { occasion: input.occasion, open_key: input.actionId } : {}),
+    };
+    const result = await this.#nativeMutation(
+      input,
+      `/v2/comp/session/${input.sessionId}/open`,
+      "POST",
+      body,
+      signal,
+    );
+    try {
+      return parseErosAction(result!, "open");
+    } catch {
+      throw new ConversationEngineError("uncertain");
+    }
+  }
+
+  async drawEvent(
+    input: ConversationEngineBinding & {
+      actionId: string;
+      kinds?: string[];
+      settings?: ConversationEngineSettings;
+    },
+    signal?: AbortSignal,
+  ) {
+    if (
+      !UUID.test(input.actionId) ||
+      (input.kinds !== undefined &&
+        (!Array.isArray(input.kinds) ||
+          input.kinds.length > 64 ||
+          input.kinds.some(
+            (kind) => !/^[a-z_]{1,64}$/.test(kind) || ["taking_space", "fell_out"].includes(kind),
+          )))
+    )
+      throw new ConversationEngineError("invalid_request");
+    const body = {
+      ...requestSettings(input.settings),
+      event_key: input.actionId,
+      ...(input.kinds === undefined ? {} : { kinds: input.kinds }),
+    };
+    const result = await this.#nativeMutation(
+      input,
+      `/v2/comp/session/${input.sessionId}/events`,
+      "POST",
+      body,
+      signal,
+    );
+    try {
+      return parseErosAction(result!, "event");
+    } catch {
+      throw new ConversationEngineError("uncertain");
     }
   }
 
@@ -427,7 +580,13 @@ export class ErosConversationEngine implements ConversationEngine {
   }
 
   async *stream(
-    input: { userId: string; sessionId: string; clientMessageId: string; text: string },
+    input: {
+      userId: string;
+      sessionId: string;
+      clientMessageId: string;
+      text: string;
+      settings?: ConversationEngineSettings;
+    },
     signal?: AbortSignal,
   ): AsyncGenerator<ConversationEngineEvent> {
     if (
@@ -440,6 +599,7 @@ export class ErosConversationEngine implements ConversationEngine {
       throw new ConversationEngineError("invalid_request");
     }
     const headers = this.#headers(input.userId, "text/event-stream");
+    const settings = requestSettings(input.settings);
     const lifetime = requestLifetime(signal, this.#timeoutMs);
     let text = "";
     let messageId: string | undefined;
@@ -452,7 +612,11 @@ export class ErosConversationEngine implements ConversationEngine {
         {
           method: "POST",
           headers,
-          body: JSON.stringify({ content: input.text, client_msg_id: input.clientMessageId }),
+          body: JSON.stringify({
+            content: input.text,
+            client_msg_id: input.clientMessageId,
+            ...settings,
+          }),
           redirect: "error",
           signal: lifetime.signal,
         },

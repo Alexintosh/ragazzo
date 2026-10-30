@@ -78,6 +78,177 @@ describe("Eros conversation engine HTTP conformance", () => {
     ]);
   });
 
+  it("sends validated request defaults using native fields and refuses unsupported generation knobs", async () => {
+    const fetch = vi
+      .fn<typeof globalThis.fetch>()
+      .mockImplementation(async () => sse([meta, delta, done, final]));
+    const engine = new ErosConversationEngine(config, { fetch });
+    const settings = {
+      tier: "standard",
+      promptTraits: [{ tag: "concise", text: " Be concise. " }],
+      memoryScope: "relationship_only" as const,
+      affinityScope: ["trust" as const],
+      outfit: "Blue jacket",
+    };
+    for await (const _ of engine.stream({ ...input, settings })) {
+      /* Consume the stream. */
+    }
+    expect(JSON.parse(String(fetch.mock.calls[0]?.[1]?.body))).toEqual({
+      content: input.text,
+      client_msg_id: clientMessageId,
+      tier: "standard",
+      prompt_traits: [{ tag: "concise", text: "Be concise." }],
+      memory_scope: "relationship_only",
+      affinity_scope: ["trust"],
+      outfit: "Blue jacket",
+    });
+    for (const invalid of [{ tier: "Unknown-Tier" }, { temperature: 0.5 }, { outfit: "a\nb" }]) {
+      const events = async () => {
+        for await (const _ of engine.stream({ ...input, settings: invalid as never })) {
+          /* Consume the stream. */
+        }
+      };
+      await expect(events()).rejects.toThrow("Conversation engine: invalid_request");
+    }
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("adds and deletes instance items without touching presets or leaking upstream fields", async () => {
+    const item = {
+      id: clientMessageId,
+      kind: "clothing",
+      name: "Blue jacket",
+      source: "caller",
+      created_at: "2026-01-01T00:00:00Z",
+      user_message_id: userId,
+    };
+    const fetch = vi
+      .fn<typeof globalThis.fetch>()
+      .mockResolvedValueOnce(Response.json(item, { status: 201 }))
+      .mockResolvedValueOnce(new Response(null, { status: 204 }));
+    const engine = new ErosConversationEngine(config, { fetch });
+    const binding = { userId, sessionId, instanceId, characterId };
+    expect(await engine.addItem({ ...binding, kind: "clothing", name: " Blue jacket " })).toEqual({
+      id: clientMessageId,
+      kind: "clothing",
+      name: "Blue jacket",
+      source: "caller",
+      createdAt: item.created_at,
+    });
+    expect(JSON.parse(String(fetch.mock.calls[0]?.[1]?.body))).toEqual({
+      kind: "clothing",
+      name: "Blue jacket",
+    });
+    await engine.deleteItem({ ...binding, itemId: clientMessageId });
+    expect(fetch.mock.calls[1]?.[0]).toBe(
+      `http://eros:8080/v2/comp/instance/${instanceId}/items/${clientMessageId}`,
+    );
+    expect(fetch.mock.calls[1]?.[1]?.method).toBe("DELETE");
+  });
+
+  it("uses durable action IDs for native event and occasion calls and preserves silent results", async () => {
+    const greeting = {
+      message_id: clientMessageId,
+      content: "Welcome",
+      sent_at: "2026-01-01T00:00:00Z",
+      occasion: "just_opened",
+    };
+    const fetch = vi
+      .fn<typeof globalThis.fetch>()
+      .mockResolvedValueOnce(Response.json({ greeting }))
+      .mockResolvedValueOnce(Response.json({ event: null, message: null }));
+    const engine = new ErosConversationEngine(config, { fetch });
+    const binding = { userId, sessionId, instanceId, characterId, actionId: clientMessageId };
+    expect(
+      await engine.openSession({
+        ...binding,
+        occasion: "just_opened",
+        settings: { tier: "standard", outfit: "Blue jacket" },
+      }),
+    ).toEqual({
+      message: {
+        id: clientMessageId,
+        text: "Welcome",
+        sentAt: greeting.sent_at,
+        occasion: "just_opened",
+      },
+      event: null,
+    });
+    expect(JSON.parse(String(fetch.mock.calls[0]?.[1]?.body))).toEqual({
+      occasion: "just_opened",
+      open_key: clientMessageId,
+      tier: "standard",
+    });
+    expect(
+      await engine.drawEvent({
+        ...binding,
+        kinds: ["reading"],
+        settings: { outfit: "Blue jacket" },
+      }),
+    ).toEqual({ message: null, event: null });
+    expect(JSON.parse(String(fetch.mock.calls[1]?.[1]?.body))).toEqual({
+      event_key: clientMessageId,
+      kinds: ["reading"],
+      outfit: "Blue jacket",
+    });
+    for (const call of fetch.mock.calls) expect(call[1]?.redirect).toBe("error");
+  });
+
+  it("projects an offline event without exposing its native message linkage", async () => {
+    const fetch = vi.fn<typeof globalThis.fetch>().mockResolvedValue(
+      Response.json({
+        event: {
+          kind: "asleep",
+          category: "mid",
+          offline: true,
+          started_at: "2026-01-01T00:00:00Z",
+          ends_at: "2026-01-01T08:00:00Z",
+          message_id: clientMessageId,
+        },
+        message: null,
+        private: "ignored",
+      }),
+    );
+    const engine = new ErosConversationEngine(config, { fetch });
+    const result = await engine.drawEvent({
+      userId,
+      sessionId,
+      instanceId,
+      characterId,
+      actionId: clientMessageId,
+    });
+    expect(result).toEqual({
+      message: null,
+      event: {
+        kind: "asleep",
+        category: "mid",
+        offline: true,
+        startedAt: "2026-01-01T00:00:00Z",
+        endsAt: "2026-01-01T08:00:00Z",
+      },
+    });
+    expect(JSON.stringify(result)).not.toContain(clientMessageId);
+  });
+
+  it("refuses invalid action scope before sending and never repeats an uncertain native mutation", async () => {
+    const fetch = vi
+      .fn<typeof globalThis.fetch>()
+      .mockRejectedValue(new Error("private transport details"));
+    const engine = new ErosConversationEngine(config, { fetch });
+    const binding = { userId, sessionId, instanceId, characterId, actionId: clientMessageId };
+    await expect(engine.drawEvent({ ...binding, kinds: ["taking_space"] })).rejects.toThrow(
+      "Conversation engine: invalid_request",
+    );
+    await expect(engine.openSession({ ...binding, actionId: "bad" })).rejects.toThrow(
+      "Conversation engine: invalid_request",
+    );
+    expect(fetch).not.toHaveBeenCalled();
+    await expect(engine.addItem({ ...binding, kind: "item", name: "Book" })).rejects.toThrow(
+      "Conversation engine: uncertain",
+    );
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
   it("parses split UTF-8, CRLF, multi-line data, comments and unknown presentation frames", async () => {
     const wire = new TextEncoder().encode(
       `: ping\r\n\r\ndata: ${JSON.stringify(meta)}\r\n\r\n` +

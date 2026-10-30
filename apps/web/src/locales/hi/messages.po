@@ -440,6 +440,14 @@ msgstr ""
 msgid "Account menu for {name}"
 msgstr "{name} का खाता मेन्यू"
 
+#: src/pages/shell/conversation-engine-actions.tsx
+msgid "Action outcome is uncertain. Check the conversation before continuing."
+msgstr ""
+
+#: src/pages/shell/conversation-engine-actions.tsx
+msgid "Action recovery storage is unavailable. No new action was sent."
+msgstr ""
+
 #. placeholder {0}: bot.name
 #. placeholder {0}: group.spaceName
 #. placeholder {0}: section.name
@@ -455,6 +463,10 @@ msgstr ""
 #: src/pages/BillingSettingsPanel.tsx
 #: src/pages/RoutineEditor.tsx
 msgid "Active"
+msgstr ""
+
+#: src/pages/shell/conversation-engine-actions.tsx
+msgid "Active effects"
 msgstr ""
 
 #: src/pages/shell/sidebar-header.tsx
@@ -555,6 +567,7 @@ msgid "Add header"
 msgstr "हेडर जोड़ें"
 
 #: src/pages/ScratchpadSection.tsx
+#: src/pages/shell/conversation-engine-actions.tsx
 msgid "Add item"
 msgstr "आइटम जोड़ें"
 
@@ -611,6 +624,10 @@ msgstr "मौजूदा बॉट में जोड़ें"
 #: src/components/teach/SkillDraftCard.tsx
 msgid "Add to routine"
 msgstr "रूटीन में जोड़ें"
+
+#: src/pages/shell/conversation-engine-settings.tsx
+msgid "Add trait"
+msgstr ""
 
 #: src/pages/PluginsOverlay.tsx
 msgid "Add Treg"
@@ -942,6 +959,10 @@ msgstr ""
 msgid "Automated senders will appear after they post here."
 msgstr ""
 
+#: src/pages/shell/conversation-engine-actions.tsx
+msgid "Automatic initiative is managed by the Eros deployment."
+msgstr ""
+
 #: src/pages/RoutineEditor.tsx
 msgid "Available after the routine is saved"
 msgstr ""
@@ -975,6 +996,10 @@ msgstr ""
 msgid "Back to sign in"
 msgstr "साइन इन पर वापस जाएँ"
 
+#: src/pages/shell/conversation-engine-actions.tsx
+msgid "Background event"
+msgstr ""
+
 #: src/pages/shell/roleplay-settings.tsx
 msgid "Balanced"
 msgstr "संतुलित"
@@ -1001,6 +1026,10 @@ msgstr "बियरर टोकन"
 msgid "Before character"
 msgstr ""
 
+#: src/pages/shell/conversation-engine-settings.tsx
+msgid "Behavior traits"
+msgstr ""
+
 #: src/pages/SettingsOverlay.tsx
 msgid "Billing"
 msgstr ""
@@ -1018,8 +1047,13 @@ msgstr ""
 msgid "Board"
 msgstr ""
 
+#: src/pages/shell/conversation-engine-settings.tsx
 #: src/pages/shell/conversation-engine-state.tsx
 msgid "Bond"
+msgstr ""
+
+#: src/pages/shell/conversation-engine-settings.tsx
+msgid "Bond and chemistry"
 msgstr ""
 
 #: src/pages/shell/computer-view.tsx
@@ -1310,6 +1344,10 @@ msgstr "चैट"
 msgid "Check"
 msgstr ""
 
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Check action"
+msgstr ""
+
 #: src/components/ComputersUnavailableHint.tsx
 #: src/pages/HostComputerPrompt.tsx
 msgid "Check again"
@@ -1378,6 +1416,7 @@ msgstr ""
 msgid "Checking…"
 msgstr ""
 
+#: src/pages/shell/conversation-engine-settings.tsx
 #: src/pages/shell/conversation-engine-state.tsx
 msgid "Chemistry"
 msgstr ""
@@ -1526,6 +1565,10 @@ msgstr "उपयोगकर्ता सेटिंग्स बंद कर
 #: src/pages/VoiceSettingsOverlay.tsx
 msgid "Close voice settings"
 msgstr "आवाज़ सेटिंग्स बंद करें"
+
+#: src/pages/shell/conversation-engine-actions.tsx
+msgid "Clothing"
+msgstr ""
 
 #: src/pages/memory-providers/ConnectionModeFields.tsx
 msgid "Cloud"
@@ -1919,6 +1962,10 @@ msgstr ""
 msgid "Could not complete OAuth"
 msgstr "OAuth पूरा नहीं हो सका"
 
+#: src/pages/shell/conversation-engine-actions.tsx
+msgid "Could not complete the Eros action"
+msgstr ""
+
 #: src/components/DesktopUpdates.tsx
 msgid "Could not complete the update. Try again."
 msgstr ""
@@ -2249,6 +2296,10 @@ msgstr ""
 msgid "Could not save character"
 msgstr ""
 
+#: src/pages/shell/conversation-engine-settings.tsx
+msgid "Could not save Eros settings"
+msgstr ""
+
 #: src/pages/shell/conversation-engine-state.tsx
 msgid "Could not save Eros state"
 msgstr ""
@@ -2468,13 +2519,21 @@ msgstr "Cron"
 msgid "Cron expression"
 msgstr "Cron एक्सप्रेशन"
 
+#: src/pages/shell/conversation-engine-actions.tsx
+msgid "Current event"
+msgstr ""
+
 #: src/components/AccountAccess.tsx
 #: src/pages/AccountSettingsOverlay.tsx
 msgid "Current password"
 msgstr "वर्तमान पासवर्ड"
 
-#: src/pages/shell/conversation-engine-state.tsx
+#: src/pages/shell/conversation-engine-fields.tsx
 msgid "Current situation"
+msgstr ""
+
+#: src/pages/shell/conversation-engine-settings.tsx
+msgid "Custom axes"
 msgstr ""
 
 #: src/pages/shell/bot-credentials.tsx
@@ -2635,6 +2694,14 @@ msgstr "अस्वीकृत"
 msgid "Deny"
 msgstr "अस्वीकार करें"
 
+#: src/pages/shell/conversation-engine-generation.tsx
+msgid "Deployment generation settings"
+msgstr ""
+
+#: src/pages/shell/conversation-engine-generation.tsx
+msgid "Deployment model details are unavailable."
+msgstr ""
+
 #: src/pages/Board.tsx
 #: src/pages/shell/agent-import.tsx
 #: src/pages/shell/bot-panel.tsx
@@ -2642,7 +2709,7 @@ msgstr "अस्वीकार करें"
 msgid "Description"
 msgstr "विवरण"
 
-#: src/pages/shell/conversation-engine-state.tsx
+#: src/pages/shell/conversation-engine-fields.tsx
 msgid "Desires"
 msgstr ""
 
@@ -2688,6 +2755,10 @@ msgstr ""
 msgid "Discard recording"
 msgstr "रिकॉर्डिंग हटाएँ"
 
+#: src/pages/shell/conversation-engine-settings.tsx
+msgid "Discard settings"
+msgstr ""
+
 #: src/pages/McpServersOverlay.tsx
 #: src/pages/MemorySettingsOverlay.tsx
 #: src/pages/MessagingSettingsPanel.tsx
@@ -2714,7 +2785,7 @@ msgstr "{disconnectName} डिस्कनेक्ट किया गया�
 msgid "Disconnecting…"
 msgstr "डिस्कनेक्ट हो रहा है…"
 
-#: src/pages/shell/conversation-engine-state.tsx
+#: src/pages/shell/conversation-engine-fields.tsx
 msgid "Dislikes"
 msgstr ""
 
@@ -2819,6 +2890,10 @@ msgstr "ड्राफ़्ट स्किल"
 msgid "Drag, drop, or paste an image"
 msgstr "छवि खींचें, छोड़ें या पेस्ट करें"
 
+#: src/pages/shell/conversation-engine-actions.tsx
+msgid "Draw event"
+msgstr ""
+
 #: src/pages/BotContextMenu.tsx
 msgid "Duplicate"
 msgstr "डुप्लिकेट"
@@ -2878,6 +2953,10 @@ msgstr "इस ईमेल को पंजीकरण की अनुमत�
 msgid "Email verification required"
 msgstr "ईमेल सत्यापन आवश्यक है"
 
+#: src/pages/shell/conversation-engine-actions.tsx
+msgid "Emotional"
+msgstr ""
+
 #: src/pages/shell/conversation-engine-state.tsx
 msgid "Emotional need"
 msgstr ""
@@ -2901,6 +2980,11 @@ msgstr ""
 
 #: src/pages/ExternalConversationSettings.tsx
 msgid "Engage when... Ignore..."
+msgstr ""
+
+#: src/pages/shell/conversation-engine-generation.tsx
+#: src/pages/shell/conversation-engine-settings.tsx
+msgid "Engine default"
 msgstr ""
 
 #: src/pages/shell/conversation-engine-state.tsx
@@ -2999,6 +3083,10 @@ msgstr ""
 #: src/components/McpServerHealthLine.tsx
 msgid "Error details"
 msgstr "त्रुटि का विवरण"
+
+#: src/pages/shell/conversation-engine-actions.tsx
+msgid "Events and daily life"
+msgstr ""
 
 #: src/lib/cron.ts
 #: src/pages/ExternalConversationSettings.tsx
@@ -3137,6 +3225,10 @@ msgstr "विफल।"
 msgid "Failure handling"
 msgstr "विफलता प्रबंधन"
 
+#: src/pages/shell/conversation-engine-generation.tsx
+msgid "Fallback"
+msgstr ""
+
 #: src/pages/shell/conversation-engine-state.tsx
 msgid "Feeling elapsed hours"
 msgstr ""
@@ -3252,6 +3344,10 @@ msgstr ""
 msgid "From {0}"
 msgstr ""
 
+#: src/pages/shell/conversation-engine-settings.tsx
+msgid "Full"
+msgstr ""
+
 #: src/pages/shell/bot-runtime-settings.tsx
 msgid "Full access"
 msgstr ""
@@ -3293,6 +3389,10 @@ msgstr ""
 msgid "Git event"
 msgstr ""
 
+#: src/pages/shell/conversation-engine-actions.tsx
+msgid "Greet now"
+msgstr ""
+
 #: src/lib/identity-display.ts
 #: src/pages/MessagingSettingsPanel.tsx
 #: src/pages/shell/chat-header.tsx
@@ -3308,7 +3408,7 @@ msgstr "समूह सेटिंग्स"
 msgid "Group updates"
 msgstr ""
 
-#: src/pages/shell/conversation-engine-state.tsx
+#: src/pages/shell/conversation-engine-fields.tsx
 msgid "Habits"
 msgstr ""
 
@@ -3375,6 +3475,7 @@ msgstr "ट्रांसक्रिप्ट छिपाएँ"
 #: src/lib/ticket-priority.ts
 #: src/pages/model-settings/compatible-model-fields.tsx
 #: src/pages/Onboarding.tsx
+#: src/pages/shell/conversation-engine-actions.tsx
 #: src/pages/shell/conversation-engine-state.tsx
 msgid "High"
 msgstr "उच्च"
@@ -3449,6 +3550,10 @@ msgstr "जांच कैसे करें"
 msgid "How will you use Rakazo?"
 msgstr ""
 
+#: src/pages/shell/conversation-engine-actions.tsx
+msgid "Hunger"
+msgstr ""
+
 #: src/pages/shell/registered-host-picker.tsx
 msgid "I trust this host to run commands and access project files."
 msgstr ""
@@ -3520,9 +3625,17 @@ msgstr "API कुंजियाँ शामिल करें"
 msgid "Incoming call"
 msgstr "आने वाली कॉल"
 
+#: src/pages/shell/conversation-engine-actions.tsx
+msgid "Indulgence"
+msgstr ""
+
 #: src/pages/shell/bot-panel.tsx
 msgid "Inherit default"
 msgstr "डिफ़ॉल्ट का पालन करें"
+
+#: src/pages/shell/conversation-engine-actions.tsx
+msgid "Initiative and greetings"
+msgstr ""
 
 #: src/pages/AccountSettingsOverlay.tsx
 msgid "Input"
@@ -3534,6 +3647,10 @@ msgstr "इनपुट"
 
 #: src/pages/shell/roleplay-settings.tsx
 msgid "Insertion order"
+msgstr ""
+
+#: src/pages/shell/conversation-engine-settings.tsx
+msgid "Insights only"
 msgstr ""
 
 #: src/pages/shell/bot-runtime-settings.tsx
@@ -3605,11 +3722,13 @@ msgstr "अंतराल मात्रा"
 msgid "Interval unit"
 msgstr "अंतराल इकाई"
 
+#: src/pages/shell/conversation-engine-settings.tsx
 #: src/pages/shell/conversation-engine-state.tsx
 #: src/pages/shell/roleplay-relationship-debug.tsx
 msgid "Intimacy"
 msgstr "निकटता"
 
+#: src/pages/shell/conversation-engine-settings.tsx
 #: src/pages/shell/conversation-engine-state.tsx
 msgid "Intrigue"
 msgstr ""
@@ -3618,6 +3737,14 @@ msgstr ""
 msgid "Invalid code"
 msgstr "अमान्य कोड"
 
+#: src/pages/shell/conversation-engine-settings.tsx
+msgid "Inventory and outfit"
+msgstr ""
+
+#: src/pages/shell/conversation-engine-actions.tsx
+msgid "Inventory is unavailable from this Eros deployment."
+msgstr ""
+
 #: src/pages/MemorySettingsOverlay.tsx
 #: src/pages/shell/bot-panel.tsx
 msgid "Isolated"
@@ -3625,6 +3752,18 @@ msgstr "पृथक"
 
 #: src/pages/Artifacts.tsx
 msgid "Isolated preview — no access to your account"
+msgstr ""
+
+#: src/pages/shell/conversation-engine-actions.tsx
+msgid "Item"
+msgstr ""
+
+#: src/pages/shell/conversation-engine-actions.tsx
+msgid "Item name"
+msgstr ""
+
+#: src/pages/shell/conversation-engine-actions.tsx
+msgid "Item type"
 msgstr ""
 
 #: src/pages/shell/shell-dialogs.tsx
@@ -3725,7 +3864,7 @@ msgstr "बॉट्स को MEMORY.md के साथ-साथ अर्थ
 msgid "Light"
 msgstr "लाइट"
 
-#: src/pages/shell/conversation-engine-state.tsx
+#: src/pages/shell/conversation-engine-fields.tsx
 msgid "Likes"
 msgstr ""
 
@@ -3839,7 +3978,7 @@ msgstr ""
 msgid "Local host"
 msgstr ""
 
-#: src/pages/shell/conversation-engine-state.tsx
+#: src/pages/shell/conversation-engine-fields.tsx
 msgid "Location"
 msgstr ""
 
@@ -3872,6 +4011,7 @@ msgstr "प्रेम"
 #: src/lib/ticket-priority.ts
 #: src/pages/model-settings/compatible-model-fields.tsx
 #: src/pages/Onboarding.tsx
+#: src/pages/shell/conversation-engine-actions.tsx
 #: src/pages/shell/conversation-engine-state.tsx
 msgid "Low"
 msgstr "निम्न"
@@ -3975,6 +4115,7 @@ msgstr "MCP सर्वर"
 
 #: src/pages/model-settings/compatible-model-fields.tsx
 #: src/pages/Onboarding.tsx
+#: src/pages/shell/conversation-engine-actions.tsx
 #: src/pages/shell/conversation-engine-state.tsx
 msgid "Medium"
 msgstr "मध्यम"
@@ -4003,6 +4144,10 @@ msgstr "मेमोरी"
 #: src/pages/shell/agent-import.tsx
 msgid "Memory {position}"
 msgstr "मेमोरी {position}"
+
+#: src/pages/shell/conversation-engine-settings.tsx
+msgid "Memory context"
+msgstr ""
 
 #: src/pages/shell/agent-import.tsx
 msgid "Memory for {title}"
@@ -4136,6 +4281,10 @@ msgstr ""
 msgid "Model connections"
 msgstr "मॉडल कनेक्शन"
 
+#: src/pages/shell/conversation-engine-settings.tsx
+msgid "Model generation"
+msgstr ""
+
 #: src/pages/model-settings/compatible-model-fields.tsx
 #: src/pages/Onboarding.tsx
 msgid "Model id"
@@ -4151,8 +4300,13 @@ msgstr "मॉडल विकल्प"
 msgid "Model selection unavailable"
 msgstr ""
 
+#: src/pages/shell/conversation-engine-generation.tsx
+msgid "Model tier"
+msgstr ""
+
 #: src/pages/ModelSettingsOverlay.tsx
 #: src/pages/SettingsOverlay.tsx
+#: src/pages/shell/conversation-engine-generation.tsx
 #: src/pages/SpaceSettingOverrides.tsx
 msgid "Models"
 msgstr "मॉडल्स"
@@ -4273,8 +4427,16 @@ msgstr "कथात्मक"
 msgid "Narrative instructions"
 msgstr ""
 
+#: src/pages/shell/conversation-engine-actions.tsx
+msgid "Needs"
+msgstr ""
+
 #: src/lib/roster-status.ts
 msgid "Needs an answer"
+msgstr ""
+
+#: src/pages/shell/conversation-engine-actions.tsx
+msgid "Needs are unavailable from this Eros deployment."
 msgstr ""
 
 #: src/pages/ActivityList.tsx
@@ -4293,6 +4455,14 @@ msgstr ""
 #: src/pages/shell/import-status.ts
 msgid "Needs: {names}"
 msgstr "ज़रूरी: {names}"
+
+#: src/pages/shell/conversation-engine-settings.tsx
+msgid "Neutral and relationship"
+msgstr ""
+
+#: src/pages/shell/conversation-engine-settings.tsx
+msgid "Neutral only"
+msgstr ""
 
 #: src/components/ApprovalRulesSettings.tsx
 msgid "Never ask"
@@ -4397,11 +4567,11 @@ msgid "No bots match"
 msgstr ""
 
 #: src/pages/shell/conversation-engine-state.tsx
-msgid "No character insights yet."
+msgid "No conversation state yet."
 msgstr ""
 
-#: src/pages/shell/conversation-engine-state.tsx
-msgid "No conversation state yet."
+#: src/pages/shell/conversation-engine-actions.tsx
+msgid "No current event reported."
 msgstr ""
 
 #: src/pages/shell/conversation-files-panel.tsx
@@ -4414,6 +4584,14 @@ msgstr ""
 
 #: src/pages/shell/project-folder-picker.tsx
 msgid "No folders"
+msgstr ""
+
+#: src/pages/shell/conversation-engine-fields.tsx
+msgid "No insights yet."
+msgstr ""
+
+#: src/pages/shell/conversation-engine-actions.tsx
+msgid "No inventory items."
 msgstr ""
 
 #: src/components/AskCard.tsx
@@ -4445,6 +4623,10 @@ msgstr "अभी तक कोई MCP सर्वर नहीं।"
 
 #: src/pages/GroupPanel.tsx
 msgid "No members yet"
+msgstr ""
+
+#: src/pages/shell/conversation-engine-actions.tsx
+msgid "No message generated."
 msgstr ""
 
 #: src/pages/PeerMessagesOverlay.tsx
@@ -4497,6 +4679,15 @@ msgstr ""
 msgid "No trigger"
 msgstr ""
 
+#: src/pages/shell/conversation-engine-settings.tsx
+msgid "No user insights available."
+msgstr ""
+
+#: src/pages/shell/conversation-engine-generation.tsx
+#: src/pages/shell/conversation-engine-settings.tsx
+msgid "None"
+msgstr ""
+
 #: src/lib/ticket-priority.ts
 msgid "Normal"
 msgstr ""
@@ -4505,6 +4696,7 @@ msgstr ""
 msgid "Not a valid skill"
 msgstr "मान्य स्किल नहीं"
 
+#: src/pages/shell/conversation-engine-generation.tsx
 #: src/pages/shell/conversation-engine-state.tsx
 msgid "Not available"
 msgstr ""
@@ -4584,7 +4776,15 @@ msgstr "OAuth की समय-सीमा समाप्त हो गई"
 msgid "Observed at"
 msgstr ""
 
-#: src/pages/shell/conversation-engine-state.tsx
+#: src/pages/shell/conversation-engine-settings.tsx
+msgid "Observed by Eros."
+msgstr ""
+
+#: src/pages/shell/conversation-engine-actions.tsx
+msgid "Observed by Eros. Direct overrides are unavailable."
+msgstr ""
+
+#: src/pages/shell/conversation-engine-fields.tsx
 msgid "Occupation"
 msgstr ""
 
@@ -4725,6 +4925,14 @@ msgstr "मूल संदेश उपलब्ध नहीं है"
 msgid "Other model…"
 msgstr "अन्य मॉडल…"
 
+#: src/pages/shell/conversation-engine-settings.tsx
+msgid "Outfit"
+msgstr ""
+
+#: src/pages/shell/conversation-engine-actions.tsx
+msgid "Outing"
+msgstr ""
+
 #: src/pages/AccountSettingsOverlay.tsx
 msgid "Output"
 msgstr "आउटपुट"
@@ -4804,6 +5012,7 @@ msgstr "अपनी API कुंजी पेस्ट करें"
 msgid "Paste your API key, then test again."
 msgstr "अपनी API कुंजी पेस्ट करें, फिर फिर से परीक्षण करें।"
 
+#: src/pages/shell/conversation-engine-settings.tsx
 #: src/pages/shell/conversation-engine-state.tsx
 msgid "Patience"
 msgstr ""
@@ -4833,7 +5042,7 @@ msgstr "व्यक्तित्व"
 msgid "Personal"
 msgstr ""
 
-#: src/pages/shell/conversation-engine-state.tsx
+#: src/pages/shell/conversation-engine-fields.tsx
 msgid "Personal values"
 msgstr ""
 
@@ -5168,11 +5377,23 @@ msgstr ""
 msgid "Registration is closed"
 msgstr "पंजीकरण बंद है"
 
+#: src/pages/shell/conversation-engine-settings.tsx
+msgid "Relationship context"
+msgstr ""
+
 #: src/pages/shell/roleplay-relationship-debug.tsx
 msgid "Relationship debug"
 msgstr "रिश्ते की डीबगिंग"
 
-#: src/pages/shell/conversation-engine-state.tsx
+#: src/pages/shell/conversation-engine-settings.tsx
+msgid "Relationship evolution"
+msgstr ""
+
+#: src/pages/shell/conversation-engine-settings.tsx
+msgid "Relationship only"
+msgstr ""
+
+#: src/pages/shell/conversation-engine-fields.tsx
 msgid "Relationships"
 msgstr ""
 
@@ -5190,11 +5411,14 @@ msgstr "फिर से लोड करें"
 #: src/pages/PluginsOverlay.tsx
 #: src/pages/ScratchpadSection.tsx
 #: src/pages/shell/bot-credentials.tsx
+#: src/pages/shell/conversation-engine-actions.tsx
 msgid "Remove"
 msgstr "हटाएं"
 
 #. placeholder {0}: attachment.file.name
+#. placeholder {0}: item.name
 #: src/pages/shell/composer.tsx
+#: src/pages/shell/conversation-engine-actions.tsx
 msgid "Remove {0}"
 msgstr "{0} हटाएं"
 
@@ -5253,6 +5477,10 @@ msgstr ""
 #: src/pages/shell/composer.tsx
 msgid "Remove skill {0}"
 msgstr "स्किल {0} हटाएं"
+
+#: src/pages/shell/conversation-engine-settings.tsx
+msgid "Remove trait"
+msgstr ""
 
 #: src/pages/RoutineEditor.tsx
 msgid "Remove webhook"
@@ -5555,6 +5783,10 @@ msgstr ""
 msgid "Runtime unavailable"
 msgstr ""
 
+#: src/pages/shell/conversation-engine-generation.tsx
+msgid "Sampling and model routes are managed by the Eros deployment."
+msgstr ""
+
 #: src/lib/cron.ts
 msgid "Saturday"
 msgstr "शनिवार"
@@ -5591,6 +5823,10 @@ msgstr ""
 
 #: src/pages/shell/bot-credentials.tsx
 msgid "Save new value"
+msgstr ""
+
+#: src/pages/shell/conversation-engine-settings.tsx
+msgid "Save settings"
 msgstr ""
 
 #: src/components/ComputerMaintenanceActions.tsx
@@ -5816,6 +6052,10 @@ msgstr ""
 msgid "Settings"
 msgstr "सेटिंग्स"
 
+#: src/pages/shell/conversation-engine-settings.tsx
+msgid "Settings changed. Discard edits to use the latest values."
+msgstr ""
+
 #: src/pages/shell/composer-mentions.tsx
 msgid "Settings: General"
 msgstr "सेटिंग्स: सामान्य"
@@ -6031,6 +6271,10 @@ msgstr ""
 msgid "Slide up to lock"
 msgstr "लॉक करने के लिए ऊपर खिसकाएँ"
 
+#: src/pages/shell/conversation-engine-actions.tsx
+msgid "Social"
+msgstr ""
+
 #: src/pages/shell/agent-import.tsx
 msgid "Some settings are not imported"
 msgstr "कुछ सेटिंग्स इंपोर्ट नहीं होतीं"
@@ -6109,6 +6353,10 @@ msgstr "स्वतः भेजे गए संदेश"
 #: src/lib/user-error.ts
 msgid "SSO is temporarily unavailable. Try again."
 msgstr "SSO अस्थायी रूप से उपलब्ध नहीं है। फिर कोशिश करें।"
+
+#: src/pages/shell/conversation-engine-actions.tsx
+msgid "Stamina"
+msgstr ""
 
 #: src/pages/shell/computer-overlay.tsx
 msgid "Start"
@@ -6308,6 +6556,7 @@ msgstr "तालिका"
 msgid "Take control"
 msgstr "नियंत्रण लें"
 
+#: src/pages/shell/conversation-engine-generation.tsx
 #: src/pages/shell/conversation-tasks.tsx
 msgid "Task"
 msgstr ""
@@ -6348,6 +6597,11 @@ msgstr ""
 msgid "Teams not enabled"
 msgstr ""
 
+#: src/pages/shell/conversation-engine-generation.tsx
+msgid "Temperature"
+msgstr ""
+
+#: src/pages/shell/conversation-engine-settings.tsx
 #: src/pages/shell/conversation-engine-state.tsx
 msgid "Tension"
 msgstr ""
@@ -6403,6 +6657,10 @@ msgstr "मॉडल ने ऐसा जवाब दिया जिसका 
 #: src/lib/model-connection-preflight.ts
 msgid "The provider is rate-limiting requests."
 msgstr "प्रोवाइडर अनुरोधों की दर सीमित कर रहा है।"
+
+#: src/pages/shell/conversation-engine-actions.tsx
+msgid "The saved action could not be read. No new action was sent."
+msgstr ""
 
 #: src/pages/MemorySettingsOverlay.tsx
 msgid "The selected memory provider is not available in this build."
@@ -6613,6 +6871,10 @@ msgstr "आज"
 msgid "Token budget"
 msgstr ""
 
+#: src/pages/shell/conversation-engine-generation.tsx
+msgid "Token limit"
+msgstr ""
+
 #: src/pages/AccountSettingsOverlay.tsx
 msgid "Tokens"
 msgstr "टोकन"
@@ -6646,6 +6908,14 @@ msgstr ""
 msgid "Top up anytime"
 msgstr ""
 
+#: src/pages/shell/conversation-engine-settings.tsx
+msgid "Trait guidance"
+msgstr ""
+
+#: src/pages/shell/conversation-engine-settings.tsx
+msgid "Trait tag"
+msgstr ""
+
 #: src/components/composer/HoldToTalk.tsx
 msgid "Transcribing…"
 msgstr "लिप्यंतरण हो रहा है…"
@@ -6674,6 +6944,7 @@ msgstr ""
 msgid "Trial ends {day}"
 msgstr ""
 
+#: src/pages/shell/conversation-engine-settings.tsx
 #: src/pages/shell/conversation-engine-state.tsx
 msgid "Trust"
 msgstr ""
@@ -6864,6 +7135,10 @@ msgstr "{label} के लिए अपने डिफ़ॉल्ट इस्
 msgid "Use folder"
 msgstr ""
 
+#: src/pages/shell/conversation-engine-settings.tsx
+msgid "Use lowercase letters, numbers and underscores for tier and trait tags, and single-line trait guidance."
+msgstr ""
+
 #: src/components/ModelCredits.tsx
 msgid "Use my subscription or API key"
 msgstr ""
@@ -6882,6 +7157,10 @@ msgstr ""
 
 #: src/pages/memory-providers/HonchoSettingsForm.tsx
 msgid "Use up to 512 letters, digits, _ or -."
+msgstr ""
+
+#: src/pages/shell/conversation-engine-settings.tsx
+msgid "User insights"
 msgstr ""
 
 #: src/pages/memory-providers/HonchoSettingsForm.tsx
@@ -6938,7 +7217,7 @@ msgstr "चैट देखें"
 msgid "Voice"
 msgstr "आवाज़"
 
-#: src/pages/shell/conversation-engine-state.tsx
+#: src/pages/shell/conversation-engine-fields.tsx
 msgid "Vulnerabilities"
 msgstr ""
 
@@ -6970,6 +7249,7 @@ msgstr "कतार में प्रतीक्षा…"
 msgid "Waiting…"
 msgstr "प्रतीक्षा…"
 
+#: src/pages/shell/conversation-engine-settings.tsx
 #: src/pages/shell/conversation-engine-state.tsx
 #: src/pages/shell/roleplay-relationship-debug.tsx
 msgid "Warmth"

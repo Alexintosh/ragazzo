@@ -1,8 +1,11 @@
 import { randomUUID } from "node:crypto";
 import type { ConversationEngine } from "@rakazo/adapter-kit";
 import { ConversationEngineError, runContinueJob } from "@rakazo/adapter-kit";
+import type { ConversationEngineSettings } from "@rakazo/contracts";
+import { ConversationEngineSettingsSchema } from "@rakazo/contracts";
 import { displayName, redactSecrets } from "@rakazo/core";
 import type { CompanionSession, CompanionTurn, Run } from "@rakazo/db";
+import { z } from "zod";
 import type { ExecutorDeps } from "./executor-deps.js";
 import { renewRunLease } from "./run-lifecycle.js";
 import {
@@ -12,6 +15,18 @@ import {
 } from "./run-notifications.js";
 
 const LEASE_MS = 5 * 60_000;
+
+const turnRequestSchema = z.object({
+  version: z.literal(1),
+  settings: ConversationEngineSettingsSchema,
+});
+
+export function conversationEngineTurnSettings(
+  request: unknown,
+): ConversationEngineSettings | undefined {
+  // Legacy requests were submitted without options: never inject live settings on replay.
+  return request == null ? undefined : turnRequestSchema.parse(request).settings;
+}
 
 export function conversationEngineInput(blocks: unknown): string {
   if (!Array.isArray(blocks)) throw new Error("Conversation engines support text messages only");
@@ -187,6 +202,13 @@ export async function executeConversationEngineRun(
     if (!acquired.count)
       throw new Error("The engine is still processing a previous message. Try again shortly.");
     ownsSession = true;
+    if (
+      await deps.prisma.companionAction.findFirst({
+        where: { sessionId: session.id, status: { in: ["submitted", "uncertain"] } },
+        select: { id: true },
+      })
+    )
+      throw new Error("The engine has an unresolved action. Refresh its state before continuing.");
     if (!session.engineSessionId) {
       const provisioned = await engine.provision(
         { userId: session.engineUserId, characterId: bot.erosCharacterId },
@@ -252,6 +274,10 @@ export async function executeConversationEngineRun(
           userId: run.userId,
           clientMessageId: randomUUID(),
           input,
+          request: {
+            version: 1,
+            settings: ConversationEngineSettingsSchema.parse(bot.conversationEngineSettings ?? {}),
+          },
         },
       });
     }
@@ -308,6 +334,9 @@ export async function executeConversationEngineRun(
           sessionId: session!.engineSessionId!,
           clientMessageId: turn.clientMessageId,
           text: turn.input,
+          ...(turn.request == null
+            ? {}
+            : { settings: conversationEngineTurnSettings(turn.request) }),
         },
         signal,
       )) {

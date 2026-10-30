@@ -20,7 +20,8 @@ interface TableSpec {
     | "memoryDocument"
     | "memoryRevision"
     | "thread"
-    | "companionTurn";
+    | "companionTurn"
+    | "companionAction";
   column: string;
   json: boolean;
   /** Preserve @updatedAt so a migration does not reorder recently edited documents. */
@@ -40,6 +41,21 @@ interface ScannedRow {
 }
 
 const TABLES: TableSpec[] = [
+  ...(["request", "response"] as const).map(
+    (column): TableSpec => ({
+      model: "CompanionAction",
+      delegate: "companionAction",
+      column,
+      json: true,
+      updatedAt: true,
+      scan: (cursor, limit, spaceIds) => Prisma.sql`
+        SELECT id, ${Prisma.raw(`"${column}"`)} AS value, "spaceId", "sessionId" AS owner FROM companion_actions
+        WHERE id > ${cursor} ${spaceFilter(Prisma.sql`"spaceId"`, spaceIds)} AND ${Prisma.raw(`"${column}"`)} IS NOT NULL ORDER BY id LIMIT ${limit}`,
+      spaceId: Prisma.sql`"spaceId"`,
+      writePlaintext: (id, value) =>
+        Prisma.sql`UPDATE companion_actions SET ${Prisma.raw(`"${column}"`)} = ${JSON.stringify(value)}::jsonb WHERE id = ${id}`,
+    }),
+  ),
   ...(["input", "response", "error"] as const).map(
     (column): TableSpec => ({
       model: "CompanionTurn",
@@ -56,18 +72,33 @@ const TABLES: TableSpec[] = [
     }),
   ),
   {
-    model: "Bot",
-    delegate: "bot",
-    column: "roleplayCharacter",
+    model: "CompanionTurn",
+    delegate: "companionTurn",
+    column: "request",
     json: true,
     updatedAt: true,
     scan: (cursor, limit, spaceIds) => Prisma.sql`
-      SELECT id, "roleplayCharacter" AS value, "spaceId", "userId" AS owner FROM bots
-      WHERE id > ${cursor} ${spaceFilter(Prisma.sql`"spaceId"`, spaceIds)} AND "roleplayCharacter" IS NOT NULL ORDER BY id LIMIT ${limit}`,
+      SELECT id, request AS value, "spaceId", "sessionId" AS owner FROM companion_turns
+      WHERE id > ${cursor} ${spaceFilter(Prisma.sql`"spaceId"`, spaceIds)} AND request IS NOT NULL ORDER BY id LIMIT ${limit}`,
     spaceId: Prisma.sql`"spaceId"`,
     writePlaintext: (id, value) =>
-      Prisma.sql`UPDATE bots SET "roleplayCharacter" = ${JSON.stringify(value)}::jsonb WHERE id = ${id}`,
+      Prisma.sql`UPDATE companion_turns SET request = ${JSON.stringify(value)}::jsonb WHERE id = ${id}`,
   },
+  ...(["roleplayCharacter", "conversationEngineSettings"] as const).map(
+    (column): TableSpec => ({
+      model: "Bot",
+      delegate: "bot",
+      column,
+      json: true,
+      updatedAt: true,
+      scan: (cursor, limit, spaceIds) => Prisma.sql`
+      SELECT id, ${Prisma.raw(`"${column}"`)} AS value, "spaceId", "userId" AS owner FROM bots
+      WHERE id > ${cursor} ${spaceFilter(Prisma.sql`"spaceId"`, spaceIds)} AND ${Prisma.raw(`"${column}"`)} IS NOT NULL ORDER BY id LIMIT ${limit}`,
+      spaceId: Prisma.sql`"spaceId"`,
+      writePlaintext: (id, value) =>
+        Prisma.sql`UPDATE bots SET ${Prisma.raw(`"${column}"`)} = ${JSON.stringify(value)}::jsonb WHERE id = ${id}`,
+    }),
+  ),
   {
     model: "Thread",
     delegate: "thread",
@@ -391,8 +422,17 @@ export async function contentEncryptionStatus(
       count(*) FILTER (WHERE "historyCompactionSummary" NOT LIKE 'rkz1:%' OR
         ("roleplayState" IS NOT NULL AND NOT jsonb_exists("roleplayState", '$sealed'))) FROM threads
     UNION ALL
-    SELECT 'bots', count(*) FILTER (WHERE "roleplayCharacter" IS NOT NULL),
-      count(*) FILTER (WHERE "roleplayCharacter" IS NOT NULL AND NOT jsonb_exists("roleplayCharacter", '$sealed')) FROM bots
+    SELECT 'bots', count(*) FILTER (WHERE "roleplayCharacter" <> 'null'::jsonb OR "conversationEngineSettings" <> 'null'::jsonb),
+      count(*) FILTER (WHERE ("roleplayCharacter" <> 'null'::jsonb AND NOT jsonb_exists("roleplayCharacter", '$sealed'))
+        OR ("conversationEngineSettings" <> 'null'::jsonb AND NOT jsonb_exists("conversationEngineSettings", '$sealed'))) FROM bots
+    UNION ALL
+    SELECT 'companion_turns', count(*),
+      count(*) FILTER (WHERE input NOT LIKE 'rkz1:%' OR response NOT LIKE 'rkz1:%' OR error NOT LIKE 'rkz1:%'
+        OR (request <> 'null'::jsonb AND NOT jsonb_exists(request, '$sealed'))) FROM companion_turns
+    UNION ALL
+    SELECT 'companion_actions', count(*) FILTER (WHERE request <> 'null'::jsonb OR response <> 'null'::jsonb),
+      count(*) FILTER (WHERE (request <> 'null'::jsonb AND NOT jsonb_exists(request, '$sealed'))
+        OR (response <> 'null'::jsonb AND NOT jsonb_exists(response, '$sealed'))) FROM companion_actions
   `;
   const keys = await prisma.spaceKey.groupBy({ by: ["masterKeyId"], _count: { _all: true } });
   return {

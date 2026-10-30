@@ -32,6 +32,7 @@ function migrationClient(lockMatches = true) {
         "memoryDocument",
         "memoryRevision",
         "companionTurn",
+        "companionAction",
       ].map((name) => [name, delegate]),
     ),
     $queryRaw: vi.fn(async (sql: Prisma.Sql) => {
@@ -77,9 +78,9 @@ describe("content migration space isolation (offline)", () => {
     async (mode) => {
       const { prisma, mutations, scans, locks, ring } = migrationClient();
       await migrateContent(prisma, { ...scope, mode });
-      expect(scans).toHaveLength(10);
-      expect(locks).toHaveLength(10);
-      expect(mutations).toEqual(Array(10).fill(fixture));
+      expect(scans).toHaveLength(14);
+      expect(locks).toHaveLength(14);
+      expect(mutations).toEqual(Array(14).fill(fixture));
       expect(ring.remember.mock.calls.every((call) => call[1] === fixture)).toBe(true);
     },
   );

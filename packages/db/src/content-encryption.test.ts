@@ -82,6 +82,24 @@ describe("withContentEncryption", () => {
     ).rejects.toThrow(/updated by id/);
   });
 
+  it("requires durable ownership for private engine settings and actions", async () => {
+    await expect(
+      prisma.bot.updateMany({
+        where: { spaceId: "s" },
+        data: { conversationEngineSettings: { promptTraits: [{ tag: "private", text: "text" }] } },
+      }),
+    ).rejects.toThrow(/updated by id/);
+    await expect(
+      prisma.companionAction.create({ data: { id: "action", request: {} } as never }),
+    ).rejects.toThrow(/sessionId/);
+    await expect(
+      prisma.companionAction.updateMany({
+        where: { sessionId: "session" },
+        data: { response: {} },
+      }),
+    ).rejects.toThrow(/updated by id/);
+  });
+
   it("requires creates to name their owner", async () => {
     await expect(
       prisma.memoryRevision.create({ data: { revision: 1, content: "x" } as never }),

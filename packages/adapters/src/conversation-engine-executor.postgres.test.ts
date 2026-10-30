@@ -174,6 +174,16 @@ describePostgres("external conversation engine execution (PostgreSQL)", () => {
   it("dispatches before all local context, model, memory, tools, and computer work and commits encrypted state", async () => {
     const actor = actors[0]!;
     const bot = await createBot();
+    await owner(actor, () =>
+      prisma.bot.update({
+        where: { id: bot.id },
+        data: {
+          conversationEngineSettings: {
+            promptTraits: [{ tag: "curious", text: "Private character trait" }],
+          },
+        },
+      }),
+    );
     const h = harness(async function* () {
       yield { type: "text", text: "Draft" };
       yield final("Authoritative reply");
@@ -181,7 +191,10 @@ describePostgres("external conversation engine execution (PostgreSQL)", () => {
     const run = await send(bot, "Only the current input");
     await owner(actor, () => h.executor.continueRun(run.runId!, "engine-worker"));
     expect(h.requests).toHaveLength(1);
-    expect(h.requests[0]).toMatchObject({ text: "Only the current input" });
+    expect(h.requests[0]).toMatchObject({
+      text: "Only the current input",
+      settings: { promptTraits: [{ tag: "curious", text: "Private character trait" }] },
+    });
     expect(h.requests[0]!.userId).toMatch(/^[0-9a-f-]{36}$/);
     expect(h.requests[0]!.clientMessageId).toMatch(/^[0-9a-f-]{36}$/);
     expect(h.provision).toHaveBeenCalledWith(
@@ -197,10 +210,14 @@ describePostgres("external conversation engine execution (PostgreSQL)", () => {
         status: "completed",
       });
       const raw = await prisma.$queryRaw<
-        Array<{ input: string; response: string }>
-      >`SELECT input, response FROM companion_turns WHERE id=${turn.id}`;
+        Array<{ input: string; response: string; request: unknown }>
+      >`SELECT input, response, request FROM companion_turns WHERE id=${turn.id}`;
       expect(raw[0]!.input).not.toContain("Only the current input");
       expect(raw[0]!.response).not.toContain("Authoritative reply");
+      expect(JSON.stringify(raw[0]!.request)).not.toContain("Private character trait");
+      const botRows = await prisma.$queryRaw<Array<{ settings: unknown }>>`
+        SELECT "conversationEngineSettings" AS settings FROM bots WHERE id=${bot.id}`;
+      expect(JSON.stringify(botRows[0]!.settings)).not.toContain("Private character trait");
       expect(
         (await prisma.companionSession.findUniqueOrThrow({ where: { id: turn.sessionId } }))
           .leaseRunId,
@@ -252,6 +269,12 @@ describePostgres("external conversation engine execution (PostgreSQL)", () => {
   it("replays an uncertain accepted request with its durable UUID and input before sending a later turn", async () => {
     const actor = actors[0]!;
     const bot = await createBot();
+    await owner(actor, () =>
+      prisma.bot.update({
+        where: { id: bot.id },
+        data: { conversationEngineSettings: { tier: "initial" } },
+      }),
+    );
     const h = harness(async function* (input) {
       if (h.requests.length === 1) throw new ConversationEngineError("uncertain", true);
       yield final(input.text === "First" ? "Recovered first response" : "Second response");
@@ -267,11 +290,20 @@ describePostgres("external conversation engine execution (PostgreSQL)", () => {
       ).toBe("uncertain");
     });
     const second = await send(bot, "Second");
+    // A settings change cannot rewrite an already accepted request, including during recovery.
+    await owner(actor, () =>
+      prisma.bot.update({
+        where: { id: bot.id },
+        data: { conversationEngineSettings: { tier: "changed" } },
+      }),
+    );
     // A new executor instance has no in-memory request or session state.
     const resumed = h.restart();
     await owner(actor, () => resumed.continueRun(second.runId!, "replacement-worker"));
     expect(h.requests).toHaveLength(3);
     expect(h.requests[1]).toEqual(h.requests[0]);
+    expect(h.requests[1]!.settings).toEqual({ tier: "initial" });
+    expect(h.requests[2]!.settings).toEqual({ tier: "changed" });
     expect(h.requests[2]!.clientMessageId).not.toBe(h.requests[0]!.clientMessageId);
     expect(h.provision).toHaveBeenCalledTimes(1);
     await assertCompleted(bot, second.runId!, "Second response");

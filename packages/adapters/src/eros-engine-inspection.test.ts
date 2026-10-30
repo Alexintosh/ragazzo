@@ -47,7 +47,7 @@ function fixture(overrides: Record<string, unknown> = {}) {
   const fetch = vi.fn<typeof globalThis.fetch>().mockImplementation(async (url) => {
     const path = new URL(String(url)).pathname;
     if (path.endsWith("/debug")) return Response.json({ ...debug, ...overrides });
-    if (path.endsWith("/character"))
+    if (path.endsWith("/character") || path.endsWith("/insight/user"))
       return Response.json({
         instance_id: binding.instanceId,
         location: null,
@@ -64,12 +64,51 @@ function fixture(overrides: Record<string, unknown> = {}) {
       });
     if (path.endsWith("/event"))
       return Response.json({ session_id: binding.sessionId, event: null });
+    if (path.endsWith("/items"))
+      return Response.json({
+        items: [
+          {
+            id: null,
+            kind: "clothing",
+            name: "Blue jacket",
+            source: "preset",
+            created_at: null,
+            user_message_id: binding.userId,
+          },
+        ],
+      });
     if (path.endsWith("/effects"))
       return Response.json({
-        needs: { emotional: "high" },
+        needs: {
+          hunger: "low",
+          social: "mid",
+          stamina: "high",
+          emotional: "high",
+          outing: "mid",
+          indulgence: "low",
+        },
         as_of: time,
         changes_at: null,
-        effects: [{ private: "ignored" }],
+        effects: [
+          {
+            item: "coffee",
+            quantity: 1,
+            level: 1,
+            phase: "peak",
+            step: 1,
+            steps: 1,
+            private: "ignored",
+          },
+        ],
+        event: {
+          kind: "reading",
+          category: "mid",
+          offline: false,
+          started_at: time,
+          ends_at: time,
+          message_id: binding.userId,
+        },
+        background_event: null,
       });
     return Response.json({
       session_id: binding.sessionId,
@@ -98,6 +137,21 @@ describe("Eros engine inspection boundary", () => {
     const result = await f.engine.inspect(binding);
     expect(result.debug?.feeling).toBe("Curious and guarded.");
     expect(result.emotionalNeed).toBe("high");
+    expect(result.needs?.hunger).toBe("low");
+    expect(result.effects?.[0]).toEqual({
+      item: "coffee",
+      quantity: 1,
+      level: 1,
+      phase: "peak",
+      step: 1,
+      steps: 1,
+    });
+    expect(result.lifeEvent?.kind).toBe("reading");
+    expect(result.backgroundEvent).toBeNull();
+    expect(result.userProfile?.likes).toEqual([]);
+    expect(result.items).toEqual([
+      { id: null, kind: "clothing", name: "Blue jacket", source: "preset", createdAt: null },
+    ]);
     expect(result.affinity?.warmth).toBe(0.5);
     expect(result.debug?.axes).toEqual(axes);
     expect(result.debug?.time).toEqual(debug.time);
@@ -135,6 +189,55 @@ describe("Eros engine inspection boundary", () => {
     ).rejects.toThrow("Conversation engine: unavailable");
   });
 
+  it("projects valid generation details without exposing extra configuration", async () => {
+    const generation = {
+      tasks: [
+        {
+          name: "chat_companion",
+          models: ["chat-model"],
+          fallback: ["backup-model"],
+          temperature: 0.7,
+          maxTokens: 800,
+        },
+      ],
+      profiles: ["advanced"],
+    };
+    const result = await fixture({
+      generation: { ...generation, headers: { Authorization: "private" } },
+    }).engine.inspect(binding);
+    expect(result.debug?.generation).toEqual(generation);
+  });
+
+  it.each([
+    { tasks: [], profiles: ["unsupported-profile"] },
+    {
+      tasks: [
+        {
+          name: "chat_companion",
+          models: ["chat-model"],
+          fallback: [],
+          temperature: true,
+          maxTokens: false,
+        },
+      ],
+      profiles: [],
+    },
+    { tasks: "invalid", profiles: [] },
+  ])(
+    "preserves native state when optional generation details are malformed: %j",
+    async (generation) => {
+      const result = await fixture({ generation }).engine.inspect(binding);
+      expect(result.debug).toMatchObject({
+        generation: null,
+        persona: { name: "Aster", systemPrompt: "A fictional character." },
+        axes,
+        editable: true,
+        revision: "revision-1",
+      });
+      expect(result.needs?.hunger).toBe("low");
+    },
+  );
+
   it("uses native-only reads when no bridge is configured", async () => {
     const f = fixture();
     const engine = new ErosConversationEngine(
@@ -142,7 +245,7 @@ describe("Eros engine inspection boundary", () => {
       { fetch: f.fetch },
     );
     expect((await engine.inspect(binding)).debug).toBeNull();
-    expect(f.fetch).toHaveBeenCalledTimes(4);
+    expect(f.fetch).toHaveBeenCalledTimes(6);
   });
 
   it("makes one CAS patch with only editable raw axes and grades", async () => {

@@ -1,5 +1,7 @@
 // biome-ignore-all lint/suspicious/noUndeclaredEnvVars: This standalone sidecar runs outside Turborepo tasks.
+import { execFile } from "node:child_process";
 import { createServer } from "node:http";
+import { promisify } from "node:util";
 import pg from "pg";
 import { createDebugBridgeHandler } from "./debug-bridge.js";
 
@@ -28,7 +30,25 @@ const pool = new pg.Pool({
 });
 // Database errors never include connection strings, SQL, prompts or headers in logs.
 pool.on("error", () => {});
-const server = createServer(createDebugBridgeHandler({ jwtSecret, bridgeSecret, pool }));
+const execute = promisify(execFile);
+const generation =
+  process.env.MODEL_CONFIG_PATH && process.env.MODEL_SUMMARY_SCRIPT
+    ? async () => {
+        try {
+          const result = await execute(
+            "python3",
+            [process.env.MODEL_SUMMARY_SCRIPT!, process.env.MODEL_CONFIG_PATH!],
+            { timeout: 3000, maxBuffer: 32768 },
+          );
+          return JSON.parse(result.stdout) as unknown;
+        } catch {
+          return null;
+        }
+      }
+    : undefined;
+const server = createServer(
+  createDebugBridgeHandler({ jwtSecret, bridgeSecret, pool, generation }),
+);
 server.requestTimeout = 10000;
 server.headersTimeout = 10000;
 server.keepAliveTimeout = 5000;

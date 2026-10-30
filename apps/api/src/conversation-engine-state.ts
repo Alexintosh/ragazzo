@@ -3,8 +3,14 @@ import { ConversationEngineError } from "@rakazo/adapter-kit";
 import type {
   Actor,
   ConversationEngineInspection,
+  ConversationEngineSettingsState,
   ConversationEngineState,
+  UpdateConversationEngineSettings,
   UpdateConversationEngineState,
+} from "@rakazo/contracts";
+import {
+  ConversationEngineSettingsSchema,
+  UpdateConversationEngineSettingsInput,
 } from "@rakazo/contracts";
 import { ACTIVE_RUN_STATUSES } from "@rakazo/core";
 import type { Prisma } from "@rakazo/db";
@@ -31,7 +37,7 @@ function mapEngineError(error: unknown, mutation = false): never {
   throw error;
 }
 
-async function resolveBinding(
+export async function resolveBinding(
   prisma: Pick<Prisma.TransactionClient, "bot" | "companionSession">,
   actor: Actor,
   botId: string,
@@ -74,6 +80,86 @@ function assertEnabled(deps: Deps) {
     throw new ORPCError("FORBIDDEN", { message: "Roleplay is not enabled." });
 }
 
+export function conversationEngineSettings(bot: {
+  conversationEngineSettings?: unknown;
+  conversationEngineSettingsRevision?: number;
+}): ConversationEngineSettingsState {
+  return {
+    revision: bot.conversationEngineSettingsRevision ?? 0,
+    values: ConversationEngineSettingsSchema.parse(bot.conversationEngineSettings ?? {}),
+  };
+}
+
+/** Copy-on-write settings affect future turns. Accepted requests retain their snapshot. */
+export async function updateConversationEngineSettings(
+  deps: Deps,
+  actor: Actor,
+  rawInput: UpdateConversationEngineSettings,
+): Promise<ConversationEngineSettingsState> {
+  assertEnabled(deps);
+  const input = UpdateConversationEngineSettingsInput.parse(rawInput);
+  const initial = await resolveBinding(deps.prisma, actor, input.botId);
+  return deps.prisma.$transaction(async (tx) => {
+    // Serialize with sends, state writes, and deletion using their existing lock order.
+    await tx.$queryRaw`SELECT id FROM threads WHERE id = ${initial.thread.id} FOR UPDATE`;
+    await tx.$queryRaw`SELECT id FROM bots WHERE id = ${input.botId} FOR UPDATE`;
+    const { bot, thread, session } = await resolveBinding(tx, actor, input.botId);
+    if (
+      thread.id !== initial.thread.id ||
+      thread.historyCompactionGeneration !== input.historyGeneration ||
+      bot.conversationEngineSettingsRevision !== input.expectedRevision
+    )
+      throw new ORPCError("CONFLICT", {
+        message: "Engine settings changed. Refresh before saving.",
+      });
+    if (
+      !deps.conversationEngines
+        ?.get("eros")
+        ?.characters.some(({ id }) => id === bot.erosCharacterId)
+    )
+      throw new ORPCError("BAD_REQUEST", { message: "Engine settings are unavailable." });
+    const [run, pending, action] = await Promise.all([
+      tx.run.findFirst({
+        where: { threadId: thread.id, status: { in: [...ACTIVE_RUN_STATUSES] } },
+        select: { id: true },
+      }),
+      session
+        ? tx.companionTurn.findFirst({
+            where: { sessionId: session.id, status: { in: ["submitted", "uncertain"] } },
+            select: { id: true },
+          })
+        : null,
+      session
+        ? tx.companionAction.findFirst({
+            where: { sessionId: session.id, status: { in: ["submitted", "uncertain"] } },
+            select: { id: true },
+          })
+        : null,
+    ]);
+    if (
+      run ||
+      action ||
+      pending ||
+      (session?.leaseExpiresAt && session.leaseExpiresAt.getTime() > Date.now())
+    )
+      throw new ORPCError("CONFLICT", {
+        message: "Wait for the current reply before changing engine settings.",
+      });
+    const updated = await tx.bot.update({
+      where: {
+        id: bot.id,
+        conversationEngineSettingsRevision: input.expectedRevision,
+      },
+      data: {
+        conversationEngineSettings: input.settings as Prisma.InputJsonValue,
+        conversationEngineSettingsRevision: { increment: 1 },
+      },
+      select: { conversationEngineSettings: true, conversationEngineSettingsRevision: true },
+    });
+    return conversationEngineSettings(updated);
+  });
+}
+
 export async function loadConversationEngineState(
   deps: Deps,
   actor: Actor,
@@ -90,6 +176,7 @@ export async function loadConversationEngineState(
     engineId: "eros" as const,
     character: { id: character.id, name: character.name },
     historyGeneration: thread.historyCompactionGeneration,
+    settings: conversationEngineSettings(bot),
   };
   if (!session?.engineSessionId || !session.engineInstanceId)
     return { ...base, status: "uninitialized", inspection: null };
@@ -119,7 +206,12 @@ export async function loadConversationEngineState(
     current.session.engineUserId !== session.engineUserId
   )
     throw new ORPCError("CONFLICT", { message: "The conversation changed. Refresh its state." });
-  return { ...base, status: "ready", inspection };
+  return {
+    ...base,
+    settings: conversationEngineSettings(current.bot),
+    status: "ready",
+    inspection,
+  };
 }
 
 export async function updateConversationEngineState(
@@ -174,7 +266,7 @@ export async function updateConversationEngineState(
           throw new ORPCError("CONFLICT", {
             message: "Wait for the current reply before changing engine state.",
           });
-        const [run, pending] = await Promise.all([
+        const [run, pending, action] = await Promise.all([
           tx.run.findFirst({
             where: { threadId: thread.id, status: { in: [...ACTIVE_RUN_STATUSES] } },
             select: { id: true },
@@ -183,8 +275,12 @@ export async function updateConversationEngineState(
             where: { sessionId: session.id, status: { in: ["submitted", "uncertain"] } },
             select: { id: true },
           }),
+          tx.companionAction.findFirst({
+            where: { sessionId: session.id, status: { in: ["submitted", "uncertain"] } },
+            select: { id: true },
+          }),
         ]);
-        if (run || pending)
+        if (run || pending || action)
           throw new ORPCError("CONFLICT", {
             message: "Wait for the current reply before changing engine state.",
           });

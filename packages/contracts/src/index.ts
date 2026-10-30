@@ -13,6 +13,7 @@ export * from "./builtin-tools.js";
 export * from "./client-build.js";
 export * from "./cloudflare-ai-gateway.js";
 export * from "./conversation-engine.js";
+export * from "./conversation-engine-actions.js";
 export * from "./conversation-files.js";
 export * from "./conversation-tasks.js";
 export * from "./desktop.js";

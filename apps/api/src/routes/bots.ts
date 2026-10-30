@@ -45,8 +45,10 @@ import {
   undoAgentImport,
 } from "../agent-import.js";
 import { deleteAgentSecret, listAgentSecrets, putAgentSecret } from "../agent-secrets.js";
+import { runConversationEngineAction } from "../conversation-engine-actions.js";
 import {
   loadConversationEngineState,
+  updateConversationEngineSettings,
   updateConversationEngineState,
 } from "../conversation-engine-state.js";
 import { resolveNativeProjectConfig } from "../native-project-config.js";
@@ -257,12 +259,19 @@ export function botsRoutes(ctx: RouterContext) {
       roleplayRelationship: authed.bots.roleplayRelationship.handler(({ context, input }) =>
         loadRoleplayRelationship(deps, context.actor, input.botId),
       ),
+      runConversationEngineAction: authed.bots.runConversationEngineAction.handler(
+        ({ context, input }) =>
+          runConversationEngineAction(deps, context.actor, input, context.signal),
+      ),
       conversationEngineState: authed.bots.conversationEngineState.handler(({ context, input }) =>
         loadConversationEngineState(deps, context.actor, input.botId, context.signal),
       ),
       updateConversationEngineState: authed.bots.updateConversationEngineState.handler(
         ({ context, input }) =>
           updateConversationEngineState(deps, context.actor, input, context.signal),
+      ),
+      updateConversationEngineSettings: authed.bots.updateConversationEngineSettings.handler(
+        ({ context, input }) => updateConversationEngineSettings(deps, context.actor, input),
       ),
       updateRoleplayRelationship: authed.bots.updateRoleplayRelationship.handler(
         ({ context, input }) => updateRoleplayRelationship(deps, context.actor, input),
@@ -432,6 +441,19 @@ export function botsRoutes(ctx: RouterContext) {
             modelId: source.runtimeKind === "pi" ? source.modelId : null,
             thinkingLevel: source.runtimeKind === "pi" ? source.thinkingLevel : null,
             disabledBuiltinTools: source.disabledBuiltinTools,
+            ...(source.conversationEngine === "eros" && source.conversationEngineSettings != null
+              ? {
+                  seed: async (tx: Prisma.TransactionClient, botId: string) => {
+                    await tx.bot.update({
+                      where: { id: botId },
+                      data: {
+                        conversationEngineSettings:
+                          source.conversationEngineSettings as Prisma.InputJsonValue,
+                      },
+                    });
+                  },
+                }
+              : {}),
           })
           .catch((error: unknown) => {
             throw mapSpaceLifecycleError(error);

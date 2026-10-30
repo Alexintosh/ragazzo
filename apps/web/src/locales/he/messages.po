@@ -440,6 +440,14 @@ msgstr "תווית חשבון"
 msgid "Account menu for {name}"
 msgstr "תפריט החשבון של {name}"
 
+#: src/pages/shell/conversation-engine-actions.tsx
+msgid "Action outcome is uncertain. Check the conversation before continuing."
+msgstr ""
+
+#: src/pages/shell/conversation-engine-actions.tsx
+msgid "Action recovery storage is unavailable. No new action was sent."
+msgstr ""
+
 #. placeholder {0}: bot.name
 #. placeholder {0}: group.spaceName
 #. placeholder {0}: section.name
@@ -456,6 +464,10 @@ msgstr "פעולות למרחב"
 #: src/pages/RoutineEditor.tsx
 msgid "Active"
 msgstr "פעיל"
+
+#: src/pages/shell/conversation-engine-actions.tsx
+msgid "Active effects"
+msgstr ""
 
 #: src/pages/shell/sidebar-header.tsx
 msgid "Activity"
@@ -555,6 +567,7 @@ msgid "Add header"
 msgstr "הוספת header"
 
 #: src/pages/ScratchpadSection.tsx
+#: src/pages/shell/conversation-engine-actions.tsx
 msgid "Add item"
 msgstr "הוספת פריט"
 
@@ -611,6 +624,10 @@ msgstr "הוספה לבוט קיים"
 #: src/components/teach/SkillDraftCard.tsx
 msgid "Add to routine"
 msgstr "הוספה לרוטינה"
+
+#: src/pages/shell/conversation-engine-settings.tsx
+msgid "Add trait"
+msgstr ""
 
 #: src/pages/PluginsOverlay.tsx
 msgid "Add Treg"
@@ -942,6 +959,10 @@ msgstr "שולחים אוטומטיים"
 msgid "Automated senders will appear after they post here."
 msgstr "שולחים אוטומטיים יופיעו כאן אחרי שיפרסמו הודעה."
 
+#: src/pages/shell/conversation-engine-actions.tsx
+msgid "Automatic initiative is managed by the Eros deployment."
+msgstr ""
+
 #: src/pages/RoutineEditor.tsx
 msgid "Available after the routine is saved"
 msgstr "זמין אחרי שמירת הרוטינה"
@@ -975,6 +996,10 @@ msgstr ""
 msgid "Back to sign in"
 msgstr "חזרה להתחברות"
 
+#: src/pages/shell/conversation-engine-actions.tsx
+msgid "Background event"
+msgstr ""
+
 #: src/pages/shell/roleplay-settings.tsx
 msgid "Balanced"
 msgstr "מאוזנת"
@@ -1001,6 +1026,10 @@ msgstr "Bearer token"
 msgid "Before character"
 msgstr ""
 
+#: src/pages/shell/conversation-engine-settings.tsx
+msgid "Behavior traits"
+msgstr ""
+
 #: src/pages/SettingsOverlay.tsx
 msgid "Billing"
 msgstr "חיוב"
@@ -1018,8 +1047,13 @@ msgstr "חסום"
 msgid "Board"
 msgstr "לוח"
 
+#: src/pages/shell/conversation-engine-settings.tsx
 #: src/pages/shell/conversation-engine-state.tsx
 msgid "Bond"
+msgstr ""
+
+#: src/pages/shell/conversation-engine-settings.tsx
+msgid "Bond and chemistry"
 msgstr ""
 
 #: src/pages/shell/computer-view.tsx
@@ -1310,6 +1344,10 @@ msgstr "צ׳אטים"
 msgid "Check"
 msgstr ""
 
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Check action"
+msgstr ""
+
 #: src/components/ComputersUnavailableHint.tsx
 #: src/pages/HostComputerPrompt.tsx
 msgid "Check again"
@@ -1378,6 +1416,7 @@ msgstr ""
 msgid "Checking…"
 msgstr "בודק…"
 
+#: src/pages/shell/conversation-engine-settings.tsx
 #: src/pages/shell/conversation-engine-state.tsx
 msgid "Chemistry"
 msgstr ""
@@ -1526,6 +1565,10 @@ msgstr "סגירת הגדרות המשתמש"
 #: src/pages/VoiceSettingsOverlay.tsx
 msgid "Close voice settings"
 msgstr "סגירת הגדרות הקול"
+
+#: src/pages/shell/conversation-engine-actions.tsx
+msgid "Clothing"
+msgstr ""
 
 #: src/pages/memory-providers/ConnectionModeFields.tsx
 msgid "Cloud"
@@ -1919,6 +1962,10 @@ msgstr "לא ניתן להשלים את הפעולה"
 msgid "Could not complete OAuth"
 msgstr "לא ניתן להשלים את OAuth"
 
+#: src/pages/shell/conversation-engine-actions.tsx
+msgid "Could not complete the Eros action"
+msgstr ""
+
 #: src/components/DesktopUpdates.tsx
 msgid "Could not complete the update. Try again."
 msgstr "לא ניתן להשלים את העדכון. אפשר לנסות שוב."
@@ -2249,6 +2296,10 @@ msgstr "לא ניתן לשמור את Auto Review"
 msgid "Could not save character"
 msgstr ""
 
+#: src/pages/shell/conversation-engine-settings.tsx
+msgid "Could not save Eros settings"
+msgstr ""
+
 #: src/pages/shell/conversation-engine-state.tsx
 msgid "Could not save Eros state"
 msgstr ""
@@ -2468,13 +2519,21 @@ msgstr "Cron"
 msgid "Cron expression"
 msgstr "ביטוי Cron"
 
+#: src/pages/shell/conversation-engine-actions.tsx
+msgid "Current event"
+msgstr ""
+
 #: src/components/AccountAccess.tsx
 #: src/pages/AccountSettingsOverlay.tsx
 msgid "Current password"
 msgstr "סיסמה נוכחית"
 
-#: src/pages/shell/conversation-engine-state.tsx
+#: src/pages/shell/conversation-engine-fields.tsx
 msgid "Current situation"
+msgstr ""
+
+#: src/pages/shell/conversation-engine-settings.tsx
+msgid "Custom axes"
 msgstr ""
 
 #: src/pages/shell/bot-credentials.tsx
@@ -2635,6 +2694,14 @@ msgstr "נדחה"
 msgid "Deny"
 msgstr "דחייה"
 
+#: src/pages/shell/conversation-engine-generation.tsx
+msgid "Deployment generation settings"
+msgstr ""
+
+#: src/pages/shell/conversation-engine-generation.tsx
+msgid "Deployment model details are unavailable."
+msgstr ""
+
 #: src/pages/Board.tsx
 #: src/pages/shell/agent-import.tsx
 #: src/pages/shell/bot-panel.tsx
@@ -2642,7 +2709,7 @@ msgstr "דחייה"
 msgid "Description"
 msgstr "תיאור"
 
-#: src/pages/shell/conversation-engine-state.tsx
+#: src/pages/shell/conversation-engine-fields.tsx
 msgid "Desires"
 msgstr ""
 
@@ -2688,6 +2755,10 @@ msgstr ""
 msgid "Discard recording"
 msgstr ""
 
+#: src/pages/shell/conversation-engine-settings.tsx
+msgid "Discard settings"
+msgstr ""
+
 #: src/pages/McpServersOverlay.tsx
 #: src/pages/MemorySettingsOverlay.tsx
 #: src/pages/MessagingSettingsPanel.tsx
@@ -2714,7 +2785,7 @@ msgstr "{disconnectName} נותק."
 msgid "Disconnecting…"
 msgstr "מנתק…"
 
-#: src/pages/shell/conversation-engine-state.tsx
+#: src/pages/shell/conversation-engine-fields.tsx
 msgid "Dislikes"
 msgstr ""
 
@@ -2819,6 +2890,10 @@ msgstr "טיוטת מיומנות"
 msgid "Drag, drop, or paste an image"
 msgstr "אפשר לגרור, לשחרר או להדביק תמונה"
 
+#: src/pages/shell/conversation-engine-actions.tsx
+msgid "Draw event"
+msgstr ""
+
 #: src/pages/BotContextMenu.tsx
 msgid "Duplicate"
 msgstr "שכפול"
@@ -2878,6 +2953,10 @@ msgstr "האימייל הזה לא מורשה להירשם"
 msgid "Email verification required"
 msgstr "נדרש אימות אימייל"
 
+#: src/pages/shell/conversation-engine-actions.tsx
+msgid "Emotional"
+msgstr ""
+
 #: src/pages/shell/conversation-engine-state.tsx
 msgid "Emotional need"
 msgstr ""
@@ -2902,6 +2981,11 @@ msgstr "מסתיים ב-{day}"
 #: src/pages/ExternalConversationSettings.tsx
 msgid "Engage when... Ignore..."
 msgstr "להגיב כאשר... להתעלם מ..."
+
+#: src/pages/shell/conversation-engine-generation.tsx
+#: src/pages/shell/conversation-engine-settings.tsx
+msgid "Engine default"
+msgstr ""
 
 #: src/pages/shell/conversation-engine-state.tsx
 msgid "Engine time"
@@ -2999,6 +3083,10 @@ msgstr "שגיאה"
 #: src/components/McpServerHealthLine.tsx
 msgid "Error details"
 msgstr "פרטי השגיאה"
+
+#: src/pages/shell/conversation-engine-actions.tsx
+msgid "Events and daily life"
+msgstr ""
 
 #: src/lib/cron.ts
 #: src/pages/ExternalConversationSettings.tsx
@@ -3137,6 +3225,10 @@ msgstr "נכשל."
 msgid "Failure handling"
 msgstr "טיפול בכשלים"
 
+#: src/pages/shell/conversation-engine-generation.tsx
+msgid "Fallback"
+msgstr ""
+
 #: src/pages/shell/conversation-engine-state.tsx
 msgid "Feeling elapsed hours"
 msgstr ""
@@ -3252,6 +3344,10 @@ msgstr "מתאריך"
 msgid "From {0}"
 msgstr "מ-{0}"
 
+#: src/pages/shell/conversation-engine-settings.tsx
+msgid "Full"
+msgstr ""
+
 #: src/pages/shell/bot-runtime-settings.tsx
 msgid "Full access"
 msgstr ""
@@ -3293,6 +3389,10 @@ msgstr "מתכונן"
 msgid "Git event"
 msgstr "אירוע Git"
 
+#: src/pages/shell/conversation-engine-actions.tsx
+msgid "Greet now"
+msgstr ""
+
 #: src/lib/identity-display.ts
 #: src/pages/MessagingSettingsPanel.tsx
 #: src/pages/shell/chat-header.tsx
@@ -3308,7 +3408,7 @@ msgstr "הגדרות קבוצה"
 msgid "Group updates"
 msgstr "עדכוני קבוצה"
 
-#: src/pages/shell/conversation-engine-state.tsx
+#: src/pages/shell/conversation-engine-fields.tsx
 msgid "Habits"
 msgstr ""
 
@@ -3375,6 +3475,7 @@ msgstr "הסתרת התמליל"
 #: src/lib/ticket-priority.ts
 #: src/pages/model-settings/compatible-model-fields.tsx
 #: src/pages/Onboarding.tsx
+#: src/pages/shell/conversation-engine-actions.tsx
 #: src/pages/shell/conversation-engine-state.tsx
 msgid "High"
 msgstr "גבוהה"
@@ -3449,6 +3550,10 @@ msgstr "איך לבדוק"
 msgid "How will you use Rakazo?"
 msgstr ""
 
+#: src/pages/shell/conversation-engine-actions.tsx
+msgid "Hunger"
+msgstr ""
+
 #: src/pages/shell/registered-host-picker.tsx
 msgid "I trust this host to run commands and access project files."
 msgstr ""
@@ -3520,9 +3625,17 @@ msgstr "לכלול מפתחות API"
 msgid "Incoming call"
 msgstr ""
 
+#: src/pages/shell/conversation-engine-actions.tsx
+msgid "Indulgence"
+msgstr ""
+
 #: src/pages/shell/bot-panel.tsx
 msgid "Inherit default"
 msgstr "ירושה מברירת המחדל"
+
+#: src/pages/shell/conversation-engine-actions.tsx
+msgid "Initiative and greetings"
+msgstr ""
 
 #: src/pages/AccountSettingsOverlay.tsx
 msgid "Input"
@@ -3534,6 +3647,10 @@ msgstr "קלטים"
 
 #: src/pages/shell/roleplay-settings.tsx
 msgid "Insertion order"
+msgstr ""
+
+#: src/pages/shell/conversation-engine-settings.tsx
+msgid "Insights only"
 msgstr ""
 
 #: src/pages/shell/bot-runtime-settings.tsx
@@ -3605,11 +3722,13 @@ msgstr "גודל המרווח"
 msgid "Interval unit"
 msgstr "יחידת המרווח"
 
+#: src/pages/shell/conversation-engine-settings.tsx
 #: src/pages/shell/conversation-engine-state.tsx
 #: src/pages/shell/roleplay-relationship-debug.tsx
 msgid "Intimacy"
 msgstr "אינטימיות"
 
+#: src/pages/shell/conversation-engine-settings.tsx
 #: src/pages/shell/conversation-engine-state.tsx
 msgid "Intrigue"
 msgstr ""
@@ -3617,6 +3736,14 @@ msgstr ""
 #: src/lib/user-error.ts
 msgid "Invalid code"
 msgstr "קוד לא תקין"
+
+#: src/pages/shell/conversation-engine-settings.tsx
+msgid "Inventory and outfit"
+msgstr ""
+
+#: src/pages/shell/conversation-engine-actions.tsx
+msgid "Inventory is unavailable from this Eros deployment."
+msgstr ""
 
 #: src/pages/MemorySettingsOverlay.tsx
 #: src/pages/shell/bot-panel.tsx
@@ -3626,6 +3753,18 @@ msgstr "מבודד"
 #: src/pages/Artifacts.tsx
 msgid "Isolated preview — no access to your account"
 msgstr "תצוגה מקדימה מבודדת — ללא גישה לחשבון"
+
+#: src/pages/shell/conversation-engine-actions.tsx
+msgid "Item"
+msgstr ""
+
+#: src/pages/shell/conversation-engine-actions.tsx
+msgid "Item name"
+msgstr ""
+
+#: src/pages/shell/conversation-engine-actions.tsx
+msgid "Item type"
+msgstr ""
 
 #: src/pages/shell/shell-dialogs.tsx
 msgid "Its bots and groups are kept and leave the section."
@@ -3725,7 +3864,7 @@ msgstr "מאפשר לבוטים לשמור ולשלוף עובדות לפי מש
 msgid "Light"
 msgstr "בהיר"
 
-#: src/pages/shell/conversation-engine-state.tsx
+#: src/pages/shell/conversation-engine-fields.tsx
 msgid "Likes"
 msgstr ""
 
@@ -3839,7 +3978,7 @@ msgstr ""
 msgid "Local host"
 msgstr ""
 
-#: src/pages/shell/conversation-engine-state.tsx
+#: src/pages/shell/conversation-engine-fields.tsx
 msgid "Location"
 msgstr ""
 
@@ -3872,6 +4011,7 @@ msgstr "אהבה"
 #: src/lib/ticket-priority.ts
 #: src/pages/model-settings/compatible-model-fields.tsx
 #: src/pages/Onboarding.tsx
+#: src/pages/shell/conversation-engine-actions.tsx
 #: src/pages/shell/conversation-engine-state.tsx
 msgid "Low"
 msgstr "נמוך"
@@ -3975,6 +4115,7 @@ msgstr "שרתי MCP"
 
 #: src/pages/model-settings/compatible-model-fields.tsx
 #: src/pages/Onboarding.tsx
+#: src/pages/shell/conversation-engine-actions.tsx
 #: src/pages/shell/conversation-engine-state.tsx
 msgid "Medium"
 msgstr "בינוני"
@@ -4003,6 +4144,10 @@ msgstr "זיכרון"
 #: src/pages/shell/agent-import.tsx
 msgid "Memory {position}"
 msgstr "זיכרון {position}"
+
+#: src/pages/shell/conversation-engine-settings.tsx
+msgid "Memory context"
+msgstr ""
 
 #: src/pages/shell/agent-import.tsx
 msgid "Memory for {title}"
@@ -4136,6 +4281,10 @@ msgstr ""
 msgid "Model connections"
 msgstr "חיבורים למודלים"
 
+#: src/pages/shell/conversation-engine-settings.tsx
+msgid "Model generation"
+msgstr ""
+
 #: src/pages/model-settings/compatible-model-fields.tsx
 #: src/pages/Onboarding.tsx
 msgid "Model id"
@@ -4151,8 +4300,13 @@ msgstr "אפשרויות מודל"
 msgid "Model selection unavailable"
 msgstr ""
 
+#: src/pages/shell/conversation-engine-generation.tsx
+msgid "Model tier"
+msgstr ""
+
 #: src/pages/ModelSettingsOverlay.tsx
 #: src/pages/SettingsOverlay.tsx
+#: src/pages/shell/conversation-engine-generation.tsx
 #: src/pages/SpaceSettingOverrides.tsx
 msgid "Models"
 msgstr "מודלים"
@@ -4273,9 +4427,17 @@ msgstr "סיפורי"
 msgid "Narrative instructions"
 msgstr ""
 
+#: src/pages/shell/conversation-engine-actions.tsx
+msgid "Needs"
+msgstr ""
+
 #: src/lib/roster-status.ts
 msgid "Needs an answer"
 msgstr "ממתין לתשובה"
+
+#: src/pages/shell/conversation-engine-actions.tsx
+msgid "Needs are unavailable from this Eros deployment."
+msgstr ""
 
 #: src/pages/ActivityList.tsx
 msgid "Needs input"
@@ -4293,6 +4455,14 @@ msgstr "נדרשת פעולה"
 #: src/pages/shell/import-status.ts
 msgid "Needs: {names}"
 msgstr "דורש: {names}"
+
+#: src/pages/shell/conversation-engine-settings.tsx
+msgid "Neutral and relationship"
+msgstr ""
+
+#: src/pages/shell/conversation-engine-settings.tsx
+msgid "Neutral only"
+msgstr ""
 
 #: src/components/ApprovalRulesSettings.tsx
 msgid "Never ask"
@@ -4397,11 +4567,11 @@ msgid "No bots match"
 msgstr "אין בוטים תואמים"
 
 #: src/pages/shell/conversation-engine-state.tsx
-msgid "No character insights yet."
+msgid "No conversation state yet."
 msgstr ""
 
-#: src/pages/shell/conversation-engine-state.tsx
-msgid "No conversation state yet."
+#: src/pages/shell/conversation-engine-actions.tsx
+msgid "No current event reported."
 msgstr ""
 
 #: src/pages/shell/conversation-files-panel.tsx
@@ -4414,6 +4584,14 @@ msgstr ""
 
 #: src/pages/shell/project-folder-picker.tsx
 msgid "No folders"
+msgstr ""
+
+#: src/pages/shell/conversation-engine-fields.tsx
+msgid "No insights yet."
+msgstr ""
+
+#: src/pages/shell/conversation-engine-actions.tsx
+msgid "No inventory items."
 msgstr ""
 
 #: src/components/AskCard.tsx
@@ -4445,6 +4623,10 @@ msgstr "עדיין אין שרתי MCP."
 
 #: src/pages/GroupPanel.tsx
 msgid "No members yet"
+msgstr ""
+
+#: src/pages/shell/conversation-engine-actions.tsx
+msgid "No message generated."
 msgstr ""
 
 #: src/pages/PeerMessagesOverlay.tsx
@@ -4497,6 +4679,15 @@ msgstr "עדיין אין כרטיסים"
 msgid "No trigger"
 msgstr "ללא טריגר"
 
+#: src/pages/shell/conversation-engine-settings.tsx
+msgid "No user insights available."
+msgstr ""
+
+#: src/pages/shell/conversation-engine-generation.tsx
+#: src/pages/shell/conversation-engine-settings.tsx
+msgid "None"
+msgstr ""
+
 #: src/lib/ticket-priority.ts
 msgid "Normal"
 msgstr "רגיל"
@@ -4505,6 +4696,7 @@ msgstr "רגיל"
 msgid "Not a valid skill"
 msgstr "מיומנות לא תקינה"
 
+#: src/pages/shell/conversation-engine-generation.tsx
 #: src/pages/shell/conversation-engine-state.tsx
 msgid "Not available"
 msgstr ""
@@ -4584,7 +4776,15 @@ msgstr "תוקף OAuth פג"
 msgid "Observed at"
 msgstr ""
 
-#: src/pages/shell/conversation-engine-state.tsx
+#: src/pages/shell/conversation-engine-settings.tsx
+msgid "Observed by Eros."
+msgstr ""
+
+#: src/pages/shell/conversation-engine-actions.tsx
+msgid "Observed by Eros. Direct overrides are unavailable."
+msgstr ""
+
+#: src/pages/shell/conversation-engine-fields.tsx
 msgid "Occupation"
 msgstr ""
 
@@ -4725,6 +4925,14 @@ msgstr "ההודעה המקורית אינה זמינה"
 msgid "Other model…"
 msgstr "מודל אחר…"
 
+#: src/pages/shell/conversation-engine-settings.tsx
+msgid "Outfit"
+msgstr ""
+
+#: src/pages/shell/conversation-engine-actions.tsx
+msgid "Outing"
+msgstr ""
+
 #: src/pages/AccountSettingsOverlay.tsx
 msgid "Output"
 msgstr "פלט"
@@ -4804,6 +5012,7 @@ msgstr "יש להדביק את מפתח ה-API"
 msgid "Paste your API key, then test again."
 msgstr "יש להדביק את מפתח ה-API ולבדוק שוב."
 
+#: src/pages/shell/conversation-engine-settings.tsx
 #: src/pages/shell/conversation-engine-state.tsx
 msgid "Patience"
 msgstr ""
@@ -4833,7 +5042,7 @@ msgstr "פרסונה"
 msgid "Personal"
 msgstr ""
 
-#: src/pages/shell/conversation-engine-state.tsx
+#: src/pages/shell/conversation-engine-fields.tsx
 msgid "Personal values"
 msgstr ""
 
@@ -5168,11 +5377,23 @@ msgstr ""
 msgid "Registration is closed"
 msgstr "ההרשמה סגורה"
 
+#: src/pages/shell/conversation-engine-settings.tsx
+msgid "Relationship context"
+msgstr ""
+
 #: src/pages/shell/roleplay-relationship-debug.tsx
 msgid "Relationship debug"
 msgstr "ניפוי שגיאות בקשר"
 
-#: src/pages/shell/conversation-engine-state.tsx
+#: src/pages/shell/conversation-engine-settings.tsx
+msgid "Relationship evolution"
+msgstr ""
+
+#: src/pages/shell/conversation-engine-settings.tsx
+msgid "Relationship only"
+msgstr ""
+
+#: src/pages/shell/conversation-engine-fields.tsx
 msgid "Relationships"
 msgstr ""
 
@@ -5190,11 +5411,14 @@ msgstr "טעינה מחדש"
 #: src/pages/PluginsOverlay.tsx
 #: src/pages/ScratchpadSection.tsx
 #: src/pages/shell/bot-credentials.tsx
+#: src/pages/shell/conversation-engine-actions.tsx
 msgid "Remove"
 msgstr "הסרה"
 
 #. placeholder {0}: attachment.file.name
+#. placeholder {0}: item.name
 #: src/pages/shell/composer.tsx
+#: src/pages/shell/conversation-engine-actions.tsx
 msgid "Remove {0}"
 msgstr "הסרת {0}"
 
@@ -5253,6 +5477,10 @@ msgstr "הסרת התזמון"
 #: src/pages/shell/composer.tsx
 msgid "Remove skill {0}"
 msgstr "הסרת המיומנות {0}"
+
+#: src/pages/shell/conversation-engine-settings.tsx
+msgid "Remove trait"
+msgstr ""
 
 #: src/pages/RoutineEditor.tsx
 msgid "Remove webhook"
@@ -5555,6 +5783,10 @@ msgstr ""
 msgid "Runtime unavailable"
 msgstr ""
 
+#: src/pages/shell/conversation-engine-generation.tsx
+msgid "Sampling and model routes are managed by the Eros deployment."
+msgstr ""
+
 #: src/lib/cron.ts
 msgid "Saturday"
 msgstr "שבת"
@@ -5592,6 +5824,10 @@ msgstr "שמירת פרטי הגישה"
 #: src/pages/shell/bot-credentials.tsx
 msgid "Save new value"
 msgstr "שמירת הערך החדש"
+
+#: src/pages/shell/conversation-engine-settings.tsx
+msgid "Save settings"
+msgstr ""
 
 #: src/components/ComputerMaintenanceActions.tsx
 msgid "Save the workspace and install current software."
@@ -5816,6 +6052,10 @@ msgstr ""
 msgid "Settings"
 msgstr "הגדרות"
 
+#: src/pages/shell/conversation-engine-settings.tsx
+msgid "Settings changed. Discard edits to use the latest values."
+msgstr ""
+
 #: src/pages/shell/composer-mentions.tsx
 msgid "Settings: General"
 msgstr "הגדרות: כללי"
@@ -6031,6 +6271,10 @@ msgstr "Slack לא מופעל"
 msgid "Slide up to lock"
 msgstr ""
 
+#: src/pages/shell/conversation-engine-actions.tsx
+msgid "Social"
+msgstr ""
+
 #: src/pages/shell/agent-import.tsx
 msgid "Some settings are not imported"
 msgstr "חלק מההגדרות לא מיובאות"
@@ -6109,6 +6353,10 @@ msgstr "הודעות ספונטניות"
 #: src/lib/user-error.ts
 msgid "SSO is temporarily unavailable. Try again."
 msgstr "SSO אינו זמין כרגע. אפשר לנסות שוב."
+
+#: src/pages/shell/conversation-engine-actions.tsx
+msgid "Stamina"
+msgstr ""
 
 #: src/pages/shell/computer-overlay.tsx
 msgid "Start"
@@ -6308,6 +6556,7 @@ msgstr "טבלה"
 msgid "Take control"
 msgstr "השתלטות"
 
+#: src/pages/shell/conversation-engine-generation.tsx
 #: src/pages/shell/conversation-tasks.tsx
 msgid "Task"
 msgstr ""
@@ -6348,6 +6597,11 @@ msgstr "הודעת Teams"
 msgid "Teams not enabled"
 msgstr "Teams לא מופעל"
 
+#: src/pages/shell/conversation-engine-generation.tsx
+msgid "Temperature"
+msgstr ""
+
+#: src/pages/shell/conversation-engine-settings.tsx
 #: src/pages/shell/conversation-engine-state.tsx
 msgid "Tension"
 msgstr ""
@@ -6403,6 +6657,10 @@ msgstr "המודל החזיר תשובה שאי אפשר להשתמש בה. אפ
 #: src/lib/model-connection-preflight.ts
 msgid "The provider is rate-limiting requests."
 msgstr "הספק מגביל את קצב הבקשות."
+
+#: src/pages/shell/conversation-engine-actions.tsx
+msgid "The saved action could not be read. No new action was sent."
+msgstr ""
 
 #: src/pages/MemorySettingsOverlay.tsx
 msgid "The selected memory provider is not available in this build."
@@ -6613,6 +6871,10 @@ msgstr "היום"
 msgid "Token budget"
 msgstr ""
 
+#: src/pages/shell/conversation-engine-generation.tsx
+msgid "Token limit"
+msgstr ""
+
 #: src/pages/AccountSettingsOverlay.tsx
 msgid "Tokens"
 msgstr "טוקנים"
@@ -6646,6 +6908,14 @@ msgstr "כלים"
 msgid "Top up anytime"
 msgstr ""
 
+#: src/pages/shell/conversation-engine-settings.tsx
+msgid "Trait guidance"
+msgstr ""
+
+#: src/pages/shell/conversation-engine-settings.tsx
+msgid "Trait tag"
+msgstr ""
+
 #: src/components/composer/HoldToTalk.tsx
 msgid "Transcribing…"
 msgstr ""
@@ -6674,6 +6944,7 @@ msgstr "תקופת ניסיון"
 msgid "Trial ends {day}"
 msgstr "תקופת הניסיון מסתיימת {day}"
 
+#: src/pages/shell/conversation-engine-settings.tsx
 #: src/pages/shell/conversation-engine-state.tsx
 msgid "Trust"
 msgstr ""
@@ -6864,6 +7135,10 @@ msgstr "שימוש בברירות המחדל עבור {label}"
 msgid "Use folder"
 msgstr ""
 
+#: src/pages/shell/conversation-engine-settings.tsx
+msgid "Use lowercase letters, numbers and underscores for tier and trait tags, and single-line trait guidance."
+msgstr ""
+
 #: src/components/ModelCredits.tsx
 msgid "Use my subscription or API key"
 msgstr ""
@@ -6882,6 +7157,10 @@ msgstr ""
 
 #: src/pages/memory-providers/HonchoSettingsForm.tsx
 msgid "Use up to 512 letters, digits, _ or -."
+msgstr ""
+
+#: src/pages/shell/conversation-engine-settings.tsx
+msgid "User insights"
 msgstr ""
 
 #: src/pages/memory-providers/HonchoSettingsForm.tsx
@@ -6938,7 +7217,7 @@ msgstr "צפייה בצ׳אט"
 msgid "Voice"
 msgstr "קול"
 
-#: src/pages/shell/conversation-engine-state.tsx
+#: src/pages/shell/conversation-engine-fields.tsx
 msgid "Vulnerabilities"
 msgstr ""
 
@@ -6970,6 +7249,7 @@ msgstr "ממתין בתור…"
 msgid "Waiting…"
 msgstr "ממתין…"
 
+#: src/pages/shell/conversation-engine-settings.tsx
 #: src/pages/shell/conversation-engine-state.tsx
 #: src/pages/shell/roleplay-relationship-debug.tsx
 msgid "Warmth"

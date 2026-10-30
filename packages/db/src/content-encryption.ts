@@ -49,15 +49,24 @@ interface ModelSpec {
 
 /** Further content columns (external messages, steering, skills, …) add an entry here. */
 export const ENCRYPTED_MODELS: Record<string, ModelSpec> = {
+  CompanionAction: {
+    table: "companion_actions",
+    fields: { request: { plainKeys: new Set() }, response: { plainKeys: new Set() } },
+    space: { column: "spaceId" },
+    ownerRelation: "session",
+  },
   CompanionTurn: {
     table: "companion_turns",
-    fields: { input: {}, response: {}, error: {} },
+    fields: { input: {}, response: {}, error: {}, request: { plainKeys: new Set() } },
     space: { column: "spaceId" },
     ownerRelation: "session",
   },
   Bot: {
     table: "bots",
-    fields: { roleplayCharacter: { plainKeys: new Set() } },
+    fields: {
+      roleplayCharacter: { plainKeys: new Set() },
+      conversationEngineSettings: { plainKeys: new Set() },
+    },
     space: { column: "spaceId" },
     ownerRelation: "user",
   },

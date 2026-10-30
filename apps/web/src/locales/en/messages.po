@@ -440,6 +440,14 @@ msgstr "Account label"
 msgid "Account menu for {name}"
 msgstr "Account menu for {name}"
 
+#: src/pages/shell/conversation-engine-actions.tsx
+msgid "Action outcome is uncertain. Check the conversation before continuing."
+msgstr "Action outcome is uncertain. Check the conversation before continuing."
+
+#: src/pages/shell/conversation-engine-actions.tsx
+msgid "Action recovery storage is unavailable. No new action was sent."
+msgstr "Action recovery storage is unavailable. No new action was sent."
+
 #. placeholder {0}: bot.name
 #. placeholder {0}: group.spaceName
 #. placeholder {0}: section.name
@@ -456,6 +464,10 @@ msgstr "Actions for space"
 #: src/pages/RoutineEditor.tsx
 msgid "Active"
 msgstr "Active"
+
+#: src/pages/shell/conversation-engine-actions.tsx
+msgid "Active effects"
+msgstr "Active effects"
 
 #: src/pages/shell/sidebar-header.tsx
 msgid "Activity"
@@ -555,6 +567,7 @@ msgid "Add header"
 msgstr "Add header"
 
 #: src/pages/ScratchpadSection.tsx
+#: src/pages/shell/conversation-engine-actions.tsx
 msgid "Add item"
 msgstr "Add item"
 
@@ -611,6 +624,10 @@ msgstr "Add to an existing bot"
 #: src/components/teach/SkillDraftCard.tsx
 msgid "Add to routine"
 msgstr "Add to routine"
+
+#: src/pages/shell/conversation-engine-settings.tsx
+msgid "Add trait"
+msgstr "Add trait"
 
 #: src/pages/PluginsOverlay.tsx
 msgid "Add Treg"
@@ -942,6 +959,10 @@ msgstr "Automated senders"
 msgid "Automated senders will appear after they post here."
 msgstr "Automated senders will appear after they post here."
 
+#: src/pages/shell/conversation-engine-actions.tsx
+msgid "Automatic initiative is managed by the Eros deployment."
+msgstr "Automatic initiative is managed by the Eros deployment."
+
 #: src/pages/RoutineEditor.tsx
 msgid "Available after the routine is saved"
 msgstr "Available after the routine is saved"
@@ -975,6 +996,10 @@ msgstr "Back to chats"
 msgid "Back to sign in"
 msgstr "Back to sign in"
 
+#: src/pages/shell/conversation-engine-actions.tsx
+msgid "Background event"
+msgstr "Background event"
+
 #: src/pages/shell/roleplay-settings.tsx
 msgid "Balanced"
 msgstr "Balanced"
@@ -1001,6 +1026,10 @@ msgstr "Bearer token"
 msgid "Before character"
 msgstr "Before character"
 
+#: src/pages/shell/conversation-engine-settings.tsx
+msgid "Behavior traits"
+msgstr "Behavior traits"
+
 #: src/pages/SettingsOverlay.tsx
 msgid "Billing"
 msgstr "Billing"
@@ -1018,9 +1047,14 @@ msgstr "Blocked"
 msgid "Board"
 msgstr "Board"
 
+#: src/pages/shell/conversation-engine-settings.tsx
 #: src/pages/shell/conversation-engine-state.tsx
 msgid "Bond"
 msgstr "Bond"
+
+#: src/pages/shell/conversation-engine-settings.tsx
+msgid "Bond and chemistry"
+msgstr "Bond and chemistry"
 
 #: src/pages/shell/computer-view.tsx
 #: src/pages/shell/use-computer.tsx
@@ -1310,6 +1344,10 @@ msgstr "Chats"
 msgid "Check"
 msgstr "Check"
 
+#: src/pages/shell/conversation-engine-state.tsx
+msgid "Check action"
+msgstr "Check action"
+
 #: src/components/ComputersUnavailableHint.tsx
 #: src/pages/HostComputerPrompt.tsx
 msgid "Check again"
@@ -1378,6 +1416,7 @@ msgstr "Checking runtime…"
 msgid "Checking…"
 msgstr "Checking…"
 
+#: src/pages/shell/conversation-engine-settings.tsx
 #: src/pages/shell/conversation-engine-state.tsx
 msgid "Chemistry"
 msgstr "Chemistry"
@@ -1526,6 +1565,10 @@ msgstr "Close user settings"
 #: src/pages/VoiceSettingsOverlay.tsx
 msgid "Close voice settings"
 msgstr "Close voice settings"
+
+#: src/pages/shell/conversation-engine-actions.tsx
+msgid "Clothing"
+msgstr "Clothing"
 
 #: src/pages/memory-providers/ConnectionModeFields.tsx
 msgid "Cloud"
@@ -1919,6 +1962,10 @@ msgstr "Could not complete action"
 msgid "Could not complete OAuth"
 msgstr "Could not complete OAuth"
 
+#: src/pages/shell/conversation-engine-actions.tsx
+msgid "Could not complete the Eros action"
+msgstr "Could not complete the Eros action"
+
 #: src/components/DesktopUpdates.tsx
 msgid "Could not complete the update. Try again."
 msgstr "Could not complete the update. Try again."
@@ -2249,6 +2296,10 @@ msgstr "Could not save Auto Review"
 msgid "Could not save character"
 msgstr "Could not save character"
 
+#: src/pages/shell/conversation-engine-settings.tsx
+msgid "Could not save Eros settings"
+msgstr "Could not save Eros settings"
+
 #: src/pages/shell/conversation-engine-state.tsx
 msgid "Could not save Eros state"
 msgstr "Could not save Eros state"
@@ -2468,14 +2519,22 @@ msgstr "Cron"
 msgid "Cron expression"
 msgstr "Cron expression"
 
+#: src/pages/shell/conversation-engine-actions.tsx
+msgid "Current event"
+msgstr "Current event"
+
 #: src/components/AccountAccess.tsx
 #: src/pages/AccountSettingsOverlay.tsx
 msgid "Current password"
 msgstr "Current password"
 
-#: src/pages/shell/conversation-engine-state.tsx
+#: src/pages/shell/conversation-engine-fields.tsx
 msgid "Current situation"
 msgstr "Current situation"
+
+#: src/pages/shell/conversation-engine-settings.tsx
+msgid "Custom axes"
+msgstr "Custom axes"
 
 #: src/pages/shell/bot-credentials.tsx
 msgid "Custom header"
@@ -2635,6 +2694,14 @@ msgstr "Denied"
 msgid "Deny"
 msgstr "Deny"
 
+#: src/pages/shell/conversation-engine-generation.tsx
+msgid "Deployment generation settings"
+msgstr "Deployment generation settings"
+
+#: src/pages/shell/conversation-engine-generation.tsx
+msgid "Deployment model details are unavailable."
+msgstr "Deployment model details are unavailable."
+
 #: src/pages/Board.tsx
 #: src/pages/shell/agent-import.tsx
 #: src/pages/shell/bot-panel.tsx
@@ -2642,7 +2709,7 @@ msgstr "Deny"
 msgid "Description"
 msgstr "Description"
 
-#: src/pages/shell/conversation-engine-state.tsx
+#: src/pages/shell/conversation-engine-fields.tsx
 msgid "Desires"
 msgstr "Desires"
 
@@ -2688,6 +2755,10 @@ msgstr "Discard"
 msgid "Discard recording"
 msgstr "Discard recording"
 
+#: src/pages/shell/conversation-engine-settings.tsx
+msgid "Discard settings"
+msgstr "Discard settings"
+
 #: src/pages/McpServersOverlay.tsx
 #: src/pages/MemorySettingsOverlay.tsx
 #: src/pages/MessagingSettingsPanel.tsx
@@ -2714,7 +2785,7 @@ msgstr "Disconnected {disconnectName}."
 msgid "Disconnecting…"
 msgstr "Disconnecting…"
 
-#: src/pages/shell/conversation-engine-state.tsx
+#: src/pages/shell/conversation-engine-fields.tsx
 msgid "Dislikes"
 msgstr "Dislikes"
 
@@ -2819,6 +2890,10 @@ msgstr "Draft skill"
 msgid "Drag, drop, or paste an image"
 msgstr "Drag, drop, or paste an image"
 
+#: src/pages/shell/conversation-engine-actions.tsx
+msgid "Draw event"
+msgstr "Draw event"
+
 #: src/pages/BotContextMenu.tsx
 msgid "Duplicate"
 msgstr "Duplicate"
@@ -2878,6 +2953,10 @@ msgstr "Email is not allowed to register"
 msgid "Email verification required"
 msgstr "Email verification required"
 
+#: src/pages/shell/conversation-engine-actions.tsx
+msgid "Emotional"
+msgstr "Emotional"
+
 #: src/pages/shell/conversation-engine-state.tsx
 msgid "Emotional need"
 msgstr "Emotional need"
@@ -2902,6 +2981,11 @@ msgstr "Ends {day}"
 #: src/pages/ExternalConversationSettings.tsx
 msgid "Engage when... Ignore..."
 msgstr "Engage when... Ignore..."
+
+#: src/pages/shell/conversation-engine-generation.tsx
+#: src/pages/shell/conversation-engine-settings.tsx
+msgid "Engine default"
+msgstr "Engine default"
 
 #: src/pages/shell/conversation-engine-state.tsx
 msgid "Engine time"
@@ -2999,6 +3083,10 @@ msgstr "Error"
 #: src/components/McpServerHealthLine.tsx
 msgid "Error details"
 msgstr "Error details"
+
+#: src/pages/shell/conversation-engine-actions.tsx
+msgid "Events and daily life"
+msgstr "Events and daily life"
 
 #: src/lib/cron.ts
 #: src/pages/ExternalConversationSettings.tsx
@@ -3137,6 +3225,10 @@ msgstr "Failed."
 msgid "Failure handling"
 msgstr "Failure handling"
 
+#: src/pages/shell/conversation-engine-generation.tsx
+msgid "Fallback"
+msgstr "Fallback"
+
 #: src/pages/shell/conversation-engine-state.tsx
 msgid "Feeling elapsed hours"
 msgstr "Feeling elapsed hours"
@@ -3252,6 +3344,10 @@ msgstr "From"
 msgid "From {0}"
 msgstr "From {0}"
 
+#: src/pages/shell/conversation-engine-settings.tsx
+msgid "Full"
+msgstr "Full"
+
 #: src/pages/shell/bot-runtime-settings.tsx
 msgid "Full access"
 msgstr "Full access"
@@ -3293,6 +3389,10 @@ msgstr "Getting ready"
 msgid "Git event"
 msgstr "Git event"
 
+#: src/pages/shell/conversation-engine-actions.tsx
+msgid "Greet now"
+msgstr "Greet now"
+
 #: src/lib/identity-display.ts
 #: src/pages/MessagingSettingsPanel.tsx
 #: src/pages/shell/chat-header.tsx
@@ -3308,7 +3408,7 @@ msgstr "Group settings"
 msgid "Group updates"
 msgstr "Group updates"
 
-#: src/pages/shell/conversation-engine-state.tsx
+#: src/pages/shell/conversation-engine-fields.tsx
 msgid "Habits"
 msgstr "Habits"
 
@@ -3375,6 +3475,7 @@ msgstr "Hide transcript"
 #: src/lib/ticket-priority.ts
 #: src/pages/model-settings/compatible-model-fields.tsx
 #: src/pages/Onboarding.tsx
+#: src/pages/shell/conversation-engine-actions.tsx
 #: src/pages/shell/conversation-engine-state.tsx
 msgid "High"
 msgstr "High"
@@ -3449,6 +3550,10 @@ msgstr "How to check"
 msgid "How will you use Rakazo?"
 msgstr "How will you use Rakazo?"
 
+#: src/pages/shell/conversation-engine-actions.tsx
+msgid "Hunger"
+msgstr "Hunger"
+
 #: src/pages/shell/registered-host-picker.tsx
 msgid "I trust this host to run commands and access project files."
 msgstr "I trust this host to run commands and access project files."
@@ -3520,9 +3625,17 @@ msgstr "Include API keys"
 msgid "Incoming call"
 msgstr "Incoming call"
 
+#: src/pages/shell/conversation-engine-actions.tsx
+msgid "Indulgence"
+msgstr "Indulgence"
+
 #: src/pages/shell/bot-panel.tsx
 msgid "Inherit default"
 msgstr "Inherit default"
+
+#: src/pages/shell/conversation-engine-actions.tsx
+msgid "Initiative and greetings"
+msgstr "Initiative and greetings"
 
 #: src/pages/AccountSettingsOverlay.tsx
 msgid "Input"
@@ -3535,6 +3648,10 @@ msgstr "Inputs"
 #: src/pages/shell/roleplay-settings.tsx
 msgid "Insertion order"
 msgstr "Insertion order"
+
+#: src/pages/shell/conversation-engine-settings.tsx
+msgid "Insights only"
+msgstr "Insights only"
 
 #: src/pages/shell/bot-runtime-settings.tsx
 msgid "Install the runtime on the host."
@@ -3605,11 +3722,13 @@ msgstr "Interval amount"
 msgid "Interval unit"
 msgstr "Interval unit"
 
+#: src/pages/shell/conversation-engine-settings.tsx
 #: src/pages/shell/conversation-engine-state.tsx
 #: src/pages/shell/roleplay-relationship-debug.tsx
 msgid "Intimacy"
 msgstr "Intimacy"
 
+#: src/pages/shell/conversation-engine-settings.tsx
 #: src/pages/shell/conversation-engine-state.tsx
 msgid "Intrigue"
 msgstr "Intrigue"
@@ -3617,6 +3736,14 @@ msgstr "Intrigue"
 #: src/lib/user-error.ts
 msgid "Invalid code"
 msgstr "Invalid code"
+
+#: src/pages/shell/conversation-engine-settings.tsx
+msgid "Inventory and outfit"
+msgstr "Inventory and outfit"
+
+#: src/pages/shell/conversation-engine-actions.tsx
+msgid "Inventory is unavailable from this Eros deployment."
+msgstr "Inventory is unavailable from this Eros deployment."
 
 #: src/pages/MemorySettingsOverlay.tsx
 #: src/pages/shell/bot-panel.tsx
@@ -3626,6 +3753,18 @@ msgstr "Isolated"
 #: src/pages/Artifacts.tsx
 msgid "Isolated preview — no access to your account"
 msgstr "Isolated preview — no access to your account"
+
+#: src/pages/shell/conversation-engine-actions.tsx
+msgid "Item"
+msgstr "Item"
+
+#: src/pages/shell/conversation-engine-actions.tsx
+msgid "Item name"
+msgstr "Item name"
+
+#: src/pages/shell/conversation-engine-actions.tsx
+msgid "Item type"
+msgstr "Item type"
 
 #: src/pages/shell/shell-dialogs.tsx
 msgid "Its bots and groups are kept and leave the section."
@@ -3725,7 +3864,7 @@ msgstr "Lets bots save and recall facts by meaning, alongside MEMORY.md."
 msgid "Light"
 msgstr "Light"
 
-#: src/pages/shell/conversation-engine-state.tsx
+#: src/pages/shell/conversation-engine-fields.tsx
 msgid "Likes"
 msgstr "Likes"
 
@@ -3839,7 +3978,7 @@ msgstr "Local computer access requires the latest desktop app."
 msgid "Local host"
 msgstr "Local host"
 
-#: src/pages/shell/conversation-engine-state.tsx
+#: src/pages/shell/conversation-engine-fields.tsx
 msgid "Location"
 msgstr "Location"
 
@@ -3872,6 +4011,7 @@ msgstr "Love"
 #: src/lib/ticket-priority.ts
 #: src/pages/model-settings/compatible-model-fields.tsx
 #: src/pages/Onboarding.tsx
+#: src/pages/shell/conversation-engine-actions.tsx
 #: src/pages/shell/conversation-engine-state.tsx
 msgid "Low"
 msgstr "Low"
@@ -3975,6 +4115,7 @@ msgstr "MCP servers"
 
 #: src/pages/model-settings/compatible-model-fields.tsx
 #: src/pages/Onboarding.tsx
+#: src/pages/shell/conversation-engine-actions.tsx
 #: src/pages/shell/conversation-engine-state.tsx
 msgid "Medium"
 msgstr "Medium"
@@ -4003,6 +4144,10 @@ msgstr "Memory"
 #: src/pages/shell/agent-import.tsx
 msgid "Memory {position}"
 msgstr "Memory {position}"
+
+#: src/pages/shell/conversation-engine-settings.tsx
+msgid "Memory context"
+msgstr "Memory context"
 
 #: src/pages/shell/agent-import.tsx
 msgid "Memory for {title}"
@@ -4136,6 +4281,10 @@ msgstr "Model and effort"
 msgid "Model connections"
 msgstr "Model connections"
 
+#: src/pages/shell/conversation-engine-settings.tsx
+msgid "Model generation"
+msgstr "Model generation"
+
 #: src/pages/model-settings/compatible-model-fields.tsx
 #: src/pages/Onboarding.tsx
 msgid "Model id"
@@ -4151,8 +4300,13 @@ msgstr "Model options"
 msgid "Model selection unavailable"
 msgstr "Model selection unavailable"
 
+#: src/pages/shell/conversation-engine-generation.tsx
+msgid "Model tier"
+msgstr "Model tier"
+
 #: src/pages/ModelSettingsOverlay.tsx
 #: src/pages/SettingsOverlay.tsx
+#: src/pages/shell/conversation-engine-generation.tsx
 #: src/pages/SpaceSettingOverrides.tsx
 msgid "Models"
 msgstr "Models"
@@ -4273,9 +4427,17 @@ msgstr "Narrative"
 msgid "Narrative instructions"
 msgstr "Narrative instructions"
 
+#: src/pages/shell/conversation-engine-actions.tsx
+msgid "Needs"
+msgstr "Needs"
+
 #: src/lib/roster-status.ts
 msgid "Needs an answer"
 msgstr "Needs an answer"
+
+#: src/pages/shell/conversation-engine-actions.tsx
+msgid "Needs are unavailable from this Eros deployment."
+msgstr "Needs are unavailable from this Eros deployment."
 
 #: src/pages/ActivityList.tsx
 msgid "Needs input"
@@ -4293,6 +4455,14 @@ msgstr "Needs you"
 #: src/pages/shell/import-status.ts
 msgid "Needs: {names}"
 msgstr "Needs: {names}"
+
+#: src/pages/shell/conversation-engine-settings.tsx
+msgid "Neutral and relationship"
+msgstr "Neutral and relationship"
+
+#: src/pages/shell/conversation-engine-settings.tsx
+msgid "Neutral only"
+msgstr "Neutral only"
 
 #: src/components/ApprovalRulesSettings.tsx
 msgid "Never ask"
@@ -4397,12 +4567,12 @@ msgid "No bots match"
 msgstr "No bots match"
 
 #: src/pages/shell/conversation-engine-state.tsx
-msgid "No character insights yet."
-msgstr "No character insights yet."
-
-#: src/pages/shell/conversation-engine-state.tsx
 msgid "No conversation state yet."
 msgstr "No conversation state yet."
+
+#: src/pages/shell/conversation-engine-actions.tsx
+msgid "No current event reported."
+msgstr "No current event reported."
 
 #: src/pages/shell/conversation-files-panel.tsx
 msgid "No files found."
@@ -4415,6 +4585,14 @@ msgstr "No files yet."
 #: src/pages/shell/project-folder-picker.tsx
 msgid "No folders"
 msgstr "No folders"
+
+#: src/pages/shell/conversation-engine-fields.tsx
+msgid "No insights yet."
+msgstr "No insights yet."
+
+#: src/pages/shell/conversation-engine-actions.tsx
+msgid "No inventory items."
+msgstr "No inventory items."
 
 #: src/components/AskCard.tsx
 msgid "No longer active"
@@ -4446,6 +4624,10 @@ msgstr "No MCP servers yet."
 #: src/pages/GroupPanel.tsx
 msgid "No members yet"
 msgstr "No members yet"
+
+#: src/pages/shell/conversation-engine-actions.tsx
+msgid "No message generated."
+msgstr "No message generated."
 
 #: src/pages/PeerMessagesOverlay.tsx
 msgid "No messages with {peerBotName} yet."
@@ -4497,6 +4679,15 @@ msgstr "No tickets yet"
 msgid "No trigger"
 msgstr "No trigger"
 
+#: src/pages/shell/conversation-engine-settings.tsx
+msgid "No user insights available."
+msgstr "No user insights available."
+
+#: src/pages/shell/conversation-engine-generation.tsx
+#: src/pages/shell/conversation-engine-settings.tsx
+msgid "None"
+msgstr "None"
+
 #: src/lib/ticket-priority.ts
 msgid "Normal"
 msgstr "Normal"
@@ -4505,6 +4696,7 @@ msgstr "Normal"
 msgid "Not a valid skill"
 msgstr "Not a valid skill"
 
+#: src/pages/shell/conversation-engine-generation.tsx
 #: src/pages/shell/conversation-engine-state.tsx
 msgid "Not available"
 msgstr "Not available"
@@ -4584,7 +4776,15 @@ msgstr "OAuth expired"
 msgid "Observed at"
 msgstr "Observed at"
 
-#: src/pages/shell/conversation-engine-state.tsx
+#: src/pages/shell/conversation-engine-settings.tsx
+msgid "Observed by Eros."
+msgstr "Observed by Eros."
+
+#: src/pages/shell/conversation-engine-actions.tsx
+msgid "Observed by Eros. Direct overrides are unavailable."
+msgstr "Observed by Eros. Direct overrides are unavailable."
+
+#: src/pages/shell/conversation-engine-fields.tsx
 msgid "Occupation"
 msgstr "Occupation"
 
@@ -4725,6 +4925,14 @@ msgstr "Original message unavailable"
 msgid "Other model…"
 msgstr "Other model…"
 
+#: src/pages/shell/conversation-engine-settings.tsx
+msgid "Outfit"
+msgstr "Outfit"
+
+#: src/pages/shell/conversation-engine-actions.tsx
+msgid "Outing"
+msgstr "Outing"
+
 #: src/pages/AccountSettingsOverlay.tsx
 msgid "Output"
 msgstr "Output"
@@ -4804,6 +5012,7 @@ msgstr "Paste your API key"
 msgid "Paste your API key, then test again."
 msgstr "Paste your API key, then test again."
 
+#: src/pages/shell/conversation-engine-settings.tsx
 #: src/pages/shell/conversation-engine-state.tsx
 msgid "Patience"
 msgstr "Patience"
@@ -4833,7 +5042,7 @@ msgstr "Persona"
 msgid "Personal"
 msgstr "Personal"
 
-#: src/pages/shell/conversation-engine-state.tsx
+#: src/pages/shell/conversation-engine-fields.tsx
 msgid "Personal values"
 msgstr "Personal values"
 
@@ -5168,11 +5377,23 @@ msgstr "Register host"
 msgid "Registration is closed"
 msgstr "Registration is closed"
 
+#: src/pages/shell/conversation-engine-settings.tsx
+msgid "Relationship context"
+msgstr "Relationship context"
+
 #: src/pages/shell/roleplay-relationship-debug.tsx
 msgid "Relationship debug"
 msgstr "Relationship debug"
 
-#: src/pages/shell/conversation-engine-state.tsx
+#: src/pages/shell/conversation-engine-settings.tsx
+msgid "Relationship evolution"
+msgstr "Relationship evolution"
+
+#: src/pages/shell/conversation-engine-settings.tsx
+msgid "Relationship only"
+msgstr "Relationship only"
+
+#: src/pages/shell/conversation-engine-fields.tsx
 msgid "Relationships"
 msgstr "Relationships"
 
@@ -5190,11 +5411,14 @@ msgstr "Reload"
 #: src/pages/PluginsOverlay.tsx
 #: src/pages/ScratchpadSection.tsx
 #: src/pages/shell/bot-credentials.tsx
+#: src/pages/shell/conversation-engine-actions.tsx
 msgid "Remove"
 msgstr "Remove"
 
 #. placeholder {0}: attachment.file.name
+#. placeholder {0}: item.name
 #: src/pages/shell/composer.tsx
+#: src/pages/shell/conversation-engine-actions.tsx
 msgid "Remove {0}"
 msgstr "Remove {0}"
 
@@ -5253,6 +5477,10 @@ msgstr "Remove schedule"
 #: src/pages/shell/composer.tsx
 msgid "Remove skill {0}"
 msgstr "Remove skill {0}"
+
+#: src/pages/shell/conversation-engine-settings.tsx
+msgid "Remove trait"
+msgstr "Remove trait"
 
 #: src/pages/RoutineEditor.tsx
 msgid "Remove webhook"
@@ -5555,6 +5783,10 @@ msgstr "Runtime ready"
 msgid "Runtime unavailable"
 msgstr "Runtime unavailable"
 
+#: src/pages/shell/conversation-engine-generation.tsx
+msgid "Sampling and model routes are managed by the Eros deployment."
+msgstr "Sampling and model routes are managed by the Eros deployment."
+
 #: src/lib/cron.ts
 msgid "Saturday"
 msgstr "Saturday"
@@ -5592,6 +5824,10 @@ msgstr "Save credential"
 #: src/pages/shell/bot-credentials.tsx
 msgid "Save new value"
 msgstr "Save new value"
+
+#: src/pages/shell/conversation-engine-settings.tsx
+msgid "Save settings"
+msgstr "Save settings"
 
 #: src/components/ComputerMaintenanceActions.tsx
 msgid "Save the workspace and install current software."
@@ -5816,6 +6052,10 @@ msgstr "Set up runtime"
 msgid "Settings"
 msgstr "Settings"
 
+#: src/pages/shell/conversation-engine-settings.tsx
+msgid "Settings changed. Discard edits to use the latest values."
+msgstr "Settings changed. Discard edits to use the latest values."
+
 #: src/pages/shell/composer-mentions.tsx
 msgid "Settings: General"
 msgstr "Settings: General"
@@ -6031,6 +6271,10 @@ msgstr "Slack not enabled"
 msgid "Slide up to lock"
 msgstr "Slide up to lock"
 
+#: src/pages/shell/conversation-engine-actions.tsx
+msgid "Social"
+msgstr "Social"
+
 #: src/pages/shell/agent-import.tsx
 msgid "Some settings are not imported"
 msgstr "Some settings are not imported"
@@ -6109,6 +6353,10 @@ msgstr "Spontaneous messages"
 #: src/lib/user-error.ts
 msgid "SSO is temporarily unavailable. Try again."
 msgstr "SSO is temporarily unavailable. Try again."
+
+#: src/pages/shell/conversation-engine-actions.tsx
+msgid "Stamina"
+msgstr "Stamina"
 
 #: src/pages/shell/computer-overlay.tsx
 msgid "Start"
@@ -6308,6 +6556,7 @@ msgstr "Table"
 msgid "Take control"
 msgstr "Take control"
 
+#: src/pages/shell/conversation-engine-generation.tsx
 #: src/pages/shell/conversation-tasks.tsx
 msgid "Task"
 msgstr "Task"
@@ -6348,6 +6597,11 @@ msgstr "Teams message"
 msgid "Teams not enabled"
 msgstr "Teams not enabled"
 
+#: src/pages/shell/conversation-engine-generation.tsx
+msgid "Temperature"
+msgstr "Temperature"
+
+#: src/pages/shell/conversation-engine-settings.tsx
 #: src/pages/shell/conversation-engine-state.tsx
 msgid "Tension"
 msgstr "Tension"
@@ -6403,6 +6657,10 @@ msgstr "The model returned an unusable response. Try again."
 #: src/lib/model-connection-preflight.ts
 msgid "The provider is rate-limiting requests."
 msgstr "The provider is rate-limiting requests."
+
+#: src/pages/shell/conversation-engine-actions.tsx
+msgid "The saved action could not be read. No new action was sent."
+msgstr "The saved action could not be read. No new action was sent."
 
 #: src/pages/MemorySettingsOverlay.tsx
 msgid "The selected memory provider is not available in this build."
@@ -6613,6 +6871,10 @@ msgstr "Today"
 msgid "Token budget"
 msgstr "Token budget"
 
+#: src/pages/shell/conversation-engine-generation.tsx
+msgid "Token limit"
+msgstr "Token limit"
+
 #: src/pages/AccountSettingsOverlay.tsx
 msgid "Tokens"
 msgstr "Tokens"
@@ -6646,6 +6908,14 @@ msgstr "Tools"
 msgid "Top up anytime"
 msgstr "Top up anytime"
 
+#: src/pages/shell/conversation-engine-settings.tsx
+msgid "Trait guidance"
+msgstr "Trait guidance"
+
+#: src/pages/shell/conversation-engine-settings.tsx
+msgid "Trait tag"
+msgstr "Trait tag"
+
 #: src/components/composer/HoldToTalk.tsx
 msgid "Transcribing…"
 msgstr "Transcribing…"
@@ -6674,6 +6944,7 @@ msgstr "Trial"
 msgid "Trial ends {day}"
 msgstr "Trial ends {day}"
 
+#: src/pages/shell/conversation-engine-settings.tsx
 #: src/pages/shell/conversation-engine-state.tsx
 msgid "Trust"
 msgstr "Trust"
@@ -6864,6 +7135,10 @@ msgstr "Use defaults for {label}"
 msgid "Use folder"
 msgstr "Use folder"
 
+#: src/pages/shell/conversation-engine-settings.tsx
+msgid "Use lowercase letters, numbers and underscores for tier and trait tags, and single-line trait guidance."
+msgstr "Use lowercase letters, numbers and underscores for tier and trait tags, and single-line trait guidance."
+
 #: src/components/ModelCredits.tsx
 msgid "Use my subscription or API key"
 msgstr "Use my subscription or API key"
@@ -6883,6 +7158,10 @@ msgstr "Use space default"
 #: src/pages/memory-providers/HonchoSettingsForm.tsx
 msgid "Use up to 512 letters, digits, _ or -."
 msgstr "Use up to 512 letters, digits, _ or -."
+
+#: src/pages/shell/conversation-engine-settings.tsx
+msgid "User insights"
+msgstr "User insights"
 
 #: src/pages/memory-providers/HonchoSettingsForm.tsx
 msgid "User peer"
@@ -6938,7 +7217,7 @@ msgstr "View chat"
 msgid "Voice"
 msgstr "Voice"
 
-#: src/pages/shell/conversation-engine-state.tsx
+#: src/pages/shell/conversation-engine-fields.tsx
 msgid "Vulnerabilities"
 msgstr "Vulnerabilities"
 
@@ -6970,6 +7249,7 @@ msgstr "Waiting in line…"
 msgid "Waiting…"
 msgstr "Waiting…"
 
+#: src/pages/shell/conversation-engine-settings.tsx
 #: src/pages/shell/conversation-engine-state.tsx
 #: src/pages/shell/roleplay-relationship-debug.tsx
 msgid "Warmth"

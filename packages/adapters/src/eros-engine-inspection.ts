@@ -1,8 +1,12 @@
 import type { ConversationEngineInspection } from "@rakazo/contracts";
 import {
+  ConversationEngineActionResultSchema,
   ConversationEngineAxesSchema,
   ConversationEngineEditBlockedReasonSchema,
+  ConversationEngineGenerationSchema,
   ConversationEngineInspectionSchema,
+  ConversationEngineItemSchema,
+  ConversationEngineLifeEventSchema,
   ConversationEngineTimeSchema,
 } from "@rakazo/contracts";
 import { z } from "zod";
@@ -12,6 +16,94 @@ const text = z.string().max(65_536);
 const score = z.number().min(0).max(1);
 const grade = z.number().int().min(1).max(3);
 const axes = ConversationEngineAxesSchema.extend({ warmth: score, patience: score });
+const nativeProfile = z.object({
+  instance_id: z.string(),
+  location: text.nullable(),
+  occupation: text.nullable(),
+  current_situation: text.nullable(),
+  desires: text.nullable(),
+  vulnerabilities: text.nullable(),
+  habits: text.nullable(),
+  personal_values: text.nullable(),
+  likes: z.array(text).max(500),
+  dislikes: z.array(text).max(500),
+  relationships: z.array(text).max(500),
+  updated_at: timestamp.nullable(),
+});
+function projectProfile(value: z.infer<typeof nativeProfile>) {
+  return {
+    location: value.location,
+    occupation: value.occupation,
+    currentSituation: value.current_situation,
+    desires: value.desires,
+    vulnerabilities: value.vulnerabilities,
+    habits: value.habits,
+    personalValues: value.personal_values,
+    likes: value.likes,
+    dislikes: value.dislikes,
+    relationships: value.relationships,
+    updatedAt: value.updated_at,
+  };
+}
+export function parseErosLifeEvent(raw: unknown) {
+  const value = z
+    .object({
+      kind: z.string(),
+      category: z.string(),
+      offline: z.boolean(),
+      started_at: timestamp,
+      ends_at: timestamp,
+    })
+    .parse(raw);
+  return ConversationEngineLifeEventSchema.parse({
+    kind: value.kind,
+    category: value.category,
+    offline: value.offline,
+    startedAt: value.started_at,
+    endsAt: value.ends_at,
+  });
+}
+export function parseErosItem(raw: unknown) {
+  const value = z
+    .object({
+      id: z.uuid().nullable(),
+      kind: z.string(),
+      name: z.string(),
+      source: z.string(),
+      created_at: timestamp.nullable(),
+    })
+    .parse(raw);
+  return ConversationEngineItemSchema.parse({
+    id: value.id,
+    kind: value.kind,
+    name: value.name,
+    source: value.source,
+    createdAt: value.created_at,
+  });
+}
+export function parseErosAction(raw: Record<string, unknown>, mode: "open" | "event") {
+  const message = raw[mode === "open" ? "greeting" : "message"];
+  const parsed =
+    message === null
+      ? null
+      : z
+          .object({
+            message_id: z.uuid(),
+            content: text,
+            sent_at: timestamp,
+            occasion: z.string(),
+          })
+          .parse(message);
+  return ConversationEngineActionResultSchema.parse({
+    message: parsed && {
+      id: parsed.message_id,
+      text: parsed.content,
+      sentAt: parsed.sent_at,
+      occasion: parsed.occasion,
+    },
+    event: mode === "event" && raw.event !== null ? parseErosLifeEvent(raw.event) : null,
+  });
+}
 
 export function parseErosInspection(
   sessionId: string,
@@ -20,22 +112,7 @@ export function parseErosInspection(
   raw: Record<string, unknown>[],
   debug: Record<string, unknown> | null,
 ): ConversationEngineInspection {
-  const profile = z
-    .object({
-      instance_id: z.literal(instanceId),
-      location: text.nullable(),
-      occupation: text.nullable(),
-      current_situation: text.nullable(),
-      desires: text.nullable(),
-      vulnerabilities: text.nullable(),
-      habits: text.nullable(),
-      personal_values: text.nullable(),
-      likes: z.array(text).max(500),
-      dislikes: z.array(text).max(500),
-      relationships: z.array(text).max(500),
-      updated_at: timestamp.nullable(),
-    })
-    .parse(raw[0]);
+  const profile = nativeProfile.extend({ instance_id: z.literal(instanceId) }).parse(raw[0]);
   const affinity = z
     .object({
       session_id: z.literal(sessionId),
@@ -86,22 +163,36 @@ export function parseErosInspection(
       changes_at: timestamp.nullable(),
     })
     .parse(raw[3]);
+  // These fields are optional for adapters/fixtures predating the full projection.
+  const body = raw[3]!;
+  const needs =
+    body.needs === null ? null : ConversationEngineInspectionSchema.shape.needs.parse(body.needs);
+  const activeEffects =
+    body.effects === undefined
+      ? undefined
+      : ConversationEngineInspectionSchema.shape.effects.parse(body.effects);
+  const lifeEvent = body.event == null ? null : parseErosLifeEvent(body.event);
+  const backgroundEvent =
+    body.background_event == null ? null : parseErosLifeEvent(body.background_event);
+  const userProfile = raw[4]
+    ? nativeProfile.extend({ instance_id: z.literal(instanceId) }).parse(raw[4])
+    : undefined;
+  const items = raw[5]
+    ? z
+        .object({ items: z.array(z.unknown()).max(5000) })
+        .parse(raw[5])
+        .items.map(parseErosItem)
+    : undefined;
   const extended =
     debug === null ? null : parseErosDebug(sessionId, instanceId, characterId, debug);
   return ConversationEngineInspectionSchema.parse({
-    profile: {
-      location: profile.location,
-      occupation: profile.occupation,
-      currentSituation: profile.current_situation,
-      desires: profile.desires,
-      vulnerabilities: profile.vulnerabilities,
-      habits: profile.habits,
-      personalValues: profile.personal_values,
-      likes: profile.likes,
-      dislikes: profile.dislikes,
-      relationships: profile.relationships,
-      updatedAt: profile.updated_at,
-    },
+    profile: projectProfile(profile),
+    ...(userProfile ? { userProfile: projectProfile(userProfile) } : {}),
+    needs,
+    effects: activeEffects,
+    lifeEvent,
+    backgroundEvent,
+    items,
     affinity:
       affinity === null
         ? null
@@ -177,6 +268,8 @@ export function parseErosDebug(
       retryAfterSeconds: z.number().int().min(0).max(30).nullable().optional(),
     })
     .parse(raw);
+  // Deployment configuration is optional; malformed details must not hide native state.
+  const generation = ConversationEngineGenerationSchema.safeParse(raw.generation);
   if (
     result.editable &&
     (!result.axes ||
@@ -200,6 +293,7 @@ export function parseErosDebug(
     revision: result.revision,
     editable: result.editable,
     time: result.time ?? null,
+    generation: generation.success ? generation.data : null,
     editBlockedReason: result.editBlockedReason ?? null,
     retryAfterSeconds: result.retryAfterSeconds ?? null,
   };

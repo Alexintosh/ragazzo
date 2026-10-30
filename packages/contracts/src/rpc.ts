@@ -36,9 +36,15 @@ import {
 } from "./board.js";
 import { BotSecretMetadata, BotSecretPutInput, StoredBotSecretName } from "./bot-secrets.js";
 import {
+  ConversationEngineSettingsStateSchema,
   ConversationEngineStateSchema,
+  UpdateConversationEngineSettingsInput,
   UpdateConversationEngineStateInput,
 } from "./conversation-engine.js";
+import {
+  ConversationEngineActionOutcomeSchema,
+  RunConversationEngineActionInput,
+} from "./conversation-engine-actions.js";
 import { ConversationFilesSchema } from "./conversation-files.js";
 import {
   ConversationTaskSchema,
@@ -429,6 +435,12 @@ export const appContract = {
     get: oc.input(botId).output(BotSchema),
     roleplayRelationship: oc.input(botId).output(RoleplayRelationshipDebugSchema),
     conversationEngineState: oc.input(botId).output(ConversationEngineStateSchema),
+    runConversationEngineAction: oc
+      .input(RunConversationEngineActionInput)
+      .output(ConversationEngineActionOutcomeSchema),
+    updateConversationEngineSettings: oc
+      .input(UpdateConversationEngineSettingsInput)
+      .output(ConversationEngineSettingsStateSchema),
     updateConversationEngineState: oc
       .input(UpdateConversationEngineStateInput)
       .output(ConversationEngineStateSchema),

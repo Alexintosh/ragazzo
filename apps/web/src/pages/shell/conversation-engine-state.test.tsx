@@ -54,6 +54,7 @@ const initial: ConversationEngineState = {
   status: "ready",
   character,
   historyGeneration: 2,
+  settings: { revision: 0, values: {} },
   inspection: {
     profile: {
       location: "Glass Harbor",
@@ -118,6 +119,16 @@ const initial: ConversationEngineState = {
 let container: HTMLDivElement;
 let root: Root;
 const load = vi.fn<() => Promise<ConversationEngineState>>();
+const saveSettings = vi.fn(
+  async (
+    _state: ConversationEngineState,
+    values: ConversationEngineState["settings"]["values"],
+  ) => ({ revision: 1, values }),
+);
+const action = vi.fn(async () => ({
+  status: "completed" as "completed" | "uncertain",
+  message: null,
+}));
 const save = vi.fn(async (_state: ConversationEngineState, _edit: unknown) => initial);
 beforeEach(() => {
   container = document.createElement("div");
@@ -125,14 +136,24 @@ beforeEach(() => {
   root = createRoot(container);
   load.mockReset().mockResolvedValue(structuredClone(initial));
   save.mockClear();
+  saveSettings.mockClear();
+  action.mockClear();
 });
 afterEach(async () => {
   await act(async () => root.unmount());
   container.remove();
 });
-async function render(busy = false) {
+async function render(busy = false, controls = false) {
   await act(async () =>
-    root.render(<ConversationEngineStatePanel onLoad={load} onSave={save} busy={busy} />),
+    root.render(
+      <ConversationEngineStatePanel
+        onLoad={load}
+        onSave={save}
+        busy={busy}
+        onSaveSettings={controls ? saveSettings : undefined}
+        onAction={controls ? action : undefined}
+      />,
+    ),
   );
 }
 function field(label: string) {
@@ -282,5 +303,124 @@ describe("ConversationEngineStatePanel", () => {
     await click("Refresh");
     expect(field("Trust").closest("fieldset")?.disabled).toBe(true);
     expect(save).not.toHaveBeenCalled();
+  });
+  it("saves request settings before initialization without mutating conversation state", async () => {
+    load.mockResolvedValueOnce({
+      ...structuredClone(initial),
+      status: "uninitialized",
+      inspection: null,
+    });
+    await render(false, true);
+    for (const label of [
+      "Needs",
+      "Relationship evolution",
+      "User insights",
+      "Events and daily life",
+      "Inventory and outfit",
+      "Initiative and greetings",
+      "Behavior traits",
+      "Model generation",
+    ]) {
+      expect(
+        [...container.querySelectorAll("summary")].some((summary) => summary.textContent === label),
+      ).toBe(true);
+    }
+    await change("Model tier", "fast");
+    await change("Outfit", "Travel coat");
+    await click("Save settings");
+    expect(saveSettings).toHaveBeenCalledWith(
+      expect.objectContaining({ historyGeneration: 2, settings: { revision: 0, values: {} } }),
+      { tier: "fast", outfit: "Travel coat" },
+    );
+    expect(save).not.toHaveBeenCalled();
+    expect(action).not.toHaveBeenCalled();
+  });
+  it("preserves conflicting configuration drafts until discarded", async () => {
+    await render(false, true);
+    await change("Model tier", "fast");
+    load.mockResolvedValueOnce({
+      ...structuredClone(initial),
+      settings: { revision: 3, values: { tier: "quality" } },
+    });
+    await click("Refresh");
+    expect(field("Model tier").value).toBe("fast");
+    await click("Save settings");
+    expect(saveSettings).not.toHaveBeenCalled();
+    expect(container.textContent).toContain("Settings changed. Discard edits");
+    await click("Discard settings");
+    expect(field("Model tier").value).toBe("quality");
+  });
+  it("reads native needs and prevents repeating uncertain actions", async () => {
+    const next = structuredClone(initial);
+    next.inspection!.needs = {
+      hunger: "high",
+      social: "mid",
+      stamina: "low",
+      emotional: "mid",
+      outing: "low",
+      indulgence: "low",
+    };
+    load.mockResolvedValueOnce(next);
+    action.mockResolvedValueOnce({ status: "uncertain", message: null });
+    await render(false, true);
+    expect(container.textContent).toContain("Direct overrides are unavailable.");
+    await click("Greet now");
+    expect(action).toHaveBeenCalledWith(expect.anything(), {
+      kind: "open",
+      occasion: "just_opened",
+    });
+    expect(container.textContent).toContain("Action outcome is uncertain");
+    await click("Draw event");
+    expect(action).toHaveBeenCalledTimes(1);
+    expect(load).toHaveBeenCalledTimes(1);
+  });
+  it("refreshes inventory after an explicit native item action", async () => {
+    await render(false, true);
+    await change("Item name", "Compass");
+    await click("Add item");
+    expect(action).toHaveBeenCalledWith(expect.anything(), {
+      kind: "add_item",
+      itemKind: "item",
+      name: "Compass",
+    });
+    expect(load).toHaveBeenCalledTimes(2);
+  });
+  it("renders deployment sampling as read-only and offers only native model profiles", async () => {
+    const next = structuredClone(initial);
+    next.inspection!.debug!.generation = {
+      tasks: [
+        { name: "reply", models: ["local-model"], fallback: [], temperature: 0.7, maxTokens: 2048 },
+      ],
+      profiles: ["fast", "quality"],
+    };
+    load.mockResolvedValueOnce(next);
+    await render(false, true);
+    expect(field("Model tier").tagName).toBe("SELECT");
+    expect(container.querySelector("table")?.textContent).toContain("local-model");
+    expect(container.querySelector("table")?.textContent).toContain("0.7");
+    expect(container.querySelector("table input")).toBeNull();
+    expect(
+      [...field("Model tier").querySelectorAll("option")].map((option) => option.value),
+    ).toEqual(["", "fast", "quality"]);
+  });
+  it("allows a new bot to greet while event and inventory actions require initialization", async () => {
+    load.mockResolvedValueOnce({
+      ...structuredClone(initial),
+      status: "uninitialized",
+      inspection: null,
+    });
+    await render(false, true);
+    const button = (label: string) =>
+      [...container.querySelectorAll("button")].find((element) => element.textContent === label)!;
+    expect(button("Greet now").disabled).toBe(false);
+    expect(button("Draw event").disabled).toBe(true);
+    expect(field("Item name").closest("fieldset")?.disabled).toBe(true);
+    await click("Greet now");
+    expect(action).toHaveBeenCalledWith(expect.objectContaining({ status: "uninitialized" }), {
+      kind: "open",
+      occasion: "just_opened",
+    });
+    await render(true, true);
+    expect(button("Greet now").disabled).toBe(true);
   });
 });

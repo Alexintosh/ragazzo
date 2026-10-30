@@ -5,6 +5,7 @@ import { UpdateConversationEngineStateInput } from "@rakazo/contracts";
 import { describe, expect, it, vi } from "vitest";
 import {
   loadConversationEngineState,
+  updateConversationEngineSettings,
   updateConversationEngineState,
 } from "./conversation-engine-state.js";
 import type { RouterDeps } from "./router.js";
@@ -31,6 +32,8 @@ function fixture() {
     botKind: "roleplay",
     conversationEngine: "eros",
     erosCharacterId: characterId,
+    conversationEngineSettings: null as Record<string, unknown> | null,
+    conversationEngineSettingsRevision: 0,
     thread,
   };
   const session = {
@@ -55,10 +58,19 @@ function fixture() {
     updateState,
   };
   const tx = {
-    bot: { findFirst: findBot },
+    bot: {
+      findFirst: findBot,
+      update: vi.fn(
+        async (args: { data: { conversationEngineSettings: Record<string, unknown> } }) => ({
+          conversationEngineSettings: args.data.conversationEngineSettings,
+          conversationEngineSettingsRevision: 1,
+        }),
+      ),
+    },
     companionSession: { findFirst: findSession },
     run: { findFirst: vi.fn(async () => null) },
     companionTurn: { findFirst: vi.fn(async () => null) },
+    companionAction: { findFirst: vi.fn(async () => null) },
     $queryRaw: vi.fn(async () => []),
   };
   const transaction = vi.fn(async (fn: (value: typeof tx) => Promise<void>) => fn(tx));
@@ -130,8 +142,61 @@ describe("conversation engine state API", () => {
   it("returns uninitialized without provisioning before the first conversation", async () => {
     const f = fixture();
     f.session.engineSessionId = "";
-    expect((await loadConversationEngineState(f.deps, actor, "bot")).status).toBe("uninitialized");
+    expect(await loadConversationEngineState(f.deps, actor, "bot")).toMatchObject({
+      status: "uninitialized",
+      settings: { revision: 0, values: {} },
+    });
     expect(f.inspect).not.toHaveBeenCalled();
+  });
+
+  it("saves versioned request defaults before provisioning and never calls the engine", async () => {
+    const f = fixture();
+    f.findSession.mockResolvedValueOnce(null as never).mockResolvedValueOnce(null as never);
+    const saved = await updateConversationEngineSettings(f.deps, actor, {
+      botId: "bot",
+      historyGeneration: 0,
+      expectedRevision: 0,
+      settings: {
+        tier: "advanced",
+        promptTraits: [{ tag: "curious", text: "Ask about new ideas" }],
+      },
+    });
+    expect(saved).toMatchObject({ revision: 1, values: { tier: "advanced" } });
+    expect(f.tx.bot.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "bot", conversationEngineSettingsRevision: 0 },
+        data: expect.objectContaining({ conversationEngineSettingsRevision: { increment: 1 } }),
+      }),
+    );
+    expect(f.inspect).not.toHaveBeenCalled();
+    expect(f.updateState).not.toHaveBeenCalled();
+  });
+
+  it("rejects stale settings revisions and active or unreconciled turns", async () => {
+    const input = { botId: "bot", historyGeneration: 0, expectedRevision: 0, settings: {} };
+    const stale = fixture();
+    stale.bot.conversationEngineSettingsRevision = 1;
+    await expect(updateConversationEngineSettings(stale.deps, actor, input)).rejects.toThrow(
+      "Refresh before saving",
+    );
+    expect(stale.tx.bot.update).not.toHaveBeenCalled();
+    const busy = fixture();
+    busy.tx.run.findFirst.mockResolvedValueOnce({ id: "running" } as never);
+    await expect(updateConversationEngineSettings(busy.deps, actor, input)).rejects.toThrow(
+      "current reply",
+    );
+    const uncertain = fixture();
+    uncertain.tx.companionTurn.findFirst.mockResolvedValueOnce({ id: "uncertain" } as never);
+    await expect(updateConversationEngineSettings(uncertain.deps, actor, input)).rejects.toThrow(
+      "current reply",
+    );
+    expect(uncertain.tx.bot.update).not.toHaveBeenCalled();
+    const action = fixture();
+    action.tx.companionAction.findFirst.mockResolvedValueOnce({ id: "uncertain-action" } as never);
+    await expect(updateConversationEngineSettings(action.deps, actor, input)).rejects.toThrow(
+      "current reply",
+    );
+    expect(action.tx.bot.update).not.toHaveBeenCalled();
   });
 
   it("rejects an in-flight binding change before returning remote data", async () => {

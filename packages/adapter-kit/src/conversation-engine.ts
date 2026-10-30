@@ -1,5 +1,8 @@
 import type {
+  ConversationEngineActionResult,
   ConversationEngineInspection,
+  ConversationEngineItem,
+  ConversationEngineSettings,
   UpdateConversationEngineState,
 } from "@rakazo/contracts";
 
@@ -44,6 +47,30 @@ export type ConversationEngineEvent =
     };
 
 export interface ConversationEngine extends ConversationEngineDescriptor {
+  addItem?(
+    input: ConversationEngineBinding & { kind: "item" | "clothing"; name: string },
+    signal?: AbortSignal,
+  ): Promise<ConversationEngineItem>;
+  deleteItem?(
+    input: ConversationEngineBinding & { itemId: string },
+    signal?: AbortSignal,
+  ): Promise<void>;
+  openSession?(
+    input: ConversationEngineBinding & {
+      actionId: string;
+      occasion?: "first_meet" | "returning" | "just_opened";
+      settings?: ConversationEngineSettings;
+    },
+    signal?: AbortSignal,
+  ): Promise<ConversationEngineActionResult>;
+  drawEvent?(
+    input: ConversationEngineBinding & {
+      actionId: string;
+      kinds?: string[];
+      settings?: ConversationEngineSettings;
+    },
+    signal?: AbortSignal,
+  ): Promise<ConversationEngineActionResult>;
   inspect?(
     input: ConversationEngineBinding,
     signal?: AbortSignal,
@@ -58,7 +85,13 @@ export interface ConversationEngine extends ConversationEngineDescriptor {
     signal?: AbortSignal,
   ): Promise<{ sessionId: string; instanceId: string }>;
   stream(
-    input: { userId: string; sessionId: string; clientMessageId: string; text: string },
+    input: {
+      userId: string;
+      sessionId: string;
+      clientMessageId: string;
+      text: string;
+      settings?: ConversationEngineSettings;
+    },
     signal?: AbortSignal,
   ): AsyncIterable<ConversationEngineEvent>;
 }

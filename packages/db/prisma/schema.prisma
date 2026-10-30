@@ -538,6 +538,8 @@ model Bot {
   roleplayCharacter Json?
   conversationEngine String @default("internal")
   erosCharacterId String?
+  conversationEngineSettings Json?
+  conversationEngineSettingsRevision Int @default(0)
   companionSessions CompanionSession[]
   screenGeneration Int @default(0)
   id                String            @id @default(cuid())
@@ -2083,6 +2085,7 @@ model CompanionSession {
   leaseExpiresAt DateTime?
   status String @default("active")
   turns CompanionTurn[]
+  actions CompanionAction[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   @@unique([threadId, historyGeneration])
@@ -2102,6 +2105,7 @@ model CompanionTurn {
   status String @default("prepared")
   engineUserMessageId String?
   input String
+  request Json?
   response String?
   error String?
   createdAt DateTime @default(now())
@@ -2109,4 +2113,24 @@ model CompanionTurn {
   @@index([sessionId, status])
   @@index([spaceId, userId])
   @@map("companion_turns")
+}
+
+/// A native engine mutation is recorded before I/O; uncertain submissions are never replayed.
+model CompanionAction {
+  id String @id
+  sessionId String
+  session CompanionSession @relation(fields: [sessionId], references: [id], onDelete: Restrict)
+  spaceId String
+  userId String
+  botId String
+  threadId String
+  historyGeneration Int
+  request Json
+  response Json?
+  status String @default("submitted")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([sessionId, status])
+  @@index([spaceId, userId])
+  @@map("companion_actions")
 }

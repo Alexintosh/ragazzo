@@ -1,9 +1,20 @@
 import { Trans, useLingui } from "@lingui/react/macro";
 import type { ConversationEngineState, UpdateConversationEngineState } from "@rakazo/contracts";
 import { Button, Input, NativeSelect, NativeSelectOption } from "@rakazo/ui-web";
-import type { ReactNode } from "react";
 import { useEffect, useId, useRef, useState } from "react";
 import { errorText } from "../../lib/user-error";
+import type { EngineActionHandler } from "./conversation-engine-actions";
+import {
+  ConversationEngineInventory,
+  ConversationEngineObservations,
+  useEngineActions,
+} from "./conversation-engine-actions";
+import {
+  EngineDisclosure as Disclosure,
+  EngineProfile,
+  EngineValue as Value,
+} from "./conversation-engine-fields";
+import { ConversationEngineSettings } from "./conversation-engine-settings";
 
 type Inspection = NonNullable<ConversationEngineState["inspection"]>;
 type Debug = NonNullable<Inspection["debug"]>;
@@ -28,13 +39,27 @@ const draftFrom = (debug: Debug): Draft => ({
 export function ConversationEngineStatePanel({
   onLoad,
   onSave,
-  busy = false,
+  onSaveSettings,
+  onAction,
+  onCheckAction,
+  actionUncertain = false,
+  busy: botBusy = false,
 }: {
   onLoad: () => Promise<ConversationEngineState>;
   onSave: (
     state: ConversationEngineState,
     edit: EngineStateEdit,
   ) => Promise<ConversationEngineState>;
+  onSaveSettings?: (
+    state: ConversationEngineState,
+    values: ConversationEngineState["settings"]["values"],
+  ) => Promise<ConversationEngineState["settings"]>;
+  actionUncertain?: boolean;
+  onCheckAction?: () => ReturnType<EngineActionHandler>;
+  onAction?: (
+    state: ConversationEngineState,
+    action: Parameters<EngineActionHandler>[0],
+  ) => ReturnType<EngineActionHandler>;
   busy?: boolean;
 }) {
   const { t } = useLingui();
@@ -42,6 +67,14 @@ export function ConversationEngineStatePanel({
   const [state, setState] = useState<ConversationEngineState | null>(null);
   const [draft, setDraft] = useState<Draft | null>(null);
   const [pending, setPending] = useState(false);
+  const [settingsPending, setSettingsPending] = useState(false);
+  const actions = useEngineActions(
+    onAction && state ? (action) => onAction(state, action) : undefined,
+    refresh,
+    actionUncertain,
+    onCheckAction,
+  );
+  const busy = botBusy || settingsPending || actions.pending;
   const [failure, setFailure] = useState<string | null>(null);
   const load = useRef(onLoad);
   load.current = onLoad;
@@ -61,7 +94,7 @@ export function ConversationEngineStatePanel({
   }
 
   async function refresh() {
-    if (inFlight.current) return;
+    if (inFlight.current || settingsPending || actions.pending) return;
     inFlight.current = true;
     setPending(true);
     setFailure(null);
@@ -91,7 +124,7 @@ export function ConversationEngineStatePanel({
   dirtyRef.current = dirty;
   useEffect(() => {
     if (
-      !busy &&
+      !botBusy &&
       (debug?.editable !== false ||
         debug.editBlockedReason === "missing_affinity" ||
         debug.editBlockedReason === "unacknowledged_turn")
@@ -99,12 +132,12 @@ export function ConversationEngineStatePanel({
       return;
     const timer = window.setInterval(() => void refresh(), 5_000);
     return () => window.clearInterval(timer);
-  }, [busy, debug?.editable, debug?.editBlockedReason]);
-  const wasBusy = useRef(busy);
+  }, [botBusy, settingsPending, actions.pending, debug?.editable, debug?.editBlockedReason]);
+  const wasBusy = useRef(botBusy);
   useEffect(() => {
-    if (wasBusy.current && !busy) void refresh();
-    wasBusy.current = busy;
-  }, [busy]);
+    if (wasBusy.current && !botBusy) void refresh();
+    wasBusy.current = botBusy;
+  }, [botBusy]);
   async function save() {
     if (
       !state ||
@@ -179,24 +212,6 @@ export function ConversationEngineStatePanel({
             : busy
               ? t`Wait for the reply to finish.`
               : t`Editing unavailable.`;
-  const profile = inspection?.profile;
-  const insights: [string, string | string[] | null | undefined][] = profile
-    ? [
-        [t`Location`, profile.location],
-        [t`Occupation`, profile.occupation],
-        [t`Current situation`, profile.currentSituation],
-        [t`Desires`, profile.desires],
-        [t`Vulnerabilities`, profile.vulnerabilities],
-        [t`Habits`, profile.habits],
-        [t`Personal values`, profile.personalValues],
-        [t`Likes`, profile.likes],
-        [t`Dislikes`, profile.dislikes],
-        [t`Relationships`, profile.relationships],
-      ]
-    : [];
-  const visibleInsights = insights.filter(([, value]) =>
-    Array.isArray(value) ? value.length : Boolean(value),
-  );
   return (
     <section
       className="mt-6 space-y-3"
@@ -205,7 +220,12 @@ export function ConversationEngineStatePanel({
     >
       <div className="flex items-center justify-between gap-3">
         <span className="text-xs text-muted-foreground">Eros</span>
-        <Button variant="ghost" size="sm" disabled={pending} onClick={() => void refresh()}>
+        <Button
+          variant="ghost"
+          size="sm"
+          disabled={pending || settingsPending || actions.pending}
+          onClick={() => void refresh()}
+        >
           <Trans>Refresh</Trans>
         </Button>
       </div>
@@ -237,20 +257,61 @@ export function ConversationEngineStatePanel({
         ) : null}
         {inspection ? (
           <Disclosure label={t`Character insights`}>
-            {visibleInsights.length ? (
-              visibleInsights.map(([label, value]) => (
-                <Value key={label} label={label}>
-                  {Array.isArray(value) ? value.join("\n") : value}
-                </Value>
-              ))
-            ) : (
-              <p className="text-xs text-muted-foreground">
-                <Trans>No character insights yet.</Trans>
-              </p>
-            )}
+            <EngineProfile profile={inspection.profile} />
           </Disclosure>
         ) : null}
       </Disclosure>
+      {state?.settings && onSaveSettings ? (
+        <ConversationEngineSettings
+          state={state}
+          busy={busy || pending}
+          inventory={
+            <ConversationEngineInventory
+              state={state}
+              disabled={busy || pending || actions.uncertain || state.status !== "ready"}
+              run={onAction ? actions.run : undefined}
+            />
+          }
+          onSave={async (settings, values) => {
+            setSettingsPending(true);
+            try {
+              const next = await onSaveSettings({ ...state, settings }, values);
+              if (active.current)
+                setState((current) => (current ? { ...current, settings: next } : current));
+              return next;
+            } finally {
+              if (active.current) setSettingsPending(false);
+            }
+          }}
+        />
+      ) : null}
+      {state ? (
+        <ConversationEngineObservations
+          state={state}
+          disabled={busy || pending || actions.uncertain}
+          run={onAction ? actions.run : undefined}
+        />
+      ) : null}
+      {actions.uncertain && onCheckAction ? (
+        <Button
+          variant="outline"
+          size="sm"
+          disabled={actions.pending || botBusy}
+          onClick={() => void actions.check()}
+        >
+          <Trans>Check action</Trans>
+        </Button>
+      ) : null}
+      {actions.notice ? (
+        <p role="status" className="text-xs text-muted-foreground">
+          {actions.notice}
+        </p>
+      ) : null}
+      {actions.failure ? (
+        <p role="alert" className="text-xs text-destructive">
+          {actions.failure}
+        </p>
+      ) : null}
       {debug?.time ? (
         <Disclosure label={t`Time`}>
           <Value label={t`Timezone`}>{debug.time.timezone ?? t`Not available`}</Value>
@@ -430,33 +491,5 @@ export function ConversationEngineStatePanel({
         </p>
       ) : null}
     </section>
-  );
-}
-
-function Value({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <div className="min-w-0 space-y-1">
-      <p className="text-xs text-muted-foreground">{label}</p>
-      <div className="max-h-96 overflow-auto whitespace-pre-wrap break-words text-sm">
-        {children}
-      </div>
-    </div>
-  );
-}
-
-function Disclosure({
-  label,
-  open,
-  children,
-}: {
-  label: string;
-  open?: boolean;
-  children: ReactNode;
-}) {
-  return (
-    <details open={open} className="border-b border-border">
-      <summary className="min-h-10 cursor-pointer py-2 text-sm font-medium">{label}</summary>
-      <div className="space-y-4 pb-4 pt-1">{children}</div>
-    </details>
   );
 }

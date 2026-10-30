@@ -2,7 +2,7 @@
 
 Eros is an optional conversation engine for roleplay bots. It owns character prompts, transcript context, memories and its six-axis relationship state. Rakazo owns user access, bot identity, message delivery and durable request tracking. It does not run Eros through the internal roleplay runtime or translate Eros scores into Rakazo's internal relationship scores.
 
-The first integration uses pre-provisioned Eros persona genomes and direct text conversations. It does not give Eros a computer, tools, plugins, schedules, operational actions, groups, attachments or live calls. A character's claim that it performed an action does not execute that action. Native mobile can converse with an existing engine bot; creation is available through the web/Electron flow.
+The first integration uses pre-provisioned Eros persona genomes and direct text conversations. It does not give Eros a computer, tools, plugins, schedules, host actions, groups, attachments or live calls. A character's claim that it performed an action does not execute that action. Native mobile can converse with an existing engine bot; creation is available through the web/Electron flow.
 
 ## Connect a service
 
@@ -18,7 +18,7 @@ Replace the example UUID with the actual genome UUID returned by seeding your se
 
 The base URL comes only from deployment configuration. Public endpoints require HTTPS; private/Docker endpoints can use HTTP. Requests refuse redirects and apply response-size and time limits. This recipe uses a private service with the caller-secret gate enabled. Eros 2.5.2's JWT validator accepts some tokens without expiration and does not enforce issuer/audience. Rakazo issues signed tokens with a five-minute expiration, but this does not repair the upstream validator; keep the service behind the dedicated caller-secret boundary and restrict its network reachability.
 
-For an already running service, configure its dedicated auth secrets, native model/embedding settings and imported characters before enabling Rakazo. No model or character settings are inherited from Rakazo's ordinary model connections. In **New bot**, select RP, then Eros and an available character. Eros character/model edits belong in the service's configuration.
+For an already running service, configure its dedicated auth secrets, native model/embedding settings and imported characters before enabling Rakazo. No model or character settings are inherited from Rakazo's ordinary model connections. In **New bot**, select RP, then Eros and an available character. Shared character and model edits belong in the service's configuration. Per-bot native request settings are available in bot settings.
 
 ## Separate persistent Docker deployment
 
@@ -120,6 +120,20 @@ The **Time** panel shows the native database clock in the effective character ti
 Editable fields remain visible during temporary processing, with a reason for the block. The panel refreshes while processing or settling and after a reply ends. Drafts retain their original revision; if the engine changes underneath an edit, discard the draft to load the latest values before editing again.
 
 Saving requires the same conversation generation and an unchanged engine revision. Active local work, unresolved deliveries, native queued work and recent native processing block edits. The bridge waits for a 30-second quiet period and evidence that the latest ordinary turn settled. An unacknowledged failed turn can require a new successfully settled turn before editing is available. Older failed turns do not permanently block later settled ones. Refresh after conflicts or an unconfirmed save; the client does not automatically repeat writes.
+
+### Native controls and observations
+
+Bot settings cover eight areas: needs, relationship evolution, what the character has learned about the user, current events, inventory/outfit, initiative, behavior guidance, and model generation configuration. Native needs, profiles and events are observations, not invented editable scores. Missing needs or insights can mean the corresponding native evaluation/extraction task is not configured. The relationship user profile is a recorded per-instance projection; the memory-context selector separately controls context injection and does not disable extraction writes.
+
+Per-bot controls include prompt traits (up to eight short single-line instructions), native memory and affinity scopes, outfit and a deployment-defined generation profile (`tier`). They are stored encrypted with revision checks. A turn snapshots these settings before its first external request; later setting changes do not alter recovery of an accepted turn. Existing ledger rows without a snapshot retain their legacy defaults. Scope settings affect prompt context, not the native extraction pipeline or arbitrary numerical progression rules.
+
+The generation panel can show selected model, fallback, temperature and token limits from an operator-owned configuration projection. These are service-wide boot settings, not per-bot sampling overrides. The optional bridge needs Python 3.11+ to parse its read-only TOML mount; it exports no provider URLs, headers, keys or prompts. An unavailable projection leaves native conversation controls operational. Editing that TOML requires an operator restart of Eros; displayed configuration is not a live reload acknowledgement.
+
+Explicit buttons invoke native greetings, event draws and inventory add/remove operations. Event kinds filter a native draw rather than guarantee a specific event, and a successful call can generate no message. Greetings can explicitly initialize a new conversation. Preset inventory entries cannot be deleted for one instance. Generated replies are imported into the Rakazo chat, with native message identity deduplication.
+
+Every action is recorded before network I/O with its immutable request/settings. Completed outcomes, including empty outcomes, are replayed locally. The browser retains an outstanding action ID across a lost response and offers Check action using that same ID; it does not generate a new retry ID. Definitively rejected requests can be corrected and resubmitted. An ambiguous native mutation is retained as uncertain and blocks further engine work until operator reconciliation; checking it reports its recorded status and never blindly reruns it. This is especially necessary for inventory POST, which has no native idempotency key. Local records and request/response JSON are tenant-scoped and encrypted.
+
+Apply both additive conversation-engine settings/action migrations before deploying the updated API and workers. The migration runner grants the existing restricted runtime role access to the new table. The Eros service database and its existing role policies are unchanged by these Rakazo migrations.
 
 ### Enable the optional bridge
 
