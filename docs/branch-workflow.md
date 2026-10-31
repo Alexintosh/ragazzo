@@ -3,13 +3,14 @@
 | Branch / remote | Purpose |
 | --- | --- |
 | `upstream` | Original Rakazo repository, used to fetch updates. |
+| `origin` | Publishing remote for this fork; `develop` and feature branches track it. |
 | `main` | Tracks `upstream/main`; keep free of local feature commits. |
 | `develop` | Integration branch for local changes, including the internal RP implementation. |
 | `feat/*` | Scoped work started from `develop` and merged back after verification. |
 | `feat/roleplay-bots` | Preserved Eros integration and experiments, deferred for later. |
 | `feat/rp-internal` | Preserved pre-Eros starting point used to create `develop`. |
 
-No `origin` is configured. Adding a remote for publishing this fork is a separate decision. Do not push or create worktrees without explicit authorization.
+`origin` is configured for publishing this fork. `main` continues to track `upstream/main`; publishing it to `origin` does not change that relationship. Do not push or create worktrees without explicit authorization.
 
 ## Local feature work
 
