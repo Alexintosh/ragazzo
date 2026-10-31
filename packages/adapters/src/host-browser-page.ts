@@ -15,6 +15,14 @@ export const HOST_BROWSER_PAGE_HELPERS = String.raw`
     const rect = el.getBoundingClientRect();
     return style.display !== 'none' && style.visibility !== 'hidden' && rect.width > 0 && rect.height > 0;
   };
+  const payTokenAccount = () => {
+    const blocks = [...document.querySelectorAll('.AiAgentPaymentSteering')].filter(block => block.querySelector('input[name="link_pay_token"]'));
+    if (blocks.length !== 1) return null;
+    const block = blocks[0];
+    const holder = block.matches('[data-stripe-merchant-account]') ? block : block.querySelector('[data-stripe-merchant-account]');
+    const account = holder?.getAttribute('data-stripe-merchant-account') || '';
+    return /^acct_[A-Za-z0-9]{1,64}$/.test(account) ? account : null;
+  };
   const file = el => el instanceof HTMLInputElement && el.type === 'file';
   const controls = root => {
     const result = [];
@@ -30,18 +38,29 @@ export const HOST_BROWSER_PAGE_HELPERS = String.raw`
     if (el.matches(':disabled') || el.getAttribute('aria-disabled') === 'true') refused('Element is disabled');
     return el;
   };
-  const fill = (ref, text, origin, field) => {
+  const fill = (ref, text, origin, field, cardField) => {
+    const card = field === "card";
     let saved;
-    if (origin) {
+    if (origin || card) {
       try { saved = new URL(origin); } catch { /* Refuse below. */ }
       if (!saved || saved.protocol !== 'https:' || location.protocol !== 'https:' || saved.origin !== location.origin)
         refused('Open the saved HTTPS site with browser_navigate, then fill again.');
     }
-    const el = resolve(ref);
+    let el;
+    if (ref === undefined && cardField) {
+      const token = {number:'cc-number',expiry:'cc-exp',cvc:'cc-csc',postal_code:'postal-code'}[cardField];
+      const matches = controls(document).filter(input => input instanceof HTMLInputElement && visible(input) &&
+        !input.matches(':disabled') && input.getAttribute('aria-disabled') !== 'true' && input.getAttribute('aria-hidden') !== 'true' && !input.readOnly && ['text','tel','password'].includes(input.type) &&
+        (input.autocomplete || '').toLowerCase().split(/\s+/).includes(token));
+      if (!matches.length) refused('No field for this card detail was found on the page. Pass its ref from browser_snapshot.');
+      if (matches.length > 1) refused('More than one field on the page takes this card detail. Pass its ref from browser_snapshot.');
+      el = matches[0];
+    } else el = resolve(ref);
     // Check restrictions before focus, whose handlers may replace or retype the input.
     const check = () => {
       if (el.readOnly) refused('Element is read-only');
-      if (origin && field !== 'username' && !(el instanceof HTMLInputElement && el.type === 'password'))
+      if (card && !(el instanceof HTMLInputElement && ['text','tel','password'].includes(el.type))) refused('A card can only be typed into a card field.');
+      if (origin && !card && field !== 'username' && !(el instanceof HTMLInputElement && el.type === 'password'))
         refused('A saved password can only be typed into a password field.');
       if (origin && field === 'username' && !(el instanceof HTMLInputElement && ['text','email','tel'].includes(el.type)))
         refused('A saved username can only be typed into a text, email, or telephone field.');
@@ -97,8 +116,10 @@ export const HOST_BROWSER_PAGE_HELPERS = String.raw`
           : 'value' in el ? String(el.value).slice(0,2000) : undefined;
         elements.push({ref,tag,role,name,...(value === undefined ? {} : {value})});
       }
-      const tree = (document.body?.innerText || '').slice(0,12000) + '\n' + elements.map(el =>
+      let tree = (document.body?.innerText || '').slice(0,12000) + '\n' + elements.map(el =>
         '- ' + el.role + ' ' + JSON.stringify(el.name) + ' [' + el.ref + ']' + (el.value === undefined ? '' : ' value=' + JSON.stringify(el.value))).join('\n');
+      const merchantAccountId = payTokenAccount();
+      if (merchantAccountId) tree += '\nThis checkout accepts a pay token: merchantAccountId "' + merchantAccountId + '".';
       return {url:location.href,title:document.title.slice(0,200),tree,elements,loading:document.readyState !== 'complete'};
     },
     clickPoint(ref) {
@@ -117,7 +138,22 @@ export const HOST_BROWSER_PAGE_HELPERS = String.raw`
     },
     act(action) {
       try {
-      if (action.kind === 'fill' || action.kind === 'type') { fill(action.ref,action.text,action.origin,action.field); return {ok:true}; }
+      if (action.kind === 'fill' || action.kind === 'type') { fill(action.ref,action.text,action.origin,action.field,action.cardField); return {ok:true}; }
+      if (action.kind === 'pay_token') {
+        let merchant;
+        try { merchant = new URL(action.origin); } catch {}
+        if (!merchant || merchant.protocol !== 'https:' || location.protocol !== 'https:' || merchant.origin !== location.origin)
+          refused("Open the merchant's checkout with browser_navigate, then fill again.");
+        const blocks = [...document.querySelectorAll('.AiAgentPaymentSteering')].filter(block => block.querySelector('input[name="link_pay_token"]'));
+        const block = blocks.length === 1 ? blocks[0] : undefined;
+        const input = block?.querySelector('input[name="link_pay_token"]');
+        if (!(input instanceof HTMLInputElement) || payTokenAccount() !== action.merchantAccountId)
+          refused("This checkout has no pay token field for this purchase's merchant. Take a fresh snapshot.");
+        loginFilled.add(input);
+        Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(input,action.text);
+        input.dispatchEvent(new Event('input',{bubbles:true}));
+        return {ok:true};
+      }
       refused('Unsupported page action');
       } catch (error) {
         return error instanceof Refused ? {ok:false,uncertain:false,error:error.message} : {ok:false,uncertain:true,error:'The page interrupted this action'};

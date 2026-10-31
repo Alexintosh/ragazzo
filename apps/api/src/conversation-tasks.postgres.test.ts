@@ -21,6 +21,11 @@ import {
 } from "@rakazo/db";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  acquireNativeExecutionReservation,
+  releaseNativeExecutionReservation,
+  renewNativeExecutionReservation,
+} from "../../../packages/adapters/src/native-execution-reservation.js";
+import {
   createConversationTask,
   listConversationTasks,
   recoverConversationRun,
@@ -28,11 +33,6 @@ import {
   stoppedConversationRuns,
 } from "./conversation-tasks.js";
 import { mutateThreadQueue } from "./thread-queue.js";
-import {
-  acquireNativeExecutionReservation,
-  releaseNativeExecutionReservation,
-  renewNativeExecutionReservation,
-} from "../../../packages/adapters/src/native-execution-reservation.js";
 import {
   clearThreadMessageHistory,
   resolveThreadTarget,
@@ -68,7 +68,7 @@ describePostgres("separate task conversations and deliberate recovery (PostgreSQ
       provisionMessagingIdentity(
         prisma,
         { provider: "task-test", address },
-        { signupsEnabled: true, signupAllowlist: undefined },
+        { signupsEnabled: "true", signupAllowlist: undefined },
       ),
     );
     actor = {
@@ -82,7 +82,6 @@ describePostgres("separate task conversations and deliberate recovery (PostgreSQ
     const other = await owner(() =>
       createRepos(prisma).createBot(actor, {
         name: "Task recipient",
-        title: "Task recipient",
         description: "",
         instructions: "",
         notifyOnFinish: false,
@@ -223,22 +222,50 @@ describePostgres("separate task conversations and deliberate recovery (PostgreSQ
           where: { runId: reservation(1).runId },
         }),
       ).not.toBeNull();
-      await system.run.update({ where: { id: reservation(1).runId }, data: { status: "cancelled" } });
-      await system.nativeExecutionReservation.update({ where: { runId: reservation(1).runId }, data: {
-        active: true, computerId: "original-computer", computerKey: "original-computer-key", hostId: "original-host",
-      } });
+      await system.run.update({
+        where: { id: reservation(1).runId },
+        data: { status: "cancelled" },
+      });
+      await system.nativeExecutionReservation.update({
+        where: { runId: reservation(1).runId },
+        data: {
+          active: true,
+          computerId: "original-computer",
+          computerKey: "original-computer-key",
+          hostId: "original-host",
+        },
+      });
       await owner(() => releaseNativeExecutionReservation(prisma, reservation(1).runId, 1));
-      expect(await system.nativeExecutionReservation.findUnique({ where: { runId: reservation(1).runId } })).not.toBeNull();
-      await expect(owner(() => releaseNativeExecutionReservation(prisma, reservation(1).runId, 1, async () => {
-        throw new Error("Host cleanup unavailable");
-      }))).rejects.toThrow("Host cleanup unavailable");
+      expect(
+        await system.nativeExecutionReservation.findUnique({
+          where: { runId: reservation(1).runId },
+        }),
+      ).not.toBeNull();
+      await expect(
+        owner(() =>
+          releaseNativeExecutionReservation(prisma, reservation(1).runId, 1, async () => {
+            throw new Error("Host cleanup unavailable");
+          }),
+        ),
+      ).rejects.toThrow("Host cleanup unavailable");
       const cleanup = vi.fn(async () => undefined);
-      await owner(() => releaseNativeExecutionReservation(prisma, reservation(1).runId, 1, cleanup));
-      expect(cleanup).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({
-        runId: reservation(1).runId, nativeRunId: reservation(1).runId,
-        computerId: "original-computer", computerKey: "original-computer-key", hostId: "original-host",
-      }));
-      expect(await system.nativeExecutionReservation.findUnique({ where: { runId: reservation(1).runId } })).toBeNull();
+      await owner(() =>
+        releaseNativeExecutionReservation(prisma, reservation(1).runId, 1, cleanup),
+      );
+      expect(cleanup).toHaveBeenCalledExactlyOnceWith(
+        expect.objectContaining({
+          runId: reservation(1).runId,
+          nativeRunId: reservation(1).runId,
+          computerId: "original-computer",
+          computerKey: "original-computer-key",
+          hostId: "original-host",
+        }),
+      );
+      expect(
+        await system.nativeExecutionReservation.findUnique({
+          where: { runId: reservation(1).runId },
+        }),
+      ).toBeNull();
     } finally {
       await system.nativeExecutionReservation.deleteMany({ where: { runId: { in: rows } } });
       await system.bot.update({

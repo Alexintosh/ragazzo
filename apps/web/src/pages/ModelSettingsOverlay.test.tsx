@@ -183,6 +183,7 @@ function account(provider: string, modelId: string) {
     name: "Ada",
     spaceId: "space-1",
     isDeploymentOwner: false,
+    isAdmin: false,
     needsModel: false,
     defaultProvider: provider,
     defaultModel: modelId,
@@ -195,6 +196,7 @@ function account(provider: string, modelId: string) {
     avatarStyle: "organic" as const,
     billingEnabled: false,
     ticketBoardEnabled: false,
+    navLinks: [],
     phoneCallsEnabled: false,
   };
 }
@@ -814,6 +816,31 @@ it("keeps the default model checked and disabled", async () => {
   }
 });
 
+it("filters the models a probe found and keeps a hidden tick", async () => {
+  const probed = Array.from({ length: 12 }, (_, index) => `model-${index + 1}`);
+  const view = await renderCompatibleWithProbe(probed);
+  try {
+    const rowNames = () =>
+      [
+        ...(view.container
+          .querySelector('[data-testid="compatible-model-rows"]')
+          ?.querySelectorAll("[role='checkbox']") ?? []),
+      ].map(accessibleName);
+    const search = view.container.querySelector("input[aria-label='Search models']");
+    if (!(search instanceof HTMLInputElement)) throw new Error("Missing model search");
+    expect(rowNames()).toHaveLength(13);
+    await act(async () => {
+      modelCheckbox(view.container, "model-7").click();
+    });
+    await typeInto(search, "model-1");
+    expect(rowNames()).toEqual(["model-1", "model-10", "model-11", "model-12"]);
+    await typeInto(search, "");
+    expect(modelCheckbox(view.container, "model-7").checked).toBe(true);
+  } finally {
+    await view.unmount();
+  }
+});
+
 it("lists saved models as checked rows before the server is probed", async () => {
   const view = await renderCompatible({
     ...compatibleCredential,
@@ -1216,6 +1243,51 @@ it.each([undefined, "api_key", "oauth"])(
     }
   },
 );
+
+it("tests the selected subscription connection when another connection has the same model", async () => {
+  vi.mocked(rpc.me).mockResolvedValue(account("anthropic", "claude-fixture"));
+  models.list.mockResolvedValue([
+    {
+      provider: "anthropic",
+      providerName: "Anthropic",
+      id: "claude-fixture",
+      label: "Claude fixture",
+      billing: "",
+      signIn: "auth-url",
+    },
+  ]);
+  models.credentials.mockResolvedValue([
+    {
+      id: "api",
+      label: "API",
+      provider: "anthropic",
+      modelId: "claude-fixture",
+      authKind: "api_key",
+    },
+    {
+      id: "oauth",
+      label: "Subscription",
+      provider: "anthropic",
+      modelId: "claude-fixture",
+      authKind: "oauth",
+    },
+  ]);
+  models.role.mockImplementation(async ({ role }: { role: string }) => ({
+    primary:
+      role === "main"
+        ? { provider: "anthropic", modelId: "claude-fixture", credentialId: "oauth" }
+        : null,
+    backups: [],
+  }));
+  const view = await renderSettings();
+  try {
+    await manage();
+    await click(buttons(view.container, "Test connection")[0]);
+    expect(view.container.textContent).toContain("A subscription credential is stored securely.");
+  } finally {
+    await view.unmount();
+  }
+});
 
 it("folds the key form behind Or paste an API key once a subscription is signed in", async () => {
   vi.mocked(rpc.me).mockResolvedValue(account("anthropic", "claude-fixture"));

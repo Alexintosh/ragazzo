@@ -165,7 +165,7 @@ export async function setBotExecution(
         threadId: thread.id,
         botId: bot.id,
         type: "bot.updated",
-        payload: { botId: bot.id, name: bot.name, title: bot.title, description: bot.description },
+        payload: { botId: bot.id, name: bot.name, description: bot.description },
       });
       return { threadId: thread.id, seq: event.seq };
     }),

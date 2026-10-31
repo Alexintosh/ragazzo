@@ -329,14 +329,15 @@ function TaskThread({ taskId, messageId }: { taskId?: string; messageId?: string
                 canAnswer={answerable.has(message.id)}
                 canDismiss={dismissable.has(message.id)}
                 actionProps={{}}
-                onAnswer={async (value, answer, username, dismiss) => {
+                onAnswer={async (value, answer, fields, dismiss, remember) => {
                   if (!value.runId) return;
                   await request("threads/answer", {
                     ...target,
                     runId: value.runId,
                     messageId: value.id,
                     answer,
-                    ...(username ? { username } : {}),
+                    ...(fields ? { fields: [...fields] } : {}),
+                    ...(remember === false ? { remember: false as const } : {}),
                     ...(dismiss ? { dismiss: true } : {}),
                   });
                   await perform(async () => undefined);
@@ -349,7 +350,6 @@ function TaskThread({ taskId, messageId }: { taskId?: string; messageId?: string
                 }
                 onPreviewMarkdown={setMarkdown}
                 onPreviewImage={setImage}
-                onTogglePeerReplies={() => undefined}
                 onOpenPeerChat={(peer) =>
                   router.push({ pathname: "/peer-chat", params: { botId, ...peer } })
                 }

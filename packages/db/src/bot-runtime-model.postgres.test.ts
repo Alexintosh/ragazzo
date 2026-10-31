@@ -49,7 +49,6 @@ describePostgres("native bot model persistence (PostgreSQL)", () => {
     const repos = createRepos(prisma);
     const created = await repos.createBot(actor, {
       name: "Model selection test",
-      title: "",
       description: "",
       instructions: "",
       notifyOnFinish: true,
@@ -155,7 +154,6 @@ describePostgres("native bot model persistence (PostgreSQL)", () => {
       );
       const child = await repos.createBot(actor, {
         name: "Pi child",
-        title: "",
         description: "",
         instructions: "",
         notifyOnFinish: true,

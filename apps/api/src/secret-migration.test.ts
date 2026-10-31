@@ -11,6 +11,7 @@ function fixture() {
     })),
     botSecret: [{ id: "bot-row", ciphertext: "fake-bot-ref" }],
     registeredHost: [{ id: "host-row", ciphertext: "fake-host-ref" }],
+    vaultCredential: [{ id: "vault-row", ciphertext: "fake-vault-ref" }],
     integrationProviderConfig: [{ id: "composio", ciphertext: "fake-config-ref" }],
   };
   const client = Object.fromEntries(
@@ -56,7 +57,7 @@ describe("migration persistence", () => {
     const f = fixture();
     const rows = [];
     for await (const row of f.repository.rows()) rows.push(row);
-    expect(rows).toHaveLength(104);
+    expect(rows).toHaveLength(105);
     expect(rows[0]).toMatchObject({ ephemeral: true, id: "row-000", label: "secret" });
     expect(rows.find((row) => row.id === "composio")).toMatchObject({
       id: "composio",
@@ -64,10 +65,11 @@ describe("migration persistence", () => {
       ref: "fake-config-ref",
     });
     expect(rows.find((row) => row.id === "bot-row")?.recordId).toBe("bot-row");
+    expect(rows.find((row) => row.id === "vault-row")?.recordId).toBe("vault-row");
   });
   it("compares the original ref so a concurrent update or delete wins", async () => {
     const f = fixture();
-    const row = (await f.repository.rows().next()).value!;
+    const row = (await f.repository.rows()[Symbol.asyncIterator]().next()).value!;
     expect(await f.repository.replace(row, "fake-next")).toBe(true);
     expect(await f.repository.replace(row, "fake-stale")).toBe(false);
     f.tables.secret.splice(0, 1);

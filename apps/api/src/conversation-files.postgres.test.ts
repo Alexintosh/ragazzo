@@ -1,6 +1,12 @@
 import type { Actor } from "@rakazo/contracts";
 import type { PrismaClient } from "@rakazo/db";
-import { asSystem, createDb, IsolationError, runAsTenant, resolveNextArtifactVersion } from "@rakazo/db";
+import {
+  asSystem,
+  createDb,
+  IsolationError,
+  resolveNextArtifactVersion,
+  runAsTenant,
+} from "@rakazo/db";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { listConversationFiles } from "./conversation-files.js";
 import type { ThreadTarget } from "./thread-target.js";
@@ -153,11 +159,14 @@ describePostgres("conversation files tenant boundaries (PostgreSQL)", () => {
       } as ThreadTarget),
     );
     expect(taskFiles.items.map((file) => file.id)).toEqual([upload.id]);
-    const versionScope = { spaceId, userId, botId: upload.botId, name: "result.txt" };
-    expect(await runAsTenant(actor, () => resolveNextArtifactVersion(prisma, { ...versionScope, uploadThreadId: taskThread.id })))
-      .toEqual({ rootArtifactId: upload.id, version: 2 });
-    expect(await runAsTenant(actor, () => resolveNextArtifactVersion(prisma, versionScope)))
-      .toEqual({ rootArtifactId: rootId, version: 3 });
-
+    const versionScope = { spaceId, userId, botId: upload.botId!, name: "result.txt" };
+    expect(
+      await runAsTenant(actor, () =>
+        resolveNextArtifactVersion(prisma, { ...versionScope, uploadThreadId: taskThread.id }),
+      ),
+    ).toEqual({ rootArtifactId: upload.id, version: 2 });
+    expect(
+      await runAsTenant(actor, () => resolveNextArtifactVersion(prisma, versionScope)),
+    ).toEqual({ rootArtifactId: rootId, version: 3 });
   });
 });

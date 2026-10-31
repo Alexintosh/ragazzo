@@ -1,3 +1,4 @@
+import { PURCHASE_CARD_FIELDS } from "@rakazo/contracts";
 import { z } from "zod";
 
 const id = z.string().min(1).max(256);
@@ -35,7 +36,9 @@ const action = z.union([
   z
     .object({
       kind: z.literal("scroll"),
-      direction: z.enum(["up", "down"]),
+      direction: z.enum(["up", "down", "left", "right"]),
+      x: z.number().finite().min(0).max(100_000).optional(),
+      y: z.number().finite().min(0).max(100_000).optional(),
       amount: z.number().finite().min(0).max(100_000).optional(),
     })
     .strict(),
@@ -49,7 +52,7 @@ const action = z.union([
     })
     .strict(),
 ]);
-const pageAction = z.discriminatedUnion("kind", [
+const pageAction = z.union([
   z.object({ kind: z.literal("click"), ref: id }).strict(),
   z
     .object({
@@ -57,7 +60,7 @@ const pageAction = z.discriminatedUnion("kind", [
       ref: id,
       text: z.string().max(64 * 1024),
       origin: z.string().max(4096).optional(),
-      field: z.enum(["username", "password"]).optional(),
+      field: z.enum(["username", "password", "card"]).optional(),
     })
     .strict(),
   z
@@ -66,6 +69,23 @@ const pageAction = z.discriminatedUnion("kind", [
       ref: id,
       paths: z.array(z.string().max(4096)).min(1).max(10),
       roots: z.array(z.string().max(4096)).max(32).optional(),
+    })
+    .strict(),
+  z
+    .object({
+      kind: z.literal("fill"),
+      text: z.string().max(64 * 1024),
+      origin: z.string().max(4096),
+      field: z.literal("card"),
+      cardField: z.enum(PURCHASE_CARD_FIELDS),
+    })
+    .strict(),
+  z
+    .object({
+      kind: z.literal("pay_token"),
+      text: z.string().max(64 * 1024),
+      origin: z.string().max(4096),
+      merchantAccountId: id,
     })
     .strict(),
 ]);
@@ -100,7 +120,9 @@ export const hostBrowserPreviewCommand = z.discriminatedUnion("action", [
             z
               .object({
                 kind: z.literal("scroll"),
-                direction: z.enum(["up", "down"]),
+                direction: z.enum(["up", "down", "left", "right"]),
+                x: z.number().finite().min(0).max(100_000).optional(),
+                y: z.number().finite().min(0).max(100_000).optional(),
                 amount: z.number().finite().min(0).max(100_000).optional(),
               })
               .strict(),

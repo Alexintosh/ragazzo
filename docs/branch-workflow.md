@@ -37,8 +37,19 @@ git pull --ff-only upstream main
 git switch develop
 ```
 
-The local development history began as a source snapshot without the original Git ancestry. It therefore has no common ancestor with upstream. Updating `main` does not update `develop`, and a normal merge from `main` into `develop` is not currently the integration path.
+Updating `main` does not update `develop`. Integrate upstream changes on a feature branch so conflicts and behavior can be reviewed before updating the integration branch:
 
-For selected upstream fixes, create a branch from `develop`, inspect the commits and their dependencies, and cherry-pick the required commits in order. Resolve conflicts and run the relevant checks before merging into `develop`. Do not record an upstream merge that discards its changes merely to connect the histories. A full ancestry reconciliation requires a separate, deliberate migration.
+```sh
+git switch -c chore/upstream-update develop
+git merge --no-ff main
+```
+
+Resolve conflicts while preserving local features, run the relevant checks, and merge the verified branch into `develop`. Selected fixes can also be cherry-picked with their required dependencies. Do not resolve an upstream merge by discarding its changes wholesale.
+
+### Imported snapshot ancestry
+
+The original local history began as a source snapshot without Git ancestry. Its upstream source was identified as `9634e064b5ed7fb8f5f4e583fbb8fa10536140c6`: the snapshot includes that commit's desktop UTF-8 fix and its parent's CJK fix, retains the versions preceding the next commits, and exactly matches the source lockfile and unchanged configuration trees. It was the unique nearest tree among the upstream candidates examined.
+
+An ancestry-only merge recorded that original import base without changing local source files. A subsequent real merge integrated the later upstream changes. This preserves the original local commits and gives future upstream merges a shared ancestor; it does not treat later upstream changes as already incorporated merely by connecting histories.
 
 Eros integration starts at commit `073a78d`; `develop` was created from its parent, `58e3e13`. The earlier RP implementation and research documents are retained, while the Eros integration remains on `feat/roleplay-bots`.

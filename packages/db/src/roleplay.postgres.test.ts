@@ -52,7 +52,6 @@ describePostgres("roleplay storage and isolation (PostgreSQL)", () => {
   });
   const input = {
     name: "Mira",
-    title: "",
     description: "",
     instructions: "",
     notifyOnFinish: false,

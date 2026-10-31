@@ -51,7 +51,11 @@ describePostgres("durable task-backed workflows (PostgreSQL)", () => {
   const ids: string[] = [];
   const owner = <T>(fn: () => Promise<T>) => runAsTenant(actor, fn);
   const sandbox = new FakeSandboxProvider();
-  const jobs: JobPublisher = { enqueue: vi.fn(async () => undefined) };
+  const jobs: JobPublisher = {
+    enqueue: vi.fn(async () => undefined),
+    cancel: vi.fn(async () => undefined),
+    close: vi.fn(async () => undefined),
+  };
   const graph = (): WorkflowGraph => ({
     nodes: ["a", "b", "join"].map((id, index) => ({
       id,

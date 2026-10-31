@@ -79,7 +79,6 @@ describePostgres("dedicated roleplay execution (PostgreSQL)", () => {
     const bot = await owner(() =>
       createRepos(prisma).createBot(actor, {
         name: "Aria",
-        title: "",
         description: "",
         instructions: "",
         notifyOnFinish: false,

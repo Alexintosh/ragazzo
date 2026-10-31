@@ -21,6 +21,7 @@ import {
   SpaceDeletionInProgressError,
 } from "@rakazo/db";
 import { getLogger } from "@rakazo/logging";
+import { rehomeItemsLeaving } from "./availability.js";
 import { nativeSetupOwners } from "./native-setup-owners.js";
 
 /** Bound for one bot or sandbox teardown. Providers may ignore the abort signal,
@@ -44,13 +45,8 @@ export type SpaceDeletionDeps = {
   nativeSetupCleanup?: (owners: Array<{ spaceId: string; userId: string }>) => Promise<void>;
 };
 
-/** Delete one of the actor's Spaces with everything in it; the owner-only rules live in the db layer.
- *
- * Runs in the request: each bot goes through `destroyBot` (runs, routines, sandbox,
- * files, sessions, artifacts, memories), then leftover team sandboxes, then the
- * Space row, whose cascade removes groups, threads, memories, preferences and
- * memberships. A worker that dies mid-way leaves the Space claimed; after the
- * claim goes stale, deleting again resumes from what is left. */
+/** The owner-only rules live in the db layer. A worker that dies mid-way leaves the Space
+ * claimed; after the claim goes stale, deleting again resumes from what is left. */
 export async function deleteSpaceWithContent(
   deps: SpaceDeletionDeps,
   actor: Pick<Actor, "spaceId" | "userId">,
@@ -179,6 +175,7 @@ export async function deleteSpaceWithContent(
       clearInterval(claimRenewal);
       claimRenewal = null;
     }
+    await rehomeItemsLeaving(deps.prisma, spaceId);
     const deleted = await deleteClaimedSpaceForMember(deps.prisma, claimedInput);
     // Rows are gone; leftover stored files are unreachable, so cleanup failures only log.
     const cleanup = await Promise.allSettled([

@@ -124,7 +124,6 @@ export async function querySpaceSearch(
       archivedAt: null,
       OR: [
         { name: { contains: likeQuery, mode: "insensitive" } },
-        { title: { contains: likeQuery, mode: "insensitive" } },
         { description: { contains: likeQuery, mode: "insensitive" } },
       ],
     },
@@ -138,7 +137,7 @@ export async function querySpaceSearch(
         botId: bot.id,
         botName: bot.name,
         title: bot.name,
-        snippet: displayName(bot.title, "") || bot.description || displayName(bot.name, ""),
+        snippet: bot.description || displayName(bot.name, ""),
       },
       CONVERSATION_HIT_LIMIT * 2,
     );
@@ -185,6 +184,7 @@ export async function querySpaceSearch(
   }
 
   const contentBudget = Math.max(0, SEARCH_LIMIT - conversationHits.length);
+  const full = () => contentHits.length >= contentBudget;
 
   const artifacts = await prisma.artifact.findMany({
     where: {
@@ -227,6 +227,8 @@ export async function querySpaceSearch(
     );
   }
 
+  if (full()) return [...conversationHits, ...contentHits];
+
   const groupArtifacts = await prisma.artifact.findMany({
     where: {
       spaceId: actor.spaceId,
@@ -265,6 +267,8 @@ export async function querySpaceSearch(
     );
   }
 
+  if (full()) return [...conversationHits, ...contentHits];
+
   const routines = await prisma.routine.findMany({
     where: {
       spaceId: actor.spaceId,
@@ -293,8 +297,9 @@ export async function querySpaceSearch(
     );
   }
 
+  if (full()) return [...conversationHits, ...contentHits];
+
   const match = await messageMatch(prisma, actor.spaceId, query);
-  const full = () => contentHits.length >= contentBudget;
   for (let page = 0; page < match.pages && !full(); page += 1) {
     const messageRows = await openMessages(
       prisma,

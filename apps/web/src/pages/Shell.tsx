@@ -6,13 +6,13 @@ import type {
   ThreadMessage,
   VoiceStatus,
 } from "@rakazo/contracts";
-import type { AgentImportReader } from "@rakazo/core";
 import {
   answerableAskMessageIds,
   channelMessageSender,
   chatUserBubbleColors,
   dismissableAskMessageIds,
   foldPeerReplies,
+  groupBotsForSidebar,
   isActive,
   isRunWorking,
   memberName,
@@ -22,7 +22,7 @@ import type { GroupAvatarMember } from "@rakazo/ui-web";
 import { Button } from "@rakazo/ui-web";
 import { useIsMobile } from "@rakazo/ui-web/hooks/use-mobile";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
-import { Plus } from "lucide-react";
+import { Lock, Monitor, Moon, Plug, Plus, ScrollText, Sun, Users } from "lucide-react";
 import {
   Suspense,
   useCallback,
@@ -52,6 +52,8 @@ import {
   getComposerEnterToSend,
   subscribeComposerEnterToSend,
 } from "../lib/composer-enter-to-send-pref";
+import { computersAreUnavailable } from "../lib/computer-sandbox";
+import { desktopBridge } from "../lib/desktop";
 import { markAfterPaint, markOnce } from "../lib/performance";
 import { usePreloadRecoveryState } from "../lib/preload-recovery";
 import { lastChatKey, lastChatOf, queryClient, spaceQueries, spaceSeedKey } from "../lib/query";
@@ -60,12 +62,17 @@ import { createSpaceRpc, selectedSpaceId, selectSpace } from "../lib/rpc";
 import { markShellReady, useSpaceEpoch } from "../lib/space-switch";
 import { activeThreadRuns } from "../lib/thread-events";
 import { getToolActivityEnabled, subscribeToolActivity } from "../lib/tool-activity-preference";
+import type { AppearancePreference } from "../lib/ui-appearance";
+import { getUiAppearancePreference, setUiAppearance } from "../lib/ui-appearance";
 import { useDesktopBadge } from "../lib/use-desktop-badge";
 import { HostComputerPrompt } from "./HostComputerPrompt";
+import { RoutineList } from "./RoutineEditor";
+import { useSettingsNavItems } from "./settings-nav";
 import { ArchivedChats } from "./shell/archived-chats";
 import { ChatContextMenu } from "./shell/chat-context-menu";
 import { ChatHeader } from "./shell/chat-header";
 import { FALLBACK_BOT_COLOR } from "./shell/chat-shared";
+import type { CommandPaletteAction } from "./shell/command-palette";
 import { Composer } from "./shell/composer";
 import { ComputerOverlay } from "./shell/computer-overlay";
 import { ComputerPanel } from "./shell/computer-panel";
@@ -130,6 +137,8 @@ function SpaceShell() {
   });
   const {
     navigate,
+    navigationRevision,
+    overlayRevision,
     alive,
     searchParams,
     setSearchParams,
@@ -205,9 +214,6 @@ function SpaceShell() {
   );
   const rightPanel = useRightPanel({ searchParams, setSearchParams });
   const { panel, setPanel, modelFocusRequest, setModelFocusRequest } = rightPanel;
-  const [droppedAgent, setDroppedAgent] = useState<AgentImportReader | null>(null);
-  // Back returns to the New bot dialog only when the import was opened from it.
-  const [importFromDialog, setImportFromDialog] = useState(false);
   const [peerConversation, setPeerConversation] = usePreloadRecoveryState<{
     peerBotId: string;
     peerBotName: string;
@@ -249,6 +255,7 @@ function SpaceShell() {
       botId: bot.id,
       botName: bot.name,
       botColor: bot.color,
+      botAvatarSet: bot.avatarSet,
       transcribe: voiceStatus ? Boolean(voiceStatus.transcribe) : undefined,
     });
   };
@@ -257,7 +264,6 @@ function SpaceShell() {
   const { mobileSidebarOpen, setMobileSidebarOpen, swipeHandlers } = useMobileSidebar();
   const isMobileSidebar = useIsMobile();
   const miniSidebar = botsSidebarCollapsed && !isMobileSidebar;
-  const dialogs = useShellDialogs();
   const [botMenu, setBotMenu] = useState<{ kind: "bot" | "group"; id: string } | null>(null);
   const closeBotMenu = useCallback(() => setBotMenu(null), []);
   const currentSpaceId = selectedSpaceId() ?? bootstrapMe?.spaceId ?? null;
@@ -270,14 +276,28 @@ function SpaceShell() {
   useEffect(() => {
     if (settingsSpaceGone) setOverlay(null);
   }, [settingsSpaceGone]);
+  // The app menu owns Cmd+, because macOS takes it before the page sees a keydown.
+  const openSettingsRef = useRef(openSettings);
+  openSettingsRef.current = openSettings;
+  useEffect(() => desktopBridge()?.settings?.onOpen(() => openSettingsRef.current("general")), []);
 
   const inGroup = Boolean(groupId);
+  const chatPanelOpen = inGroup
+    ? panel === "group-settings"
+    : panel === "computer" || panel === "routines" || panel === "settings" || panel === "routine";
   // Until the route names the chat reopened from cache, that chat stands in for it.
   const routeChat = botId || groupId ? undefined : startChat;
   const active =
     inGroup || routeChat?.groupId
       ? undefined
       : (bots.find((b) => b.id === (currentTask?.botId ?? botId ?? routeChat?.botId)) ?? bots[0]);
+  const selectBot = useCallback(
+    (id: string) => {
+      setMobileSidebarOpen(false);
+      navigate(`/app/${id}`);
+    },
+    [navigate, setMobileSidebarOpen],
+  );
   const userBubble = useMemo(
     () => (active ? chatUserBubbleColors(active.color, active.id) : undefined),
     [active?.color, active?.id],
@@ -289,6 +309,16 @@ function SpaceShell() {
   activeGroupId.current = groupId;
   const computerState = useComputerState({ rpc, panel, activeId: active?.id, activeBotId });
   const { computer, computerOpen, setComputerOpen, booting, commitComputer } = computerState;
+  const cycleBots = useMemo(
+    () => groupBotsForSidebar(bots, botSections).flatMap((group) => group.bots),
+    [bots, botSections],
+  );
+  const dialogs = useShellDialogs({
+    bots: cycleBots,
+    activeId: active?.id,
+    onSelectBot: selectBot,
+    computerOpen,
+  });
   useSpaceBootstrap({
     rpc,
     roster,
@@ -422,6 +452,8 @@ function SpaceShell() {
     bootstrapSpaceId: bootstrapMe?.spaceId,
     userId,
     navigate,
+    navigationRevision,
+    overlayRevision,
     closeMobileSidebar: () => setMobileSidebarOpen(false),
   });
 
@@ -469,6 +501,7 @@ function SpaceShell() {
     return {
       botId: run.botId,
       color: bot?.color ?? FALLBACK_BOT_COLOR,
+      avatarSet: bot?.avatarSet,
       name: bot?.name,
       status: run.status,
     };
@@ -680,11 +713,64 @@ function SpaceShell() {
     openSettings("space", spaceId);
   }
 
-  function openImport(agent: AgentImportReader | null, fromDialog: boolean) {
-    setDroppedAgent(agent);
-    setImportFromDialog(fromDialog);
-    setPanel("import-agent");
-  }
+  const settingsNavItems = useSettingsNavItems({
+    messaging: messagingSurfaceEnabled,
+    wallet: Boolean(bootstrapMe?.paymentWalletProvider),
+    computer: computersAreUnavailable(bootstrapMe?.sandboxProvider),
+    billing: bootstrapMe?.billingEnabled === true,
+    updates: Boolean(desktopBridge()?.update),
+  });
+  const paletteActions: CommandPaletteAction[] = [
+    {
+      id: "new-bot",
+      label: t`New bot`,
+      icon: Plus,
+      onSelect: () => dialogs.setCreateBotOpen(true),
+    },
+    {
+      id: "new-group",
+      label: t`New group chat`,
+      icon: Users,
+      onSelect: () => setPanel("create-group"),
+    },
+    {
+      id: "new-space",
+      label: t`New private space`,
+      icon: Lock,
+      onSelect: () => dialogs.setNewSpaceOpen(true),
+    },
+    {
+      id: "integrations",
+      label: t`Connect apps`,
+      icon: Plug,
+      onSelect: () => setOverlay({ kind: "integrations" }),
+    },
+    {
+      id: "skills",
+      label: t`Skills`,
+      icon: ScrollText,
+      onSelect: () => setOverlay({ kind: "skills" }),
+    },
+    ...settingsNavItems.map(({ id, label, icon }) => ({
+      id: `settings-${id}`,
+      label: t`Settings: ${label}`,
+      icon,
+      onSelect: () => openSettings(id),
+    })),
+    ...(
+      [
+        { value: "system", label: t`System`, icon: Monitor },
+        { value: "light", label: t`Light`, icon: Sun },
+        { value: "dark", label: t`Dark`, icon: Moon },
+      ] satisfies { value: AppearancePreference; label: string; icon: typeof Sun }[]
+    ).map(({ value, label, icon }) => ({
+      id: `appearance-${value}`,
+      label: t`Appearance: ${label}`,
+      icon,
+      checked: getUiAppearancePreference() === value,
+      onSelect: () => setUiAppearance(value),
+    })),
+  ];
 
   async function renameSpace(spaceId: string, name: string) {
     await commitSpaceRename({
@@ -833,8 +919,10 @@ function SpaceShell() {
         footerLogos={footerLogos}
         user={session.data?.user}
         ticketBoardEnabled={Boolean(bootstrapMe?.ticketBoardEnabled)}
+        navLinks={desktopBridge() ? [] : (bootstrapMe?.navLinks ?? [])}
         openSettings={openSettings}
         openIntegrations={() => setOverlay({ kind: "integrations" })}
+        openSkills={() => setOverlay({ kind: "skills" })}
       />
 
       {/* Keep the composer's z-index inside the chat so phone overlays like the side panel cover it. */}
@@ -867,9 +955,6 @@ function SpaceShell() {
             phoneCallsEnabled={Boolean(bootstrapMe?.phoneCallsEnabled)}
             inCall={Boolean(active) && call?.botId === active?.id}
             onOpenFiles={() => setPanel(panel === "files" ? null : "files")}
-            computerPanelOpen={panel === "computer"}
-            onOpenNavigation={() => setMobileSidebarOpen(true)}
-            onOpenChatSettings={() => setPanel(inGroup ? "group-settings" : "settings")}
             onModelSaved={(updated) => {
               setBots((current) =>
                 current.map((bot) =>
@@ -877,20 +962,23 @@ function SpaceShell() {
                 ),
               );
             }}
+            panelOpen={chatPanelOpen}
+            onOpenNavigation={() => setMobileSidebarOpen(true)}
+            onTogglePanel={() => {
+              if (chatPanelOpen) setPanel(null);
+              else if (inGroup) setPanel("group-settings");
+              else if (active) {
+                setPanel(active.botKind === "roleplay" ? "settings" : "computer");
+                // Refresh run/computer so Take control isn't stuck on a stale busyBotName.
+                void refreshThread(active.id).catch(() => undefined);
+              }
+            }}
             onCall={(bot) => {
               if (call?.botId === bot.id) {
                 setCallMinimized(false);
                 return;
               }
               callBot(bot);
-            }}
-            onToggleComputer={(bot) => {
-              const next = panel === "computer" ? null : "computer";
-              setPanel(next);
-              if (next === "computer") {
-                // Refresh run/computer so Take control isn't stuck on a stale busyBotName.
-                void refreshThread(bot.id).catch(() => undefined);
-              }
             }}
           />
           {taskId && currentTaskQuery.isError ? (
@@ -964,7 +1052,6 @@ function SpaceShell() {
               speakingMessageId={speakingMessageId}
               onSpeak={speakMessage}
               onOpenComputer={computerControls.onOpenComputer}
-              onOpenImport={() => openImport(null, false)}
               onOpenImportSetup={(target) => {
                 importSetupOpen.current = true;
                 if (target.kind === "models") openSettings("models");
@@ -1055,15 +1142,14 @@ function SpaceShell() {
               }
               enterToSend={enterToSend}
               attachmentsEnabled={active?.botKind !== "roleplay"}
-              onImportAgent={
-                active?.botKind === "roleplay" ? undefined : (agent) => openImport(agent, false)
-              }
               activeName={inGroup ? (activeGroup?.name ?? activeSnapshot?.groupName) : active?.name}
               running={composerRunning}
               disabled={Boolean(recordingSkill) || Boolean(taskId && !activeSnapshot)}
               pendingAttachments={composer.activePendingAttachments}
               attachmentNotice={composer.attachmentNotice}
               sendError={sendError}
+              imageConfirmation={composer.imageConfirmation}
+              onDraftEdited={composer.clearImageConfirmation}
               onOpenModels={() => {
                 // A group's failed run belongs to one member; change that bot's model.
                 const failedBotId =
@@ -1167,7 +1253,6 @@ function SpaceShell() {
         refreshBots={refreshBots}
         refreshThread={refreshThread}
         refreshGroupThread={refreshGroupThread}
-        refreshActiveThread={refreshActiveThread}
         computer={computer}
         computerOpen={computerOpen}
         booting={booting}
@@ -1193,25 +1278,25 @@ function SpaceShell() {
               onRecoveryDismissed={computerControls.releaseComputerRecovery}
               onOpenComputerSettings={() => openSettings("computer")}
               onOpen={() => void openComputer()}
-              routines={activeRoutines}
-              runningRoutineId={
-                snapshot?.run && isActive(snapshot.run.status)
-                  ? (snapshot.run.routineId ?? undefined)
-                  : undefined
-              }
-              onCreateRoutine={() => startRoutine()}
-              onEditRoutine={startRoutine}
-              onStopRun={() => void stopRun()}
             />
           ) : null
+        }
+        routinesPanel={
+          <RoutineList
+            routines={activeRoutines}
+            runningRoutineId={
+              snapshot?.run && isActive(snapshot.run.status)
+                ? (snapshot.run.routineId ?? undefined)
+                : undefined
+            }
+            onCreate={() => startRoutine()}
+            onEdit={startRoutine}
+            onStop={() => void stopRun()}
+          />
         }
         routineEditorProps={routineEditorProps}
         openBot={openBot}
         openCreatedBot={openCreatedBot}
-        droppedAgent={droppedAgent}
-        setDroppedAgent={setDroppedAgent}
-        importFromDialog={importFromDialog}
-        setCreateBotOpen={dialogs.setCreateBotOpen}
         modelFocusRequest={modelFocusRequest}
         openSettings={openSettings}
         memoryProviderConfigured={memoryProviderConfig != null}
@@ -1235,10 +1320,6 @@ function SpaceShell() {
           openSpaceSettings={openSpaceSettings}
           closeMobileSidebar={() => setMobileSidebarOpen(false)}
           createBot={createBot}
-          onImportFromCreate={() => {
-            dialogs.setCreateBotOpen(false);
-            openImport(null, true);
-          }}
           clearOpenThread={() => {
             thread.resetHistory();
             thread.updateSnapshot((current) =>
@@ -1246,6 +1327,7 @@ function SpaceShell() {
             );
           }}
           deleteRoutineDialogProps={deleteRoutineDialogProps}
+          paletteActions={paletteActions}
         />
         <AppOverlays
           overlay={overlay}
@@ -1267,6 +1349,8 @@ function SpaceShell() {
           spaces={spaces}
           renameSpace={renameSpace}
           removeSpace={removeSpace}
+          refreshSpaces={() => refreshBots()}
+          openAgentImport={() => setPanel("import-agent")}
           alive={alive}
           user={session.data?.user}
           refetchSession={() => session.refetch({ query: { disableCookieCache: true } })}

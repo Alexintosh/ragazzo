@@ -32,7 +32,6 @@ it.each(["codex", "claude", "acp"] as const)(
     const refresh = vi.fn(async () => undefined);
     const input = {
       name: " Builder ",
-      title: "Engineer",
       description: " Build a prototype ",
       runtimeKind,
       registeredHostId: "registered-host",
@@ -52,7 +51,6 @@ it.each(["codex", "claude", "acp"] as const)(
       "bots/create",
       expect.objectContaining({
         name: "Builder",
-        title: "Engineer",
         description: "Build a prototype",
         runtimeKind,
         registeredHostId: "registered-host",

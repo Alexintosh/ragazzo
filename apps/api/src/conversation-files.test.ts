@@ -34,7 +34,7 @@ function setup(rows: unknown[] = [], messages: unknown[] = []) {
   const thread = { findFirst: vi.fn(async () => ({ id: "thread" })) };
   const message = { findMany: vi.fn().mockResolvedValue(messages) };
   const run = { findMany: vi.fn(async () => [{ id: "run" }]) };
-  const artifact = { findMany: vi.fn(async () => rows) };
+  const artifact = { findMany: vi.fn(async (_args: unknown) => rows) };
   return {
     deps: { prisma: { thread, message, run, artifact } as unknown as PrismaClient },
     thread,
