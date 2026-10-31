@@ -135,6 +135,8 @@ function expiredOAuthPlaintext() {
     kind: "oauth",
     credential: { type: "oauth", access: "access-token", refresh: "refresh-token", expires: 1 },
     maxTokens: 4096,
+    streamTimeoutMs: 900_000,
+    streamIdleTimeoutMs: 900_000,
   });
 }
 
@@ -205,7 +207,13 @@ describe("OAuth credential retirement on terminal refresh rejection", () => {
     const marker = stored.slice("sealed:".length);
     expect(marker).not.toContain("access-token");
     expect(marker).not.toContain("refresh-token");
-    expect(JSON.parse(marker)).toEqual({ kind: "oauth", reconnectRequired: true, maxTokens: 4096 });
+    expect(JSON.parse(marker)).toEqual({
+      kind: "oauth",
+      reconnectRequired: true,
+      maxTokens: 4096,
+      streamTimeoutMs: 900_000,
+      streamIdleTimeoutMs: 900_000,
+    });
     expect(secretStore.delete).toHaveBeenCalledExactlyOnceWith("cipher-codex", "secret-codex");
 
     await expect(executor.resolveConnectedModel(SCOPE, PROVIDER, MODEL_ID)).rejects.toThrow(

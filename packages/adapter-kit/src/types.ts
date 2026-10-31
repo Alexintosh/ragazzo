@@ -499,6 +499,10 @@ export interface AgentRunModel {
   acceptsImages?: boolean;
   /** Maximum number of image inputs the model connection accepts in one request. */
   maxImagesPerPrompt?: number;
+  /** Wait for response headers before failing a model request. */
+  streamTimeoutMs?: number;
+  /** Wait for activity before failing an open model stream. */
+  streamIdleTimeoutMs?: number;
   /** Maximum completion tokens sent to the model endpoint. */
   maxTokens?: number;
   /** Generic connection context window, overriding catalog limits when configured. */

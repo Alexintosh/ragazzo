@@ -94,6 +94,8 @@ export async function autoReviewCheckerProvider(
           cacheCapabilities: judgeKey.cacheCapabilities,
           contextWindow: judgeKey.contextWindow,
           maxTokens: judgeKey.maxTokens,
+          streamTimeoutMs: judgeKey.streamTimeoutMs,
+          streamIdleTimeoutMs: judgeKey.streamIdleTimeoutMs,
           reasoning: judgeKey.reasoning,
           oauth: judgeKey.oauth
             ? {

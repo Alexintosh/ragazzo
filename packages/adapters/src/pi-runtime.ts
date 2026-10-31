@@ -412,6 +412,7 @@ export class PiAgentRuntime implements AgentRuntime {
                     },
                   ),
                 target.config.cacheCapabilities?.retentionMode,
+                target.config,
               ),
               setThinking,
             );

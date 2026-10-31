@@ -40,6 +40,8 @@ function draft(overrides: Partial<ConnectionFormDraft> = {}): ConnectionFormDraf
     reasoning: false,
     thinkingLevel: null,
     maxTokens: "",
+    streamTimeoutMs: "",
+    streamIdleTimeoutMs: "",
     contextWindow: "262144",
     supportsImages: false,
     maxImagesPerPrompt: "",
@@ -112,6 +114,8 @@ describe("connectionFormFields", () => {
       reasoning: false,
       thinkingLevel: null,
       maxTokens: "4096",
+      streamTimeoutMs: "",
+      streamIdleTimeoutMs: "",
       contextWindow: "262144",
       supportsImages: false,
       maxImagesPerPrompt: "",
@@ -252,6 +256,8 @@ describe("modelConnectRequest", () => {
         makeDefault: true,
         scope: "account",
         maxTokens: null,
+        streamTimeoutMs: null,
+        streamIdleTimeoutMs: null,
         label: "Anthropic",
         credentialId: null,
       },
@@ -272,6 +278,8 @@ describe("modelConnectRequest", () => {
       provider: "anthropic",
       modelId: "opus",
       maxTokens: 1024,
+      streamTimeoutMs: null,
+      streamIdleTimeoutMs: null,
       label: "Anthropic",
       credentialId: saved.id,
     });
@@ -336,6 +344,8 @@ describe("modelConnectRequest", () => {
         reasoning: true,
         thinkingLevel: "high",
         maxTokens: 4096,
+        streamTimeoutMs: null,
+        streamIdleTimeoutMs: null,
         contextWindow: 262_144,
         supportsImages: true,
         maxImagesPerPrompt: null,
@@ -345,4 +355,44 @@ describe("modelConnectRequest", () => {
       },
     });
   });
+});
+
+describe("connection request timeouts", () => {
+  const selected = { provider: "anthropic", providerName: "Anthropic", id: "opus" };
+  it("loads saved milliseconds and sends timeout edits with a settings-only save", () => {
+    const saved = credential({ streamTimeoutMs: 900_000, streamIdleTimeoutMs: 900_000 });
+    const fields = connectionFormFields({
+      catalog,
+      provider: "anthropic",
+      modelId: "opus",
+      credential: saved,
+    });
+    expect(fields).toMatchObject({ streamTimeoutMs: "900000", streamIdleTimeoutMs: "900000" });
+    expect(
+      modelConnectRequest({
+        form: draft({ ...fields, streamIdleTimeoutMs: "" }),
+        selected,
+        credential: saved,
+        credentialId: saved.id,
+        settingsOnly: true,
+      }),
+    ).toMatchObject({
+      status: "ready",
+      input: { streamTimeoutMs: 900_000, streamIdleTimeoutMs: null },
+    });
+  });
+  it.each(["streamTimeoutMs", "streamIdleTimeoutMs"] as const)(
+    "rejects invalid %s before saving",
+    (field) => {
+      for (const value of ["0", "-1", "1.5", "2147483648", "invalid"]) {
+        expect(
+          modelConnectRequest({
+            form: draft({ apiKey: "sk-long-enough", [field]: value }),
+            selected,
+            credentialId: null,
+          }),
+        ).toEqual({ status: "invalid", field });
+      }
+    },
+  );
 });

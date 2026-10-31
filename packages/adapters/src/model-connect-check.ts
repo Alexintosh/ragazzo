@@ -36,7 +36,14 @@ const BLOCKING_KINDS = new Set(["auth", "access", "model", "key", "credit", "spe
 export async function verifyModelServesAgents(
   config: Pick<
     AgentRunModel,
-    "provider" | "id" | "apiKey" | "accountId" | "gatewayId" | "maxTokens"
+    | "provider"
+    | "id"
+    | "apiKey"
+    | "accountId"
+    | "gatewayId"
+    | "maxTokens"
+    | "streamTimeoutMs"
+    | "streamIdleTimeoutMs"
   >,
   options: { fetch?: typeof globalThis.fetch; signal?: AbortSignal } = {},
 ): Promise<void> {
@@ -63,6 +70,10 @@ export async function verifyModelServesAgents(
       }) ?? {},
     ),
     config.maxTokens,
+    undefined,
+    undefined,
+    undefined,
+    config,
   );
   // Providers emit `start` only after a successful HTTP response.
   for await (const event of stream) {

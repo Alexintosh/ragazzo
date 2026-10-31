@@ -10,6 +10,7 @@ import {
   isOllamaCloudBaseUrl,
   MAX_MODEL_CONTEXT_WINDOW,
   MAX_MODEL_MAX_TOKENS,
+  MAX_MODEL_TIMEOUT_MS,
   modelHeadersInput,
   OPENAI_COMPATIBLE_BASE_URL_HINT,
   OPENAI_COMPATIBLE_PROVIDER_ID,
@@ -100,6 +101,9 @@ export default function ModelConnection() {
   const [accountId, setAccountId] = useState("");
   const [gatewayId, setGatewayId] = useState("");
   const [baseUrl, setBaseUrl] = useState("");
+  const [streamTimeoutMs, setStreamTimeoutMs] = useState("");
+  const [streamIdleTimeoutMs, setStreamIdleTimeoutMs] = useState("");
+  const [showRequestTimeouts, setShowRequestTimeouts] = useState(false);
   const [headerRows, setHeaderRows] = useState<ModelHeaderRow[] | null>(null);
   const [reasoning, setReasoning] = useState(false);
   const [thinkingLevel, setThinkingLevel] = useState<ThinkingLevel | null>(null);
@@ -217,6 +221,8 @@ export default function ModelConnection() {
       setHeaderRows(null);
       setEnabledModelIds(fields.enabledModelIds);
       setBaseUrl(fields.baseUrl);
+      setStreamTimeoutMs(fields.streamTimeoutMs);
+      setStreamIdleTimeoutMs(fields.streamIdleTimeoutMs);
       setReasoning(fields.reasoning);
       setThinkingLevel(fields.thinkingLevel);
       setMaxTokens(fields.maxTokens);
@@ -275,7 +281,10 @@ export default function ModelConnection() {
     headerRows,
     credential,
   });
-  const limitsDirty = maxTokens !== connectionMaxTokensField(provider, credential?.maxTokens);
+  const limitsDirty =
+    maxTokens !== connectionMaxTokensField(provider, credential?.maxTokens) ||
+    streamTimeoutMs.trim() !== String(credential?.streamTimeoutMs ?? "") ||
+    streamIdleTimeoutMs.trim() !== String(credential?.streamIdleTimeoutMs ?? "");
   const gatewayDirty =
     accountId.trim() !== (credential?.accountId ?? "") ||
     gatewayId.trim() !== (credential?.gatewayId ?? "");
@@ -369,6 +378,8 @@ export default function ModelConnection() {
         enabledModelIds,
         baseUrl,
         headerRows,
+        streamTimeoutMs,
+        streamIdleTimeoutMs,
         reasoning,
         thinkingLevel,
         maxTokens,
@@ -392,15 +403,20 @@ export default function ModelConnection() {
     if (connect.status === "invalid") {
       publishFeedback(anchor, {
         error:
-          connect.field === "maxTokens"
-            ? t("Enter a whole number from 1 to {max} for maximum output tokens.", {
-                max: MAX_MODEL_MAX_TOKENS,
-              })
-            : connect.field === "maxImagesPerPrompt"
-              ? t("Enter a whole number from 1 to 1000 for the image limit.")
-              : t("Enter a whole number from 1 to {max} for the context limit.", {
-                  max: MAX_MODEL_CONTEXT_WINDOW,
-                }),
+          connect.field === "streamTimeoutMs" || connect.field === "streamIdleTimeoutMs"
+            ? t(
+                "Enter a whole number from 1 to {max} for request timeouts, or leave blank to use server defaults.",
+                { max: MAX_MODEL_TIMEOUT_MS },
+              )
+            : connect.field === "maxTokens"
+              ? t("Enter a whole number from 1 to {max} for maximum output tokens.", {
+                  max: MAX_MODEL_MAX_TOKENS,
+                })
+              : connect.field === "maxImagesPerPrompt"
+                ? t("Enter a whole number from 1 to 1000 for the image limit.")
+                : t("Enter a whole number from 1 to {max} for the context limit.", {
+                    max: MAX_MODEL_CONTEXT_WINDOW,
+                  }),
       });
       return;
     }
@@ -585,6 +601,47 @@ export default function ModelConnection() {
     );
   }
 
+  const requestTimeoutFields = (
+    <>
+      {disclosureRow(t("Request timeouts"), showRequestTimeouts, () =>
+        setShowRequestTimeouts((visible) => !visible),
+      )}
+      {showRequestTimeouts ? (
+        <>
+          {limitField(
+            t("Time to response headers (ms)"),
+            streamTimeoutMs,
+            (value) => {
+              setStreamTimeoutMs(value);
+              clearFeedback();
+            },
+            String(MAX_MODEL_TIMEOUT_MS).length,
+          )}
+          {limitField(
+            t("Stream inactivity (ms)"),
+            streamIdleTimeoutMs,
+            (value) => {
+              setStreamIdleTimeoutMs(value);
+              clearFeedback();
+            },
+            String(MAX_MODEL_TIMEOUT_MS).length,
+          )}
+          <Text style={styles.secondary}>{t("Leave blank to use server defaults.")}</Text>
+          <NativeActionButton
+            label={t("Slow local inference (15 min)")}
+            disabled={busy}
+            prominence="secondary"
+            onPress={() => {
+              setStreamTimeoutMs("900000");
+              setStreamIdleTimeoutMs("900000");
+              clearFeedback();
+            }}
+          />
+        </>
+      ) : null}
+    </>
+  );
+
   const savedHeaderEndpointMatches = savedCompatibleEndpointMatches(baseUrl, credential?.baseUrl);
   const visibleHeaderRows =
     headerRows ??
@@ -758,6 +815,7 @@ export default function ModelConnection() {
               />
             </View>
           </View>
+          {requestTimeoutFields}
           <HeaderRowsEditor
             rows={visibleHeaderRows}
             onChange={changeHeaderRows}
@@ -871,6 +929,7 @@ export default function ModelConnection() {
               },
               String(MAX_MODEL_MAX_TOKENS).length,
             )}
+            {credential.authKind !== "oauth" ? requestTimeoutFields : null}
             {credential && limitsDirty ? (
               <NativeActionButton
                 disabled={busy || !cloudflareRoutingReady}

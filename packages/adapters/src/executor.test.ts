@@ -1295,7 +1295,12 @@ describe("run notification preference", () => {
       },
       select: {
         bot: { select: { notifyOnFinish: true } },
-        thread: { select: { groupId: true, tasks: { where: { conversation: true }, select: { id: true }, take: 1 } } },
+        thread: {
+          select: {
+            groupId: true,
+            tasks: { where: { conversation: true }, select: { id: true }, take: 1 },
+          },
+        },
       },
     });
 
@@ -3883,6 +3888,8 @@ description: Prepare standup notes
       kind: "api_key",
       key: "sk-test-key-1234",
       maxTokens: 16384,
+      streamTimeoutMs: 900_000,
+      streamIdleTimeoutMs: 900_000,
     });
     const findFirst = vi.fn(async () =>
       modelPreference({
@@ -3918,6 +3925,8 @@ description: Prepare standup notes
       provider,
       id: "scripted",
       maxTokens: 16384,
+      streamTimeoutMs: 900_000,
+      streamIdleTimeoutMs: 900_000,
     });
   });
 
@@ -3940,6 +3949,8 @@ description: Prepare standup notes
       maxImagesPerPrompt: 1,
       maxTokens: 8192,
       contextWindow: 65536,
+      streamTimeoutMs: 900_000,
+      streamIdleTimeoutMs: 900_000,
     });
     const bot = {
       modelProvider: provider,
@@ -3974,7 +3985,18 @@ description: Prepare standup notes
       maxImagesPerPrompt: 1,
       maxTokens: 8192,
       contextWindow: 65536,
+      streamTimeoutMs: 900_000,
+      streamIdleTimeoutMs: 900_000,
     });
+
+    // Checker and backup roles resolve their own connection through this path.
+    await expect(
+      executor.resolveConnectedModel(
+        { userId: "user-1", spaceId: "ws-1" },
+        provider,
+        "bot-vision-model",
+      ),
+    ).resolves.toMatchObject({ streamTimeoutMs: 900_000, streamIdleTimeoutMs: 900_000 });
 
     bot.modelId = "text-only-model";
     await expect(

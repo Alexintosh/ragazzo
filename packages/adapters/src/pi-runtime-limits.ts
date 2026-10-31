@@ -1,7 +1,13 @@
-import { DEFAULT_MODEL_MAX_TOKENS } from "@rakazo/contracts";
+import type { AgentRunModel } from "@rakazo/adapter-kit";
+import {
+  DEFAULT_MODEL_MAX_TOKENS,
+  DEFAULT_MODEL_STREAM_IDLE_TIMEOUT_MS,
+  DEFAULT_MODEL_STREAM_TIMEOUT_MS,
+  parseModelTimeoutMs,
+} from "@rakazo/contracts";
 
 /** Per-attempt wait for response headers; this does not cap active streaming duration. */
-export const MODEL_STREAM_TIMEOUT_MS = 120_000;
+export const MODEL_STREAM_TIMEOUT_MS = DEFAULT_MODEL_STREAM_TIMEOUT_MS;
 /** Bound connection establishment independently of response streaming. */
 export const MODEL_CONNECT_TIMEOUT_MS = 30_000;
 /**
@@ -9,7 +15,33 @@ export const MODEL_CONNECT_TIMEOUT_MS = 30_000;
  * unbounded. Bound silence for every provider so a stalled stream can fail
  * and advance the configured fallback chain.
  */
-export const MODEL_STREAM_IDLE_TIMEOUT_MS = 180_000;
+export const MODEL_STREAM_IDLE_TIMEOUT_MS = DEFAULT_MODEL_STREAM_IDLE_TIMEOUT_MS;
+
+export type ModelStreamTimeoutConfig = Pick<
+  AgentRunModel,
+  "streamTimeoutMs" | "streamIdleTimeoutMs"
+>;
+
+/** Caller overrides and connection settings take precedence over process defaults. */
+export function resolveModelStreamTimeoutMs(
+  config?: ModelStreamTimeoutConfig,
+  explicitTimeoutMs?: number,
+): number {
+  return (
+    parseModelTimeoutMs(explicitTimeoutMs) ??
+    parseModelTimeoutMs(config?.streamTimeoutMs) ??
+    parseModelTimeoutMs(process.env.MODEL_STREAM_TIMEOUT_MS) ??
+    MODEL_STREAM_TIMEOUT_MS
+  );
+}
+
+export function resolveModelStreamIdleTimeoutMs(config?: ModelStreamTimeoutConfig): number {
+  return (
+    parseModelTimeoutMs(config?.streamIdleTimeoutMs) ??
+    parseModelTimeoutMs(process.env.MODEL_STREAM_IDLE_TIMEOUT_MS) ??
+    MODEL_STREAM_IDLE_TIMEOUT_MS
+  );
+}
 export const DEFAULT_MODEL_STREAM_MAX_RETRIES = 1;
 
 /** More retries extend the worst-case turn; the executor heartbeat renews its leases. */

@@ -1399,6 +1399,27 @@ export const DEFAULT_MODEL_CONTEXT_WINDOW = 262_144;
 
 export const MAX_MODEL_CONTEXT_WINDOW = 2_147_483_647;
 
+/** Bounded waits for model response headers and for activity in an open stream. */
+export const DEFAULT_MODEL_STREAM_TIMEOUT_MS = 120_000;
+export const DEFAULT_MODEL_STREAM_IDLE_TIMEOUT_MS = 180_000;
+export const MAX_MODEL_TIMEOUT_MS = 2_147_483_647;
+
+/** Positive integer milliseconds; zero never means an unbounded wait. */
+export function parseModelTimeoutMs(value: unknown): number | undefined {
+  if (typeof value !== "number" && typeof value !== "string") return undefined;
+  if (typeof value === "string" && !/^\d+$/.test(value.trim())) return undefined;
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed >= 1 && parsed <= MAX_MODEL_TIMEOUT_MS
+    ? parsed
+    : undefined;
+}
+
+export const ModelTimeoutsSchema = z.object({
+  streamTimeoutMs: z.number().int().min(1).max(MAX_MODEL_TIMEOUT_MS).optional(),
+  streamIdleTimeoutMs: z.number().int().min(1).max(MAX_MODEL_TIMEOUT_MS).optional(),
+});
+export type ModelTimeouts = z.infer<typeof ModelTimeoutsSchema>;
+
 /**
  * Output limits follow the model; the only fixed bound is the context ceiling, and a connection's
  * limit must still leave room for input (`modelOutputLeavesInputRoom`).
@@ -1472,6 +1493,7 @@ export const ModelCredentialSchema = z.object({
   /** Computed space preference order; credentials themselves remain newest first. */
   preferenceRank: z.number().int().nonnegative().optional(),
   ...ModelContextLimitsSchema.shape,
+  ...ModelTimeoutsSchema.shape,
   id: Id,
   provider: z.string(),
   label: z.string(),
@@ -1546,6 +1568,8 @@ export const CONNECTION_LABEL_MAX_LENGTH = 80;
 export const ModelConnectInputSchema = z
   .object({
     ...ModelContextLimitsSchema.shape,
+    streamTimeoutMs: ModelTimeoutsSchema.shape.streamTimeoutMs.nullable(),
+    streamIdleTimeoutMs: ModelTimeoutsSchema.shape.streamIdleTimeoutMs.nullable(),
     provider: z.string(),
     apiKey: z.string().optional(),
     accountId: z.string().optional(),
@@ -1628,7 +1652,12 @@ export const ModelConnectInputSchema = z
       });
     }
     // An existing connection can update its output limit without a new key.
-    if (!apiKey && value.maxTokens === undefined) {
+    if (
+      !apiKey &&
+      value.maxTokens === undefined &&
+      value.streamTimeoutMs === undefined &&
+      value.streamIdleTimeoutMs === undefined
+    ) {
       ctx.addIssue({
         code: "custom",
         message: "API key must contain at least 8 characters",
