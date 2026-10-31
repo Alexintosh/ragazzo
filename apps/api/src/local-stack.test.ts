@@ -47,6 +47,7 @@ const baseEnv = {
   DOCKER_SOCKET: "/tmp/test-docker.sock",
 };
 let child: ChildProcess;
+let migration: ChildProcess;
 let occupiedPorts: Set<number>;
 beforeEach(() => {
   vi.resetAllMocks();
@@ -68,7 +69,14 @@ beforeEach(() => {
     return server;
   });
   child = new EventEmitter() as ChildProcess;
-  mocks.spawn.mockReturnValue(child);
+  migration = new EventEmitter() as ChildProcess;
+  mocks.spawn.mockImplementation((command) => {
+    if (command === "pnpm") {
+      queueMicrotask(() => migration.emit("close", 0, null));
+      return migration;
+    }
+    return child;
+  });
   mocks.createRequire.mockReturnValue(() => mocks.Docker);
   mocks.Docker.mockImplementation(function DockerMock() {
     return { ping: mocks.ping, getImage: mocks.getImage };
@@ -189,15 +197,95 @@ describe("local Docker selection", () => {
 });
 
 describe("local launcher ownership", () => {
+  it("waits for the canonical migration runner before starting any local services", async () => {
+    mocks.spawn.mockImplementationOnce(() => migration);
+    const running = runLocalStack(
+      "/project",
+      { ...baseEnv, DATABASE_MIGRATION_URL: "postgresql://owner@localhost/test" },
+      true,
+      signal(),
+    );
+    await vi.waitFor(() => expect(mocks.spawn).toHaveBeenCalledOnce());
+    expect(mocks.spawn).toHaveBeenCalledWith("pnpm", ["db:migrate"], {
+      cwd: "/project",
+      env: expect.objectContaining({
+        DATABASE_MIGRATION_URL: "postgresql://owner@localhost/test",
+        SANDBOX_SUPERVISOR_URL: "http://127.0.0.1:7091",
+      }),
+      stdio: ["ignore", "inherit", "inherit"],
+      detached: true,
+    });
+    expect(mocks.Docker).not.toHaveBeenCalled();
+    expect(mocks.check).not.toHaveBeenCalled();
+    expect(mocks.start).not.toHaveBeenCalled();
+    migration.emit("close", 0, null);
+    expect(await running).toBe(0);
+    expect(mocks.start).toHaveBeenCalledOnce();
+    expect(mocks.stopGroups).toHaveBeenCalledWith([migration]);
+  });
+  it.each(["failure", "signal", "spawn error"])(
+    "starts no services and cleans up the migration process on %s",
+    async (outcome) => {
+      mocks.spawn.mockImplementationOnce(() => {
+        queueMicrotask(() => {
+          if (outcome === "spawn error") migration.emit("error", new Error("not found"));
+          else
+            migration.emit(
+              "close",
+              outcome === "failure" ? 1 : null,
+              outcome === "signal" ? "SIGTERM" : null,
+            );
+        });
+        return migration;
+      });
+      expect(await runLocalStack("/project", baseEnv, true, signal())).toBe(1);
+      expect(mocks.spawn).toHaveBeenCalledOnce();
+      expect(mocks.Docker).not.toHaveBeenCalled();
+      expect(mocks.check).not.toHaveBeenCalled();
+      expect(mocks.start).not.toHaveBeenCalled();
+      expect(mocks.stopGroups).toHaveBeenCalledExactlyOnceWith([migration]);
+      expect(process.stderr.write).toHaveBeenCalledWith(
+        expect.stringContaining(
+          outcome === "spawn error" ? "Could not run" : "Database migration failed",
+        ),
+      );
+    },
+  );
+  it("cancels migration and stops its descendants before any service starts", async () => {
+    const controller = new AbortController();
+    mocks.spawn.mockImplementationOnce(() => migration);
+    const running = runLocalStack("/project", baseEnv, true, controller.signal);
+    await vi.waitFor(() => expect(mocks.spawn).toHaveBeenCalledOnce());
+    controller.abort();
+    expect(await running).toBe(0);
+    expect(mocks.stopGroups).toHaveBeenCalledExactlyOnceWith([migration]);
+    expect(mocks.Docker).not.toHaveBeenCalled();
+    expect(mocks.start).not.toHaveBeenCalled();
+  });
+  it("reports migration cleanup failure even when startup was cancelled", async () => {
+    const controller = new AbortController();
+    mocks.spawn.mockImplementationOnce(() => migration);
+    mocks.stopGroups.mockRejectedValueOnce(new Error("process group still running"));
+    const running = runLocalStack("/project", baseEnv, true, controller.signal);
+    await vi.waitFor(() => expect(mocks.spawn).toHaveBeenCalledOnce());
+    controller.abort();
+    expect(await running).toBe(1);
+    expect(mocks.stopGroups).toHaveBeenCalledExactlyOnceWith([migration]);
+    expect(mocks.Docker).not.toHaveBeenCalled();
+    expect(mocks.start).not.toHaveBeenCalled();
+    expect(process.stderr.write).toHaveBeenCalledWith(
+      "Database migration shutdown failed: process group still running\n",
+    );
+  });
   it("reuses an authenticated existing supervisor and leaves it running", async () => {
     occupiedPorts.add(7091);
     expect(await runLocalStack("/project", baseEnv, true, signal())).toBe(0);
     expect(mocks.check).toHaveBeenCalledWith(
       expect.objectContaining({ SANDBOX_SUPERVISOR_URL: "http://127.0.0.1:7091" }),
     );
-    expect(mocks.spawn).not.toHaveBeenCalled();
+    expect(mocks.spawn).toHaveBeenCalledOnce();
     expect(mocks.Docker).not.toHaveBeenCalled();
-    expect(mocks.stopGroups).not.toHaveBeenCalled();
+    expect(mocks.stopGroups).toHaveBeenCalledExactlyOnceWith([migration]);
     expect(mocks.stopStack).toHaveBeenCalledWith(0);
   });
   it("refuses a busy supervisor that fails authenticated readiness", async () => {
@@ -205,8 +293,8 @@ describe("local launcher ownership", () => {
     mocks.check.mockRejectedValue(new Error("unauthorized"));
     expect(await runLocalStack("/project", baseEnv, true, signal())).toBe(1);
     expect(mocks.start).not.toHaveBeenCalled();
-    expect(mocks.spawn).not.toHaveBeenCalled();
-    expect(mocks.stopGroups).not.toHaveBeenCalled();
+    expect(mocks.spawn).toHaveBeenCalledOnce();
+    expect(mocks.stopGroups).toHaveBeenCalledExactlyOnceWith([migration]);
   });
   it("checks the installed image before starting an owned supervisor on the selected socket", async () => {
     expect(
@@ -228,7 +316,7 @@ describe("local launcher ownership", () => {
         }),
       }),
     );
-    expect(mocks.spawn.mock.calls[0]![2].env).not.toHaveProperty("DOCKER_CONTEXT");
+    expect(mocks.spawn.mock.calls[1]![2].env).not.toHaveProperty("DOCKER_CONTEXT");
     expect(mocks.start).toHaveBeenCalledWith("/project", expect.any(Object), true, true, {
       signal: expect.any(AbortSignal),
     });
@@ -239,7 +327,7 @@ describe("local launcher ownership", () => {
     async (operation) => {
       mocks[operation].mockRejectedValueOnce(new Error("unavailable"));
       expect(await runLocalStack("/project", baseEnv, true, signal())).toBe(1);
-      expect(mocks.spawn).not.toHaveBeenCalled();
+      expect(mocks.spawn).toHaveBeenCalledOnce();
       expect(mocks.start).not.toHaveBeenCalled();
     },
   );

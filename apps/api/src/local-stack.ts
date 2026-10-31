@@ -77,6 +77,50 @@ export async function localDockerEnvironment(env: NodeJS.ProcessEnv, signal: Abo
   return resolved;
 }
 
+class MigrationShutdownError extends Error {}
+
+/** Use the owner-role runner for schema, queue migrations and runtime grants together. */
+async function migrateLocalDatabase(root: string, env: NodeJS.ProcessEnv, signal: AbortSignal) {
+  signal.throwIfAborted();
+  process.stdout.write("Applying database migrations and runtime grants...\n");
+  const migration = spawn("pnpm", ["db:migrate"], {
+    cwd: root,
+    env,
+    stdio: ["ignore", "inherit", "inherit"],
+    detached: true,
+  });
+  let aborted!: () => void;
+  try {
+    await new Promise<void>((resolve, reject) => {
+      aborted = () => reject(signal.reason);
+      migration.once("error", () =>
+        reject(new Error("Could not run pnpm db:migrate. Check that pnpm is installed.")),
+      );
+      migration.once("close", (code, exitSignal) => {
+        if (code === 0) resolve();
+        else
+          reject(
+            new Error(
+              `Database migration failed (${exitSignal ?? `exit ${code}`}). No local services were started. Resolve the migration error above and retry make start.`,
+            ),
+          );
+      });
+      signal.addEventListener("abort", aborted, { once: true });
+      if (signal.aborted) aborted();
+    });
+  } finally {
+    signal.removeEventListener("abort", aborted);
+    // pnpm wraps other processes; also stop descendants if cancellation wins.
+    await stopNativeProcessGroups([migration]).catch((error) => {
+      throw new MigrationShutdownError(
+        `Database migration shutdown failed: ${error instanceof Error ? error.message : "unknown error"}`,
+        { cause: error },
+      );
+    });
+  }
+  signal.throwIfAborted();
+}
+
 export async function runLocalStack(
   root: string,
   env: NodeJS.ProcessEnv,
@@ -109,6 +153,7 @@ export async function runLocalStack(
     }
     if (address.port === settings.apiPort || address.port === settings.webPort)
       throw new Error("The supervisor, API and web ports must differ.");
+    await migrateLocalDatabase(root, settings.env, combined);
     if (await localPortFree(address.port)) {
       const dockerEnv = await localDockerEnvironment(settings.env, combined);
       const requireSupervisor = createRequire(
@@ -179,7 +224,7 @@ export async function runLocalStack(
     exitCode = await stack.exited;
     if (supervisorFailed) throw new Error("The local Docker supervisor stopped unexpectedly.");
   } catch (error) {
-    if (!signal.aborted || supervisorFailed) {
+    if (!signal.aborted || supervisorFailed || error instanceof MigrationShutdownError) {
       process.stderr.write(
         `${supervisorFailed ? "The local Docker supervisor stopped unexpectedly." : error instanceof Error ? error.message : "Local stack failed"}\n`,
       );
