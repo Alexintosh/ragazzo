@@ -1,6 +1,6 @@
 import { z } from "zod";
-import { RuntimeKindSchema, ThinkingLevelSchema } from "./domain.js";
-import { Id } from "./ids.js";
+import { RuntimeKindSchema } from "./domain.js";
+import { Id, ThinkingLevelSchema } from "./ids.js";
 
 export const RuntimeModelSchema = z.object({
   id: z.string().min(1).max(200),

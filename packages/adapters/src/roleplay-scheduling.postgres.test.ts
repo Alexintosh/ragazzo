@@ -89,7 +89,6 @@ describePostgres("roleplay scheduled messages (PostgreSQL)", () => {
         { ...identity, email: "fixture@example.test", isDeploymentOwner: false },
         {
           name: character.name,
-          title: "",
           description: "",
           instructions: "",
           notifyOnFinish: false,

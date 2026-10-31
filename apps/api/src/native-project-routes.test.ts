@@ -23,8 +23,8 @@ const execution: SetBotExecutionInput = {
   projectPath: "/alias/project",
 };
 const creation: CreateBotInput = {
+  botKind: "agent",
   name: "Fixture",
-  title: "",
   description: "",
   instructions: "",
   computerMode: "dedicated",

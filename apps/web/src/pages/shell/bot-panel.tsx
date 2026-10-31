@@ -2,6 +2,7 @@ import { Trans, useLingui } from "@lingui/react/macro";
 import type {
   AgentSkillCatalogEntry,
   Bot,
+  BotAvatarSet,
   ComputerMode,
   ModelCatalogEntry,
   RoleplayCharacter,
@@ -11,9 +12,9 @@ import {
   BOT_COMPUTER_MODES,
   BOT_DESCRIPTION_MAX_LENGTH,
   BOT_NAME_MAX_LENGTH,
-  BOT_TITLE_MAX_LENGTH,
   BUILTIN_TOOL_NAMES,
   isBuiltinToolName,
+  resolveBotAvatarSet,
 } from "@rakazo/contracts";
 import {
   chatModelChoices,
@@ -29,16 +30,15 @@ import {
   NativeSelect,
   NativeSelectOption,
   Switch,
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
   Textarea,
   Toggle,
 } from "@rakazo/ui-web";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@rakazo/ui-web/components/ui/collapsible";
 import { useQuery } from "@tanstack/react-query";
-import { ChevronDown, Download, Settings, X } from "lucide-react";
+import { Download, Settings, X } from "lucide-react";
 import type { ReactNode } from "react";
 import { Suspense, useEffect, useId, useRef, useState } from "react";
 import { ErrorBoundary, SectionLoadFailed } from "../../components/ErrorBoundary";
@@ -47,15 +47,13 @@ import { botProfilePatch } from "../../lib/bot-profile-patch";
 import { thinkingLevelLabel } from "../../lib/model-catalog";
 import { lazyComponent } from "../../lib/preload-recovery";
 import { useSpaceQueries } from "../../lib/query";
-import { errorText } from "../../lib/user-error";
 import { useSpaceRpc } from "../../lib/space-rpc";
-import { AgentImportUndo } from "./agent-import-undo";
+import { errorText } from "../../lib/user-error";
 import { AvatarStudioPopover } from "./avatar-studio-popover";
-import { BotCredentialsSection } from "./bot-credentials";
 import { BotRuntimeSettings, BotRuntimeStatus } from "./bot-runtime-settings";
 import { ChatModelPicker } from "./chat-model-picker";
-import { RoleplaySettings } from "./roleplay-settings";
 import { RoleplayRelationshipDebug } from "./roleplay-relationship-debug";
+import { RoleplaySettings } from "./roleplay-settings";
 
 const ScratchpadSection = lazyComponent(() =>
   import("../ScratchpadSection").then((module) => module.ScratchpadSection),
@@ -110,17 +108,27 @@ export function ComputerModePicker({
   );
 }
 
+export type BotPanelTab = "computer" | "routines" | "settings";
+
+/** A bot's profile above its Computer, Routines and Advanced tabs. */
 export function BotSettings({
   bot,
+  tab = "settings",
+  onTabChange,
+  computer,
+  routines,
   memoryProviderConfigured,
   onSave,
   onExport,
   onClear,
-  onUndoImport,
   focusModel = 0,
   onOpenConnections,
 }: {
   bot: Bot;
+  tab?: BotPanelTab;
+  onTabChange?: (tab: BotPanelTab) => void;
+  computer?: ReactNode;
+  routines?: ReactNode;
   focusModel?: number;
   onOpenConnections?: () => void;
   /** Unused: the skill sections read and save the shared cached skill list. */
@@ -129,10 +137,10 @@ export function BotSettings({
   onSave: (
     patch: {
       name?: string;
-      title?: string;
       description?: string;
       instructions?: string;
       color?: string;
+      avatarSet?: BotAvatarSet;
       notifyOnFinish?: boolean;
       runtimeKind?: Bot["runtimeKind"];
       executionTarget?: Bot["executionTarget"];
@@ -156,26 +164,18 @@ export function BotSettings({
   ) => Promise<void>;
   onExport: () => Promise<void>;
   onClear: () => void;
-  /** Shown for bots that came from an agent import. */
-  onUndoImport?: () => void;
 }) {
   const { t } = useLingui();
   const ids = useId();
-  const [advancedOpen, setAdvancedOpen] = useState(Boolean(focusModel));
   const modelRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    if (focusModel) setAdvancedOpen(true);
-  }, [focusModel]);
-  useEffect(() => {
-    if (focusModel && advancedOpen) {
+    if (focusModel && tab === "settings") {
       modelRef.current?.scrollIntoView?.({ block: "nearest" });
       modelRef.current?.querySelector<HTMLElement>('[id$="-model"]')?.focus();
     }
-  }, [advancedOpen, focusModel]);
+  }, [tab, focusModel]);
   const [name, setName] = useState(bot.name);
-  const [title, setTitle] = useState(bot.title);
   const savedNameRef = useRef(bot.name);
-  const savedTitleRef = useRef(bot.title);
   const [description, setDescription] = useState(bot.description);
   // A roster refresh can skip replacing bots while a reorder is in flight, so
   // this prop keeps the description from when the panel opened. Later saves
@@ -183,12 +183,14 @@ export function BotSettings({
   // voice change treats that stale text as an edit and overwrites instructions.
   const savedDescriptionRef = useRef(bot.description ?? "");
   const [color, setColor] = useState(bot.color);
+  const [avatarSet, setAvatarSet] = useState(() => resolveBotAvatarSet(bot.avatarSet));
   const [notifyOnFinish, setNotifyOnFinish] = useState(bot.notifyOnFinish ?? true);
   const acceptedAutomatic = useRef({
     color: bot.color,
+    avatarSet: resolveBotAvatarSet(bot.avatarSet),
     notifyOnFinish: bot.notifyOnFinish ?? true,
   });
-  const automaticRevision = useRef({ color: 0, notifyOnFinish: 0 });
+  const automaticRevision = useRef({ color: 0, avatarSet: 0, notifyOnFinish: 0 });
   const [runtime, setRuntime] = useState({
     runtimeKind: bot.runtimeKind ?? "pi",
     executionTarget: bot.executionTarget ?? "default",
@@ -261,7 +263,6 @@ export function BotSettings({
   ]);
   const dirty =
     name.trim() !== savedNameRef.current.trim() ||
-    title.trim() !== savedTitleRef.current.trim() ||
     advancedSnapshot !== savedAdvanced ||
     description.trim() !== savedDescriptionRef.current;
   const [error, setError] = useState<string | null>(null);
@@ -270,16 +271,16 @@ export function BotSettings({
     (
       patchOverrides?: {
         name?: string;
-        title?: string;
         description?: string;
         color?: string;
+        avatarSet?: BotAvatarSet;
         notifyOnFinish?: boolean;
         fleetManagement?: boolean;
         crossSpaceCommunication?: boolean;
         disabledBuiltinTools?: string[];
         baseDisabledBuiltinTools?: string[];
       },
-      revisions?: { color: number; notifyOnFinish: number },
+      revisions?: { color: number; avatarSet: number; notifyOnFinish: number },
     ) => Promise<void>
   >(async () => undefined);
   // The panel can open on a cached bot. When a newer copy arrives, every field not edited since
@@ -291,15 +292,19 @@ export function BotSettings({
     shownBotRef.current = bot;
     if (name.trim() === savedNameRef.current.trim()) setName(bot.name);
     savedNameRef.current = bot.name;
-    if (title.trim() === savedTitleRef.current.trim()) setTitle(bot.title);
-    savedTitleRef.current = bot.title;
     if (description.trim() === savedDescriptionRef.current) setDescription(bot.description);
     savedDescriptionRef.current = bot.description ?? "";
     const accepted = acceptedAutomatic.current;
     const nextNotify = bot.notifyOnFinish ?? true;
     if (color === accepted.color) setColor(bot.color);
+    const nextAvatarSet = resolveBotAvatarSet(bot.avatarSet);
+    if (avatarSet === accepted.avatarSet) setAvatarSet(nextAvatarSet);
     if (notifyOnFinish === accepted.notifyOnFinish) setNotifyOnFinish(nextNotify);
-    acceptedAutomatic.current = { color: bot.color, notifyOnFinish: nextNotify };
+    acceptedAutomatic.current = {
+      color: bot.color,
+      avatarSet: nextAvatarSet,
+      notifyOnFinish: nextNotify,
+    };
     const saved = JSON.parse(savedAdvanced) as unknown[];
     const next = advancedValues(bot);
     if (modelKey === saved[0]) setModelKey(next[0]);
@@ -363,16 +368,16 @@ export function BotSettings({
   async function executeSave(
     patchOverrides?: {
       name?: string;
-      title?: string;
       description?: string;
       color?: string;
+      avatarSet?: BotAvatarSet;
       notifyOnFinish?: boolean;
       fleetManagement?: boolean;
       crossSpaceCommunication?: boolean;
       disabledBuiltinTools?: string[];
       baseDisabledBuiltinTools?: string[];
     },
-    revisions?: { color: number; notifyOnFinish: number },
+    revisions?: { color: number; avatarSet: number; notifyOnFinish: number },
   ) {
     try {
       setSaving(true);
@@ -387,26 +392,28 @@ export function BotSettings({
       }
       const selected = selectedModel;
       const nextName = (patchOverrides?.name !== undefined ? patchOverrides.name : name).trim();
-      const nextTitle = (patchOverrides?.title !== undefined ? patchOverrides.title : title).trim();
       const nextDescription = (
         patchOverrides?.description !== undefined ? patchOverrides.description : description
       ).trim();
       const nextColor = patchOverrides?.color !== undefined ? patchOverrides.color : color;
+      const nextAvatarSet = patchOverrides?.avatarSet ?? avatarSet;
       const nextNotify =
         patchOverrides?.notifyOnFinish !== undefined
           ? patchOverrides.notifyOnFinish
           : notifyOnFinish;
 
       if (nextName) setName(nextName);
-      setTitle(nextTitle);
       setDescription(nextDescription);
       const patch = {
         ...(nextName && nextName !== savedNameRef.current.trim() ? { name: nextName } : {}),
-        ...(nextTitle !== savedTitleRef.current.trim() ? { title: nextTitle } : {}),
         // Keep untouched profile fields off the wire.
         ...botProfilePatch(savedDescriptionRef.current, nextDescription),
         // Unchanged color stays off the wire so a legacy named value cannot fail a name save.
         ...(nextColor !== acceptedAutomatic.current.color ? { color: nextColor } : {}),
+        ...(patchOverrides?.avatarSet !== undefined ||
+        nextAvatarSet !== acceptedAutomatic.current.avatarSet
+          ? { avatarSet: nextAvatarSet }
+          : {}),
         notifyOnFinish: nextNotify,
         ...runtime,
         computerMode,
@@ -500,9 +507,12 @@ export function BotSettings({
         persistedDisabledToolsRef.current = nextTools;
         break;
       }
-      acceptedAutomatic.current = { color: nextColor, notifyOnFinish: nextNotify };
+      acceptedAutomatic.current = {
+        color: nextColor,
+        avatarSet: nextAvatarSet,
+        notifyOnFinish: nextNotify,
+      };
       if (nextName) savedNameRef.current = nextName;
-      savedTitleRef.current = nextTitle;
       savedDescriptionRef.current = nextDescription;
       setSavedAdvanced(
         JSON.stringify([
@@ -525,6 +535,11 @@ export function BotSettings({
         revisions?.color === automaticRevision.current.color
       )
         setColor(acceptedAutomatic.current.color);
+      if (
+        patchOverrides?.avatarSet !== undefined &&
+        revisions?.avatarSet === automaticRevision.current.avatarSet
+      )
+        setAvatarSet(acceptedAutomatic.current.avatarSet);
       if (
         patchOverrides?.notifyOnFinish !== undefined &&
         revisions?.notifyOnFinish === automaticRevision.current.notifyOnFinish
@@ -558,9 +573,9 @@ export function BotSettings({
 
   function enqueueSave(patchOverrides?: {
     name?: string;
-    title?: string;
     description?: string;
     color?: string;
+    avatarSet?: BotAvatarSet;
     notifyOnFinish?: boolean;
     fleetManagement?: boolean;
     crossSpaceCommunication?: boolean;
@@ -571,6 +586,7 @@ export function BotSettings({
     // queued work reads the latest field values, not a stale render closure.
     pendingSavesRef.current += 1;
     if (patchOverrides?.color !== undefined) automaticRevision.current.color += 1;
+    if (patchOverrides?.avatarSet !== undefined) automaticRevision.current.avatarSet += 1;
     if (patchOverrides?.notifyOnFinish !== undefined) automaticRevision.current.notifyOnFinish += 1;
     const revisions = { ...automaticRevision.current };
     const queuedPatch =
@@ -588,19 +604,21 @@ export function BotSettings({
 
   return (
     <div data-testid="bot-settings">
-      <div
-        data-testid="bot-profile-header"
-        className="flex flex-col items-center pb-6 pt-2 text-center"
-      >
+      <div data-testid="bot-profile-header" className="flex flex-col items-center pb-5 text-center">
         <div className="flex justify-center pb-4">
           <AvatarStudioPopover
             value={color}
             identity={bot.id}
             status={bot.status}
             size={76}
-            onChange={(newColor) => {
+            avatarSet={avatarSet}
+            onChange={(newColor, nextAvatarSet) => {
               setColor(newColor);
-              void enqueueSave({ color: newColor });
+              if (nextAvatarSet !== undefined) setAvatarSet(nextAvatarSet);
+              void enqueueSave({
+                color: newColor,
+                ...(nextAvatarSet !== undefined ? { avatarSet: nextAvatarSet } : {}),
+              });
             }}
           />
         </div>
@@ -616,120 +634,120 @@ export function BotSettings({
             void enqueueSave({ name: value });
           }}
         />
-        <InlineProfileField
-          label={t`Title`}
-          editLabel={t`Edit label`}
-          placeholder={t`Add a label`}
-          value={title}
-          maxLength={BOT_TITLE_MAX_LENGTH}
-          className="mt-1 text-sm text-muted-foreground"
-          onCommit={(value) => {
-            setTitle(value.trim());
-            void enqueueSave({ title: value });
-          }}
-        />
       </div>
-      {bot.botKind === "roleplay" ? (
-        bot.roleplayCharacter ? (
-          <>
-            <RoleplaySettings
-              botId={bot.id}
-              character={bot.roleplayCharacter}
-              status={bot.status}
-              onSave={(roleplayCharacter, expectedRoleplayCharacter) =>
-                onSave({ roleplayCharacter, expectedRoleplayCharacter })
-              }
-            />
-            <RoleplayRelationshipDebug
-              key={bot.id}
-              onLoad={() => rpc.bots.roleplayRelationship({ botId: bot.id })}
-              onSave={(state) =>
-                rpc.bots.updateRoleplayRelationship({
-                  botId: bot.id,
-                  relationship: state.relationship,
-                  historyGeneration: state.historyGeneration,
-                  expectedRevision: state.revision,
-                })
-              }
-            />
-          </>
-        ) : null
-      ) : (
-        <InstructionSettings key={bot.id} bot={bot} />
-      )}
-      <section className="mt-6">
-        <h3 className="mb-2 text-xs font-medium text-muted-foreground">
-          <Trans>Notifications</Trans>
-        </h3>
-        <div className="flex items-center justify-between gap-3 rounded-xl bg-muted/50 p-4">
-          <div>
-            <label
-              htmlFor={`${ids}-notify-finish`}
-              id={`${ids}-notify-finish-label`}
-              className="text-sm"
-            >
-              <Trans>When it finishes or needs input</Trans>
-            </label>
-          </div>
-          <Switch
-            id={`${ids}-notify-finish`}
-            checked={notifyOnFinish}
-            aria-labelledby={`${ids}-notify-finish-label`}
-            onCheckedChange={(checked) => {
-              setNotifyOnFinish(checked);
-              void enqueueSave({ notifyOnFinish: checked });
-            }}
-          />
-        </div>
-      </section>
-      {bot.botKind !== "roleplay" ? (
-        <>
-          <ErrorBoundary fallback={<SectionLoadFailed />}>
-        <Suspense fallback={null}>
-          <ScratchpadSection botId={bot.id} />
-        </Suspense>
-      </ErrorBoundary>
-      <ErrorBoundary fallback={<SectionLoadFailed />}>
-        <Suspense fallback={null}>
-          <KnowledgeSection botId={bot.id} />
-        </Suspense>
-      </ErrorBoundary>
-      </>
-      ) : null}
-      <Collapsible
-        open={advancedOpen}
-        onOpenChange={setAdvancedOpen}
-        data-testid="bot-settings-advanced"
-        className="mt-6"
+      <Tabs
+        value={bot.botKind === "roleplay" ? "settings" : tab}
+        onValueChange={(next) => onTabChange?.(next as BotPanelTab)}
       >
-        <h3 className="mb-0 text-xs font-medium text-muted-foreground">
-          <CollapsibleTrigger className="group flex w-full cursor-pointer min-h-11 items-center justify-between gap-2 text-xs font-medium text-muted-foreground text-start outline-none focus-visible:ring-3 focus-visible:ring-ring/50">
+        <TabsList className="w-full">
+          {bot.botKind !== "roleplay" ? (
+            <>
+              <TabsTrigger value="computer">
+                <Trans>Computer</Trans>
+              </TabsTrigger>
+              <TabsTrigger value="routines">
+                <Trans>Routines</Trans>
+              </TabsTrigger>
+            </>
+          ) : null}
+          <TabsTrigger value="settings">
             <Trans>Advanced</Trans>
-            <ChevronDown
-              aria-hidden="true"
-              className="size-4 text-muted-foreground transition-transform -rotate-90 group-aria-expanded:rotate-0 motion-reduce:transition-none"
-            />
-          </CollapsibleTrigger>
-        </h3>
-        <CollapsibleContent>
-          <div className="space-y-6 pt-6">
-            {bot.botKind !== "roleplay" ? (
-              <SettingsGroup label={t`Agent and environment`}>
-              <BotRuntimeSettings
-                value={runtime}
-                onChange={(value) => {
-                  setRuntime({ ...value, registeredHostId: value.registeredHostId ?? null });
-                  if (
-                    value.executionTarget !== runtime.executionTarget &&
-                    value.executionTarget !== "default"
-                  )
-                    setComputerMode("dedicated");
+          </TabsTrigger>
+        </TabsList>
+        <TabsContent value="computer" className="pt-4">
+          {computer}
+        </TabsContent>
+        <TabsContent value="routines" className="pt-4">
+          {routines}
+        </TabsContent>
+        {/* Stays mounted so scratchpad and knowledge drafts survive a tab switch. */}
+        <TabsContent value="settings" keepMounted data-testid="bot-settings-advanced">
+          <section className="mt-6">
+            <h3 className="mb-2 text-xs font-medium text-muted-foreground">
+              <Trans>Notifications</Trans>
+            </h3>
+            <div className="flex items-center justify-between gap-3 rounded-xl bg-muted/50 p-4">
+              <div>
+                <label
+                  htmlFor={`${ids}-notify-finish`}
+                  id={`${ids}-notify-finish-label`}
+                  className="text-sm"
+                >
+                  <Trans>When it finishes or needs input</Trans>
+                </label>
+              </div>
+              <Switch
+                id={`${ids}-notify-finish`}
+                checked={notifyOnFinish}
+                aria-labelledby={`${ids}-notify-finish-label`}
+                onCheckedChange={(checked) => {
+                  setNotifyOnFinish(checked);
+                  void enqueueSave({ notifyOnFinish: checked });
                 }}
               />
-              {["codex", "claude", "acp"].includes(runtime.runtimeKind ?? "pi") ? (
-                <BotRuntimeStatus botId={bot.id} />
-              ) : null}
-            </SettingsGroup>
+            </div>
+          </section>
+          {bot.botKind !== "roleplay" ? (
+            <>
+              <ErrorBoundary fallback={<SectionLoadFailed />}>
+                <Suspense fallback={null}>
+                  <ScratchpadSection botId={bot.id} />
+                </Suspense>
+              </ErrorBoundary>
+              <ErrorBoundary fallback={<SectionLoadFailed />}>
+                <Suspense fallback={null}>
+                  <KnowledgeSection botId={bot.id} />
+                </Suspense>
+              </ErrorBoundary>
+            </>
+          ) : null}
+          <div className="space-y-6 pt-6">
+            {bot.botKind === "roleplay" ? (
+              bot.roleplayCharacter ? (
+                <>
+                  <RoleplaySettings
+                    botId={bot.id}
+                    character={bot.roleplayCharacter}
+                    status={bot.status}
+                    onSave={(roleplayCharacter, expectedRoleplayCharacter) =>
+                      onSave({ roleplayCharacter, expectedRoleplayCharacter })
+                    }
+                  />
+                  <RoleplayRelationshipDebug
+                    key={bot.id}
+                    onLoad={() => rpc.bots.roleplayRelationship({ botId: bot.id })}
+                    onSave={(state) =>
+                      rpc.bots.updateRoleplayRelationship({
+                        botId: bot.id,
+                        relationship: state.relationship,
+                        historyGeneration: state.historyGeneration,
+                        expectedRevision: state.revision,
+                      })
+                    }
+                  />
+                </>
+              ) : null
+            ) : (
+              <InstructionSettings key={bot.id} bot={bot} />
+            )}
+
+            {bot.botKind !== "roleplay" ? (
+              <SettingsGroup label={t`Agent and environment`}>
+                <BotRuntimeSettings
+                  value={runtime}
+                  onChange={(value) => {
+                    setRuntime({ ...value, registeredHostId: value.registeredHostId ?? null });
+                    if (
+                      value.executionTarget !== runtime.executionTarget &&
+                      value.executionTarget !== "default"
+                    )
+                      setComputerMode("dedicated");
+                  }}
+                />
+                {["codex", "claude", "acp"].includes(runtime.runtimeKind ?? "pi") ? (
+                  <BotRuntimeStatus botId={bot.id} />
+                ) : null}
+              </SettingsGroup>
             ) : null}
             {runtime.runtimeKind === "pi" ? (
               <div ref={modelRef}>
@@ -801,8 +819,7 @@ export function BotSettings({
                           { value: null, label: t`Inherit default` },
                           { value: "isolated" as const, label: t`Isolated` },
                           { value: "shared" as const, label: t`Shared` },
-                        ] satisfies Array<{ value: "isolated" | "shared" | null; label: string;
-                        }>
+                        ] satisfies Array<{ value: "isolated" | "shared" | null; label: string }>
                       ).map((option) => (
                         <Toggle
                           key={option.label}
@@ -860,40 +877,35 @@ export function BotSettings({
             </SettingsGroup>
             {bot.botKind !== "roleplay" ? (
               <SettingsGroup label={t`Permissions`}>
-              <div className="flex min-h-11 items-center justify-between gap-3 text-sm">
-                <label htmlFor={`${ids}-cross-space`} className={rowLabelClass}>
-                  <Trans>Allow cross-space bot communication</Trans>
-                </label>
-                <Switch
-                  id={`${ids}-cross-space`}
-                  checked={crossSpaceCommunication}
-                  disabled={saving}
-                  onCheckedChange={(checked) => {
-                    setCrossSpaceCommunication(checked);
-                    void enqueueSave({ crossSpaceCommunication: checked });
-                  }}
-                />
-              </div>
-              <div className="flex min-h-11 items-center justify-between gap-3 text-sm">
-                <div>
+                <div className="flex min-h-11 items-center justify-between gap-3 text-sm">
+                  <label htmlFor={`${ids}-cross-space`} className={rowLabelClass}>
+                    <Trans>Allow cross-space bot communication</Trans>
+                  </label>
+                  <Switch
+                    id={`${ids}-cross-space`}
+                    checked={crossSpaceCommunication}
+                    disabled={saving}
+                    onCheckedChange={(checked) => {
+                      setCrossSpaceCommunication(checked);
+                      void enqueueSave({ crossSpaceCommunication: checked });
+                    }}
+                  />
+                </div>
+                <div className="flex min-h-11 items-center justify-between gap-3 text-sm">
                   <label htmlFor={`${ids}-fleet-management`} className={rowLabelClass}>
                     <Trans>Manage the bots it creates</Trans>
                   </label>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    <Trans>Can edit and organise bots it creates</Trans>
-                  </p>
+                  <Switch
+                    id={`${ids}-fleet-management`}
+                    checked={fleetManagement}
+                    disabled={saving}
+                    onCheckedChange={(checked) => {
+                      setFleetManagement(checked);
+                      void enqueueSave({ fleetManagement: checked });
+                    }}
+                  />
                 </div>
-                <Switch
-                  id={`${ids}-fleet-management`}
-                  checked={fleetManagement}
-                  disabled={saving}
-                  onCheckedChange={(checked) => {
-                    setFleetManagement(checked);
-                    void enqueueSave({ fleetManagement: checked });
-                  }}
-                />
-              </div>
-            </SettingsGroup>
+              </SettingsGroup>
             ) : null}
             <SettingsGroup label={t`Description`}>
               <label htmlFor={`${ids}-description`} className="block text-xs text-muted-foreground">
@@ -913,66 +925,64 @@ export function BotSettings({
             </SettingsGroup>
             {bot.botKind !== "roleplay" ? (
               <>
-            <SettingsGroup label={t`Tools`}>
-              <section data-testid="bot-settings-tools">
-                <div className="space-y-4 [&>*]:mt-0">
-                  <div>
-                    <NativeSelect
-                      id={`${ids}-disabled-tools`}
-                      aria-label={t`Disable a tool`}
-                      value=""
-                      onChange={(event) => disableBuiltinTool(event.target.value)}
-                      className="w-full"
-                    >
-                      <NativeSelectOption value="">{t`Disable a tool`}</NativeSelectOption>
-                      {BUILTIN_TOOL_NAMES.filter(
-                        (name) => !disabledBuiltinTools.includes(name),
-                      ).map((name) => (
-                        <NativeSelectOption key={name} value={name}>
-                          {humanizeTool(name)}
-                        </NativeSelectOption>
-                      ))}
-                    </NativeSelect>
-                  </div>
-                  {disabledBuiltinTools.map((toolName) => (
-                    <div
-                      key={toolName}
-                      className="flex min-h-11 items-center justify-between gap-3 text-sm"
-                    >
-                      <span>{humanizeTool(toolName)}</span>
-                      <Button
-                        id={`${ids}-disabled-${toolName}`}
-                        variant="ghost"
-                        size="icon-xs"
-                        aria-label={t`Enable ${humanizeTool(toolName)}`}
-                        title={t`Enable ${humanizeTool(toolName)}`}
-                        onClick={() => {
-                          const next = disabledBuiltinTools.filter((entry) => entry !== toolName,
+                <SettingsGroup label={t`Tools`}>
+                  <section data-testid="bot-settings-tools">
+                    <div className="space-y-2 [&>*]:mt-0">
+                      <div>
+                        <NativeSelect
+                          id={`${ids}-disabled-tools`}
+                          aria-label={t`Disable a tool`}
+                          value=""
+                          onChange={(event) => disableBuiltinTool(event.target.value)}
+                          className="w-full"
+                        >
+                          <NativeSelectOption value="">{t`Disable a tool`}</NativeSelectOption>
+                          {BUILTIN_TOOL_NAMES.filter(
+                            (name) => !disabledBuiltinTools.includes(name),
+                          ).map((name) => (
+                            <NativeSelectOption key={name} value={name}>
+                              {humanizeTool(name)}
+                            </NativeSelectOption>
+                          ))}
+                        </NativeSelect>
+                      </div>
+                      {disabledBuiltinTools.map((toolName) => (
+                        <div
+                          key={toolName}
+                          className="flex min-h-11 items-center justify-between gap-3 text-sm"
+                        >
+                          <span>{humanizeTool(toolName)}</span>
+                          <Button
+                            id={`${ids}-disabled-${toolName}`}
+                            variant="ghost"
+                            size="icon-xs"
+                            aria-label={t`Enable ${humanizeTool(toolName)}`}
+                            title={t`Enable ${humanizeTool(toolName)}`}
+                            onClick={() => {
+                              const next = disabledBuiltinTools.filter(
+                                (entry) => entry !== toolName,
                               );
-                          setDisabledBuiltinTools(next);
-                          void enqueueSave({ disabledBuiltinTools: next });
-                        }}
-                      >
-                        <X className="size-4" />
-                      </Button>
+                              setDisabledBuiltinTools(next);
+                              void enqueueSave({ disabledBuiltinTools: next });
+                            }}
+                          >
+                            <X className="size-4" />
+                          </Button>
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
-              </section>
-            </SettingsGroup>
-            <BotCredentialsSection botId={bot.id} />
-            <ErrorBoundary fallback={<SectionLoadFailed />}>
-              <Suspense fallback={null}>
-                <KnowledgeSection botId={bot.id} skillsOnly />
-              </Suspense>
-            </ErrorBoundary>
+                  </section>
+                </SettingsGroup>
               </>
             ) : null}
             <div className="overflow-hidden rounded-xl bg-muted/50 px-4">
               <button
                 type="button"
                 className="flex min-h-12 w-full items-center justify-between text-sm"
-                onClick={() => void onExport()}
+                onClick={() => {
+                  setError(null);
+                  onExport().catch((err: unknown) => setError(errorText(err)));
+                }}
               >
                 <Trans>Export</Trans>
                 <Download className="size-4 text-muted-foreground" />
@@ -984,29 +994,27 @@ export function BotSettings({
               >
                 <Trans>Clear conversation</Trans>
               </button>
-              {onUndoImport ? <AgentImportUndo botId={bot.id} onUndone={onUndoImport} /> : null}
             </div>
           </div>
-        </CollapsibleContent>
-      </Collapsible>
+          {dirty ? (
+            <Button
+              className="sticky bottom-0 mt-5 w-full"
+              disabled={saving}
+              onClick={() => {
+                void enqueueSave({
+                  name,
+                  description,
+                  color,
+                  notifyOnFinish,
+                });
+              }}
+            >
+              <Trans>Save</Trans>
+            </Button>
+          ) : null}
+        </TabsContent>
+      </Tabs>
       {error ? <p className="mt-2 text-[13px] text-destructive">{error}</p> : null}
-      {dirty ? (
-        <Button
-          className="sticky bottom-0 mt-5 w-full"
-          disabled={saving}
-          onClick={() => {
-            void enqueueSave({
-              name,
-              title,
-              description,
-              color,
-              notifyOnFinish,
-            });
-          }}
-        >
-          <Trans>Save</Trans>
-        </Button>
-      ) : null}
     </div>
   );
 }
@@ -1031,7 +1039,6 @@ function InlineProfileField({
   label,
   editLabel,
   value,
-  placeholder,
   maxLength,
   className,
   onCommit,
@@ -1039,7 +1046,6 @@ function InlineProfileField({
   label: string;
   editLabel: string;
   value: string;
-  placeholder?: string;
   maxLength: number;
   className: string;
   onCommit: (value: string) => void;
@@ -1062,6 +1068,10 @@ function InlineProfileField({
       onChange={(event) => setDraft(event.target.value)}
       onBlur={commit}
       onKeyDown={(event) => {
+        if (event.nativeEvent.isComposing || event.keyCode === 229) {
+          if (event.key === "Escape") event.stopPropagation();
+          return;
+        }
         if (event.key === "Enter") {
           event.preventDefault();
           commit();
@@ -1083,16 +1093,27 @@ function InlineProfileField({
         setEditing(true);
       }}
     >
-      {value || placeholder}
+      {value}
     </button>
   );
 }
 
-function SettingsGroup({ label, children }: { label: string; children: ReactNode }) {
+/** `plain` drops the card for a section whose single control already draws its own frame. */
+function SettingsGroup({
+  label,
+  plain = false,
+  children,
+}: {
+  label: string;
+  plain?: boolean;
+  children: ReactNode;
+}) {
   return (
     <section>
       <h3 className="mb-2 text-xs font-medium text-muted-foreground">{label}</h3>
-      <div className="space-y-3 rounded-xl bg-muted/50 p-4 [&>*]:mt-0">{children}</div>
+      <div className={`space-y-3 [&>*]:mt-0 ${plain ? "" : "rounded-xl bg-muted/50 p-4"}`}>
+        {children}
+      </div>
     </section>
   );
 }

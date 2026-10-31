@@ -57,7 +57,6 @@ postgres("relationship debug scoped persistence (PostgreSQL)", () => {
       ).character;
       const bot = await createRepos(db.prisma).createBot(actor, {
         name: "Mira",
-        title: "",
         description: "",
         instructions: "",
         notifyOnFinish: false,

@@ -136,6 +136,65 @@ afterEach(async () => {
 });
 
 describe("managed host browser", () => {
+  it("fills approved purchase fields only on the matching HTTPS merchant and hides their values", async () => {
+    const { manager, scope, connections } = await setup();
+    try {
+      await manager.pageBrowser(scope, { command: "snapshot" });
+      const dom = [...connections[0]!.targets.values()][0]!;
+      dom.window.document.body.innerHTML =
+        '<input autocomplete="cc-number"><div class="AiAgentPaymentSteering" data-stripe-merchant-account="acct_fake123"><input name="link_pay_token"></div>';
+      const result = await manager.pageBrowser(scope, {
+        command: "act",
+        actions: [
+          {
+            kind: "fill",
+            field: "card",
+            cardField: "number",
+            text: "4242424242424242",
+            origin: "https://example.test",
+          },
+          {
+            kind: "pay_token",
+            text: "fake-pay-token",
+            origin: "https://example.test",
+            merchantAccountId: "acct_fake123",
+          },
+        ],
+      });
+      expect(result).toMatchObject({ ok: true, completed: 2 });
+      expect(result.tree).toContain(
+        'This checkout accepts a pay token: merchantAccountId "acct_fake123".',
+      );
+      expect(
+        dom.window.document.querySelector("input[autocomplete]")?.getAttribute("value"),
+      ).toBeNull();
+      expect(
+        (dom.window.document.querySelector("input[autocomplete]") as HTMLInputElement).value,
+      ).toBe("4242424242424242");
+      expect(JSON.stringify(result)).not.toContain("4242424242424242");
+      expect(JSON.stringify(result)).not.toContain("fake-pay-token");
+      dom.reconfigure({ url: "https://other.test" });
+      const refused = await manager.pageBrowser(scope, {
+        command: "act",
+        actions: [
+          {
+            kind: "fill",
+            field: "card",
+            cardField: "number",
+            text: "5555555555554444",
+            origin: "https://example.test",
+          },
+        ],
+      });
+      expect(refused).toMatchObject({ ok: false, completed: 0, uncertain: false });
+      expect(
+        (dom.window.document.querySelector("input[autocomplete]") as HTMLInputElement).value,
+      ).toBe("4242424242424242");
+    } finally {
+      await manager.close();
+    }
+  });
+
   it("uses real page refs for filling, typing, selections and protected saved logins", async () => {
     const { manager, scope, connections } = await setup();
     try {

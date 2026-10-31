@@ -1,11 +1,14 @@
 import { Trans, useLingui } from "@lingui/react/macro";
-import type { Bot, ComputerMode, RoleplayCharacter } from "@rakazo/contracts";
+import type { Bot, BotAvatarSet, ComputerMode, RoleplayCharacter } from "@rakazo/contracts";
 import {
   BOT_NAME_MAX_LENGTH,
-  ROLEPLAY_IMPORT_MAX_BYTES,
+  DEFAULT_NEW_BOT_AVATAR_SET,
   parseRoleplayCharacterJson,
+  ROLEPLAY_IMPORT_MAX_BYTES,
 } from "@rakazo/contracts";
 import {
+  newClientId,
+  ORGANIC_AVATAR_HEART_FAMILY,
   ORGANIC_AVATAR_LOOKS,
   organicAvatarFamily,
   organicAvatarSampleIdentity,
@@ -23,7 +26,7 @@ import {
   parseBotAvatar,
   Toggle,
 } from "@rakazo/ui-web";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { errorText } from "../../lib/user-error";
 import { BotLookPicker } from "./avatar-studio-popover";
 import { ComputerModePicker } from "./bot-panel";
@@ -42,6 +45,9 @@ export interface CreateBotDialogInput {
   botKind?: "agent" | "roleplay";
   roleplayCharacter?: RoleplayCharacter;
   color: string;
+  /** Reserve the logo preview's persistent seed through creation and retries. */
+  id?: string;
+  avatarSet: BotAvatarSet;
   /** The organic family the preview drew; omitted when a studio shape is picked. */
   avatarFamily?: number;
   runtimeKind?: Bot["runtimeKind"];
@@ -56,13 +62,12 @@ export interface CreateBotDialogInput {
 export function CreateBotDialog({
   onCancel,
   onCreate,
-  onImport,
 }: {
   onCancel: () => void;
   onCreate: (input: CreateBotDialogInput) => Promise<void>;
-  onImport?: () => void;
 }) {
   const { t } = useLingui();
+  const ids = useId();
   const nameRef = useRef<HTMLInputElement>(null);
   const [name, setName] = useState("");
   const [roleplay, setRoleplay] = useState(false);
@@ -117,6 +122,13 @@ export function CreateBotDialog({
       if (version === importVersion.current) setImporting(false);
     }
   }
+  const [previewId] = useState(() => {
+    let id: string;
+    do {
+      id = `c${newClientId().replaceAll("-", "").slice(0, 24)}`;
+    } while (organicAvatarFamily(id) === ORGANIC_AVATAR_HEART_FAMILY);
+    return id;
+  });
   const [look, setLook] = useState(() => ({
     value: pick(BOT_AVATAR_COLORS),
     identity: pick(ORGANIC_IDENTITIES),
@@ -129,6 +141,7 @@ export function CreateBotDialog({
     projectPath: null,
   });
   const [computerMode, setComputerMode] = useState<ComputerMode>("team");
+  const [avatarSet, setAvatarSet] = useState<BotAvatarSet>(DEFAULT_NEW_BOT_AVATAR_SET);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const trimmed = name.trim();
@@ -137,7 +150,7 @@ export function CreateBotDialog({
     if (!trimmed || submitting || (roleplay && (!character || importing))) return;
     setError(null);
     setSubmitting(true);
-    const organic = parseBotAvatar(look.value).shapeIndex === undefined;
+    const organic = avatarSet === "organic" && parseBotAvatar(look.value).shapeIndex === undefined;
     try {
       await onCreate({
         name: trimmed,
@@ -152,7 +165,11 @@ export function CreateBotDialog({
               projectPath: null,
               registeredHostId: null,
             }
-          : executionOpen ? { ...runtime, computerMode } : {}),
+          : executionOpen
+            ? { ...runtime, computerMode }
+            : {}),
+        ...(avatarSet === "rakazo" ? { id: previewId } : {}),
+        avatarSet,
         ...(organic ? { avatarFamily: organicAvatarFamily(look.identity) } : {}),
       });
     } catch (err) {
@@ -188,18 +205,23 @@ export function CreateBotDialog({
             </DialogTitle>
           </DialogHeader>
           <div className="flex justify-center py-2">
-            <BotAvatar color={look.value} identity={look.identity} size={96} />
+            <BotAvatar
+              color={look.value}
+              identity={avatarSet === "rakazo" ? previewId : look.identity}
+              size={96}
+              avatarSet={avatarSet}
+            />
           </div>
           <div className="flex items-center gap-2">
             <Input
-            ref={nameRef}
-            aria-label={t`Name`}
-            placeholder={t`Name your Bot`}
-            value={name}
-            maxLength={BOT_NAME_MAX_LENGTH}
-            onChange={(event) => setName(event.target.value)}
-            className="text-center"
-          />
+              ref={nameRef}
+              aria-label={t`Name`}
+              placeholder={t`Name your Bot`}
+              value={name}
+              maxLength={BOT_NAME_MAX_LENGTH}
+              onChange={(event) => setName(event.target.value)}
+              className="text-center"
+            />
             <Toggle
               aria-label={t`Roleplay`}
               pressed={roleplay}
@@ -221,11 +243,12 @@ export function CreateBotDialog({
           </div>
           {roleplay ? (
             <div className="space-y-2">
-              <label className="block space-y-2 text-sm">
+              <label htmlFor={`${ids}-character`} className="block space-y-2 text-sm">
                 <span>
                   <Trans>Character JSON</Trans>
                 </span>
                 <Input
+                  id={`${ids}-character`}
                   type="file"
                   accept=".json,application/json"
                   aria-label={t`Character JSON`}
@@ -268,21 +291,26 @@ export function CreateBotDialog({
           ) : null}
           <BotLookPicker
             value={look.value}
-            identity={look.identity}
+            identity={avatarSet === "rakazo" ? previewId : look.identity}
             organicIdentities={ORGANIC_IDENTITIES}
-            onChange={(value, identity) =>
-              setLook((current) => ({ value, identity: identity ?? current.identity }))
-            }
+            avatarSet={avatarSet}
+            onAvatarSetChange={(set, value) => {
+              setAvatarSet(set);
+              setLook((current) => ({ ...current, value }));
+            }}
+            onChange={(value, identity) => {
+              setLook((current) => ({ value, identity: identity ?? current.identity }));
+            }}
           />
           {!roleplay ? (
             <Button
-            type="button"
-            variant="ghost"
-            aria-expanded={executionOpen}
-            onClick={() => setExecutionOpen(!executionOpen)}
-          >
-            <Trans>Agent and environment</Trans>
-          </Button>
+              type="button"
+              variant="ghost"
+              aria-expanded={executionOpen}
+              onClick={() => setExecutionOpen(!executionOpen)}
+            >
+              <Trans>Agent and environment</Trans>
+            </Button>
           ) : null}
           {executionOpen && !roleplay ? (
             <div className="space-y-3">
@@ -291,22 +319,13 @@ export function CreateBotDialog({
             </div>
           ) : null}
           <DialogFooter>
-            {onImport && !roleplay ? (
-              <Button
-                type="button"
-                variant="ghost"
-                className="sm:me-auto"
-                disabled={submitting}
-                data-testid="create-bot-import"
-                onClick={onImport}
-              >
-                <Trans>Import</Trans>
-              </Button>
-            ) : null}
             <Button type="button" variant="outline" disabled={submitting} onClick={onCancel}>
               <Trans>Cancel</Trans>
             </Button>
-            <Button type="submit" disabled={!trimmed || submitting || (roleplay && (!character || importing))}>
+            <Button
+              type="submit"
+              disabled={!trimmed || submitting || (roleplay && (!character || importing))}
+            >
               <Trans>Create</Trans>
             </Button>
           </DialogFooter>

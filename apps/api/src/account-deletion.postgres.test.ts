@@ -33,7 +33,7 @@ import {
   SpaceDeletionInProgressError,
 } from "@rakazo/db";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { MemoryObjectStorage } from "../../../packages/adapters/src/object-storage.test-support.ts";
+import { MemoryObjectStorage } from "../../../packages/adapters/src/object-storage.test-support.js";
 import { deleteAccountContent } from "./account-deletion.js";
 import { assertNativeSetupAdmission } from "./native-setup-admission.js";
 import { nativeSetupOwners } from "./native-setup-owners.js";

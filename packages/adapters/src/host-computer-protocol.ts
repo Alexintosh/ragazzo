@@ -3,6 +3,7 @@ import { z } from "zod";
 import { hostBrowserRequests } from "./host-browser-protocol.js";
 import { hostCodexRequests } from "./host-codex-protocol.js";
 import { nativeSetupRequests } from "./native-setup-protocol.js";
+import { hostScreenMethods } from "./host-screen.js";
 
 export const HOST_COMPUTER_MAX_BYTES = 12 * 1024 * 1024;
 export const HOST_COMPUTER_MAX_FILE_BYTES = 8 * 1024 * 1024;
@@ -80,6 +81,8 @@ export const hostComputerRequest = z.discriminatedUnion("method", [
     maxBytes: z.number().int().positive().max(HOST_COMPUTER_MAX_FILE_BYTES).optional(),
   }),
   z.object({ ...base, method: z.literal("writeFile"), file }),
+  z.object({ ...base, method: z.literal("screenObserve"), ...hostScreenMethods.screenObserve }),
+  z.object({ ...base, method: z.literal("screenAct"), ...hostScreenMethods.screenAct }),
 ]);
 export type HostComputerRequest = z.infer<typeof hostComputerRequest>;
 export interface HostComputerEnvironment {
@@ -102,7 +105,7 @@ export function hostComputerDeadlineMs(request: HostComputerRequest) {
     request.method === "codexRunContextScoped"
   )
     return 24 * 60 * 60_000;
-  return request.method === "execute"
-    ? boundedSandboxCommandTimeoutMs(request.command.timeoutMs) + 30_000
-    : 10 * 60_000;
+  if (request.method === "execute")
+    return boundedSandboxCommandTimeoutMs(request.command.timeoutMs) + 30_000;
+  return request.method.startsWith("screen") ? 2 * 60_000 : 10 * 60_000;
 }

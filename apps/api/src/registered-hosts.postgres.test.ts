@@ -125,7 +125,7 @@ it.skipIf(!databaseUrl)(
       );
       expect(placement.computer?.registeredHostId).toBe(host.id);
       const secrets = new EncryptedSecretStore("registered-host-test-encryption-key");
-      const sandbox = createRunSandbox("fake", { prisma: handles.prisma, secrets });
+      const sandbox = await createRunSandbox("fake", { prisma: handles.prisma, secrets });
       const transportContext = {
         spaceId: row.spaceId,
         userId: row.userId,

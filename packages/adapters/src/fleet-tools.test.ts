@@ -24,7 +24,6 @@ type FakeBot = {
   modelProvider?: string | null;
   modelId?: string | null;
   thinkingLevel?: string | null;
-  title?: string;
   description?: string;
   pinned?: boolean;
   section?: { name: string } | null;
@@ -74,7 +73,6 @@ function fakeFleet(input: {
     archivedAt: null,
     modelProvider: null,
     modelId: null,
-    title: "",
     description: "",
     pinned: false,
     section: null,
@@ -148,6 +146,7 @@ function fakeFleet(input: {
     },
     userModelPreference: { findMany: vi.fn(async () => input.credentials ?? []) },
     userModelCredential: { findMany: vi.fn(async () => []) },
+    secret: { findMany: vi.fn(async () => []) },
   };
   const deps: FleetPrepareDeps = {
     prisma: prisma as unknown as PrismaClient,
@@ -423,6 +422,18 @@ describe("prepareFleetRequest set_child_bot_model", () => {
       summary: {
         lines: ["From: unknown-model (Anthropic)", "To: unknown-model (custom)"],
       },
+    });
+  });
+
+  it("names the provider to connect when no connected model matches a loose name", async () => {
+    const { deps } = fakeFleet(fleet);
+    const prepared = await prepareFleetRequest(deps, run, "set_child_bot_model", {
+      bot_id: "bot-scout",
+      model: "Claude Sonnet",
+    });
+    expect(prepared).toMatchObject({
+      ok: false,
+      error: expect.stringMatching(/^No connected model matches "Claude Sonnet"\. .*Anthropic/),
     });
   });
 
@@ -924,7 +935,7 @@ describe("listFleet", () => {
       ...fleet,
       bots: fleet.bots.map((bot) =>
         bot.id === "bot-scout"
-          ? { ...bot, title: "Scout\nlead", pinned: true, section: { name: "Research" } }
+          ? { ...bot, description: "Finds\nleads", pinned: true, section: { name: "Research" } }
           : bot,
       ),
       groups: [
@@ -950,7 +961,6 @@ describe("listFleet", () => {
         {
           id: "bot-self",
           name: "Designer",
-          title: "",
           description: "",
           section: null,
           pinned: false,
@@ -959,8 +969,7 @@ describe("listFleet", () => {
         {
           id: "bot-scout",
           name: "Scout",
-          title: "Scout lead",
-          description: "",
+          description: "Finds\nleads",
           section: "Research",
           pinned: true,
           createdByMe: true,
@@ -1184,12 +1193,12 @@ describe("updateChildBot", () => {
         expected_version: "version-2",
       }),
     ).toEqual({
-      error: "Provide at least one of name, title, description, notify_on_finish, or color.",
+      error: "Change another bot's instructions with set_child_instructions.",
     });
     expect(prisma.$transaction).not.toHaveBeenCalled();
   });
 
-  it.each(["name", "title", "description"])(
+  it.each(["name", "description"])(
     "refuses a %s that contains a credential of this run",
     async (field) => {
       const { prisma } = fakeFleet({ bots });
@@ -1203,7 +1212,7 @@ describe("updateChildBot", () => {
     },
   );
 
-  it.each(["name", "title", "description", "artifact_id", "color"])(
+  it.each(["name", "description", "artifact_id", "color"])(
     "omits blank %s while preserving a real update",
     async (field) => {
       const { prisma } = fakeFleet({ bots });
@@ -1213,7 +1222,6 @@ describe("updateChildBot", () => {
           update: vi.fn().mockResolvedValue({
             id: "bot-child",
             name: "Child",
-            title: "Original",
             description: "Original",
           }),
         },
@@ -1239,7 +1247,7 @@ describe("updateChildBot", () => {
     expect(
       await updateChildBot(writeDeps(prisma), run, { bot_id: "bot-child", name: "   " }),
     ).toEqual({
-      error: "Provide at least one of name, title, description, notify_on_finish, or color.",
+      error: "Provide at least one of name, description, notify_on_finish, or color.",
     });
     expect(
       await updateChildBot(writeDeps(prisma), run, { bot_id: "bot-child", color: "red" }),

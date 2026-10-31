@@ -1149,6 +1149,7 @@ describe("roleplay executor boundary", () => {
       {
         id: "steering",
         messageId: "queued-user",
+        origin: "user",
         text: "unused generic text",
         blocks: [{ kind: "text", text: "I step into the passage." }],
       },
@@ -1191,6 +1192,7 @@ describe("roleplay executor boundary", () => {
       {
         id: "queued",
         messageId: "source",
+        origin: "user",
         text: "",
         blocks: [{ kind: "text", text: "I follow the map." }],
       },

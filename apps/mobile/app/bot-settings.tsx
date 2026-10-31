@@ -1,12 +1,18 @@
-import type { Bot, ComputerMode, NativeExecutionStatus, ThinkingLevel } from "@rakazo/contracts";
+import type {
+  Bot,
+  BotAvatarSet,
+  ComputerMode,
+  NativeExecutionStatus,
+  ThinkingLevel,
+} from "@rakazo/contracts";
 import {
   BOT_AVATAR_SHAPE_COUNT,
   BOT_COLORS,
   BOT_DESCRIPTION_MAX_LENGTH,
   BOT_INSTRUCTIONS_MAX_LENGTH,
   BOT_NAME_MAX_LENGTH,
-  BOT_TITLE_MAX_LENGTH,
   NativeRuntimeCapabilities,
+  resolveBotAvatarSet,
 } from "@rakazo/contracts";
 import {
   credentialForModel,
@@ -43,9 +49,9 @@ import { NativeSwitch } from "../components/native-switch";
 import { NativeSymbol } from "../components/native-symbol";
 import { ProfileEditDialog } from "../components/profile-edit-dialog";
 import { RegisteredHostPicker } from "../components/registered-host-picker";
+import { RoleplayRelationshipDebug } from "../components/roleplay-relationship-debug";
 import type { RoleplaySettingsHandle } from "../components/roleplay-settings";
 import { RoleplaySettings } from "../components/roleplay-settings";
-import { RoleplayRelationshipDebug } from "../components/roleplay-relationship-debug";
 import { Chevron } from "../components/row-accessories";
 import type { MobileMe, MobileModel, MobileModelCredential } from "../lib/api";
 import { rpc } from "../lib/api";
@@ -89,7 +95,6 @@ export default function BotSettingsScreen() {
   const modelY = useRef(0);
   const [bot, setBot] = useState<Bot | null>(null);
   const [name, setName] = useState("");
-  const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [instructions, setInstructions] = useState("");
   const [color, setColor] = useState<string>(BOT_COLORS[0]);
@@ -105,6 +110,7 @@ export default function BotSettingsScreen() {
   const executionContextRef = useRef({ botId, runtimeKind, executionTarget, registeredHostId });
   executionContextRef.current = { botId, runtimeKind, executionTarget, registeredHostId };
   const [computerMode, setComputerMode] = useState<ComputerMode>("team");
+  const [avatarSet, setAvatarSet] = useState<BotAvatarSet>("organic");
   const [avatarOpen, setAvatarOpen] = useState(false);
   const [advancedOpen, setAdvancedOpen] = useState(focus === "model" || pickedModel !== undefined);
   const [modelKey, setModelKey] = useState("");
@@ -127,7 +133,10 @@ export default function BotSettingsScreen() {
   const [voiceError, setVoiceError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const roleplaySettingsRef = useRef<RoleplaySettingsHandle>(null);
-  const [roleplaySettingsState, setRoleplaySettingsState] = useState({ dirty: false, pending: false });
+  const [roleplaySettingsState, setRoleplaySettingsState] = useState({
+    dirty: false,
+    pending: false,
+  });
 
   useEffect(() => {
     setRoleplaySettingsState({ dirty: false, pending: false });
@@ -168,20 +177,20 @@ export default function BotSettingsScreen() {
       }),
     [botId],
   );
-  const profileSaves = useMemo(() => {
-    const fieldQueue = (field: "name" | "title", onChange: (value: string) => void) =>
+  const nameSave = useMemo(
+    () =>
       createQueuedSave<string>("", {
-        save: async (value) => {
-          await rpc("bots/update", { botId, [field]: value });
+        save: async (name) => {
+          await rpc("bots/update", { botId, name });
         },
-        onChange,
-        onSaved: async (value) => {
-          setBot((prev) => (prev ? { ...prev, [field]: value } : prev));
+        onChange: setName,
+        onSaved: async (name) => {
+          setBot((prev) => (prev ? { ...prev, name } : prev));
         },
         onError: (err) => setError(errorText(err)),
-      });
-    return { name: fieldQueue("name", setName), title: fieldQueue("title", setTitle) };
-  }, [botId]);
+      }),
+    [botId],
+  );
 
   useEffect(() => {
     if (!botId) return;
@@ -189,13 +198,12 @@ export default function BotSettingsScreen() {
       .then((next) => {
         setBot(next);
         setName(next.name);
-        profileSaves.name.reset(next.name);
-        profileSaves.title.reset(next.title);
+        nameSave.reset(next.name);
         notifySave.reset(next.notifyOnFinish ?? true);
-        setTitle(next.title);
         setDescription(next.description ?? "");
         setInstructions(next.instructions ?? "");
         setColor(next.color);
+        setAvatarSet(resolveBotAvatarSet(next.avatarSet));
         setComputerMode(next.computerMode);
         setRuntimeKind(next.runtimeKind ?? "pi");
         setExecutionTarget(next.executionTarget ?? "default");
@@ -216,7 +224,7 @@ export default function BotSettingsScreen() {
         fleetSave.reset(next.fleetManagement);
       })
       .catch((err) => setError(errorText(err, t("Could not load bot"))));
-  }, [botId, crossSpaceSave, fleetSave, notifySave, profileSaves]);
+  }, [botId, crossSpaceSave, fleetSave, notifySave, nameSave]);
 
   useEffect(() => {
     if (runtimeKind === "pi" || !botId) return;
@@ -421,6 +429,7 @@ export default function BotSettingsScreen() {
         instructions?: string;
         expectedInstructions?: string;
         color?: string;
+        avatarSet?: BotAvatarSet;
         modelProvider?: string | null;
         modelId?: string | null;
         thinkingLevel?: ThinkingLevel | null;
@@ -434,6 +443,7 @@ export default function BotSettingsScreen() {
         input.expectedInstructions = bot.instructions;
       }
       if (color !== bot.color) input.color = color;
+      if (avatarSet !== resolveBotAvatarSet(bot.avatarSet)) input.avatarSet = avatarSet;
       const modelChanged =
         (selected?.provider ?? null) !== (bot.modelProvider ?? null) ||
         (selected?.modelId ?? null) !== (bot.modelId ?? null);
@@ -500,8 +510,7 @@ export default function BotSettingsScreen() {
         crossSpaceSave.flush(),
         fleetSave.flush(),
         notifySave.flush(),
-        profileSaves.name.flush(),
-        profileSaves.title.flush(),
+        nameSave.flush(),
       ]);
       router.back();
     } catch (err) {
@@ -521,6 +530,7 @@ export default function BotSettingsScreen() {
       runtimePermission !== (bot.runtimePermission ?? "workspace") ||
       (projectPath || null) !== (bot.projectPath ?? null) ||
       (registeredHostId ?? null) !== (bot.registeredHostId ?? null) ||
+      avatarSet !== resolveBotAvatarSet(bot.avatarSet) ||
       computerMode !== bot.computerMode ||
       autoSpeak !== bot.autoSpeak ||
       (selectedModel?.provider ?? null) !== (bot.modelProvider ?? null) ||
@@ -596,7 +606,13 @@ export default function BotSettingsScreen() {
               onPress={() => setAvatarOpen(true)}
               style={{ padding: 4 }}
             >
-              <BotAvatar color={color} identity={bot.id} size={64} status={bot.status} />
+              <BotAvatar
+                color={color}
+                avatarSet={avatarSet}
+                identity={bot.id}
+                size={64}
+                status={bot.status}
+              />
               <View
                 style={{
                   position: "absolute",
@@ -620,17 +636,7 @@ export default function BotSettingsScreen() {
             maxLength={BOT_NAME_MAX_LENGTH}
             large
             onCommit={async (value) => {
-              if (value && botId) profileSaves.name.update(value);
-            }}
-          />
-          <ProfileEditDialog
-            label={t("Title")}
-            editLabel={t("Edit label")}
-            placeholder={t("Add a label")}
-            value={title}
-            maxLength={BOT_TITLE_MAX_LENGTH}
-            onCommit={async (value) => {
-              if (botId) profileSaves.title.update(value);
+              if (value && botId) nameSave.update(value);
             }}
           />
         </View>
@@ -669,81 +675,83 @@ export default function BotSettingsScreen() {
           ) : null
         ) : (
           <View style={{ marginTop: 16 }}>
-          <View>
-            <View
-              style={{
-                flexDirection: "row",
-                alignItems: "center",
-                justifyContent: "space-between",
-                paddingEnd: 16,
-                marginBottom: 8,
-              }}
-            >
-              <SettingsSectionHeading>{t("Instructions")}</SettingsSectionHeading>
-              {bot?.instructionHistory?.length && instructions === bot.instructions ? (
-                <View style={{ width: 44 }}>
-                  <MenuPickerMenu
-                    label={t("Instruction history")}
-                    value=""
-                    choices={bot.instructionHistory.map((version) => ({
-                      key: version.id,
-                      label: `${new Date(version.createdAt).toLocaleString()} (${version.reason})`,
-                    }))}
-                    onChange={(versionId) => {
-                      if (pending || instructions !== bot.instructions) return;
-                      const version = bot.instructionHistory?.find((item) => item.id === versionId);
-                      if (version)
-                        Alert.alert(t("Restore"), version.instructions, [
-                          { text: t("Cancel"), style: "cancel" },
-                          {
-                            text: t("Restore"),
-                            onPress: () => {
-                              void rpc("bots/restoreInstructions", {
-                                botId: bot.id,
-                                versionId,
-                                expectedInstructions: bot.instructions,
-                              })
-                                .then((updated) => {
-                                  setBot(updated);
-                                  setInstructions(updated.instructions ?? "");
+            <View>
+              <View
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  paddingEnd: 16,
+                  marginBottom: 8,
+                }}
+              >
+                <SettingsSectionHeading>{t("Instructions")}</SettingsSectionHeading>
+                {bot?.instructionHistory?.length && instructions === bot.instructions ? (
+                  <View style={{ width: 44 }}>
+                    <MenuPickerMenu
+                      label={t("Instruction history")}
+                      value=""
+                      choices={bot.instructionHistory.map((version) => ({
+                        key: version.id,
+                        label: `${new Date(version.createdAt).toLocaleString()} (${version.reason})`,
+                      }))}
+                      onChange={(versionId) => {
+                        if (pending || instructions !== bot.instructions) return;
+                        const version = bot.instructionHistory?.find(
+                          (item) => item.id === versionId,
+                        );
+                        if (version)
+                          Alert.alert(t("Restore"), version.instructions, [
+                            { text: t("Cancel"), style: "cancel" },
+                            {
+                              text: t("Restore"),
+                              onPress: () => {
+                                void rpc("bots/restoreInstructions", {
+                                  botId: bot.id,
+                                  versionId,
+                                  expectedInstructions: bot.instructions,
                                 })
-                                .catch((err) => setError(errorText(err)));
+                                  .then((updated) => {
+                                    setBot(updated);
+                                    setInstructions(updated.instructions ?? "");
+                                  })
+                                  .catch((err) => setError(errorText(err)));
+                              },
                             },
-                          },
-                        ]);
-                    }}
-                  >
-                    <View
-                      accessible
-                      accessibilityRole="button"
-                      accessibilityLabel={t("Instruction history")}
-                      style={{
-                        minHeight: 44,
-                        minWidth: 44,
-                        alignItems: "flex-end",
-                        justifyContent: "center",
+                          ]);
                       }}
                     >
-                      <NativeSymbol
-                        ios="clock.arrow.circlepath"
-                        android="time-outline"
-                        size={18}
-                        color={tokens.mutedForeground}
-                      />
-                    </View>
-                  </MenuPickerMenu>
-                </View>
-              ) : null}
+                      <View
+                        accessible
+                        accessibilityRole="button"
+                        accessibilityLabel={t("Instruction history")}
+                        style={{
+                          minHeight: 44,
+                          minWidth: 44,
+                          alignItems: "flex-end",
+                          justifyContent: "center",
+                        }}
+                      >
+                        <NativeSymbol
+                          ios="clock.arrow.circlepath"
+                          android="time-outline"
+                          size={18}
+                          color={tokens.mutedForeground}
+                        />
+                      </View>
+                    </MenuPickerMenu>
+                  </View>
+                ) : null}
+              </View>
+              <GrowingTextInput
+                label={t("Instructions")}
+                maxLength={BOT_INSTRUCTIONS_MAX_LENGTH}
+                value={instructions}
+                onChangeText={setInstructions}
+                backgroundColor={native.fill}
+              />
             </View>
-            <GrowingTextInput
-              label={t("Instructions")}
-              maxLength={BOT_INSTRUCTIONS_MAX_LENGTH}
-              value={instructions}
-              onChangeText={setInstructions}
-              backgroundColor={native.fill}
-            />
           </View>
-        </View>
         )}
         <View style={{ marginTop: 24 }}>
           <SettingsGroup label={t("Notifications")}>
@@ -791,123 +799,127 @@ export default function BotSettingsScreen() {
           >
             {bot?.botKind !== "roleplay" ? (
               <SettingsGroup label={t("Runtime")}>
-              <MenuPicker
-                plain
-                showLabel={false}
-                label={t("Runtime")}
-                value={runtimeKind}
-                choices={[
-                  { key: "pi", label: "Pi" },
-                  ...Object.entries(NativeRuntimeCapabilities).map(([key, capability]) => ({
-                    key,
-                    label: capability.label,
-                  })),
-                ]}
-                onChange={(value) => {
-                  const kind = value as Bot["runtimeKind"];
-                  setRuntimeKind(kind);
-                  if (kind !== "pi") {
-                    if (executionTarget !== "host") setComputerMode("dedicated");
-                    setExecutionTarget("host");
-                  } else {
-                    setRuntimePermission("workspace");
-                    setProjectPath("");
-                  }
-                }}
-              />
-              <MenuPicker
-                plain
-                label={t("Execution target")}
-                value={executionTarget}
-                choices={
-                  runtimeKind !== "pi"
-                    ? [{ key: "host", label: t("Host") }]
-                    : [
-                        { key: "default", label: t("Deployment default") },
-                        { key: "docker", label: "Docker", disabled: !environment.dockerAvailable },
-                        { key: "host", label: t("Host") },
-                      ]
-                }
-                onChange={(value) => {
-                  if (value === "docker" && !environment.dockerAvailable) return;
-                  setExecutionTarget(value as Bot["executionTarget"]);
-                  if (value !== "host") setRegisteredHostId(null);
-                  if (value !== executionTarget) setComputerMode("dedicated");
-                }}
-              />
-              {runtimeKind === "pi" && !environment.dockerAvailable ? (
-                <Text style={{ color: tokens.mutedForeground, fontSize: 12 }}>{dockerHint}</Text>
-              ) : null}
-              {executionTarget === "host" && bot ? (
-                <RegisteredHostPicker
-                  spaceId={bot.spaceId}
-                  value={registeredHostId}
-                  onChange={setRegisteredHostId}
+                <MenuPicker
+                  plain
+                  showLabel={false}
+                  label={t("Runtime")}
+                  value={runtimeKind}
+                  choices={[
+                    { key: "pi", label: "Pi" },
+                    ...Object.entries(NativeRuntimeCapabilities).map(([key, capability]) => ({
+                      key,
+                      label: capability.label,
+                    })),
+                  ]}
+                  onChange={(value) => {
+                    const kind = value as Bot["runtimeKind"];
+                    setRuntimeKind(kind);
+                    if (kind !== "pi") {
+                      if (executionTarget !== "host") setComputerMode("dedicated");
+                      setExecutionTarget("host");
+                    } else {
+                      setRuntimePermission("workspace");
+                      setProjectPath("");
+                    }
+                  }}
                 />
-              ) : null}
-              {runtimeKind !== "pi" ? (
-                <>
-                  <TextInput
-                    accessibilityLabel={t("Project folder")}
-                    placeholder={t("Absolute path on host")}
-                    placeholderTextColor={tokens.mutedForeground}
-                    style={{ color: tokens.foreground, minHeight: 44, fontSize: 14 }}
-                    value={projectPath}
-                    onChangeText={setProjectPath}
-                    autoCapitalize="none"
-                    autoCorrect={false}
+                <MenuPicker
+                  plain
+                  label={t("Execution target")}
+                  value={executionTarget}
+                  choices={
+                    runtimeKind !== "pi"
+                      ? [{ key: "host", label: t("Host") }]
+                      : [
+                          { key: "default", label: t("Deployment default") },
+                          {
+                            key: "docker",
+                            label: "Docker",
+                            disabled: !environment.dockerAvailable,
+                          },
+                          { key: "host", label: t("Host") },
+                        ]
+                  }
+                  onChange={(value) => {
+                    if (value === "docker" && !environment.dockerAvailable) return;
+                    setExecutionTarget(value as Bot["executionTarget"]);
+                    if (value !== "host") setRegisteredHostId(null);
+                    if (value !== executionTarget) setComputerMode("dedicated");
+                  }}
+                />
+                {runtimeKind === "pi" && !environment.dockerAvailable ? (
+                  <Text style={{ color: tokens.mutedForeground, fontSize: 12 }}>{dockerHint}</Text>
+                ) : null}
+                {executionTarget === "host" && bot ? (
+                  <RegisteredHostPicker
+                    spaceId={bot.spaceId}
+                    value={registeredHostId}
+                    onChange={setRegisteredHostId}
                   />
-                  <MenuPicker
-                    plain
-                    label={t("Access")}
-                    value={runtimePermission}
-                    choices={[
-                      {
-                        key: "workspace",
-                        label: t("Workspace"),
-                        disabled: runtimeKind !== "codex",
-                      },
-                      { key: "full", label: t("Full access") },
-                    ]}
-                    onChange={(value) => setRuntimePermission(value as Bot["runtimePermission"])}
-                  />
-                </>
-              ) : null}
-              {runtimeKind !== "pi" ? (
-                <>
-                  {bot ? (
-                    <NativeRuntimeSetup
-                      spaceId={bot.spaceId}
-                      kind={runtimeKind}
-                      hostId={registeredHostId}
+                ) : null}
+                {runtimeKind !== "pi" ? (
+                  <>
+                    <TextInput
+                      accessibilityLabel={t("Project folder")}
+                      placeholder={t("Absolute path on host")}
+                      placeholderTextColor={tokens.mutedForeground}
+                      style={{ color: tokens.foreground, minHeight: 44, fontSize: 14 }}
+                      value={projectPath}
+                      onChangeText={setProjectPath}
+                      autoCapitalize="none"
+                      autoCorrect={false}
                     />
-                  ) : null}
-                  <Text
-                    accessibilityRole="text"
-                    style={{ color: tokens.mutedForeground, fontSize: 12 }}
-                  >
-                    {runtimeStatusError ??
-                      (runtimeStatusLoading
-                        ? t("Checking runtime…")
-                        : runtimeStatus?.reason === "host-unavailable"
-                          ? t("Start the host with host access enabled.")
-                          : runtimeStatus?.reason === "cli-unavailable"
-                            ? t("Install the runtime on the host.")
-                            : runtimeStatus?.reason === "login-required" ||
-                                !runtimeStatus?.authenticated
-                              ? t("Sign in to the runtime on the host.")
-                              : !runtimeStatus?.available
-                                ? t("Runtime unavailable")
-                                : t("Runtime ready"))}
-                  </Text>
-                  <NativeActionButton
-                    label={t("Refresh")}
-                    disabled={runtimeStatusLoading}
-                    onPress={() => setRuntimeStatusRevision((value) => value + 1)}
-                  />
-                </>
-              ) : null}
-            </SettingsGroup>
+                    <MenuPicker
+                      plain
+                      label={t("Access")}
+                      value={runtimePermission}
+                      choices={[
+                        {
+                          key: "workspace",
+                          label: t("Workspace"),
+                          disabled: runtimeKind !== "codex",
+                        },
+                        { key: "full", label: t("Full access") },
+                      ]}
+                      onChange={(value) => setRuntimePermission(value as Bot["runtimePermission"])}
+                    />
+                  </>
+                ) : null}
+                {runtimeKind !== "pi" ? (
+                  <>
+                    {bot ? (
+                      <NativeRuntimeSetup
+                        spaceId={bot.spaceId}
+                        kind={runtimeKind}
+                        hostId={registeredHostId}
+                      />
+                    ) : null}
+                    <Text
+                      accessibilityRole="text"
+                      style={{ color: tokens.mutedForeground, fontSize: 12 }}
+                    >
+                      {runtimeStatusError ??
+                        (runtimeStatusLoading
+                          ? t("Checking runtime…")
+                          : runtimeStatus?.reason === "host-unavailable"
+                            ? t("Start the host with host access enabled.")
+                            : runtimeStatus?.reason === "cli-unavailable"
+                              ? t("Install the runtime on the host.")
+                              : runtimeStatus?.reason === "login-required" ||
+                                  !runtimeStatus?.authenticated
+                                ? t("Sign in to the runtime on the host.")
+                                : !runtimeStatus?.available
+                                  ? t("Runtime unavailable")
+                                  : t("Runtime ready"))}
+                    </Text>
+                    <NativeActionButton
+                      label={t("Refresh")}
+                      disabled={runtimeStatusLoading}
+                      onPress={() => setRuntimeStatusRevision((value) => value + 1)}
+                    />
+                  </>
+                ) : null}
+              </SettingsGroup>
             ) : null}
             {runtimeKind === "pi" ? (
               <SettingsGroup label={t("Model")}>
@@ -947,8 +959,8 @@ export default function BotSettingsScreen() {
 
             {bot?.botKind !== "roleplay" ? (
               <SettingsGroup label={t("Computer")}>
-              <ComputerModePicker plain value={computerMode} onChange={setComputerMode} />
-            </SettingsGroup>
+                <ComputerModePicker plain value={computerMode} onChange={setComputerMode} />
+              </SettingsGroup>
             ) : null}
             <SettingsGroup label={t("Voice")}>
               <View style={styles.row}>
@@ -978,49 +990,39 @@ export default function BotSettingsScreen() {
             </SettingsGroup>
             {bot?.botKind !== "roleplay" ? (
               <SettingsGroup label={t("Permissions")}>
-              <View style={styles.row}>
-                <Text style={[styles.rowLabel, { color: tokens.foreground }]}>
-                  {t("Allow cross-space bot communication")}
-                </Text>
-                <NativeSwitch
-                  accessibilityLabel={t("Allow cross-space bot communication")}
-                  value={crossSpaceCommunication}
-                  onValueChange={(value) => {
-                    if (!botId) return;
-                    setError(null);
-                    crossSpaceSave.update(value);
-                  }}
-                />
-              </View>
-              <View style={styles.row}>
-                <View style={{ gap: 4, flex: 1 }}>
-                  <Text
-                    style={[styles.rowLabel, { color: tokens.foreground, flex: 0, flexShrink: 1 }]}
-                  >
+                <View style={styles.row}>
+                  <Text style={[styles.rowLabel, { color: tokens.foreground }]}>
+                    {t("Allow cross-space bot communication")}
+                  </Text>
+                  <NativeSwitch
+                    accessibilityLabel={t("Allow cross-space bot communication")}
+                    value={crossSpaceCommunication}
+                    onValueChange={(value) => {
+                      if (!botId) return;
+                      setError(null);
+                      crossSpaceSave.update(value);
+                    }}
+                  />
+                </View>
+                <View style={styles.row}>
+                  <Text style={[styles.rowLabel, { color: tokens.foreground }]}>
                     {t("Manage the bots it creates")}
                   </Text>
-                  <Text style={{ color: tokens.mutedForeground, fontSize: 12 }}>
-                    {t("Can edit and organise bots it creates")}
-                  </Text>
+                  <NativeSwitch
+                    accessibilityLabel={t("Manage the bots it creates")}
+                    onValueChange={(value) => {
+                      if (!botId) return;
+                      setError(null);
+                      fleetSave.update(value);
+                    }}
+                    value={fleetManagement}
+                  />
                 </View>
-                <NativeSwitch
-                  accessibilityLabel={t("Manage the bots it creates")}
-                  onValueChange={(value) => {
-                    if (!botId) return;
-                    setError(null);
-                    fleetSave.update(value);
-                  }}
-                  value={fleetManagement}
-                />
-              </View>
-            </SettingsGroup>
+              </SettingsGroup>
             ) : null}
-            <SettingsGroup label={t("Description")}>
-              <Text style={{ color: tokens.mutedForeground, fontSize: 12 }}>
-                {t("How other bots see it")}
-              </Text>
+            <SettingsGroup label={t("How other bots see it")}>
               <GrowingTextInput
-                label={t("Description")}
+                label={t("How other bots see it")}
                 value={description}
                 maxLength={BOT_DESCRIPTION_MAX_LENGTH}
                 onChangeText={setDescription}
@@ -1109,6 +1111,19 @@ export default function BotSettingsScreen() {
                 </Text>
               </Pressable>
             ) : null}
+            <MenuPicker
+              label={t("Icon set")}
+              choices={[
+                { key: "organic", label: t("Original") },
+                { key: "rakazo", label: t("Rakazo") },
+              ]}
+              value={avatarSet}
+              onChange={(next) => {
+                setAvatarSet(resolveBotAvatarSet(next));
+                setColor((current) => avatarColor(current));
+              }}
+              plain
+            />
             <Text style={{ color: tokens.mutedForeground, marginTop: 16, fontSize: 14 }}>
               {t("Color")}
             </Text>
@@ -1150,13 +1165,21 @@ export default function BotSettingsScreen() {
                   <Pressable
                     accessibilityRole="radio"
                     accessibilityLabel={t("Default")}
-                    accessibilityState={{ checked: avatarShape(color) === null }}
-                    onPress={() => setColor((current) => avatarColor(current))}
+                    accessibilityState={{
+                      checked: avatarSet === "organic" && avatarShape(color) === null,
+                    }}
+                    onPress={() => {
+                      setAvatarSet("organic");
+                      setColor((current) => avatarColor(current));
+                    }}
                     style={{
                       padding: 4,
                       borderRadius: 14,
                       borderWidth: 2,
-                      borderColor: avatarShape(color) === null ? tokens.foreground : "transparent",
+                      borderColor:
+                        avatarSet === "organic" && avatarShape(color) === null
+                          ? tokens.foreground
+                          : "transparent",
                     }}
                   >
                     <BotAvatar color={avatarColor(color)} identity={bot.id} size={36} />
@@ -1167,7 +1190,10 @@ export default function BotSettingsScreen() {
                       accessibilityRole="radio"
                       accessibilityLabel={t("Shape {number}", { number: shape + 1 })}
                       accessibilityState={{ checked: avatarShape(color) === shape }}
-                      onPress={() => setColor((current) => withAvatarShape(current, shape))}
+                      onPress={() => {
+                        setAvatarSet("organic");
+                        setColor((current) => withAvatarShape(current, shape));
+                      }}
                       style={{
                         padding: 4,
                         borderRadius: 14,

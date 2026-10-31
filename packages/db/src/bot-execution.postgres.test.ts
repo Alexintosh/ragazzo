@@ -50,7 +50,6 @@ describePostgres("bot execution placement (PostgreSQL)", () => {
       const repos = createRepos(prisma);
       const input = {
         name: "Helper",
-        title: "",
         description: "",
         instructions: "",
         notifyOnFinish: true,
@@ -126,7 +125,6 @@ describePostgres("bot execution placement (PostgreSQL)", () => {
       const repos = createRepos(prisma);
       const input = {
         name: "Placement",
-        title: "",
         description: "",
         instructions: "",
         notifyOnFinish: true,
@@ -185,7 +183,6 @@ describePostgres("bot execution placement (PostgreSQL)", () => {
       const repos = createRepos(prisma);
       const input = {
         name: "Native",
-        title: "",
         description: "",
         instructions: "",
         notifyOnFinish: true,
@@ -220,7 +217,6 @@ describePostgres("bot execution placement (PostgreSQL)", () => {
       const repos = createRepos(prisma);
       const created = await repos.createBot(actor, {
         name: "Race",
-        title: "",
         description: "",
         instructions: "",
         notifyOnFinish: true,
@@ -270,7 +266,6 @@ describePostgres("bot execution placement (PostgreSQL)", () => {
       const repos = createRepos(prisma);
       const created = await repos.createBot(actor, {
         name: "Handover",
-        title: "",
         description: "",
         instructions: "",
         notifyOnFinish: true,

@@ -1,4 +1,5 @@
 import type { PrismaClient } from "@rakazo/db";
+import { RunHistoryWriteError } from "@rakazo/db";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   currentBotMessageHop,
@@ -36,6 +37,7 @@ function deps(
     senderRunning?: boolean;
     alreadyDelivered?: unknown;
     targetArchived?: boolean;
+    requesterArchived?: boolean;
     /** Simulate a unique (threadId, clientNonce) race after both retries miss. */
     uniqueConflictOnCommit?: boolean;
     transactionConflictOnce?: boolean;
@@ -74,6 +76,7 @@ function deps(
   let transactionAttempts = 0;
   const prisma = {
     bot: {
+      findFirst: vi.fn().mockResolvedValue(options.requesterArchived ? null : { id: "bot-target" }),
       findMany: vi
         .fn()
         .mockResolvedValue(
@@ -235,6 +238,26 @@ describe("messaging another bot", () => {
       message: "hello",
     });
     expect(sent).toMatchObject({ ok: false });
+    expect(harness.enqueue).not.toHaveBeenCalled();
+  });
+
+  it("does not deliver from an attempt a newer claim superseded", async () => {
+    const harness = deps();
+    harness.tx.run.findUnique.mockResolvedValue({
+      status: "running",
+      leaseOwner: "worker-2",
+      leaseFence: 2,
+    });
+    await expect(
+      messageBot(
+        { ...harness.deps, runLease: { runId: run.id, owner: "worker-1", fence: 1 } },
+        run,
+        sender,
+        { bot_id: "bot-target", message: "hello" },
+      ),
+    ).rejects.toBeInstanceOf(RunHistoryWriteError);
+    expect(harness.tx.message.create).not.toHaveBeenCalled();
+    expect(harness.tx.run.create).not.toHaveBeenCalled();
     expect(harness.enqueue).not.toHaveBeenCalled();
   });
 
@@ -752,5 +775,44 @@ describe("automatic outcome return", () => {
     expect(returned).toBe(true);
     expect(harness.enqueue).not.toHaveBeenCalled();
     expect(harness.deps.prisma.run.updateMany).toHaveBeenCalled();
+  });
+
+  it("counts the outcome as returned once the requesting bot is archived", async () => {
+    const harness = deps({
+      requesterArchived: true,
+      hopBlocks: [
+        {
+          kind: "bot_message_received",
+          fromBotId: "bot-target",
+          fromBotName: "Coordinator",
+          text: "research this",
+          hop: 1,
+          intent: "request",
+          returnToMessageId: "message-request",
+        },
+      ],
+    });
+
+    const returned = await returnBotMessageOutcome(
+      harness.deps,
+      { ...run, sourceMessageId: "message-source" },
+      sender,
+      "The answer is 42.",
+    );
+
+    expect(returned).toBe(true);
+    expect(harness.deps.prisma.bot.findFirst).toHaveBeenCalledWith({
+      where: { id: "bot-target", spaceId: run.spaceId, userId: run.userId, archivedAt: null },
+      select: { id: true },
+    });
+    expect(harness.enqueue).not.toHaveBeenCalled();
+    expect(harness.deps.prisma.run.updateMany).toHaveBeenCalledWith({
+      where: {
+        id: run.id,
+        status: { in: ["completed", "failed", "cancelled"] },
+        botOutcomeReturnedAt: null,
+      },
+      data: { botOutcomeReturnedAt: expect.any(Date) },
+    });
   });
 });

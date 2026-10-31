@@ -2,7 +2,6 @@ import type { ComputerMode, CreateBotInput } from "@rakazo/contracts";
 import {
   BOT_DESCRIPTION_MAX_LENGTH,
   BOT_NAME_MAX_LENGTH,
-  BOT_TITLE_MAX_LENGTH,
   NativeRuntimeCapabilities,
 } from "@rakazo/contracts";
 import { newClientId } from "@rakazo/core";
@@ -41,7 +40,6 @@ export default function NewBot() {
   const sideInsets = useSideInsets();
   const router = useRouter();
   const [name, setName] = useState("");
-  const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [advanced, setAdvanced] = useState(false);
   const [runtimeKind, setRuntimeKind] = useState<NonNullable<CreateBotInput["runtimeKind"]>>("pi");
@@ -65,7 +63,6 @@ export default function NewBot() {
         input: {
           spawnKey,
           name: name.trim() || t("New Bot"),
-          title,
           description,
           computerMode,
           runtimeKind,
@@ -108,16 +105,6 @@ export default function NewBot() {
         value={name}
         onChangeText={setName}
         maxLength={BOT_NAME_MAX_LENGTH}
-        editable={!busy}
-        style={fieldStyle}
-      />
-      <TextInput
-        accessibilityLabel={t("Title")}
-        placeholder={t("Title")}
-        placeholderTextColor={tokens.mutedForeground}
-        value={title}
-        onChangeText={setTitle}
-        maxLength={BOT_TITLE_MAX_LENGTH}
         editable={!busy}
         style={fieldStyle}
       />

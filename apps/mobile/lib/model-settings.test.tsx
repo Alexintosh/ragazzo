@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 
+import { MAX_MODEL_CONTEXT_WINDOW, MAX_MODEL_MAX_TOKENS } from "@rakazo/contracts";
 import { notifyManager } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import { act, createElement, useEffect } from "react";
@@ -24,6 +25,7 @@ const { push, back, params, rpcCalls, saved } = vi.hoisted(() => ({
     hasKey: false,
     label: "Fixture",
     held: null as Promise<void> | null,
+    failMe: false,
   },
 }));
 
@@ -42,6 +44,7 @@ vi.mock("./api", () => ({
   ) => {
     rpcCalls.push([procedure, input, options]);
     if (saved.held) await saved.held;
+    if (saved.failMe && procedure === "me") throw new Error("offline");
     if (procedure === "me")
       return {
         userId: "user-fixture",
@@ -94,7 +97,11 @@ vi.mock("./appearance", () => ({ mobileTokens: () => ({}) }));
 vi.mock("./native", () => ({
   native: new Proxy({}, { get: (_target, name) => String(name) }),
   useResolvedAppearance: () => "light",
+  useMobileTokens: () => ({}),
   useThemedStyles: (createStyles: () => unknown) => createStyles(),
+}));
+vi.mock("./user-error", () => ({
+  errorText: (_: unknown, fallback = "Something went wrong. Try again.") => fallback,
 }));
 vi.mock("./i18n", () => {
   const t = (text: string) => text;
@@ -145,17 +152,20 @@ vi.mock("react-native", () => {
       value,
       onChangeText,
       secureTextEntry,
+      maxLength,
     }: {
       accessibilityLabel?: string;
       placeholder?: string;
       value: string;
       onChangeText: (value: string) => void;
       secureTextEntry?: boolean;
+      maxLength?: number;
     }) =>
       createElement("input", {
         "aria-label": accessibilityLabel,
         placeholder,
         value,
+        maxLength,
         type: secureTextEntry ? "password" : "text",
         onInput: (event: { currentTarget: HTMLInputElement }) =>
           onChangeText(event.currentTarget.value),
@@ -366,6 +376,11 @@ describe("a Space's model override", () => {
   });
 });
 
+it("lets the limit fields hold every value the server accepts", () => {
+  expect(field("Maximum output tokens")?.maxLength).toBe(String(MAX_MODEL_MAX_TOKENS).length);
+  expect(field("Context limit")?.maxLength).toBe(String(MAX_MODEL_CONTEXT_WINDOW).length);
+});
+
 it("keeps setup help and API key collapsible for generic compatible servers", async () => {
   const row = (name: string) =>
     [...container.querySelectorAll("button")].find((button) => button.textContent === name)!;
@@ -428,5 +443,26 @@ it("paints a revisit from cache without a spinner and refreshes behind it", asyn
   } finally {
     saved.held = null;
     saved.label = "Fixture";
+  }
+});
+
+it("offers a retry when the first load fails, then shows the model lists", async () => {
+  queryClient.clear();
+  saved.failMe = true;
+  try {
+    await remount(async () => {
+      await act(async () => root.render(createElement(Models)));
+    });
+    expect(container.textContent).not.toContain("Add fallback");
+    expect(container.textContent).toContain("Could not load model settings");
+    saved.failMe = false;
+    const retry = [...container.querySelectorAll("button")].find(
+      (button) => button.textContent === "Retry",
+    );
+    await act(async () => retry!.click());
+    expect(container.textContent).toContain("Add fallback");
+    expect(container.textContent).not.toContain("Could not load model settings");
+  } finally {
+    saved.failMe = false;
   }
 });

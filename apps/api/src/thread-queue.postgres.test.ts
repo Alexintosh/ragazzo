@@ -48,7 +48,7 @@ describePostgres("editable thread queue (PostgreSQL)", () => {
       provisionMessagingIdentity(
         prisma,
         { provider: "queue-test", address },
-        { signupsEnabled: true, signupAllowlist: undefined },
+        { signupsEnabled: "true", signupAllowlist: undefined },
       ),
     );
     actor = { userId: identity.userId, spaceId: identity.spaceId } as Actor;
@@ -314,7 +314,6 @@ describePostgres("editable thread queue (PostgreSQL)", () => {
     const peer = await owner(() =>
       createRepos(prisma).createBot(actor, {
         name: "Queue peer",
-        title: "",
         description: "",
         instructions: "",
         notifyOnFinish: false,

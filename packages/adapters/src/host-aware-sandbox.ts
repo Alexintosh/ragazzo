@@ -29,10 +29,10 @@ export function sandboxKindForBot(envKind: string, computerHost: string | null |
   return envKind;
 }
 
-export function createRunSandbox(
+export async function createRunSandbox(
   kind: string,
   opts: SandboxProviderOptions & { prisma?: PrismaClient; secrets?: SecretStore },
-): SandboxProvider {
+): Promise<SandboxProvider> {
   const host =
     opts.prisma && opts.secrets
       ? createHostComputerTransport({ ...opts, prisma: opts.prisma, secrets: opts.secrets })
@@ -48,7 +48,29 @@ export function createRunSandbox(
       hostRoots: [homedir()],
     });
   }
-  const primary = createSandboxProvider(kind, opts);
+  const primary = await createSandboxProvider(kind, {
+    ...opts,
+    onUnsafeStop: opts.prisma
+      ? async (providerRef) => {
+          const quarantined = await opts.prisma!.computer.updateMany({
+            where: { kind, providerRef },
+            data: {
+              state: "quarantined",
+              screenUrl: null,
+              screenGeneration: { increment: 1 },
+              controlFence: { increment: 1 },
+              controlHolder: "none",
+              controlLeaseId: null,
+              controlLeaseExpiresAt: null,
+              controlBotId: null,
+              controlRunId: null,
+            },
+          });
+          if (quarantined.count === 0)
+            throw new Error("Computer recovery requirement could not be recorded");
+        }
+      : opts.onUnsafeStop,
+  });
   if (!opts.prisma) return primary;
   return new HostAwareSandbox(primary, host, async () => {
     const settings = await opts.prisma!.deploymentSettings.findUnique({
@@ -59,7 +81,9 @@ export function createRunSandbox(
 }
 
 export class HostAwareSandbox implements SandboxProvider {
-  get nativeWriteScopes() { return this.host.nativeWriteScopes === true && this.isolated.describe().id !== "desktop"; }
+  get nativeWriteScopes() {
+    return this.host.nativeWriteScopes === true && this.isolated.describe().id !== "desktop";
+  }
   readonly pageBrowser?: SandboxProvider["pageBrowser"];
 
   constructor(
@@ -86,7 +110,7 @@ export class HostAwareSandbox implements SandboxProvider {
     return this.isolated.describe();
   }
 
-  private route(computer: ComputerRef) {
+  private route(computer: Pick<ComputerRef, "kind">) {
     return computer.kind === "desktop" ? this.host : this.isolated;
   }
 
@@ -242,7 +266,7 @@ export class HostAwareSandbox implements SandboxProvider {
     return this.route(computer).snapshot(computer, context);
   }
 
-  billsWhileRunning(computer: ComputerRef): boolean {
+  billsWhileRunning(computer: Pick<ComputerRef, "kind">): boolean {
     return this.route(computer).billsWhileRunning?.(computer) ?? false;
   }
 

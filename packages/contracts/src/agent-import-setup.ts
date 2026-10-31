@@ -72,8 +72,6 @@ export const AGENT_IMPORT_ERROR_REASONS = [
   "first_bot_exists",
   "instructions_changed",
   "name_just_taken",
-  "not_imported",
-  "import_changed",
   "key_rejected",
   "key_unverified",
   "key_check_failed",

@@ -11,7 +11,7 @@
 // Setting WEB_PORT or API_PORT, in the shell or `.env`, turns off port selection. A relative
 // DATA_DIR resolves in the main checkout, so checkouts sharing the database share its files.
 // Branch databases, and their copied files, are dropped once the branch is deleted or merged.
-import { execFileSync, spawn } from "node:child_process";
+import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import {
   constants,
@@ -26,6 +26,7 @@ import { createRequire } from "node:module";
 import net from "node:net";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { runPnpm, spawnPnpm } from "./pnpm.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const dbPackage = path.join(root, "packages/db");
@@ -180,12 +181,16 @@ function migrationNames(ref) {
 }
 
 function mainMigrations() {
-  try {
-    return migrationNames("origin/main");
-  } catch {
-    // Without main to compare against, any migration may be unmerged.
-    throw new Error("Could not read origin/main. Run `git fetch origin main` and try again.");
+  // Forks may track upstream/main without an origin remote. Prefer the configured
+  // main tracking branch; detached CI checkouts can still use remote refs.
+  for (const ref of ["main@{upstream}", "origin/main", "upstream/main"]) {
+    try {
+      return migrationNames(ref);
+    } catch {
+      // Try the next explicit upstream ref; never treat a local feature as main.
+    }
   }
+  throw new Error("Could not read upstream main. Fetch the remote tracked by main and try again.");
 }
 
 /** Migration folders in a checkout's working tree, committed or not. */
@@ -195,7 +200,7 @@ function checkoutMigrations(checkout) {
   return new Set(readdirSync(dir).filter((name) => statSync(path.join(dir, name)).isDirectory()));
 }
 
-/** Migrations in this checkout that origin/main does not have. */
+/** Migrations in this checkout that upstream main does not have. */
 function branchOnlyMigrations(onMain) {
   return [...checkoutMigrations(root)].filter((name) => !onMain.has(name));
 }
@@ -355,7 +360,7 @@ function generateClientIfStale(env) {
   const schema = path.join(dbPackage, "prisma/schema.prisma");
   if (existsSync(client) && statSync(client).mtimeMs >= statSync(schema).mtimeMs) return;
   log("Generating the Prisma client");
-  execFileSync("pnpm", ["--filter", "@rakazo/db", "generate"], {
+  runPnpm(["--filter", "@rakazo/db", "generate"], {
     cwd: root,
     env,
     stdio: "inherit",
@@ -397,14 +402,13 @@ const migrationLock = new Client({ connectionString: shared.migrationUrl });
 await migrationLock.connect();
 try {
   await migrationLock.query("SELECT pg_advisory_lock(hashtext('rakazo dev migrate'))");
-  execFileSync("pnpm", ["db:migrate"], { cwd: root, env, stdio: "inherit" });
+  runPnpm(["db:migrate"], { cwd: root, env, stdio: "inherit" });
 } finally {
   await migrationLock.end();
 }
 
 if (ports) log(`Open http://127.0.0.1:${ports.web}`);
-const turbo = spawn(
-  "pnpm",
+const turbo = spawnPnpm(
   ["exec", "turbo", "dev", "--env-mode=loose", ...SERVICES.map((name) => `--filter=${name}`)],
   { cwd: root, env, stdio: "inherit" },
 );

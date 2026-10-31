@@ -632,7 +632,7 @@ export class HostBrowserManager {
     action: BrowserActStep,
     signal?: AbortSignal,
   ): Promise<boolean> {
-    if (!action.ref.startsWith("rakazo-")) return false;
+    if (!action.ref?.startsWith("rakazo-")) return false;
     const activeDialog = session.dialogs.get(session.active);
     if (
       action.ref.startsWith("rakazo-dialog-") &&
@@ -770,7 +770,7 @@ export class HostBrowserManager {
         signal?.throwIfAborted();
         let dispatched = false;
         try {
-          if (action.ref.startsWith("rakazo-")) dispatched = true;
+          if (action.ref?.startsWith("rakazo-")) dispatched = true;
           if (await this.browserControl(session, action, signal)) {
             completed++;
             continue;
@@ -1178,13 +1178,18 @@ export class HostBrowserManager {
       } else if (action.kind === "scroll") {
         await call("Input.dispatchMouseEvent", {
           type: "mouseWheel",
-          x: WIDTH / 2,
-          y: HEIGHT / 2,
-          deltaX: 0,
-          deltaY:
-            (action.direction === "up" ? -1 : 1) *
-            Math.min(Math.max(action.amount ?? 3, 1), 50) *
-            100,
+          x: action.x ?? WIDTH / 2,
+          y: action.y ?? HEIGHT / 2,
+          deltaX: ["left", "right"].includes(action.direction)
+            ? (action.direction === "left" ? -1 : 1) *
+              Math.min(Math.max(action.amount ?? 3, 1), 50) *
+              100
+            : 0,
+          deltaY: ["up", "down"].includes(action.direction)
+            ? (action.direction === "up" ? -1 : 1) *
+              Math.min(Math.max(action.amount ?? 3, 1), 50) *
+              100
+            : 0,
         });
       } else if (action.kind === "wait") {
         await delay(Math.min(Math.max(action.ms, 0), 5000), undefined, { signal });

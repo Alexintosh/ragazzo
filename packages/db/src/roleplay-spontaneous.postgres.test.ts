@@ -62,7 +62,6 @@ describePostgres("spontaneous finalization fence (PostgreSQL)", () => {
         { ...identity, email: "fixture@example.test", isDeploymentOwner: false },
         {
           name: "Aria",
-          title: "",
           description: "",
           instructions: "",
           notifyOnFinish: false,

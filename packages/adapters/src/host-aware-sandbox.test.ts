@@ -28,15 +28,15 @@ describe("host-aware sandbox", () => {
 
   afterEach(() => vi.restoreAllMocks());
 
-  it("uses only the authenticated bridge for a standalone desktop deployment", () => {
+  it("uses only the authenticated bridge for a standalone desktop deployment", async () => {
     vi.stubEnv("NODE_ENV", "production");
     try {
-      const sandbox = createRunSandbox("desktop", {
+      const sandbox = await createRunSandbox("desktop", {
         hostComputerUrl: "http://127.0.0.1:7099",
         hostComputerToken: "a".repeat(64),
       });
       expect(sandbox).toBeInstanceOf(HostComputerSandbox);
-      expect(() => createRunSandbox("desktop", {})).toThrow("limited to local development");
+      await expect(createRunSandbox("desktop", {})).rejects.toThrow("limited to local development");
     } finally {
       vi.unstubAllEnvs();
     }
@@ -44,13 +44,13 @@ describe("host-aware sandbox", () => {
 
   it("never falls back to backend execution when the native connection is missing", async () => {
     const provision = vi.spyOn(DesktopSandboxProvider.prototype, "provision");
-    const sandbox = createRunSandbox("docker", {
+    const sandbox = await createRunSandbox("docker", {
       prisma: {
         deploymentSettings: { findUnique: vi.fn(async () => ({ computerHost: "this-mac" })) },
       } as unknown as PrismaClient,
     });
     await expect(sandbox.provision({ botId: "host", homePath: "/unused" }, ctx)).rejects.toThrow(
-      "requires the desktop app",
+      "Host access is not configured",
     );
     expect(provision).not.toHaveBeenCalled();
   });
@@ -135,7 +135,7 @@ describe("host-aware sandbox", () => {
     const pageBrowser = vi
       .spyOn(DockerSandboxProvider.prototype, "pageBrowser")
       .mockResolvedValue(result);
-    const sandbox = createRunSandbox("docker", {
+    const sandbox = await createRunSandbox("docker", {
       prisma: { deploymentSettings: { findUnique: vi.fn() } } as unknown as PrismaClient,
     });
     const browser = new ComputerBrowserProvider({ sandbox });
@@ -287,10 +287,10 @@ describe("host-aware sandbox", () => {
     await desktop.destroy(computer, ctx);
   });
 
-  it("never runs bot commands on a production backend host", () => {
+  it("never runs bot commands on a production backend host", async () => {
     vi.stubEnv("NODE_ENV", "production");
     try {
-      expect(() => createRunSandbox("desktop", {})).toThrow(
+      await expect(createRunSandbox("desktop", {})).rejects.toThrow(
         "SANDBOX_PROVIDER=desktop runs bot commands directly on this host",
       );
       // The desktop app's backend reaches this computer only through the authenticated bridge.
