@@ -1840,6 +1840,8 @@ export function createRunExecutor(executorDeps: ExecutorDeps) {
 
                 reasoning: resolved.reasoning,
                 maxTokens: resolved.maxTokens,
+                streamTimeoutMs: resolved.streamTimeoutMs,
+                streamIdleTimeoutMs: resolved.streamIdleTimeoutMs,
                 acceptsImages: resolved.acceptsImages,
                 maxImagesPerPrompt: resolved.maxImagesPerPrompt,
                 thinkingLevel: native

@@ -39,6 +39,40 @@ Compose stack requires `SANDBOX_SUPERVISOR_TOKEN` for every provider; leave it e
 Optional: set `OPENROUTER_API_KEY` or connect a model in the UI after signup. Other providers,
 local models and approvals are covered in [models](./self-host-models.md).
 
+### Slow local inference and request timeouts
+
+In **Settings → Models**, edit the local model connection and expand **Request timeouts**.
+Set the response-header and stream-inactivity limits to `900000` ms, or use the **Slow local inference (15 min)**
+preset. These overrides apply only to that connection, including when it serves a backup model;
+other connections keep their existing limits. Clearing a field restores the deployment default.
+
+For deployment-wide defaults, set these in the API and worker environments:
+
+```dotenv
+MODEL_STREAM_TIMEOUT_MS=900000
+MODEL_STREAM_IDLE_TIMEOUT_MS=900000
+```
+
+The default response-header wait is `120000` ms per attempt, and the default stream-inactivity
+limit is `180000` ms. Values must be positive integers from `1` through `2147483647` milliseconds,
+the maximum Node timer delay. Missing, blank, zero, negative, fractional or out-of-range environment
+values fall back to the original defaults; `0` never means unlimited. Connection settings reject
+invalid input. A valid explicit request `options.timeoutMs` takes precedence over a connection's
+header timeout, which in turn takes precedence over the environment default.
+
+The idle watchdog starts when successful response headers arrive and renews as stream events
+are consumed. The same idle limit bounds silence while reading unsuccessful response bodies.
+These settings do not impose a total duration on an active response. Explicit cancellation still
+aborts immediately, and connection establishment remains limited to `30000` ms. Retry and fallback
+attempts use the applicable connection's limits. The short connection preflight check remains a
+separate, non-blocking diagnostic: a slow response alone does not prevent saving a connection.
+
+The source, production and published-image Compose files pass both variables to **API and worker**;
+the topology Compose does too. Setting them only on computer containers has no effect. Environment
+changes require restarting the API and worker; saving connection overrides affects subsequent model
+requests without a deployment restart. A reverse proxy must also allow the desired header wait.
+`SANDBOX_IDLE_MS` controls computer suspension and is unrelated to `Model stream idle timeout`.
+
 The example defaults to `edge` (main builds). Every publish is multi-arch (`amd64` + `arm64`), so
 arm64 hosts need no special tag. Do not assume `latest` is present until a stable release exists.
 

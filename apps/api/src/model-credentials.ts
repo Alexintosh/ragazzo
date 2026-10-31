@@ -354,6 +354,8 @@ export function createModelConnector(deps: RouterDeps, codexCatalog: CodexLiveCa
               accountId: saved.accountId,
               gatewayId: saved.gatewayId,
               maxTokens: saved.maxTokens,
+              streamTimeoutMs: saved.streamTimeoutMs,
+              streamIdleTimeoutMs: saved.streamIdleTimeoutMs,
             },
             { fetch: deps.modelConnectionFetch, signal },
           );

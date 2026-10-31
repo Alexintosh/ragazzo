@@ -331,6 +331,8 @@ export async function runAutoReviewJudge(
           cacheCapabilities: input.cacheCapabilities,
           contextWindow: input.contextWindow,
           maxTokens: input.maxTokens,
+          streamTimeoutMs: input.streamTimeoutMs,
+          streamIdleTimeoutMs: input.streamIdleTimeoutMs,
           reasoning: input.reasoning,
           thinkingLevel: input.checker.thinkingLevel ?? null,
           oauth: input.oauth,
@@ -414,6 +416,8 @@ export type LlmAutoReviewOptions = {
   cacheCapabilities?: CacheCapabilities;
   contextWindow?: number;
   maxTokens?: number;
+  streamTimeoutMs?: number;
+  streamIdleTimeoutMs?: number;
   reasoning?: boolean;
   oauth?: AgentRunModel["oauth"];
   callObserver?: AgentRunModel["callObserver"];

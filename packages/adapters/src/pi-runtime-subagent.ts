@@ -204,6 +204,7 @@ export async function executeSubagent(
             },
           ),
         requestModel.cacheCapabilities?.retentionMode,
+        target.config,
       ),
   };
   nested = new Agent({

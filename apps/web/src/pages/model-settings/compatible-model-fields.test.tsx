@@ -39,6 +39,10 @@ function props(compatibleRows: string[], enabledModelIds: string[], modelId = ""
   return {
     resetOpenAiCompatibleProbe: () => {},
     headerRows: null,
+    streamTimeoutMs: "",
+    setStreamTimeoutMs: () => {},
+    streamIdleTimeoutMs: "",
+    setStreamIdleTimeoutMs: () => {},
     setHeaderRows: () => {},
     savedHeaderEndpointMatches: false,
     credential: undefined,

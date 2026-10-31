@@ -34,6 +34,7 @@ import { ModelRoleSettings } from "./ModelRoleSettings";
 import { CompatibleModelFields } from "./model-settings/compatible-model-fields";
 import { CompatibleKeyControls, ConnectionControls } from "./model-settings/connection-controls";
 import { ConnectionNameField, ProvidersSection } from "./model-settings/providers-section";
+import { RequestTimeoutFields } from "./model-settings/request-timeout-fields";
 import type { ConnectableProvider } from "./model-settings/role-model-picker";
 import { SpaceBotsModelNotice } from "./model-settings/space-bots-model";
 import { useModelSettings } from "./model-settings/use-model-settings";
@@ -197,7 +198,20 @@ export function ModelSettingsOverlay({
             setNotice(null);
           }}
           maxTokensLabel={t`Maximum output tokens`}
-        />
+        >
+          {credential.authKind !== "oauth" ? (
+            <RequestTimeoutFields
+              streamTimeoutMs={model.streamTimeoutMs}
+              streamIdleTimeoutMs={model.streamIdleTimeoutMs}
+              disabled={busy}
+              onChange={(headers, idle) => {
+                model.setStreamTimeoutMs(headers);
+                model.setStreamIdleTimeoutMs(idle);
+                setNotice(null);
+              }}
+            />
+          ) : null}
+        </ModelThinkingOptions>
         {settingsDirty ? (
           <Button
             type="button"

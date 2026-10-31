@@ -101,6 +101,8 @@ services:
       PAYMENT_WALLET_CLIENT_ID: ${PAYMENT_WALLET_CLIENT_ID:-}
       CURSOR_API_KEY: ${CURSOR_API_KEY:-}
       AGENT_RUNTIME: scripted
+      MODEL_STREAM_TIMEOUT_MS: ${MODEL_STREAM_TIMEOUT_MS:-}
+      MODEL_STREAM_IDLE_TIMEOUT_MS: ${MODEL_STREAM_IDLE_TIMEOUT_MS:-}
       # Optional egress proxy (Mainland / corporate). Empty = unset; either case works.
       HTTP_PROXY: ${HTTP_PROXY:-${http_proxy:-}}
       HTTPS_PROXY: ${HTTPS_PROXY:-${https_proxy:-}}

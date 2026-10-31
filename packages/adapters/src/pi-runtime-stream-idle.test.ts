@@ -299,6 +299,7 @@ describe.each([
     // Once events flow, silence is bounded — and the watchdog aborts only its
     // own request signal, never the caller's.
     const pending = guarded[Symbol.asyncIterator]().next();
+    await guardedOptions?.onResponse?.({ status: 200, headers: {} }, model);
     inner.push({ type: "start", partial: assistantMessage() });
     await pending;
     await vi.advanceTimersByTimeAsync(MODEL_STREAM_IDLE_TIMEOUT_MS);
@@ -621,4 +622,120 @@ it("pairs the default stream transport with the compatible provider's guarded di
     cause: { message: "Public model server hostname resolved to a private address" },
   });
   expect(resolve).toHaveBeenCalledOnce();
+});
+
+describe("configured model stream timeouts", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllEnvs();
+  });
+
+  it.each(["connection", "environment"] as const)(
+    "uses a slow %s model's full idle budget and renews it on consumed events",
+    async (source) => {
+      vi.useFakeTimers();
+      vi.stubEnv("MODEL_STREAM_TIMEOUT_MS", "900000");
+      vi.stubEnv("MODEL_STREAM_IDLE_TIMEOUT_MS", "900000");
+      const inner = new AssistantMessageEventStream();
+      const streamSimple = vi.fn(
+        (_model: Model<Api>, _context: Context, _options?: SimpleStreamOptions) => inner,
+      );
+      const caller = new AbortController();
+      const stream = reliableModelStream(
+        { streamSimple } as unknown as Models,
+        codexModel,
+        context,
+        { signal: caller.signal, timeoutMs: 800_000 },
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        source === "connection"
+          ? { streamTimeoutMs: 950_000, streamIdleTimeoutMs: 900_000 }
+          : undefined,
+      );
+      const options = streamSimple.mock.calls[0]![2]!;
+      expect(options.timeoutMs).toBe(800_000);
+      // Pre-header waiting leaves the idle budget untouched.
+      await vi.advanceTimersByTimeAsync(900_000);
+      expect(options.signal?.aborted).toBe(false);
+      await options.onResponse?.({ status: 200, headers: {} }, codexModel);
+      const iterator = stream[Symbol.asyncIterator]();
+      let pending = iterator.next();
+      inner.push({ type: "start", partial: assistantMessage() });
+      await pending;
+      await vi.advanceTimersByTimeAsync(899_999);
+      expect(options.signal?.aborted).toBe(false);
+      pending = iterator.next();
+      inner.push({ type: "text_delta", contentIndex: 0, delta: "x", partial: assistantMessage() });
+      await pending;
+      await vi.advanceTimersByTimeAsync(899_999);
+      expect(options.signal?.aborted).toBe(false);
+      await vi.advanceTimersByTimeAsync(1);
+      expect(options.signal?.aborted).toBe(true);
+      expect(caller.signal.aborted).toBe(false);
+      pending = iterator.next();
+      inner.push(abortedByPi());
+      inner.end();
+      expect((await pending).value).toMatchObject({
+        error: { errorMessage: MODEL_STREAM_IDLE_TIMEOUT_MESSAGE },
+      });
+      await iterator.return?.(undefined);
+      expect(vi.getTimerCount()).toBe(0);
+    },
+  );
+
+  it("propagates explicit cancellation immediately during a long idle window", async () => {
+    vi.useFakeTimers();
+    const caller = new AbortController();
+    const watchdog = modelStreamIdleWatchdog(caller.signal, 900_000);
+    watchdog.ping();
+    await vi.advanceTimersByTimeAsync(1);
+    caller.abort("stop");
+    expect(watchdog.signal.aborted).toBe(true);
+    expect(watchdog.signal.reason).toBe("stop");
+    expect(vi.getTimerCount()).toBe(0);
+    watchdog.dispose();
+  });
+
+  it("uses the connection idle limit for stalled error bodies as well as successful streams", async () => {
+    vi.useFakeTimers();
+    const inner = new AssistantMessageEventStream();
+    const callerFetch = vi.fn(
+      async () =>
+        new Response(
+          new ReadableStream({
+            pull: () => new Promise<void>(() => undefined),
+          }),
+          { status: 503 },
+        ),
+    );
+    const streamSimple = vi.fn(
+      (_model: Model<Api>, _context: Context, _options?: SimpleStreamOptions) => inner,
+    );
+    reliableModelStream(
+      { streamSimple } as unknown as Models,
+      codexModel,
+      context,
+      { fetch: callerFetch },
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      { streamIdleTimeoutMs: 900_000 },
+    );
+    const options = streamSimple.mock.calls[0]![2]!;
+    const response = await options.fetch!("https://models.invalid", {});
+    let settled = false;
+    const outcome = response.text().catch((error: unknown) => {
+      settled = true;
+      return error;
+    });
+    await vi.advanceTimersByTimeAsync(899_999);
+    expect(settled).toBe(false);
+    await vi.advanceTimersByTimeAsync(1);
+    await expect(outcome).resolves.toMatchObject({ message: MODEL_STREAM_IDLE_TIMEOUT_MESSAGE });
+    expect(options.signal?.aborted).toBe(false);
+    expect(vi.getTimerCount()).toBe(0);
+  });
 });

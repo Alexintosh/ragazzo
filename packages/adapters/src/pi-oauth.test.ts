@@ -211,11 +211,13 @@ describe("model secrets", () => {
     expect(JSON.parse(saved).access).toBe("new");
   });
 
-  it("keeps a configured output limit when refreshing OAuth tokens", async () => {
+  it("keeps configured output limits and timeouts when refreshing OAuth tokens", async () => {
     const stored = serializeModelSecret({
       kind: "oauth",
       credential: oauthCred({ access: "old", expires: 1 }),
       maxTokens: 16384,
+      streamTimeoutMs: 900_000,
+      streamIdleTimeoutMs: 900_000,
     });
     let saved = "";
     const resolved = await resolveModelAuth(stored, CHATGPT_OAUTH_PROVIDER, {
@@ -229,10 +231,16 @@ describe("model secrets", () => {
       },
     });
     expect(resolved.apiKey).toBe("new");
-    expect(resolved.secret.maxTokens).toBe(16384);
+    expect(resolved.secret).toMatchObject({
+      maxTokens: 16384,
+      streamTimeoutMs: 900_000,
+      streamIdleTimeoutMs: 900_000,
+    });
     expect(parseModelSecret(saved)).toMatchObject({
       kind: "oauth",
       maxTokens: 16384,
+      streamTimeoutMs: 900_000,
+      streamIdleTimeoutMs: 900_000,
       credential: expect.objectContaining({ access: "new" }),
     });
   });

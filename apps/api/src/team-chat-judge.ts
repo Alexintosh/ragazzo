@@ -5,6 +5,7 @@ import {
   formatCurrentTimeInstruction,
   hasHostedModelCredits,
   hostedModelCreditObserver,
+  modelTimeouts,
   parseModelSecret,
   resolveMemberMainModel,
   resolveModelAuth,
@@ -293,10 +294,14 @@ export class ModelTeamChatEngagementJudge implements TeamChatEngagementJudge {
       { userId: bot.userId, spaceId: bot.spaceId },
       credential,
       parseModelSecret(plaintext).maxTokens,
+      modelTimeouts(parseModelSecret(plaintext)),
     );
     const auth = await resolveModelAuth(plaintext, provider, { persist, retire });
     const parsed = auth.secret;
-    const limit = parsed.maxTokens !== undefined ? { maxTokens: parsed.maxTokens } : {};
+    const limit = {
+      ...(parsed.maxTokens !== undefined ? { maxTokens: parsed.maxTokens } : {}),
+      ...modelTimeouts(parsed),
+    };
     const context =
       parsed.kind === "oauth"
         ? {}

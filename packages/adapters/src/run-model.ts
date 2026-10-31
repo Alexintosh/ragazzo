@@ -40,6 +40,7 @@ import {
   CHATGPT_OAUTH_PROVIDER,
   isRetiredModelCredentialError,
   kickModelCredentialRefresh,
+  modelTimeouts,
   parseModelSecret,
   persistStoredModelSecret,
   resolveModelAuth,
@@ -210,6 +211,8 @@ async function resolveModelKeyMaterial(
   contextWindow?: number;
   reasoning?: boolean;
   maxTokens?: number;
+  streamTimeoutMs?: number;
+  streamIdleTimeoutMs?: number;
   thinkingLevel?: AgentRunRequest["model"]["thinkingLevel"];
   acceptsImages?: boolean;
   maxImagesPerPrompt?: number;
@@ -253,6 +256,7 @@ async function resolveModelKeyMaterial(
         { userId, spaceId },
         credential,
         parseModelSecret(plaintext).maxTokens,
+        modelTimeouts(parseModelSecret(plaintext)),
       );
       const resolveAuth = () =>
         resolveModelAuth(plaintext, credential.provider, { persist, retire });
@@ -328,6 +332,7 @@ async function resolveModelKeyMaterial(
         reasoning:
           resolved.secret.kind === "openai_compatible" ? resolved.secret.reasoning : undefined,
         maxTokens: resolved.secret.maxTokens,
+        ...modelTimeouts(resolved.secret),
         thinkingLevel:
           resolved.secret.kind === "openai_compatible" ? resolved.secret.thinkingLevel : undefined,
         acceptsImages,
@@ -361,6 +366,7 @@ async function resolveModelKeyMaterial(
                   serializeModelSecret({
                     kind: "oauth",
                     credential: toOAuthCredential(next),
+                    ...modelTimeouts(current),
                     ...(current.maxTokens !== undefined ? { maxTokens: current.maxTokens } : {}),
                   }),
                 );
@@ -474,6 +480,7 @@ export async function resolveConnectedRunModel(
 
     reasoning: resolved.reasoning,
     maxTokens: resolved.maxTokens,
+    ...modelTimeouts(resolved),
     acceptsImages: resolved.acceptsImages,
     maxImagesPerPrompt: resolved.maxImagesPerPrompt,
     thinkingLevel:
@@ -582,6 +589,7 @@ export async function resolveRunModel(
 
     reasoning: resolved.reasoning,
     maxTokens: resolved.maxTokens,
+    ...modelTimeouts(resolved),
     acceptsImages: resolved.acceptsImages,
     maxImagesPerPrompt: resolved.maxImagesPerPrompt,
     thinkingLevel: thinkingLevel ?? resolved.thinkingLevel ?? null,

@@ -216,6 +216,7 @@ export class InternalRoleplayRuntime implements RoleplayRuntime {
               { recordUsage: request.onUsage },
             ),
           request.model.cacheCapabilities?.retentionMode,
+          request.model,
         );
         let final: AssistantMessage | undefined;
         // A tool turn's narration must never become a persisted promise of success.
