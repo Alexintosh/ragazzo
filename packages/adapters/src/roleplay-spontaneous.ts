@@ -2,6 +2,7 @@ import type { JobPublisher } from "@rakazo/adapter-kit";
 import { runContinueJob } from "@rakazo/adapter-kit";
 import type { PrismaClient } from "@rakazo/db";
 import {
+  isRoleplayEnabled,
   lockRoleplaySpontaneousPreferences,
   ROLEPLAY_SPONTANEOUS_TRIGGER,
   roleplaySpontaneousSnapshot,
@@ -12,16 +13,19 @@ import {
 /** A bounded round-robin over owners, then bots. The elected job reconciler owns this cursor. */
 export function createRoleplaySpontaneousReconciler(
   deps: { prisma: PrismaClient; jobs: JobPublisher },
-  options: { enabled: boolean; batchSize?: number; now?: () => Date },
+  options: { batchSize?: number; now?: () => Date } = {},
 ) {
   let ownerCursor: string | undefined;
   const botCursors = new Map<string, string>();
   return async () => {
-    if (!options.enabled) return;
     const batchSize = options.batchSize ?? 20;
     const owners = await runAsSystem("discover roleplay initiative owners", () =>
       deps.prisma.user.findMany({
-        where: { nativeSetupDisabledAt: null, ...(ownerCursor ? { id: { gt: ownerCursor } } : {}) },
+        where: {
+          roleplayEnabled: true,
+          nativeSetupDisabledAt: null,
+          ...(ownerCursor ? { id: { gt: ownerCursor } } : {}),
+        },
         orderBy: { id: "asc" },
         take: batchSize,
         select: { id: true },
@@ -52,6 +56,7 @@ export function createRoleplaySpontaneousReconciler(
           deps.prisma.$transaction(async (tx) => {
             await tx.$queryRaw`SELECT id FROM threads WHERE id = ${identity.threadId} FOR UPDATE`;
             await lockRoleplaySpontaneousPreferences(tx, identity);
+            if (!(await isRoleplayEnabled(tx, userId))) return null;
             const now = options.now?.() ?? new Date();
             const snapshot = await roleplaySpontaneousSnapshot(tx, identity, now, undefined, true);
             if (!snapshot) return null;

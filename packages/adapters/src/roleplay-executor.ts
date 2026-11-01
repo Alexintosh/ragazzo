@@ -27,6 +27,7 @@ import {
 } from "@rakazo/core";
 import type { RoleplaySpontaneousGuard, Run } from "@rakazo/db";
 import {
+  isRoleplayEnabled,
   parseRoleplaySpontaneousGuard,
   recordUsage,
   roleplaySpontaneousSnapshot,
@@ -204,7 +205,8 @@ export async function executeRoleplayRun(
     });
     if (started.count !== 1) return;
     onRunStarted?.();
-    if (deps.roleplayEnabled !== true) throw new Error("Roleplay is not enabled on this worker");
+    if (!(await isRoleplayEnabled(deps.prisma, run.userId)))
+      throw new Error("Roleplay is not enabled for this account");
     const [bot, thread, task] = await Promise.all([
       deps.prisma.bot.findUniqueOrThrow({ where: { id: run.botId }, include: { computer: true } }),
       deps.prisma.thread.findUniqueOrThrow({ where: { id: run.threadId } }),

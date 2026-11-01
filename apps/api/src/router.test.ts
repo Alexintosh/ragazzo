@@ -71,8 +71,16 @@ async function handle(handler: RouterHandler, ...args: Parameters<RouterHandler[
 
 describe("account preferences", () => {
   function preferencesDeps(avatarStyle: string, timezone: string | null = null) {
-    const update = vi.fn().mockResolvedValue({});
-    const user = { email: "user@rakazo.test", name: "Test User", avatarStyle, timezone };
+    const user = {
+      email: "user@rakazo.test",
+      name: "Test User",
+      avatarStyle,
+      timezone,
+      roleplayEnabled: false,
+    };
+    const update = vi.fn(async ({ data }: { data: Partial<typeof user> }) =>
+      Object.assign(user, data),
+    );
     const updateMany = vi.fn(
       async ({ where, data }: { where: { timezone: null }; data: { timezone: string } }) => {
         if (user.timezone !== where.timezone) return { count: 0 };
@@ -100,12 +108,12 @@ describe("account preferences", () => {
       },
       dataDir: "/tmp/rakazo-router-test",
     } as unknown as RouterDeps;
-    const actor = {
+    const actor: Actor = {
       spaceId: "workspace-1",
       userId: "user-1",
       email: "user@rakazo.test",
       isDeploymentOwner: true,
-    } satisfies Actor;
+    };
     return { update, updateMany, deps, actor, handler: new RPCHandler(createRouter(deps)) };
   }
 
@@ -363,6 +371,29 @@ describe("account preferences", () => {
       where: { id: "user-1" },
       data: { timezone: "Pacific/Auckland" },
     });
+  });
+
+  it("saves roleplay for the authenticated account and returns the saved value", async () => {
+    const setup = preferencesDeps("organic");
+    setup.actor.isDeploymentOwner = false;
+    for (const roleplayEnabled of [true, false]) {
+      const response = await updatePreferences(setup, { roleplayEnabled, userId: "another-user" });
+      expect(response.status).toBe(200);
+      expect(setup.update).toHaveBeenLastCalledWith({
+        where: { id: "user-1" },
+        data: { roleplayEnabled },
+      });
+      await expect(response.json()).resolves.toMatchObject({ json: { roleplayEnabled } });
+    }
+  });
+
+  it("rejects invalid roleplay preferences without writing", async () => {
+    const setup = preferencesDeps("organic");
+    for (const roleplayEnabled of ["true", 1, null]) {
+      const response = await updatePreferences(setup, { roleplayEnabled });
+      expect(response.status).toBeGreaterThanOrEqual(400);
+    }
+    expect(setup.update).not.toHaveBeenCalled();
   });
 
   it.each([null, "Europe/London"])(

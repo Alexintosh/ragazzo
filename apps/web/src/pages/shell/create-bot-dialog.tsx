@@ -189,7 +189,7 @@ export function CreateBotDialog({
         showCloseButton={false}
         aria-describedby={undefined}
         initialFocus={nameRef}
-        className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-md"
+        className="max-h-[calc(100dvh-2rem)] grid-cols-1 overflow-y-auto sm:max-w-md"
         data-testid="create-bot-dialog"
       >
         <form
@@ -212,7 +212,7 @@ export function CreateBotDialog({
               avatarSet={avatarSet}
             />
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex min-w-0 items-center gap-2">
             <Input
               ref={nameRef}
               aria-label={t`Name`}
@@ -220,13 +220,14 @@ export function CreateBotDialog({
               value={name}
               maxLength={BOT_NAME_MAX_LENGTH}
               onChange={(event) => setName(event.target.value)}
-              className="text-center"
+              className="flex-1 text-center"
             />
             <Toggle
               aria-label={t`Roleplay`}
               pressed={roleplay}
               disabled={submitting}
               variant="outline"
+              className="shrink-0"
               onPressedChange={(pressed) => {
                 ++importVersion.current;
                 setRoleplay(pressed);
@@ -242,7 +243,7 @@ export function CreateBotDialog({
             </Toggle>
           </div>
           {roleplay ? (
-            <div className="space-y-2">
+            <div className="min-w-0 space-y-2 wrap-anywhere">
               <label htmlFor={`${ids}-character`} className="block space-y-2 text-sm">
                 <span>
                   <Trans>Character JSON</Trans>
@@ -253,6 +254,7 @@ export function CreateBotDialog({
                   accept=".json,application/json"
                   aria-label={t`Character JSON`}
                   disabled={submitting}
+                  className="truncate"
                   onChange={(event) => void importCharacter(event.target.files?.[0])}
                 />
               </label>
@@ -262,7 +264,7 @@ export function CreateBotDialog({
                 </p>
               ) : null}
               {character ? (
-                <p role="status" className="break-words text-sm">
+                <p role="status" className="text-sm">
                   {character.name}
                   <span className="block text-xs text-muted-foreground">{fileName}</span>
                 </p>

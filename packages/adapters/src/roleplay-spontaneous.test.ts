@@ -16,7 +16,18 @@ function fixture() {
   const queued: string[] = [];
   const tasks: Array<Record<string, unknown>> = [];
   const runs: Array<Record<string, unknown>> = [];
+  const users = [{ id: "owner", roleplayEnabled: true }];
+  const user = {
+    findUnique: vi.fn(async ({ where }) => users.find((owner) => owner.id === where.id) ?? null),
+    findMany: vi.fn(async ({ where }) =>
+      users.filter(
+        (owner) =>
+          owner.roleplayEnabled === where.roleplayEnabled && (!where.id || owner.id > where.id.gt),
+      ),
+    ),
+  };
   const tx = {
+    user,
     $queryRaw: vi.fn(async () => []),
     task: {
       findUnique: vi.fn(async () => tasks[0] ?? null),
@@ -41,7 +52,7 @@ function fixture() {
   };
   let pending = Promise.resolve();
   const prisma = {
-    user: { findMany: vi.fn(async ({ where }) => (where.id ? [] : [{ id: "owner" }])) },
+    user,
     bot: {
       findMany: vi.fn(async () => [
         { id: "aria", userId: "owner", spaceId: "space", thread: { id: "story" } },
@@ -60,6 +71,7 @@ function fixture() {
   };
   return {
     prisma,
+    users,
     tx,
     tasks,
     runs,
@@ -69,31 +81,75 @@ function fixture() {
   };
 }
 beforeEach(() => {
-  fake.snapshot
-    .mockReset()
-    .mockResolvedValue({
-      guard: {
-        historyGeneration: 0,
-        nextMessageSeq: 7,
-        character: "{}",
-        timezone: "UTC",
-        sourceMessageId: "actual-user",
-        botUpdatedAt: "revision",
-        userUpdatedAt: "revision",
-      },
-    });
+  fake.snapshot.mockReset().mockResolvedValue({
+    guard: {
+      historyGeneration: 0,
+      nextMessageSeq: 7,
+      character: "{}",
+      timezone: "UTC",
+      sourceMessageId: "actual-user",
+      botUpdatedAt: "revision",
+      userUpdatedAt: "revision",
+    },
+  });
   fake.lock.mockClear();
 });
 describe("roleplay initiative reconciler", () => {
-  it("does no scans while the worker feature is disabled", async () => {
+  it("scans only enabled account owners", async () => {
     const f = fixture();
-    await createRoleplaySpontaneousReconciler(f.deps, { enabled: false })();
-    expect(f.prisma.user.findMany).not.toHaveBeenCalled();
+    f.users[0]!.roleplayEnabled = false;
+    await createRoleplaySpontaneousReconciler(f.deps)();
+    expect(f.prisma.user.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { roleplayEnabled: true, nativeSetupDisabledAt: null },
+      }),
+    );
+    expect(f.prisma.bot.findMany).not.toHaveBeenCalled();
+    expect(f.runs).toEqual([]);
+  });
+  it("sees account enable and disable changes without recreating the scheduler", async () => {
+    const f = fixture();
+    const reconcile = createRoleplaySpontaneousReconciler(f.deps);
+    f.users[0]!.roleplayEnabled = false;
+    await reconcile();
+    expect(f.runs).toEqual([]);
+    f.users[0]!.roleplayEnabled = true;
+    await reconcile();
+    expect(f.runs).toHaveLength(1);
+    f.users[0]!.roleplayEnabled = false;
+    f.prisma.bot.findMany.mockClear();
+    await reconcile();
+    expect(f.prisma.bot.findMany).not.toHaveBeenCalled();
+    expect(f.queued).toEqual(["run"]);
+  });
+  it("checks the owner again under the preference lock before scheduling", async () => {
+    const f = fixture();
+    fake.lock.mockImplementationOnce(async () => {
+      f.users[0]!.roleplayEnabled = false;
+    });
+    await createRoleplaySpontaneousReconciler(f.deps)();
+    expect(f.runs).toEqual([]);
+    expect(fake.snapshot).not.toHaveBeenCalled();
+  });
+  it("never schedules a disabled owner when another account is enabled", async () => {
+    const f = fixture();
+    f.users.push({ id: "other-owner", roleplayEnabled: false });
+    await createRoleplaySpontaneousReconciler(f.deps)();
+    expect(f.prisma.bot.findMany).toHaveBeenCalledOnce();
+    expect(f.prisma.bot.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ userId: "owner" }),
+      }),
+    );
+    expect(f.tx.user.findUnique).toHaveBeenCalledWith({
+      where: { id: "owner" },
+      select: { roleplayEnabled: true },
+    });
+    expect(f.runs).toHaveLength(1);
   });
   it("creates only a durable task/run, under owner RLS, before enqueueing", async () => {
     const f = fixture();
     await createRoleplaySpontaneousReconciler(f.deps, {
-      enabled: true,
       now: () => new Date("2026-10-29T12:00:00Z"),
     })();
     expect(f.tasks).toHaveLength(1);
@@ -119,7 +175,7 @@ describe("roleplay initiative reconciler", () => {
   });
   it("deduplicates concurrent schedulers using the locked durable nonce", async () => {
     const f = fixture();
-    const options = { enabled: true, now: () => new Date("2026-10-29T12:00:00Z") };
+    const options = { now: () => new Date("2026-10-29T12:00:00Z") };
     await Promise.all([
       createRoleplaySpontaneousReconciler(f.deps, options)(),
       createRoleplaySpontaneousReconciler(f.deps, options)(),
@@ -131,7 +187,7 @@ describe("roleplay initiative reconciler", () => {
   it("retains durable work when enqueue fails, and never invents a second run", async () => {
     const f = fixture();
     f.jobs.enqueue.mockRejectedValueOnce(new Error("queue offline"));
-    const reconcile = createRoleplaySpontaneousReconciler(f.deps, { enabled: true });
+    const reconcile = createRoleplaySpontaneousReconciler(f.deps);
     await expect(reconcile()).rejects.toThrow("queue offline");
     await reconcile();
     expect(f.tasks).toHaveLength(1);
@@ -139,7 +195,7 @@ describe("roleplay initiative reconciler", () => {
   });
   it("preserves the same durable attempt when the scheduler is recreated after a restart", async () => {
     const f = fixture();
-    const options = { enabled: true, now: () => new Date("2026-10-29T12:00:00Z") };
+    const options = { now: () => new Date("2026-10-29T12:00:00Z") };
     await createRoleplaySpontaneousReconciler(f.deps, options)();
     // A process restart loses its in-memory queue and cursors, not the persisted task/run.
     f.queued.length = 0;
@@ -154,7 +210,7 @@ describe("roleplay initiative reconciler", () => {
   it("advances bounded owner cursors instead of repeatedly scanning the first owner", async () => {
     const f = fixture();
     fake.snapshot.mockResolvedValue(null);
-    const reconcile = createRoleplaySpontaneousReconciler(f.deps, { enabled: true, batchSize: 1 });
+    const reconcile = createRoleplaySpontaneousReconciler(f.deps, { batchSize: 1 });
     await reconcile();
     await reconcile();
     await reconcile();

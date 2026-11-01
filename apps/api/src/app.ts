@@ -636,7 +636,6 @@ async function buildApp(overrides: CreateAppOverrides): Promise<AppHandles> {
     ? new UserDevices({ prisma, forwardSecret: userDeviceSecret, hub: userDeviceHub })
     : undefined;
   const executor = createRunExecutor({
-    roleplayEnabled: env.roleplayEnabled,
     roleplayRuntime,
     runtimes: { codex: nativeRuntime, claude: claudeRuntime, acp: acpRuntime },
     billingEnabled: modelCreditsEnabled,
@@ -852,7 +851,6 @@ async function buildApp(overrides: CreateAppOverrides): Promise<AppHandles> {
       maxUploadSizeBytes: env.maxUploadSizeBytes,
       maxAttachmentsPerMessage: env.maxAttachmentsPerMessage,
       agentRuntime: env.agentRuntime,
-      roleplayEnabled: env.roleplayEnabled,
       defaultProvider: env.defaultProvider,
       defaultModel: env.defaultModel,
       teamChatJudgeProvider: env.teamChatJudgeProvider,

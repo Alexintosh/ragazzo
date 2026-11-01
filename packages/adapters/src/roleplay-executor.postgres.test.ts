@@ -57,6 +57,7 @@ describePostgres("dedicated roleplay execution (PostgreSQL)", () => {
         { signupsEnabled: undefined, signupAllowlist: undefined },
       ),
     );
+    await prisma.user.update({ where: { id: identity.userId }, data: { roleplayEnabled: true } });
     actor = {
       userId: identity.userId,
       spaceId: identity.spaceId,
@@ -137,7 +138,6 @@ describePostgres("dedicated roleplay execution (PostgreSQL)", () => {
     const deps = {
       prisma,
       events,
-      roleplayEnabled: true,
       roleplayRuntime: runtime,
       jobs: { enqueue: vi.fn(async () => undefined) },
       secrets: [],

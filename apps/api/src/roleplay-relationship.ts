@@ -13,7 +13,7 @@ import {
 } from "@rakazo/contracts";
 import { ACTIVE_RUN_STATUSES, roleplayRelationshipState, roleplayStoryState } from "@rakazo/core";
 import type { Prisma } from "@rakazo/db";
-import { IsolationError } from "@rakazo/db";
+import { IsolationError, isRoleplayEnabled } from "@rakazo/db";
 import type { RouterDeps } from "./router.js";
 
 type Story = {
@@ -61,11 +61,11 @@ function snapshot(thread: Story, botId: string): RoleplayRelationshipDebug {
 }
 
 export async function loadRoleplayRelationship(
-  deps: Pick<RouterDeps, "prisma" | "env">,
+  deps: Pick<RouterDeps, "prisma">,
   actor: Actor,
   botId: string,
 ): Promise<RoleplayRelationshipDebug> {
-  if (!deps.env.roleplayEnabled)
+  if (!(await isRoleplayEnabled(deps.prisma, actor.userId)))
     throw new ORPCError("FORBIDDEN", { message: "Roleplay is not enabled" });
   const bot = await deps.prisma.bot.findFirst({
     where: { id: botId, spaceId: actor.spaceId, userId: actor.userId, archivedAt: null },
@@ -87,7 +87,7 @@ export async function loadRoleplayRelationship(
 }
 
 export async function updateRoleplayRelationship(
-  deps: Pick<RouterDeps, "prisma" | "env">,
+  deps: Pick<RouterDeps, "prisma">,
   actor: Actor,
   input: {
     botId: string;
@@ -96,7 +96,7 @@ export async function updateRoleplayRelationship(
     expectedRevision: string;
   },
 ): Promise<RoleplayRelationshipDebug> {
-  if (!deps.env.roleplayEnabled)
+  if (!(await isRoleplayEnabled(deps.prisma, actor.userId)))
     throw new ORPCError("FORBIDDEN", { message: "Roleplay is not enabled" });
   const relationship = RoleplayRelationshipSchema.parse(input.relationship);
   const bot = await deps.prisma.bot.findFirst({

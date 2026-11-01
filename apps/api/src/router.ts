@@ -154,7 +154,6 @@ export interface RouterDeps {
     maxUploadSizeBytes?: number;
     maxAttachmentsPerMessage?: number;
     agentRuntime: string;
-    roleplayEnabled?: boolean;
     teamChatJudgeProvider?: string;
     teamChatJudgeModel?: string;
     defaultProvider: string;

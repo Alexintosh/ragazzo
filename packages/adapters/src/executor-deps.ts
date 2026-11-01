@@ -26,8 +26,6 @@ import type { TicketChangeNotifier } from "./ticket-changes.js";
 import type { UserDeviceGateway } from "./user-device-protocol.js";
 
 export interface ExecutorDeps {
-  /** Enable only after all API and worker processes have the dedicated roleplay runtime. */
-  roleplayEnabled?: boolean;
   roleplayRuntime?: RoleplayRuntime;
   maxUploadSizeBytes?: number;
   contextStrategy?: AgentContextStrategy;

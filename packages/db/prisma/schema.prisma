@@ -36,6 +36,8 @@ model User {
   avatarStyle                 String                       @default("organic")
   /// IANA timezone such as "Pacific/Auckland". Null until set; bots then get UTC only.
   timezone                    String?
+  /// Enables dedicated roleplay conversations for this account.
+  roleplayEnabled             Boolean                      @default(false)
   marketingEmailOptOutAt      DateTime?
   sessions                    Session[]
   accounts                    Account[]

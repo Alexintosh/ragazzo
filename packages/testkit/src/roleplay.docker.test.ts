@@ -33,7 +33,6 @@ describe.skipIf(!enabled)("roleplay product journey with real PostgreSQL and Doc
     await mkdir(path.resolve(".cache"), { recursive: true });
     const dataDir = await mkdtemp(path.resolve(".cache/roleplay-integration-"));
     vi.stubEnv("DATA_DIR", dataDir);
-    vi.stubEnv("ROLEPLAY_ENABLED", "true");
     vi.stubEnv("SANDBOX_SUPERVISOR_TOKEN", token);
     vi.stubEnv("SANDBOX_CONTROL_VIA_LOOPBACK", "true");
     vi.stubEnv("SANDBOX_SCREEN_NETWORK", "published");
@@ -219,6 +218,7 @@ describe.skipIf(!enabled)("roleplay product journey with real PostgreSQL and Doc
       const cookie = sessionCookieHeader(signup);
       const me = await rpc<{ userId: string; spaceId: string }>(handles.app, cookie, "me");
       identity = { userId: me.userId, spaceId: me.spaceId };
+      await rpc(handles.app, cookie, "preferences/update", { roleplayEnabled: true });
       await rpc(handles.app, cookie, "models/connect", {
         provider: model.model.provider,
         modelId: model.model.id,

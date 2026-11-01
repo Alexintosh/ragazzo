@@ -79,6 +79,8 @@ export type SettingsGeneralProps = {
   /** The user's saved IANA timezone, or null before one is set. */
   timezone?: string | null;
   onTimezoneChange?: (timezone: string) => Promise<void>;
+  roleplayEnabled?: boolean;
+  onRoleplayEnabledChange?: (enabled: boolean) => Promise<void>;
   onAccountImported?: () => Promise<void>;
   onImportAgent?: () => void;
 };
@@ -89,6 +91,8 @@ export function GeneralSettingsPanels({
   onNameSaved,
   timezone = null,
   onTimezoneChange,
+  roleplayEnabled = false,
+  onRoleplayEnabledChange,
   onAccountImported,
   onImportAgent,
 }: SettingsGeneralProps) {
@@ -163,6 +167,9 @@ export function GeneralSettingsPanels({
   );
   const loadRemoteImagesId = useId();
   const timezoneId = useId();
+  const roleplayId = useId();
+  const [roleplayPending, setRoleplayPending] = useState(false);
+  const [roleplayError, setRoleplayError] = useState<string | null>(null);
   const showPassword = Boolean(
     accountSecurity?.hasPassword && accountSecurity.passwordChangeEnabled !== false,
   );
@@ -191,6 +198,19 @@ export function GeneralSettingsPanels({
       setTimezoneError(t`Couldn't update your timezone`);
     } finally {
       setTimezonePending(false);
+    }
+  }
+
+  async function chooseRoleplay(enabled: boolean) {
+    if (!onRoleplayEnabledChange || roleplayPending || enabled === roleplayEnabled) return;
+    setRoleplayPending(true);
+    setRoleplayError(null);
+    try {
+      await onRoleplayEnabledChange(enabled);
+    } catch {
+      setRoleplayError(t`Couldn't update roleplay settings`);
+    } finally {
+      setRoleplayPending(false);
     }
   }
 
@@ -326,6 +346,30 @@ export function GeneralSettingsPanels({
           label={<Trans>Language</Trans>}
           control={<UiLocalePicker value={locale} onChange={chooseLocale} />}
         />
+        {onRoleplayEnabledChange ? (
+          <SettingsRow
+            label={
+              <Label htmlFor={roleplayId} className="text-[14px] font-normal text-foreground">
+                <Trans>Roleplay bots</Trans>
+              </Label>
+            }
+            control={
+              <Switch
+                id={roleplayId}
+                data-testid="roleplay-enabled-toggle"
+                checked={roleplayEnabled}
+                disabled={roleplayPending}
+                onCheckedChange={(enabled) => void chooseRoleplay(enabled)}
+              />
+            }
+          >
+            {roleplayError ? (
+              <p role="alert" className="mt-2 text-[12.5px] text-destructive">
+                {roleplayError}
+              </p>
+            ) : null}
+          </SettingsRow>
+        ) : null}
         {onTimezoneChange ? (
           <div data-testid="timezone-settings">
             <SettingsRow

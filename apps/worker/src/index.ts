@@ -65,9 +65,9 @@ import {
   RunWorkerHost,
   reconcileCloudAgents,
   reconcileComputerUpdates,
+  reconcilePurchases,
   reconcileRegisteredHostRevocations,
   reconcileWorkflows,
-  reconcilePurchases,
   resolveDeploymentModel,
   resolvePiSessionRoot,
   resolveSandboxProvider,
@@ -265,7 +265,6 @@ async function main() {
     accessToken: process.env.EXPO_ACCESS_TOKEN,
   });
   const executor = createRunExecutor({
-    roleplayEnabled: process.env.ROLEPLAY_ENABLED === "true",
     runtimes: { codex: nativeRuntime, claude: claudeRuntime, acp: acpRuntime },
     maxUploadSizeBytes: uploadSizeFromEnv(process.env),
     prisma,
@@ -357,10 +356,7 @@ async function main() {
     events,
     notifications,
     leadership: createPostgresReconciliationLeadership(pool),
-    reconcileRoleplaySpontaneous: createRoleplaySpontaneousReconciler(
-      { prisma, jobs },
-      { enabled: process.env.ROLEPLAY_ENABLED === "true" },
-    ),
+    reconcileRoleplaySpontaneous: createRoleplaySpontaneousReconciler({ prisma, jobs }),
     reconcileModelCredits: createModelCreditReconciler({
       prisma,
       lookup: deploymentModelUsageLookup(),

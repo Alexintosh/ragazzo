@@ -108,6 +108,8 @@ export default function Account() {
   const { focus } = useLocalSearchParams<{ focus?: string }>();
   const [me, setMe] = useState<MobileMe | null>(null);
   const account = accountDisplay(me ?? {}, t("Your account"));
+  const [roleplayPending, setRoleplayPending] = useState(false);
+  const [roleplayError, setRoleplayError] = useState<string | null>(null);
   const [nameDialogOpen, setNameDialogOpen] = useState(false);
   const [nameDraft, setNameDraft] = useState("");
   const [namePending, setNamePending] = useState(false);
@@ -312,6 +314,22 @@ export default function Account() {
       };
     }, []),
   );
+
+  async function updateRoleplay(roleplayEnabled: boolean) {
+    if (!me || roleplayPending || roleplayEnabled === (me.roleplayEnabled === true)) return;
+    setRoleplayPending(true);
+    setRoleplayError(null);
+    try {
+      const nextMe = await rpc("preferences/update", { roleplayEnabled });
+      setMe((current) =>
+        current ? { ...current, roleplayEnabled: nextMe.roleplayEnabled } : nextMe,
+      );
+    } catch {
+      setRoleplayError(t("Couldn't update roleplay settings"));
+    } finally {
+      setRoleplayPending(false);
+    }
+  }
 
   async function handleSignOut() {
     setPending(true);
@@ -642,6 +660,17 @@ export default function Account() {
             title={t("Language")}
             value={UI_LOCALE_LABELS[locale]}
           />
+          <SettingsSwitch
+            label={t("Roleplay bots")}
+            value={me?.roleplayEnabled === true}
+            disabled={!me || roleplayPending}
+            onChange={(enabled) => void updateRoleplay(enabled)}
+          />
+          {roleplayError ? (
+            <Text accessibilityRole="alert" style={styles.error}>
+              {roleplayError}
+            </Text>
+          ) : null}
         </SettingsGroup>
 
         {Platform.OS === "android" ? (

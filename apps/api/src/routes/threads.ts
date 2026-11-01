@@ -17,6 +17,7 @@ import {
   createExternalConversationRepos,
   createThreadMessageInTransaction,
   IsolationError,
+  isRoleplayEnabled,
   lockOwnedGroup,
   touchGroupUpdatedAt,
 } from "@rakazo/db";
@@ -110,8 +111,10 @@ export function threadsRoutes(ctx: RouterContext) {
   ) => {
     const target = await resolveThreadTarget(deps.prisma, actor, input);
     if (target.kind === "bot" && target.bot.botKind === "roleplay") {
-      if (!deps.env.roleplayEnabled)
-        throw new ORPCError("BAD_REQUEST", { message: "Roleplay is not enabled on this server" });
+      if (!(await isRoleplayEnabled(deps.prisma, actor.userId)))
+        throw new ORPCError("BAD_REQUEST", {
+          message: "Roleplay is not enabled for this account. Enable it in Settings > General.",
+        });
       if (input.artifactIds?.length)
         throw new ORPCError("BAD_REQUEST", {
           message: "Roleplay currently supports text messages only",
@@ -445,8 +448,14 @@ export function threadsRoutes(ctx: RouterContext) {
       }),
       followUp: authed.threads.followUp.handler(async ({ context, input }) => {
         const target = await resolveThreadTarget(deps.prisma, context.actor, input);
-        if (target.kind === "bot" && target.bot.botKind === "roleplay" && !deps.env.roleplayEnabled)
-          throw new ORPCError("BAD_REQUEST", { message: "Roleplay is not enabled on this server" });
+        if (
+          target.kind === "bot" &&
+          target.bot.botKind === "roleplay" &&
+          !(await isRoleplayEnabled(deps.prisma, context.actor.userId))
+        )
+          throw new ORPCError("BAD_REQUEST", {
+            message: "Roleplay is not enabled for this account. Enable it in Settings > General.",
+          });
         if (target.kind === "bot") {
           await assertTeachingSendAllowed(deps.prisma, context.actor.spaceId, target.botId);
           const sent = await deps.events.sendUserMessage({
