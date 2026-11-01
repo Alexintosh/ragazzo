@@ -22,8 +22,12 @@ function fixture(roleplayEnabled = false, sandboxProvider = "docker") {
     .mockResolvedValue({ id: "rp", botKind: "roleplay", thread: { id: "story" } });
   const client = createRouterClient(
     createRouter({
-      prisma: { bot: { findFirst, create }, $transaction: transaction },
-      env: { roleplayEnabled, sandboxProvider, phoneCallsEnabled: true },
+      prisma: {
+        user: { findUnique: vi.fn(async () => ({ roleplayEnabled })) },
+        bot: { findFirst, create },
+        $transaction: transaction,
+      },
+      env: { sandboxProvider, phoneCallsEnabled: true },
     } as unknown as RouterDeps),
     { context: { actor } },
   );
@@ -31,7 +35,7 @@ function fixture(roleplayEnabled = false, sandboxProvider = "docker") {
 }
 
 describe("experimental roleplay admission", () => {
-  it("does not create or duplicate characters before deployment activation", async () => {
+  it("does not create or duplicate characters before account activation", async () => {
     const f = fixture();
     await expect(
       f.client.bots.create({ name: "Mira", botKind: "roleplay", roleplayCharacter: character }),

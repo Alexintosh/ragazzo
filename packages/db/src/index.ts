@@ -37,6 +37,7 @@ export * from "./model-credits.js";
 export * from "./model-roles.js";
 export * from "./provider-transactions.js";
 export * from "./repos.js";
+export * from "./roleplay-settings.js";
 export * from "./roleplay-spontaneous.js";
 export * from "./row-security.js";
 export * from "./run-secrets.js";

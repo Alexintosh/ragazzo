@@ -1119,6 +1119,7 @@ export type MobileMe = Pick<
   | "needsModel"
   | "isDeploymentOwner"
   | "needsSignupSurvey"
+  | "roleplayEnabled"
   | "billingEnabled"
   | "paymentWalletProvider"
 >;

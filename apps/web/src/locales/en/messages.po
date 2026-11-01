@@ -2542,6 +2542,10 @@ msgid "Couldn't update messaging settings"
 msgstr "Couldn't update messaging settings"
 
 #: src/pages/AccountSettingsOverlay.tsx
+msgid "Couldn't update roleplay settings"
+msgstr "Couldn't update roleplay settings"
+
+#: src/pages/AccountSettingsOverlay.tsx
 msgid "Couldn't update your timezone"
 msgstr "Couldn't update your timezone"
 
@@ -5671,6 +5675,10 @@ msgstr "Revoke"
 #: src/pages/shell/create-bot-dialog.tsx
 msgid "Roleplay"
 msgstr "Roleplay"
+
+#: src/pages/AccountSettingsOverlay.tsx
+msgid "Roleplay bots"
+msgstr "Roleplay bots"
 
 #: src/pages/shell/roleplay-settings.tsx
 msgid "Roleplay settings"

@@ -41,6 +41,8 @@ export function SettingsOverlay({
   onNameSaved,
   timezone,
   onTimezoneChange,
+  roleplayEnabled,
+  onRoleplayEnabledChange,
   onAccountImported,
   onImportAgent,
   billingEnabled = false,
@@ -68,6 +70,8 @@ export function SettingsOverlay({
   onNameSaved?: () => Promise<void>;
   timezone: string | null;
   onTimezoneChange: (timezone: string) => Promise<void>;
+  roleplayEnabled?: boolean;
+  onRoleplayEnabledChange?: (enabled: boolean) => Promise<void>;
   onAccountImported?: () => Promise<void>;
   onImportAgent?: () => void;
   billingEnabled?: boolean;
@@ -348,6 +352,8 @@ export function SettingsOverlay({
                         onNameSaved={onNameSaved}
                         timezone={timezone}
                         onTimezoneChange={onTimezoneChange}
+                        roleplayEnabled={roleplayEnabled}
+                        onRoleplayEnabledChange={onRoleplayEnabledChange}
                         onAccountImported={onAccountImported}
                         onImportAgent={onImportAgent}
                       />

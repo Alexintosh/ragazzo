@@ -2543,6 +2543,10 @@ msgid "Couldn't update messaging settings"
 msgstr "無法更新訊息設定"
 
 #: src/pages/AccountSettingsOverlay.tsx
+msgid "Couldn't update roleplay settings"
+msgstr ""
+
+#: src/pages/AccountSettingsOverlay.tsx
 msgid "Couldn't update your timezone"
 msgstr "無法更新你的時區"
 
@@ -5671,6 +5675,10 @@ msgstr "撤銷授權"
 
 #: src/pages/shell/create-bot-dialog.tsx
 msgid "Roleplay"
+msgstr ""
+
+#: src/pages/AccountSettingsOverlay.tsx
+msgid "Roleplay bots"
 msgstr ""
 
 #: src/pages/shell/roleplay-settings.tsx

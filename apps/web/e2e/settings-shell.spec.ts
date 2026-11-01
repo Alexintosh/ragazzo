@@ -256,3 +256,22 @@ test("Honcho memory settings empty and filled", async ({ page }, testInfo) => {
   await expect(documents).toBeVisible();
   await captureScreenshot(page, testInfo, "memory-dark-bottom");
 });
+
+test("roleplay can be enabled in account settings and stays saved", async ({ page }, testInfo) => {
+  const stamp = Date.now();
+  await signup(page, `settings-roleplay-${stamp}@rakazo.test`, "password12", "Settings");
+  await completeOnboarding(page);
+  let settings = await openUserSettings(page);
+  let toggle = settings.getByRole("switch", { name: "Roleplay bots", exact: true });
+  await expect(toggle).not.toBeChecked();
+  await toggle.click();
+  await expect(toggle).toBeChecked();
+  await captureScreenshot(page, testInfo, "settings-roleplay-enabled");
+  await settings.getByRole("button", { name: "Close user settings" }).click();
+  await page.reload();
+  settings = await openUserSettings(page);
+  toggle = settings.getByRole("switch", { name: "Roleplay bots", exact: true });
+  await expect(toggle).toBeChecked();
+  await toggle.click();
+  await expect(toggle).not.toBeChecked();
+});

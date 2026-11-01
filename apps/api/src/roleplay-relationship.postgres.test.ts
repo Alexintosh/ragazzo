@@ -63,10 +63,8 @@ postgres("relationship debug scoped persistence (PostgreSQL)", () => {
         botKind: "roleplay",
         roleplayCharacter: character,
       });
-      let deps = { prisma: db.prisma, env: { roleplayEnabled: true } } as Pick<
-        RouterDeps,
-        "prisma" | "env"
-      >;
+      await db.prisma.user.update({ where: { id: actor.userId }, data: { roleplayEnabled: true } });
+      let deps = { prisma: db.prisma } as Pick<RouterDeps, "prisma">;
       const before = await loadRoleplayRelationship(deps, actor, bot.id);
       const messages = await db.prisma.message.findMany({ where: { threadId: bot.threadId } });
       const input = {

@@ -41,6 +41,7 @@ function fixture() {
     return thread;
   });
   const tx = {
+    user: { findUnique: vi.fn(async () => ({ roleplayEnabled: true })) },
     bot: { findFirst },
     thread: { update },
     run: { findFirst: active },
@@ -50,7 +51,7 @@ function fixture() {
   const client = createRouterClient(
     createRouter({
       prisma: { ...tx, $transaction: transaction },
-      env: { roleplayEnabled: true },
+      env: {},
     } as unknown as RouterDeps),
     { context: { actor } },
   );

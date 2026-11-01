@@ -37,15 +37,23 @@ The existing `@once` routine, durable wakeup job and job reconciler handle timin
 
 ## Enable and roll out
 
-`ROLEPLAY_ENABLED` defaults to `false`. Set it to `true` on **both API and workers** only after all processes support the dedicated roleplay execution path. Docker must be configured and its computer image installed.
+Enable **Settings → General → Roleplay bots** for the signed-in account. The preference is
+stored in PostgreSQL and read by API instances and workers for each new turn; no environment
+variable or restart is required. It applies to that account across its spaces, not to other users.
+Docker must still be configured and its computer image installed. Web and mobile expose the same
+account preference.
 
-For the first deployment containing this feature:
+The additive migration preserves access for accounts that already own roleplay bots. Other
+accounts start with roleplay disabled. `ROLEPLAY_ENABLED` is no longer used.
 
-1. Keep roleplay disabled while applying the additive migration and deploying new binaries.
-2. Drain and stop every worker/API from a pre-roleplay version. Do not enable roleplay during a mixed-version rolling deployment: old workers do not understand the bot type and would run ordinary agent jobs.
-3. Enable `ROLEPLAY_ENABLED=true` and restart the upgraded API/workers together.
+Turning the setting off blocks new roleplay turns and spontaneous messages. Pending scheduled
+messages retain their timers and can resume when enabled again. A turn already running may finish;
+this setting does not cancel an active response. Character data and conversation history remain saved.
 
-For rollback across the pre-roleplay boundary, disable new roleplay admission, cancel/drain pending roleplay work, and stop all upgraded workers before restoring old binaries. Existing roleplay bots must not receive work through old APIs/workers; use a maintenance window. The experimental feature does not support mixed pre-roleplay and roleplay-aware processes while active.
+Apply migrations and upgrade all API and worker processes before enabling accounts. Mixed versions
+that still use the old environment gate can disagree with the account preference. For rollback
+across the pre-roleplay boundary, drain/cancel pending roleplay work and stop upgraded processes
+before restoring older binaries; old workers must not receive roleplay jobs.
 
 The native launcher supports an existing Docker supervisor through `--with-docker`. It also requires the deployment default computer preference to be explicitly set to `this-mac`, preserving existing default-target host computers. Explicit roleplay Docker targets remain Docker.
 

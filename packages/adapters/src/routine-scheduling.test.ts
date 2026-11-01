@@ -63,7 +63,9 @@ function pendingTimerFixture(reuse = true, botKind = "agent") {
       deleteMany: vi.fn(async () => ({ count: 1 })),
     },
   };
+  const user = { roleplayEnabled: true };
   const prisma = {
+    user: { findUnique: vi.fn(async () => user) },
     routine: { findUnique: vi.fn(async () => routine) },
     bot: { findUnique: vi.fn(async () => ({ id: "bot-1", botKind, thread: { id: "thread-1" } })) },
     agentSkill: { findMany: vi.fn(async () => []) },
@@ -76,7 +78,7 @@ function pendingTimerFixture(reuse = true, botKind = "agent") {
     jobs: { enqueue, cancel: vi.fn(), close: vi.fn() },
     events: { append },
   } as unknown as Parameters<typeof createRunExecutor>[0]);
-  return { executor, tx, enqueue, append, scheduledAt, prisma, routine };
+  return { executor, tx, enqueue, append, scheduledAt, prisma, routine, user };
 }
 
 describe("recurring routine catch-up", () => {
@@ -152,4 +154,34 @@ it("pauses a legacy RP operational watch before it can execute", async () => {
   );
   expect(f.tx.run.create).not.toHaveBeenCalled();
   expect(f.prisma.agentSkill.findMany).not.toHaveBeenCalled();
+});
+
+it("keeps disabled RP timers intact and resumes after the owner enables roleplay", async () => {
+  const f = pendingTimerFixture(false, "roleplay");
+  f.user.roleplayEnabled = false;
+  await f.executor.wakeRoutine("routine-1", f.scheduledAt.toISOString());
+  expect(f.prisma.user.findUnique).toHaveBeenCalledWith({
+    where: { id: "user-1" },
+    select: { roleplayEnabled: true },
+  });
+  expect(f.prisma.$transaction).not.toHaveBeenCalled();
+  expect(f.enqueue).not.toHaveBeenCalled();
+  expect(f.routine.nextRunAt).toEqual(f.scheduledAt);
+  expect(f.routine.active).toBe(true);
+  f.user.roleplayEnabled = true;
+  await f.executor.wakeRoutine("routine-1", f.scheduledAt.toISOString());
+  expect(f.tx.run.create).toHaveBeenCalledOnce();
+  f.user.roleplayEnabled = false;
+  f.prisma.$transaction.mockClear();
+  f.enqueue.mockClear();
+  await f.executor.wakeRoutine("routine-1", f.scheduledAt.toISOString());
+  expect(f.prisma.$transaction).not.toHaveBeenCalled();
+  expect(f.enqueue).not.toHaveBeenCalled();
+});
+
+it("does not consult roleplay preferences for agent routines", async () => {
+  const f = pendingTimerFixture(false);
+  await f.executor.wakeRoutine("routine-1", f.scheduledAt.toISOString());
+  expect(f.prisma.user.findUnique).not.toHaveBeenCalled();
+  expect(f.tx.run.create).toHaveBeenCalledOnce();
 });

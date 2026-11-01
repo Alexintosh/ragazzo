@@ -200,8 +200,9 @@ function fixture() {
     if (input.roleplayState) thread.roleplayState = input.roleplayState;
     return { continuationRunId: null as string | null };
   });
+  const user = { timezone: "Europe/Lisbon", roleplayEnabled: true };
   const prisma = {
-    user: { findUnique: vi.fn(async () => ({ timezone: "Europe/Lisbon" })) },
+    user: { findUnique: vi.fn(async ({ where }) => (where.id === "player" ? user : null)) },
     run: {
       findUnique: vi.fn(async () => ({ ...run })),
       findUniqueOrThrow: vi.fn(async () => ({ ...run })),
@@ -266,7 +267,6 @@ function fixture() {
   };
   const deps = {
     prisma,
-    roleplayEnabled: true,
     roleplayRuntime: runtime,
     events: { append: vi.fn(async () => ({})), finalizeRun, claimSteering: vi.fn(async () => []) },
     jobs: { enqueue: vi.fn(async () => undefined) },
@@ -286,7 +286,7 @@ function fixture() {
     mediaGeneration: {},
     browser: {},
   } as unknown as ExecutorDeps;
-  return { deps, run, thread, bot, rows, requests, runtime, forbidden, finalizeRun, prisma };
+  return { deps, run, thread, bot, rows, requests, runtime, forbidden, finalizeRun, prisma, user };
 }
 
 beforeEach(() => {
@@ -910,9 +910,9 @@ describe("roleplay executor boundary", () => {
     },
   );
 
-  it("fails closed before bootstrapping when roleplay is not enabled on the worker", async () => {
+  it("fails closed before bootstrapping when roleplay is not enabled for the run owner", async () => {
     const f = fixture();
-    f.deps.roleplayEnabled = false;
+    f.user.roleplayEnabled = false;
     await executeRoleplayRun(f.deps, f.runtime, f.run as unknown as Run, {
       workerId: "worker",
       fence: 1,
@@ -921,6 +921,43 @@ describe("roleplay executor boundary", () => {
     expect(fake.provision).not.toHaveBeenCalled();
     expect(f.prisma.bot.findUniqueOrThrow).not.toHaveBeenCalled();
     expect(fake.resolveModel).not.toHaveBeenCalled();
+    expect(f.requests).toEqual([]);
+  });
+
+  it("reads account changes for every turn without rebuilding the worker", async () => {
+    const f = fixture();
+    const execute = () =>
+      executeRoleplayRun(f.deps, f.runtime, f.run as unknown as Run, {
+        workerId: "worker",
+        fence: 1,
+      });
+    f.user.roleplayEnabled = false;
+    await execute();
+    expect(f.requests).toEqual([]);
+    f.user.roleplayEnabled = true;
+    f.run.status = "running";
+    await execute();
+    expect(f.requests).toHaveLength(1);
+    f.user.roleplayEnabled = false;
+    f.run.status = "running";
+    await execute();
+    expect(f.run.status).toBe("failed");
+    expect(f.requests).toHaveLength(1);
+  });
+
+  it("never borrows another account's enabled preference", async () => {
+    const f = fixture();
+    f.run.userId = "other-owner";
+    await executeRoleplayRun(f.deps, f.runtime, f.run as unknown as Run, {
+      workerId: "worker",
+      fence: 1,
+    });
+    expect(f.prisma.user.findUnique).toHaveBeenCalledWith({
+      where: { id: "other-owner" },
+      select: { roleplayEnabled: true },
+    });
+    expect(f.run.status).toBe("failed");
+    expect(fake.provision).not.toHaveBeenCalled();
     expect(f.requests).toEqual([]);
   });
 

@@ -12,6 +12,7 @@ import {
   isOneShotRoutineCrons,
   nextRoutineRunDateAcross,
 } from "@rakazo/core";
+import { isRoleplayEnabled } from "@rakazo/db";
 import { getLogger } from "@rakazo/logging";
 import { sanitizedError } from "@rakazo/logging/monitoring";
 import { protectedComputerLifecycleRefusal } from "./desktop-command-guard.js";
@@ -133,6 +134,8 @@ export async function wakeRoutine(deps: ExecutorDeps, routineId: string, schedul
     return;
   }
   if (!bot?.thread) return;
+  // Keep the timer intact while disabled so re-enabling resumes the existing routine.
+  if (bot.botKind === "roleplay" && !(await isRoleplayEnabled(deps.prisma, routine.userId))) return;
   // Roleplay schedules share the durable timer, never operational watch/skill capabilities.
   if (
     bot.botKind === "roleplay" &&

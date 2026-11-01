@@ -78,6 +78,10 @@ describePostgres("roleplay scheduled messages (PostgreSQL)", () => {
       ),
     );
     if (!provisioned.created) throw new Error("Scheduling fixture must own a new identity");
+    await system.user.update({
+      where: { id: provisioned.userId },
+      data: { roleplayEnabled: true },
+    });
     identity = {
       userId: provisioned.userId,
       spaceId: provisioned.spaceId,

@@ -42,6 +42,7 @@ function fixture() {
   const client = createRouterClient(
     createRouter({
       prisma: {
+        user: { findUnique: vi.fn(async () => ({ roleplayEnabled: true })) },
         bot: {
           findFirst: vi.fn(async () => ({
             id: "rp",
@@ -53,7 +54,7 @@ function fixture() {
       },
       events: { append: vi.fn() },
       jobs: { enqueue, cancel: vi.fn() },
-      env: { roleplayEnabled: true, sandboxProvider: "docker" },
+      env: { sandboxProvider: "docker" },
     } as unknown as RouterDeps),
     { context: { actor } },
   );

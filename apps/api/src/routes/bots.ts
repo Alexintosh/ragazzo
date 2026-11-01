@@ -36,6 +36,7 @@ import {
   expireComputerExecutionLeases,
   InstructionConflictError,
   IsolationError,
+  isRoleplayEnabled,
   recordComputerRunEnd,
   recordSecurityEvent,
   restoreBotUnderComputerQuota,
@@ -303,8 +304,13 @@ export function botsRoutes(ctx: RouterContext) {
         return bot;
       }),
       create: authed.bots.create.handler(async ({ context, input }) => {
-        if (input.botKind === "roleplay" && !deps.env.roleplayEnabled)
-          throw new ORPCError("BAD_REQUEST", { message: "Roleplay is not enabled on this server" });
+        if (
+          input.botKind === "roleplay" &&
+          !(await isRoleplayEnabled(deps.prisma, context.actor.userId))
+        )
+          throw new ORPCError("BAD_REQUEST", {
+            message: "Roleplay is not enabled for this account. Enable it in Settings > General.",
+          });
         if (input.botKind === "roleplay" && deps.env.sandboxProvider !== "docker")
           throw new ORPCError("BAD_REQUEST", {
             message: "Roleplay requires Docker on this server",
@@ -394,8 +400,13 @@ export function botsRoutes(ctx: RouterContext) {
       ),
       duplicate: authed.bots.duplicate.handler(async ({ context, input }) => {
         const source = await repos.getBot(context.actor, input.botId);
-        if (source.botKind === "roleplay" && !deps.env.roleplayEnabled)
-          throw new ORPCError("BAD_REQUEST", { message: "Roleplay is not enabled on this server" });
+        if (
+          source.botKind === "roleplay" &&
+          !(await isRoleplayEnabled(deps.prisma, context.actor.userId))
+        )
+          throw new ORPCError("BAD_REQUEST", {
+            message: "Roleplay is not enabled for this account. Enable it in Settings > General.",
+          });
         if (source.botKind === "roleplay" && deps.env.sandboxProvider !== "docker")
           throw new ORPCError("BAD_REQUEST", {
             message: "Roleplay requires Docker on this server",
