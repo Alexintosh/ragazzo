@@ -191,6 +191,10 @@ msgstr "{count} 週"
 msgid "{count} years"
 msgstr "{count} 年"
 
+#: src/components/HostedCredits.tsx
+msgid "{daily} credits daily"
+msgstr ""
+
 #: src/lib/relative-time.ts
 msgid "{days}d ago"
 msgstr "{days} 天前"
@@ -412,8 +416,16 @@ msgstr "{toolCount, plural, one {# 個工具} other {# 個工具}}"
 msgid "@{0}"
 msgstr "@{0}"
 
+#: src/components/HostedCredits.tsx
+msgid "1 credit = $0.001. Model multipliers apply to provider cost."
+msgstr ""
+
 #: src/components/integrations/space-availability.tsx
 msgid "1 space"
+msgstr ""
+
+#: src/pages/AdminCreditsPage.tsx
+msgid "1× charges provider cost. Changes apply to new reservations."
 msgstr ""
 
 #: src/pages/shell/message-cards.tsx
@@ -462,6 +474,10 @@ msgstr "帳號標籤"
 #: src/components/SidebarFooter.tsx
 msgid "Account menu for {name}"
 msgstr "{name} 的帳號選單"
+
+#: src/pages/AdminCreditsPage.tsx
+msgid "Accounts"
+msgstr ""
 
 #. placeholder {0}: bot.name
 #. placeholder {0}: group.spaceName
@@ -620,6 +636,10 @@ msgstr "已新增"
 #: src/pages/PluginsOverlay.tsx
 msgid "Adding…"
 msgstr "正在新增…"
+
+#: src/pages/AdminCreditsPage.tsx
+msgid "Adjustment recorded"
+msgstr ""
 
 #: src/pages/AccountSettingsOverlay.tsx
 #: src/pages/McpServersOverlay.tsx
@@ -817,6 +837,10 @@ msgstr ""
 msgid "Apply"
 msgstr "套用"
 
+#: src/pages/AdminCreditsPage.tsx
+msgid "Apply dates"
+msgstr ""
+
 #: src/components/teach/SkillDraftCard.tsx
 msgid "Approval boundaries"
 msgstr "核准邊界"
@@ -949,7 +973,9 @@ msgstr "自動化傳送者在這裡傳送訊息後就會顯示。"
 msgid "Available after the routine is saved"
 msgstr "儲存例行任務後可用"
 
+#: src/components/HostedCredits.tsx
 #: src/components/ModelCredits.tsx
+#: src/pages/AdminCreditsPage.tsx
 msgid "Available credits"
 msgstr "可用額度"
 
@@ -967,6 +993,7 @@ msgstr "頭像工作室"
 
 #: src/components/integrations/plugin-marketplace.tsx
 #: src/components/integrations/skills-dialog.tsx
+#: src/pages/AdminCreditsPage.tsx
 #: src/pages/AdminPluginsPage.tsx
 #: src/pages/Auth.tsx
 #: src/pages/Board.tsx
@@ -1210,6 +1237,10 @@ msgstr "修改密碼"
 msgid "Changing…"
 msgstr "正在修改…"
 
+#: src/pages/AdminCreditsPage.tsx
+msgid "Charged credits"
+msgstr ""
+
 #: src/pages/shell/message-cards.tsx
 msgid "Chart failed to render: {error}"
 msgstr "圖表渲染失敗：{error}"
@@ -1289,6 +1320,10 @@ msgstr "正在檢查…"
 #: src/pages/shell/avatar-studio-popover.tsx
 msgid "Choose a bot shape, color, or upload an image"
 msgstr "選擇機器人形狀和顏色，或上傳圖片"
+
+#: src/pages/AdminCreditsPage.tsx
+msgid "Choose a date range between 1 and 93 days."
+msgstr ""
 
 #: src/pages/ModelSettingsOverlay.tsx
 #: src/pages/shell/composer-error.tsx
@@ -1559,6 +1594,10 @@ msgstr "確認密碼"
 msgid "Confirm removal"
 msgstr ""
 
+#: src/pages/AdminCreditsPage.tsx
+msgid "Confirm revocation"
+msgstr ""
+
 #: src/lib/model-connection-preflight.ts
 msgid "Confirm the URL is reachable from this browser session, then test again."
 msgstr "請確認此瀏覽器工作階段可以存取該 URL，然後重新測試。"
@@ -1749,6 +1788,10 @@ msgstr "複製列"
 #: src/pages/AccountSettingsOverlay.tsx
 msgid "Cost"
 msgstr "費用"
+
+#: src/pages/AdminCreditsPage.tsx
+msgid "Cost multiplier"
+msgstr ""
 
 #: src/pages/ScratchpadSection.tsx
 msgid "Could not add"
@@ -1964,6 +2007,7 @@ msgstr "無法載入核准規則"
 msgid "Could not load artifacts."
 msgstr "無法載入成品。"
 
+#: src/components/HostedCredits.tsx
 #: src/pages/BillingSettingsPanel.tsx
 msgid "Could not load billing"
 msgstr "無法載入帳務資訊"
@@ -1976,6 +2020,11 @@ msgstr "無法載入機器人，請重新載入後再試。"
 msgid "Could not load credentials."
 msgstr "無法載入憑證。"
 
+#: src/components/HostedCredits.tsx
+#: src/pages/AdminCreditsPage.tsx
+msgid "Could not load credits"
+msgstr ""
+
 #: src/pages/PluginsOverlay.tsx
 msgid "Could not load integrations"
 msgstr "無法載入整合"
@@ -1984,6 +2033,10 @@ msgstr "無法載入整合"
 #: src/pages/PluginsOverlay.tsx
 msgid "Could not load MCP servers"
 msgstr "無法載入 MCP 伺服器"
+
+#: src/components/HostedCredits.tsx
+msgid "Could not load model rates"
+msgstr ""
 
 #: src/pages/model-settings/use-model-settings.ts
 msgid "Could not load model settings"
@@ -2235,6 +2288,7 @@ msgstr "無法更新"
 msgid "Could not update agent access"
 msgstr "無法更新代理程式的存取權限"
 
+#: src/components/HostedCredits.tsx
 #: src/components/ModelCredits.tsx
 msgid "Could not update billing"
 msgstr "無法更新帳務資訊"
@@ -2242,6 +2296,10 @@ msgstr "無法更新帳務資訊"
 #: src/components/ComputerMaintenanceActions.tsx
 msgid "Could not update computer"
 msgstr "無法更新電腦"
+
+#: src/pages/AdminCreditsPage.tsx
+msgid "Could not update credits"
+msgstr ""
 
 #: src/pages/AccountSettingsOverlay.tsx
 msgid "Could not update name"
@@ -2344,9 +2402,27 @@ msgstr "憑證已加密，不會傳送給模型。"
 msgid "Credentials: {names}"
 msgstr "憑證：{names}"
 
+#: src/pages/AdminCreditsPage.tsx
+msgid "Credit adjustment"
+msgstr ""
+
+#: src/pages/AdminCreditsPage.tsx
+#: src/pages/BillingSettingsPanel.tsx
+#: src/pages/Shell.tsx
+msgid "Credit administration"
+msgstr ""
+
 #: src/components/ModelCredits.tsx
 msgid "Credit amount"
 msgstr "額度金額"
+
+#: src/pages/AdminCreditsPage.tsx
+msgid "Credit history"
+msgstr ""
+
+#: src/pages/AdminCreditsPage.tsx
+msgid "credits"
+msgstr ""
 
 #: src/lib/cron.ts
 msgid "Cron"
@@ -2384,6 +2460,22 @@ msgstr "自訂{label}"
 #: src/pages/shell/avatar-studio-popover.tsx
 msgid "Customize bot avatar"
 msgstr "自訂機器人頭像"
+
+#: src/pages/AdminCreditsPage.tsx
+msgid "Daily allowance override"
+msgstr ""
+
+#: src/pages/AdminCreditsPage.tsx
+msgid "Daily credits per account"
+msgstr ""
+
+#: src/pages/AdminCreditsPage.tsx
+msgid "Daily grant budget"
+msgstr ""
+
+#: src/pages/AdminCreditsPage.tsx
+msgid "Daily grants use UTC. A zero budget disables grants."
+msgstr ""
 
 #: src/pages/AccountSettingsOverlay.tsx
 #: src/pages/Shell.tsx
@@ -2517,6 +2609,10 @@ msgstr "已拒絕"
 #: src/components/AskCard.tsx
 msgid "Deny"
 msgstr "拒絕"
+
+#: src/pages/AdminCreditsPage.tsx
+msgid "Deployment default"
+msgstr ""
 
 #: src/pages/Board.tsx
 #: src/pages/shell/agent-import.tsx
@@ -2697,6 +2793,7 @@ msgstr "每個名稱只能使用一次。"
 
 #: src/components/AskCard.tsx
 #: src/pages/AccountSettingsOverlay.tsx
+#: src/pages/AdminCreditsPage.tsx
 #: src/pages/McpServersOverlay.tsx
 msgid "Edit"
 msgstr "編輯"
@@ -2733,6 +2830,10 @@ msgstr "需要驗證電子信箱"
 #: src/pages/shell/bot-panel.tsx
 msgid "Enable {0}"
 msgstr "啟用 {0}"
+
+#: src/pages/AdminCreditsPage.tsx
+msgid "Enable hosted models"
+msgstr ""
 
 #: src/pages/BillingSettingsPanel.tsx
 msgid "Ends {day}"
@@ -2988,6 +3089,10 @@ msgstr "已完成。"
 msgid "Finishing MCP connection…"
 msgstr "正在完成 MCP 連線…"
 
+#: src/pages/AdminCreditsPage.tsx
+msgid "First page"
+msgstr ""
+
 #: src/pages/Auth.tsx
 msgid "Forgot password?"
 msgstr "忘記密碼？"
@@ -3008,6 +3113,10 @@ msgstr "週五"
 #: src/pages/ActivityList.tsx
 msgid "From"
 msgstr "從"
+
+#: src/pages/AdminCreditsPage.tsx
+msgid "From (UTC)"
+msgstr ""
 
 #. placeholder {0}: filters.dateRange.from
 #: src/pages/ActivityList.tsx
@@ -3052,6 +3161,10 @@ msgstr "Git 事件"
 #: src/pages/NotFound.tsx
 msgid "Go home"
 msgstr "返回首頁"
+
+#: src/pages/AdminCreditsPage.tsx
+msgid "Grant credits"
+msgstr ""
 
 #: src/lib/identity-display.ts
 #: src/pages/MessagingSettingsPanel.tsx
@@ -3147,6 +3260,14 @@ msgstr "按住說話"
 #: src/components/composer/HoldToTalk.tsx
 msgid "Hold to talk, release to send"
 msgstr "按住說話，放開傳送"
+
+#: src/pages/AdminCreditsPage.tsx
+msgid "Hosted credit policy"
+msgstr ""
+
+#: src/components/HostedCredits.tsx
+msgid "Hosted models are paused"
+msgstr ""
 
 #: src/lib/cron.ts
 msgid "hour"
@@ -3369,6 +3490,10 @@ msgstr "保留記憶"
 msgid "key"
 msgstr "金鑰"
 
+#: src/pages/AdminCreditsPage.tsx
+msgid "Known provider cost"
+msgstr ""
+
 #: src/components/LoginFields.tsx
 msgid "Label"
 msgstr "標籤"
@@ -3486,9 +3611,11 @@ msgstr "正在載入預覽…"
 msgid "Loading voice providers…"
 msgstr "正在載入語音供應商…"
 
+#: src/components/HostedCredits.tsx
 #: src/components/integrations/plugin-marketplace.tsx
 #: src/components/integrations/skills-dialog.tsx
 #: src/components/PageLoading.tsx
+#: src/pages/AdminCreditsPage.tsx
 #: src/pages/Artifacts.tsx
 #: src/pages/IntegrationSetup.tsx
 #: src/pages/PeerMessagesOverlay.tsx
@@ -3535,6 +3662,7 @@ msgstr "使用小寫英文字母、數字、連字號與底線，並以字母開
 msgid "Main model"
 msgstr "主模型"
 
+#: src/pages/AdminCreditsPage.tsx
 #: src/pages/BillingSettingsPanel.tsx
 #: src/pages/SettingsOverlay.tsx
 msgid "Manage"
@@ -3768,6 +3896,7 @@ msgid "Mode"
 msgstr "模式"
 
 #: src/pages/AccountSettingsOverlay.tsx
+#: src/pages/AdminCreditsPage.tsx
 #: src/pages/model-settings/compatible-model-fields.tsx
 #: src/pages/model-settings/model-picker.tsx
 #: src/pages/Onboarding.tsx
@@ -3794,6 +3923,10 @@ msgstr "模型 ID"
 #: src/pages/model-settings/role-model-picker.tsx
 msgid "Model options"
 msgstr "模型選項"
+
+#: src/components/HostedCredits.tsx
+msgid "Model rates"
+msgstr ""
 
 #: src/pages/ModelSettingsOverlay.tsx
 #: src/pages/settings-nav.ts
@@ -3989,13 +4122,22 @@ msgstr "新增空間"
 msgid "New ticket"
 msgstr "新增工作項目"
 
+#: src/pages/AdminCreditsPage.tsx
+msgid "Next events"
+msgstr ""
+
 #: src/components/markdown-copy.tsx
+#: src/pages/AdminCreditsPage.tsx
 msgid "Next page"
 msgstr "下一頁"
 
 #: src/pages/SettingsOverlay.tsx
 msgid "Next settings sections"
 msgstr "下一組設定區段"
+
+#: src/pages/AdminCreditsPage.tsx
+msgid "No accounts"
+msgstr ""
 
 #: src/pages/PluginsOverlay.tsx
 msgid "No apps match your search."
@@ -4017,6 +4159,10 @@ msgstr "無驗證"
 #: src/pages/shell/bot-picker.tsx
 msgid "No bots match"
 msgstr "沒有符合的機器人"
+
+#: src/pages/AdminCreditsPage.tsx
+msgid "No events"
+msgstr ""
 
 #: src/components/AskCard.tsx
 msgid "No longer active"
@@ -4103,6 +4249,10 @@ msgstr "尚無工作項目"
 #: src/pages/RoutineEditor.tsx
 msgid "No trigger"
 msgstr "無觸發器"
+
+#: src/pages/AdminCreditsPage.tsx
+msgid "No usage in this period"
+msgstr ""
 
 #: src/lib/ticket-priority.ts
 msgid "Normal"
@@ -4415,6 +4565,10 @@ msgstr "已暫停"
 msgid "Pending"
 msgstr "待處理"
 
+#: src/pages/AdminCreditsPage.tsx
+msgid "Pending credits"
+msgstr ""
+
 #: src/pages/shell/bot-panel.tsx
 msgid "Permissions"
 msgstr "權限"
@@ -4485,6 +4639,10 @@ msgstr ""
 msgid "Plugins"
 msgstr ""
 
+#: src/pages/AdminCreditsPage.tsx
+msgid "Positive to grant, negative to revoke"
+msgstr ""
+
 #: src/pages/RoutineEditor.tsx
 msgid "Post \"No changes\" in chat"
 msgstr "在聊天室中傳送「沒有變更」"
@@ -4545,11 +4703,24 @@ msgstr "程式：{name}"
 msgid "Protected input"
 msgstr "受保護的輸入"
 
+#: src/pages/AdminCreditsPage.tsx
 #: src/pages/MemorySettingsOverlay.tsx
 #: src/pages/Onboarding.tsx
 #: src/pages/VoiceSettingsOverlay.tsx
 msgid "Provider"
 msgstr "供應商"
+
+#: src/pages/AdminCreditsPage.tsx
+msgid "Provider / model"
+msgstr ""
+
+#: src/pages/AdminCreditsPage.tsx
+msgid "Provider and model tariffs"
+msgstr ""
+
+#: src/pages/AdminCreditsPage.tsx
+msgid "Provider costs and credits"
+msgstr ""
 
 #: src/pages/model-settings/providers-section.tsx
 msgid "Providers"
@@ -4592,6 +4763,7 @@ msgstr "朗讀回覆"
 msgid "Ready"
 msgstr "就緒"
 
+#: src/pages/AdminCreditsPage.tsx
 #: src/pages/PluginSubmissionsPanel.tsx
 msgid "Reason"
 msgstr ""
@@ -4697,6 +4869,7 @@ msgstr "重新導向 URI"
 
 #: src/App.tsx
 #: src/components/ErrorBoundary.tsx
+#: src/components/HostedCredits.tsx
 #: src/components/ModelCredits.tsx
 msgid "Refresh"
 msgstr "重新整理"
@@ -4838,6 +5011,10 @@ msgstr "重新命名分組"
 msgid "Renews {day}"
 msgstr "於 {day} 續訂"
 
+#: src/components/HostedCredits.tsx
+msgid "Renews {next}"
+msgstr ""
+
 #: src/pages/ScratchpadSection.tsx
 msgid "Reopen"
 msgstr "重新開啟"
@@ -4978,9 +5155,19 @@ msgstr "返回 Rakazo"
 msgid "Review provider settings and test again."
 msgstr "請檢查供應商設定並重新測試。"
 
+#: src/pages/AdminCreditsPage.tsx
+msgid "Review revocation"
+msgstr ""
+
 #: src/pages/MessagingSettingsPanel.tsx
 msgid "Revoke"
 msgstr "撤銷授權"
+
+#. placeholder {0}: formatCreditAmount((-BigInt(micros)).toString(), i18n.locale)
+#. placeholder {1}: account.name
+#: src/pages/AdminCreditsPage.tsx
+msgid "Revoke {0} credits from {1}?"
+msgstr ""
 
 #: src/pages/ExternalConversationSettings.tsx
 msgid "Room guidance"
@@ -5071,6 +5258,10 @@ msgstr "週六"
 msgid "Save"
 msgstr "儲存"
 
+#: src/pages/AdminCreditsPage.tsx
+msgid "Save allowance"
+msgstr ""
+
 #: src/components/VaultSettings.tsx
 msgid "Save credential"
 msgstr "儲存憑證"
@@ -5078,6 +5269,14 @@ msgstr "儲存憑證"
 #: src/components/VaultSettings.tsx
 msgid "Save new value"
 msgstr "儲存新值"
+
+#: src/pages/AdminCreditsPage.tsx
+msgid "Save policy"
+msgstr ""
+
+#: src/pages/AdminCreditsPage.tsx
+msgid "Save tariff"
+msgstr ""
 
 #: src/components/ComputerMaintenanceActions.tsx
 msgid "Save the workspace and install current software."
@@ -5142,6 +5341,7 @@ msgstr "範圍（選填）"
 msgid "Screen not connected"
 msgstr "螢幕未連線"
 
+#: src/pages/AdminCreditsPage.tsx
 #: src/pages/model-settings/compatible-model-fields.tsx
 #: src/pages/model-settings/model-picker.tsx
 #: src/pages/model-settings/providers-section.tsx
@@ -5154,6 +5354,10 @@ msgstr "螢幕未連線"
 #: src/pages/shell/sidebar-header.tsx
 msgid "Search"
 msgstr "搜尋"
+
+#: src/pages/AdminCreditsPage.tsx
+msgid "Search accounts"
+msgstr ""
 
 #: src/components/integrations/IntegrationSetup.tsx
 #: src/pages/PluginsOverlay.tsx
@@ -6096,6 +6300,10 @@ msgstr "復原"
 msgid "Uninstall"
 msgstr "解除安裝"
 
+#: src/pages/AdminCreditsPage.tsx
+msgid "Unknown cost"
+msgstr ""
+
 #: src/pages/MessagingSettingsPanel.tsx
 msgid "Unlink"
 msgstr "取消關聯"
@@ -6112,6 +6320,10 @@ msgstr "取消置頂"
 #: src/pages/shell/use-composer-actions.ts
 msgid "Unsupported file type: {0}"
 msgstr "不支援的檔案類型：{0}"
+
+#: src/pages/AdminCreditsPage.tsx
+msgid "Until (UTC, exclusive)"
+msgstr ""
 
 #: src/components/DesktopUpdates.tsx
 msgid "Up to date"
@@ -6226,6 +6438,7 @@ msgstr "{label}使用預設值"
 msgid "Use in this bot"
 msgstr ""
 
+#: src/components/HostedCredits.tsx
 #: src/components/ModelCredits.tsx
 msgid "Use my subscription or API key"
 msgstr "使用我的訂閱或 API 金鑰"
@@ -6234,6 +6447,7 @@ msgstr "使用我的訂閱或 API 金鑰"
 msgid "Use Protected input for passwords."
 msgstr "輸入密碼時，請使用受保護的輸入。"
 
+#: src/components/HostedCredits.tsx
 #: src/components/ModelCredits.tsx
 msgid "Use Rakazo credits"
 msgstr "使用 Rakazo 額度"

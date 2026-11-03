@@ -703,7 +703,7 @@ export default function Account() {
         ) : null}
 
         <SettingsGroup>
-          {me?.billingEnabled ? (
+          {me?.billingEnabled || me?.hostedCreditsEnabled ? (
             <SettingsRow
               title={t("Billing")}
               chevron="right"

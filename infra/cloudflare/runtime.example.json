@@ -1,0 +1,9 @@
+{
+  "SIGNUPS_ENABLED": "false",
+  "SIGNUP_ALLOWLIST": "operator@example.com",
+  "RAKAZO_ADMIN_EMAILS": "operator@example.com",
+  "SANDBOX_PROVIDER": "none",
+  "PI_DEFAULT_PROVIDER": "openrouter",
+  "PI_DEFAULT_MODEL": "replace-with-your-enabled-model",
+  "DB_POOL_MAX": "8"
+}

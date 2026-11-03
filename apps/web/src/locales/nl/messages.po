@@ -190,6 +190,10 @@ msgstr "{count} weken"
 msgid "{count} years"
 msgstr "{count} jaar"
 
+#: src/components/HostedCredits.tsx
+msgid "{daily} credits daily"
+msgstr ""
+
 #: src/lib/relative-time.ts
 msgid "{days}d ago"
 msgstr "{days}d geleden"
@@ -411,8 +415,16 @@ msgstr "{toolCount, plural, one {# tool} other {# tools}}"
 msgid "@{0}"
 msgstr "@{0}"
 
+#: src/components/HostedCredits.tsx
+msgid "1 credit = $0.001. Model multipliers apply to provider cost."
+msgstr ""
+
 #: src/components/integrations/space-availability.tsx
 msgid "1 space"
+msgstr ""
+
+#: src/pages/AdminCreditsPage.tsx
+msgid "1× charges provider cost. Changes apply to new reservations."
 msgstr ""
 
 #: src/pages/shell/message-cards.tsx
@@ -461,6 +473,10 @@ msgstr "Accountlabel"
 #: src/components/SidebarFooter.tsx
 msgid "Account menu for {name}"
 msgstr "Accountmenu voor {name}"
+
+#: src/pages/AdminCreditsPage.tsx
+msgid "Accounts"
+msgstr ""
 
 #. placeholder {0}: bot.name
 #. placeholder {0}: group.spaceName
@@ -619,6 +635,10 @@ msgstr "Toegevoegd"
 #: src/pages/PluginsOverlay.tsx
 msgid "Adding…"
 msgstr "Toevoegen…"
+
+#: src/pages/AdminCreditsPage.tsx
+msgid "Adjustment recorded"
+msgstr ""
 
 #: src/pages/AccountSettingsOverlay.tsx
 #: src/pages/McpServersOverlay.tsx
@@ -816,6 +836,10 @@ msgstr ""
 msgid "Apply"
 msgstr "Toepassen"
 
+#: src/pages/AdminCreditsPage.tsx
+msgid "Apply dates"
+msgstr ""
+
 #: src/components/teach/SkillDraftCard.tsx
 msgid "Approval boundaries"
 msgstr "Goedkeuringsgrenzen"
@@ -948,7 +972,9 @@ msgstr "Geautomatiseerde afzenders verschijnen zodra ze hier iets plaatsen."
 msgid "Available after the routine is saved"
 msgstr "Beschikbaar zodra de routine is opgeslagen"
 
+#: src/components/HostedCredits.tsx
 #: src/components/ModelCredits.tsx
+#: src/pages/AdminCreditsPage.tsx
 msgid "Available credits"
 msgstr ""
 
@@ -966,6 +992,7 @@ msgstr "Avatarstudio"
 
 #: src/components/integrations/plugin-marketplace.tsx
 #: src/components/integrations/skills-dialog.tsx
+#: src/pages/AdminCreditsPage.tsx
 #: src/pages/AdminPluginsPage.tsx
 #: src/pages/Auth.tsx
 #: src/pages/Board.tsx
@@ -1209,6 +1236,10 @@ msgstr "Wachtwoord wijzigen"
 msgid "Changing…"
 msgstr "Bezig met wijzigen…"
 
+#: src/pages/AdminCreditsPage.tsx
+msgid "Charged credits"
+msgstr ""
+
 #: src/pages/shell/message-cards.tsx
 msgid "Chart failed to render: {error}"
 msgstr "Grafiek kon niet worden weergegeven: {error}"
@@ -1288,6 +1319,10 @@ msgstr "Bezig met controleren…"
 #: src/pages/shell/avatar-studio-popover.tsx
 msgid "Choose a bot shape, color, or upload an image"
 msgstr "Kies een botvorm, kleur of upload een afbeelding"
+
+#: src/pages/AdminCreditsPage.tsx
+msgid "Choose a date range between 1 and 93 days."
+msgstr ""
 
 #: src/pages/ModelSettingsOverlay.tsx
 #: src/pages/shell/composer-error.tsx
@@ -1558,6 +1593,10 @@ msgstr "Wachtwoord bevestigen"
 msgid "Confirm removal"
 msgstr ""
 
+#: src/pages/AdminCreditsPage.tsx
+msgid "Confirm revocation"
+msgstr ""
+
 #: src/lib/model-connection-preflight.ts
 msgid "Confirm the URL is reachable from this browser session, then test again."
 msgstr "Bevestig dat de URL vanuit deze browsersessie bereikbaar is en test daarna opnieuw."
@@ -1748,6 +1787,10 @@ msgstr "Rijen kopiëren"
 #: src/pages/AccountSettingsOverlay.tsx
 msgid "Cost"
 msgstr "Kosten"
+
+#: src/pages/AdminCreditsPage.tsx
+msgid "Cost multiplier"
+msgstr ""
 
 #: src/pages/ScratchpadSection.tsx
 msgid "Could not add"
@@ -1963,6 +2006,7 @@ msgstr "Goedkeuringsregels laden mislukt"
 msgid "Could not load artifacts."
 msgstr "Artefacten laden mislukt."
 
+#: src/components/HostedCredits.tsx
 #: src/pages/BillingSettingsPanel.tsx
 msgid "Could not load billing"
 msgstr "Facturatie laden mislukt"
@@ -1975,6 +2019,11 @@ msgstr "Bots laden mislukt. Herlaad om het opnieuw te proberen."
 msgid "Could not load credentials."
 msgstr "Gegevens laden mislukt."
 
+#: src/components/HostedCredits.tsx
+#: src/pages/AdminCreditsPage.tsx
+msgid "Could not load credits"
+msgstr ""
+
 #: src/pages/PluginsOverlay.tsx
 msgid "Could not load integrations"
 msgstr "Integraties laden mislukt"
@@ -1983,6 +2032,10 @@ msgstr "Integraties laden mislukt"
 #: src/pages/PluginsOverlay.tsx
 msgid "Could not load MCP servers"
 msgstr "MCP-servers laden mislukt"
+
+#: src/components/HostedCredits.tsx
+msgid "Could not load model rates"
+msgstr ""
 
 #: src/pages/model-settings/use-model-settings.ts
 msgid "Could not load model settings"
@@ -2234,6 +2287,7 @@ msgstr "Bijwerken mislukt"
 msgid "Could not update agent access"
 msgstr "Agenttoegang bijwerken mislukt"
 
+#: src/components/HostedCredits.tsx
 #: src/components/ModelCredits.tsx
 msgid "Could not update billing"
 msgstr ""
@@ -2241,6 +2295,10 @@ msgstr ""
 #: src/components/ComputerMaintenanceActions.tsx
 msgid "Could not update computer"
 msgstr "Computer bijwerken mislukt"
+
+#: src/pages/AdminCreditsPage.tsx
+msgid "Could not update credits"
+msgstr ""
 
 #: src/pages/AccountSettingsOverlay.tsx
 msgid "Could not update name"
@@ -2343,8 +2401,26 @@ msgstr "Gegevens worden versleuteld en nooit naar het model gestuurd."
 msgid "Credentials: {names}"
 msgstr "Inloggegevens: {names}"
 
+#: src/pages/AdminCreditsPage.tsx
+msgid "Credit adjustment"
+msgstr ""
+
+#: src/pages/AdminCreditsPage.tsx
+#: src/pages/BillingSettingsPanel.tsx
+#: src/pages/Shell.tsx
+msgid "Credit administration"
+msgstr ""
+
 #: src/components/ModelCredits.tsx
 msgid "Credit amount"
+msgstr ""
+
+#: src/pages/AdminCreditsPage.tsx
+msgid "Credit history"
+msgstr ""
+
+#: src/pages/AdminCreditsPage.tsx
+msgid "credits"
 msgstr ""
 
 #: src/lib/cron.ts
@@ -2383,6 +2459,22 @@ msgstr "{label} aanpassen"
 #: src/pages/shell/avatar-studio-popover.tsx
 msgid "Customize bot avatar"
 msgstr "Botavatar aanpassen"
+
+#: src/pages/AdminCreditsPage.tsx
+msgid "Daily allowance override"
+msgstr ""
+
+#: src/pages/AdminCreditsPage.tsx
+msgid "Daily credits per account"
+msgstr ""
+
+#: src/pages/AdminCreditsPage.tsx
+msgid "Daily grant budget"
+msgstr ""
+
+#: src/pages/AdminCreditsPage.tsx
+msgid "Daily grants use UTC. A zero budget disables grants."
+msgstr ""
 
 #: src/pages/AccountSettingsOverlay.tsx
 #: src/pages/Shell.tsx
@@ -2516,6 +2608,10 @@ msgstr "Geweigerd"
 #: src/components/AskCard.tsx
 msgid "Deny"
 msgstr "Weigeren"
+
+#: src/pages/AdminCreditsPage.tsx
+msgid "Deployment default"
+msgstr ""
 
 #: src/pages/Board.tsx
 #: src/pages/shell/agent-import.tsx
@@ -2696,6 +2792,7 @@ msgstr "Elke naam kan maar één keer worden gebruikt."
 
 #: src/components/AskCard.tsx
 #: src/pages/AccountSettingsOverlay.tsx
+#: src/pages/AdminCreditsPage.tsx
 #: src/pages/McpServersOverlay.tsx
 msgid "Edit"
 msgstr "Bewerken"
@@ -2732,6 +2829,10 @@ msgstr "E-mailverificatie vereist"
 #: src/pages/shell/bot-panel.tsx
 msgid "Enable {0}"
 msgstr "{0} inschakelen"
+
+#: src/pages/AdminCreditsPage.tsx
+msgid "Enable hosted models"
+msgstr ""
 
 #: src/pages/BillingSettingsPanel.tsx
 msgid "Ends {day}"
@@ -2987,6 +3088,10 @@ msgstr "Voltooid."
 msgid "Finishing MCP connection…"
 msgstr "MCP-verbinding afronden…"
 
+#: src/pages/AdminCreditsPage.tsx
+msgid "First page"
+msgstr ""
+
 #: src/pages/Auth.tsx
 msgid "Forgot password?"
 msgstr "Wachtwoord vergeten?"
@@ -3007,6 +3112,10 @@ msgstr "vrijdag"
 #: src/pages/ActivityList.tsx
 msgid "From"
 msgstr "Van"
+
+#: src/pages/AdminCreditsPage.tsx
+msgid "From (UTC)"
+msgstr ""
 
 #. placeholder {0}: filters.dateRange.from
 #: src/pages/ActivityList.tsx
@@ -3051,6 +3160,10 @@ msgstr "Git-gebeurtenis"
 #: src/pages/NotFound.tsx
 msgid "Go home"
 msgstr "Naar home"
+
+#: src/pages/AdminCreditsPage.tsx
+msgid "Grant credits"
+msgstr ""
 
 #: src/lib/identity-display.ts
 #: src/pages/MessagingSettingsPanel.tsx
@@ -3146,6 +3259,14 @@ msgstr "Houd ingedrukt om te praten"
 #: src/components/composer/HoldToTalk.tsx
 msgid "Hold to talk, release to send"
 msgstr "Houd ingedrukt om te praten, laat los om te versturen"
+
+#: src/pages/AdminCreditsPage.tsx
+msgid "Hosted credit policy"
+msgstr ""
+
+#: src/components/HostedCredits.tsx
+msgid "Hosted models are paused"
+msgstr ""
 
 #: src/lib/cron.ts
 msgid "hour"
@@ -3368,6 +3489,10 @@ msgstr "Herinneringen bewaren"
 msgid "key"
 msgstr "sleutel"
 
+#: src/pages/AdminCreditsPage.tsx
+msgid "Known provider cost"
+msgstr ""
+
 #: src/components/LoginFields.tsx
 msgid "Label"
 msgstr "Label"
@@ -3485,9 +3610,11 @@ msgstr "Voorbeeld laden…"
 msgid "Loading voice providers…"
 msgstr "Spraakanbieders laden…"
 
+#: src/components/HostedCredits.tsx
 #: src/components/integrations/plugin-marketplace.tsx
 #: src/components/integrations/skills-dialog.tsx
 #: src/components/PageLoading.tsx
+#: src/pages/AdminCreditsPage.tsx
 #: src/pages/Artifacts.tsx
 #: src/pages/IntegrationSetup.tsx
 #: src/pages/PeerMessagesOverlay.tsx
@@ -3534,6 +3661,7 @@ msgstr "Kleine letters, cijfers, koppeltekens en underscores, beginnend met een 
 msgid "Main model"
 msgstr "Hoofdmodel"
 
+#: src/pages/AdminCreditsPage.tsx
 #: src/pages/BillingSettingsPanel.tsx
 #: src/pages/SettingsOverlay.tsx
 msgid "Manage"
@@ -3767,6 +3895,7 @@ msgid "Mode"
 msgstr "Modus"
 
 #: src/pages/AccountSettingsOverlay.tsx
+#: src/pages/AdminCreditsPage.tsx
 #: src/pages/model-settings/compatible-model-fields.tsx
 #: src/pages/model-settings/model-picker.tsx
 #: src/pages/Onboarding.tsx
@@ -3793,6 +3922,10 @@ msgstr "Model-id"
 #: src/pages/model-settings/role-model-picker.tsx
 msgid "Model options"
 msgstr "Modelopties"
+
+#: src/components/HostedCredits.tsx
+msgid "Model rates"
+msgstr ""
 
 #: src/pages/ModelSettingsOverlay.tsx
 #: src/pages/settings-nav.ts
@@ -3988,12 +4121,21 @@ msgstr "Nieuwe space"
 msgid "New ticket"
 msgstr "Nieuw ticket"
 
+#: src/pages/AdminCreditsPage.tsx
+msgid "Next events"
+msgstr ""
+
 #: src/components/markdown-copy.tsx
+#: src/pages/AdminCreditsPage.tsx
 msgid "Next page"
 msgstr "Volgende pagina"
 
 #: src/pages/SettingsOverlay.tsx
 msgid "Next settings sections"
+msgstr ""
+
+#: src/pages/AdminCreditsPage.tsx
+msgid "No accounts"
 msgstr ""
 
 #: src/pages/PluginsOverlay.tsx
@@ -4016,6 +4158,10 @@ msgstr "Geen authenticatie"
 #: src/pages/shell/bot-picker.tsx
 msgid "No bots match"
 msgstr "Geen bots gevonden"
+
+#: src/pages/AdminCreditsPage.tsx
+msgid "No events"
+msgstr ""
 
 #: src/components/AskCard.tsx
 msgid "No longer active"
@@ -4102,6 +4248,10 @@ msgstr "Nog geen tickets"
 #: src/pages/RoutineEditor.tsx
 msgid "No trigger"
 msgstr "Geen trigger"
+
+#: src/pages/AdminCreditsPage.tsx
+msgid "No usage in this period"
+msgstr ""
 
 #: src/lib/ticket-priority.ts
 msgid "Normal"
@@ -4414,6 +4564,10 @@ msgstr "Gepauzeerd"
 msgid "Pending"
 msgstr ""
 
+#: src/pages/AdminCreditsPage.tsx
+msgid "Pending credits"
+msgstr ""
+
 #: src/pages/shell/bot-panel.tsx
 msgid "Permissions"
 msgstr "Machtigingen"
@@ -4484,6 +4638,10 @@ msgstr ""
 msgid "Plugins"
 msgstr ""
 
+#: src/pages/AdminCreditsPage.tsx
+msgid "Positive to grant, negative to revoke"
+msgstr ""
+
 #: src/pages/RoutineEditor.tsx
 msgid "Post \"No changes\" in chat"
 msgstr "Plaats \"No changes\" in de chat"
@@ -4544,11 +4702,24 @@ msgstr "Programma: {name}"
 msgid "Protected input"
 msgstr "Beveiligde invoer"
 
+#: src/pages/AdminCreditsPage.tsx
 #: src/pages/MemorySettingsOverlay.tsx
 #: src/pages/Onboarding.tsx
 #: src/pages/VoiceSettingsOverlay.tsx
 msgid "Provider"
 msgstr "Aanbieder"
+
+#: src/pages/AdminCreditsPage.tsx
+msgid "Provider / model"
+msgstr ""
+
+#: src/pages/AdminCreditsPage.tsx
+msgid "Provider and model tariffs"
+msgstr ""
+
+#: src/pages/AdminCreditsPage.tsx
+msgid "Provider costs and credits"
+msgstr ""
 
 #: src/pages/model-settings/providers-section.tsx
 msgid "Providers"
@@ -4591,6 +4762,7 @@ msgstr "Antwoorden hardop voorlezen"
 msgid "Ready"
 msgstr "Klaar"
 
+#: src/pages/AdminCreditsPage.tsx
 #: src/pages/PluginSubmissionsPanel.tsx
 msgid "Reason"
 msgstr ""
@@ -4696,6 +4868,7 @@ msgstr "Omleidings-URI"
 
 #: src/App.tsx
 #: src/components/ErrorBoundary.tsx
+#: src/components/HostedCredits.tsx
 #: src/components/ModelCredits.tsx
 msgid "Refresh"
 msgstr "Vernieuwen"
@@ -4837,6 +5010,10 @@ msgstr "Sectie hernoemen"
 msgid "Renews {day}"
 msgstr "Wordt verlengd op {day}"
 
+#: src/components/HostedCredits.tsx
+msgid "Renews {next}"
+msgstr ""
+
 #: src/pages/ScratchpadSection.tsx
 msgid "Reopen"
 msgstr "Heropenen"
@@ -4977,9 +5154,19 @@ msgstr "Terug naar Rakazo"
 msgid "Review provider settings and test again."
 msgstr "Controleer de aanbiedersinstellingen en test daarna opnieuw."
 
+#: src/pages/AdminCreditsPage.tsx
+msgid "Review revocation"
+msgstr ""
+
 #: src/pages/MessagingSettingsPanel.tsx
 msgid "Revoke"
 msgstr "Intrekken"
+
+#. placeholder {0}: formatCreditAmount((-BigInt(micros)).toString(), i18n.locale)
+#. placeholder {1}: account.name
+#: src/pages/AdminCreditsPage.tsx
+msgid "Revoke {0} credits from {1}?"
+msgstr ""
 
 #: src/pages/ExternalConversationSettings.tsx
 msgid "Room guidance"
@@ -5070,6 +5257,10 @@ msgstr "zaterdag"
 msgid "Save"
 msgstr "Opslaan"
 
+#: src/pages/AdminCreditsPage.tsx
+msgid "Save allowance"
+msgstr ""
+
 #: src/components/VaultSettings.tsx
 msgid "Save credential"
 msgstr "Gegeven opslaan"
@@ -5077,6 +5268,14 @@ msgstr "Gegeven opslaan"
 #: src/components/VaultSettings.tsx
 msgid "Save new value"
 msgstr "Nieuwe waarde opslaan"
+
+#: src/pages/AdminCreditsPage.tsx
+msgid "Save policy"
+msgstr ""
+
+#: src/pages/AdminCreditsPage.tsx
+msgid "Save tariff"
+msgstr ""
 
 #: src/components/ComputerMaintenanceActions.tsx
 msgid "Save the workspace and install current software."
@@ -5141,6 +5340,7 @@ msgstr "Scopes (optioneel)"
 msgid "Screen not connected"
 msgstr "Scherm niet verbonden"
 
+#: src/pages/AdminCreditsPage.tsx
 #: src/pages/model-settings/compatible-model-fields.tsx
 #: src/pages/model-settings/model-picker.tsx
 #: src/pages/model-settings/providers-section.tsx
@@ -5153,6 +5353,10 @@ msgstr "Scherm niet verbonden"
 #: src/pages/shell/sidebar-header.tsx
 msgid "Search"
 msgstr "Zoeken"
+
+#: src/pages/AdminCreditsPage.tsx
+msgid "Search accounts"
+msgstr ""
 
 #: src/components/integrations/IntegrationSetup.tsx
 #: src/pages/PluginsOverlay.tsx
@@ -6095,6 +6299,10 @@ msgstr "Ongedaan maken"
 msgid "Uninstall"
 msgstr "Verwijderen"
 
+#: src/pages/AdminCreditsPage.tsx
+msgid "Unknown cost"
+msgstr ""
+
 #: src/pages/MessagingSettingsPanel.tsx
 msgid "Unlink"
 msgstr "Koppeling verbreken"
@@ -6111,6 +6319,10 @@ msgstr "Vastzetten opheffen"
 #: src/pages/shell/use-composer-actions.ts
 msgid "Unsupported file type: {0}"
 msgstr "Niet-ondersteund bestandstype: {0}"
+
+#: src/pages/AdminCreditsPage.tsx
+msgid "Until (UTC, exclusive)"
+msgstr ""
 
 #: src/components/DesktopUpdates.tsx
 msgid "Up to date"
@@ -6225,6 +6437,7 @@ msgstr "Standaardinstellingen gebruiken voor {label}"
 msgid "Use in this bot"
 msgstr ""
 
+#: src/components/HostedCredits.tsx
 #: src/components/ModelCredits.tsx
 msgid "Use my subscription or API key"
 msgstr ""
@@ -6233,6 +6446,7 @@ msgstr ""
 msgid "Use Protected input for passwords."
 msgstr "Gebruik Beveiligde invoer voor wachtwoorden."
 
+#: src/components/HostedCredits.tsx
 #: src/components/ModelCredits.tsx
 msgid "Use Rakazo credits"
 msgstr ""

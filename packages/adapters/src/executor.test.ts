@@ -50,8 +50,29 @@ import {
 } from "./tool-completion-audit.js";
 import { parseUpdateBotPatch } from "./update-bot-patch.js";
 
-const createRunExecutor = (deps: Parameters<typeof createExecutor>[0]) =>
-  createExecutor({ ...deps, prisma: withModelRoles(deps.prisma) });
+const createRunExecutor = (deps: Parameters<typeof createExecutor>[0]) => {
+  const prisma = {
+    ...deps.prisma,
+    hostedCreditPolicy: deps.prisma.hostedCreditPolicy ?? {
+      findUniqueOrThrow: vi.fn(async () => ({ enabled: false, activatedAt: null })),
+    },
+    deploymentSettings:
+      deps.billingEnabled === undefined
+        ? deps.prisma.deploymentSettings
+        : {
+            ...deps.prisma.deploymentSettings,
+            findUnique: vi.fn(async (...args: unknown[]) => ({
+              ...(await (
+                deps.prisma.deploymentSettings?.findUnique as
+                  | ((...args: unknown[]) => Promise<object | null>)
+                  | undefined
+              )?.(...args)),
+              modelCreditsEnabled: deps.billingEnabled,
+            })),
+          },
+  } as unknown as PrismaClient;
+  return createExecutor({ ...deps, prisma: withModelRoles(prisma) });
+};
 
 describe("bot tool permissions", () => {
   it("describes bounded cross-chat keyword fanout and authorized reads", () => {

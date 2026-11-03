@@ -9,6 +9,7 @@ import {
 } from "@rakazo/adapters";
 import type { Actor, Me } from "@rakazo/contracts";
 import { attachmentMaxBytes, attachmentMaxCount, canonicalPiProviderId } from "@rakazo/contracts";
+import { getHostedCreditPolicy, hostedCreditStatus, organizationForMember } from "@rakazo/db";
 import { isAdmin } from "../admins.js";
 import type { RouterDeps } from "../router.js";
 
@@ -21,7 +22,7 @@ function hostCredentials(active: boolean, provider: string) {
 }
 
 export async function meDto(deps: RouterDeps, actor: Actor): Promise<Me> {
-  const [user, setup, admin] = await Promise.all([
+  const [user, setup, admin, hostedPolicy] = await Promise.all([
     deps.prisma.user.findUniqueOrThrow({
       where: { id: actor.userId },
       select: {
@@ -33,6 +34,7 @@ export async function meDto(deps: RouterDeps, actor: Actor): Promise<Me> {
     }),
     modelSetup(deps, actor),
     isAdmin(deps, actor.userId),
+    getHostedCreditPolicy(deps.prisma),
   ]);
   return {
     ticketBoardEnabled: deps.env.ticketBoardEnabled === true,
@@ -69,6 +71,7 @@ export async function meDto(deps: RouterDeps, actor: Actor): Promise<Me> {
     avatarStyle: "organic",
     timezone: user.timezone ?? null,
     billingEnabled: Boolean(deps.billing),
+    hostedCreditsEnabled: hostedPolicy.enabled || hostedPolicy.activatedAt !== null,
     // Only billing deployments ask; self-hosted installs never see the survey.
     needsSignupSurvey: Boolean(deps.billing) && !user.signupSurvey,
     paymentWalletProvider: deps.paymentWallet
@@ -89,21 +92,36 @@ function computerHostFor(
 
 /** The main model chat runs: the member's while it can run, else the deployment's. */
 export async function modelSetup(deps: RouterDeps, actor: Actor) {
-  const [member, settings] = await Promise.all([
+  const [member, settings, hostedPolicy] = await Promise.all([
     resolveMemberMainModel({ prisma: deps.prisma, secretStore: deps.secrets }, actor),
     deps.prisma.deploymentSettings.findUnique({ where: { id: "default" } }),
+    getHostedCreditPolicy(deps.prisma),
   ]);
   const main =
     member &&
     (member.credential ||
-      (deps.billing?.modelCreditsEnabled &&
+      ((deps.billing?.modelCreditsEnabled || hostedPolicy.enabled) &&
         (await hasHostedModelCredits(deps.prisma, actor, member.provider))))
       ? member
       : null;
   const funding = deps.billing ? await deps.billing.status(actor) : null;
+  const organization = hostedPolicy.enabled
+    ? await organizationForMember(deps.prisma, actor)
+    : null;
+  const hosted = organization
+    ? await hostedCreditStatus(deps.prisma, organization.organizationId)
+    : null;
+  const creditFunding =
+    hostedPolicy.enabled && hosted
+      ? hosted.enabled
+        ? { funding: "credits" as const, access: BigInt(hosted.balanceMicros) > 0n }
+        : (funding ?? { funding: "byok" as const, access: Boolean(main?.credential) })
+      : funding;
   const hasDeployment =
     Boolean(deps.env.deploymentModelConfigured) &&
-    (!funding?.creditPurchasesEnabled || funding.funding === "credits");
+    (hostedPolicy.enabled || hostedPolicy.activatedAt !== null
+      ? hosted?.enabled === true
+      : !funding?.creditPurchasesEnabled || funding.funding === "credits");
   return {
     main,
     model:
@@ -113,7 +131,7 @@ export async function modelSetup(deps: RouterDeps, actor: Actor) {
         deployment: { provider: deps.env.defaultProvider, model: deps.env.defaultModel },
       }).primary,
     settings,
-    funding,
+    funding: creditFunding,
     hasDeployment,
     needsModel: deps.env.agentRuntime !== "scripted" && !main && !hasDeployment,
   };

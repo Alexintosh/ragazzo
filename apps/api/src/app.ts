@@ -475,6 +475,8 @@ async function buildApp(overrides: CreateAppOverrides): Promise<AppHandles> {
       id: "default",
       modelCreditsEnabled,
     },
+    // This legacy marker follows payment-provider capabilities. Independent hosted
+    // policy, allowances and tariffs live in their own operator-managed tables.
     update: { modelCreditsEnabled },
   });
   const installed = new InstalledConnectorProvider(
@@ -614,7 +616,6 @@ async function buildApp(overrides: CreateAppOverrides): Promise<AppHandles> {
     ? new UserDevices({ prisma, forwardSecret: userDeviceSecret, hub: userDeviceHub })
     : undefined;
   const executor = createRunExecutor({
-    billingEnabled: modelCreditsEnabled,
     maxUploadSizeBytes: env.maxUploadSizeBytes,
     contextStrategy,
     prisma,

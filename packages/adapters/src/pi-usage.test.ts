@@ -59,6 +59,34 @@ async function run(usage?: object) {
 }
 
 describe("Pi usage accounting", () => {
+  it("preserves provider retries when a live observer authorizes a legacy unmetered call", async () => {
+    const afterCall = vi.fn();
+    const onRequestId = vi.fn();
+    const streamSimple = vi.fn(() => {
+      throw new Error("Synthetic provider stop");
+    });
+    const stream = observedPiStream(
+      { streamSimple } as unknown as Parameters<typeof observedPiStream>[0],
+      model,
+      { messages: [] },
+      { maxRetries: 3 },
+      vi.fn(),
+      {
+        beforeCall: () => undefined,
+        afterCall,
+        onRequestId,
+      },
+    );
+    for await (const _event of stream) {
+    }
+    expect(streamSimple).toHaveBeenCalledWith(
+      model,
+      expect.anything(),
+      expect.objectContaining({ maxRetries: 3 }),
+    );
+    expect(afterCall).not.toHaveBeenCalled();
+    expect(onRequestId).not.toHaveBeenCalled();
+  });
   it.each([false, true])(
     "acknowledges a producer sink only after successful accounting (fails=%s)",
     async (fails) => {

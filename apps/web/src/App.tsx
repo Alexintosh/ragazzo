@@ -60,6 +60,9 @@ const ArtifactsPage = lazyComponent(() =>
   import("./pages/Artifacts").then((module) => module.ArtifactsPage),
 );
 const BoardPage = lazyComponent(() => import("./pages/Board").then((module) => module.BoardPage));
+const AdminCreditsPage = lazyComponent(() =>
+  import("./pages/AdminCreditsPage").then((module) => module.AdminCreditsPage),
+);
 const AdminPluginsPage = lazyComponent(() =>
   import("./pages/AdminPluginsPage").then((module) => module.AdminPluginsPage),
 );
@@ -112,6 +115,7 @@ function SessionApp() {
   const signInDestination =
     next === "/integrations/setup" ||
     next === "/admin/plugins" ||
+    next === "/admin/credits" ||
     next.startsWith(`${MCP_OAUTH_CALLBACK_PATH}?`) ||
     next.startsWith(`${SLACK_INSTALL_CALLBACK_PATH}?`)
       ? next
@@ -238,6 +242,16 @@ function SessionApp() {
                     <IntegrationSetupPage />
                   ) : (
                     <Navigate to="/sign-in?next=/integrations/setup" replace />
+                  )
+                }
+              />
+              <Route
+                path="/admin/credits"
+                element={
+                  user ? (
+                    <AdminCreditsPage />
+                  ) : (
+                    <Navigate to="/sign-in?next=/admin/credits" replace />
                   )
                 }
               />

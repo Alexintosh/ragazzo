@@ -203,7 +203,7 @@ export function OnboardingPage() {
   useEffect(() => {
     void Promise.all([rpc.me(), rpc.models.list().catch(() => [])])
       .then(([me, models]) => {
-        setBillingEnabled(me.billingEnabled);
+        setBillingEnabled(me.billingEnabled || me.hostedCreditsEnabled);
         setCatalog(models);
         const next = me.needsModel ? "model" : "bot";
         setAfterSurvey(next);

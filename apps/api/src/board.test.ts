@@ -79,6 +79,9 @@ it.each([false, true])("includes the board capability in me (%s)", async (ticket
     spaceSettingOverride: { findUnique: vi.fn(async () => null) },
     userModelRoleChoice: { findMany: vi.fn(async () => []) },
     deploymentSettings: { findUnique: vi.fn(async () => null) },
+    hostedCreditPolicy: {
+      findUniqueOrThrow: vi.fn(async () => ({ enabled: false, activatedAt: null })),
+    },
   };
   const deps = {
     prisma,

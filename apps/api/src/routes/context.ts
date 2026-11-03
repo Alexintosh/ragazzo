@@ -36,7 +36,13 @@ import {
   modelSupportsRole,
   OPENAI_COMPATIBLE_PROVIDER_ID,
 } from "@rakazo/contracts";
-import { createGroupRepos, createRepos, recordSecurityEvent, runAsTenant } from "@rakazo/db";
+import {
+  createGroupRepos,
+  createRepos,
+  hostedModelMeteringEnabled,
+  recordSecurityEvent,
+  runAsTenant,
+} from "@rakazo/db";
 import { createAgentImportServices } from "../agent-import-services.js";
 import { createAgentSkillsService } from "../agent-skills.js";
 import { createBotRemoval } from "../bot-removal.js";
@@ -109,12 +115,14 @@ export function createRouterContext(deps: RouterDeps) {
     deps.refreshExpiredModelCredential ??
     ((scope: { userId: string; spaceId: string }, secretId: string, provider: string) =>
       kickModelCredentialRefresh(deps.prisma, deps.secrets, scope, secretId, provider));
-  const botModelValidation = (actor: Actor) => ({
+  const botModelValidation = async (actor: Actor) => ({
     prisma: deps.prisma,
     secretStore: deps.secrets,
     codexCatalog,
     refreshExpiredCredential,
-    hostedProvider: deps.billing?.modelCreditsEnabled ? deps.env.defaultProvider : undefined,
+    hostedProvider: (await hostedModelMeteringEnabled(deps.prisma))
+      ? deps.env.defaultProvider
+      : undefined,
     defaultModel: async () => {
       const me = await meDto(deps, actor);
       return { provider: me.defaultProvider, model: me.defaultModel };
@@ -142,7 +150,7 @@ export function createRouterContext(deps: RouterDeps) {
       deps.prisma,
       deps.secrets,
       actor,
-      deps.billing?.modelCreditsEnabled ? deps.env.defaultProvider : undefined,
+      (await hostedModelMeteringEnabled(deps.prisma)) ? deps.env.defaultProvider : undefined,
     );
     const available = listAvailablePiCatalog(auth.byProvider, auth.byModel);
     const [live, providerLive] = await Promise.all([

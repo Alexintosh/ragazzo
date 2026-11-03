@@ -54,6 +54,20 @@ import { providerScopeKey } from "./routes/connections.js";
 
 const withRoleDeps = (deps: RouterDeps) => {
   withModelRoles(deps.prisma);
+  if (!deps.prisma.hostedCreditPolicy)
+    Object.assign(deps.prisma, {
+      hostedCreditPolicy: {
+        findUniqueOrThrow: vi.fn(async () => ({
+          enabled: false,
+          activatedAt: null,
+          defaultDailyAllowanceMicros: 0n,
+          dailyGrantBudgetMicros: 0n,
+        })),
+      },
+    });
+  if (!deps.prisma.deploymentSettings) Object.assign(deps.prisma, { deploymentSettings: {} });
+  if (!deps.prisma.deploymentSettings.findUnique)
+    Object.assign(deps.prisma.deploymentSettings, { findUnique: vi.fn(async () => null) });
   return deps;
 };
 const createRouter = (deps: RouterDeps) => createRouterWith(withRoleDeps(deps));

@@ -1,0 +1,108 @@
+name: rakazo
+
+x-runtime: &runtime
+  image: ${IMAGE_REF:?Use the fork image pinned by sha256}
+  init: true
+  restart: unless-stopped
+  security_opt: [no-new-privileges:true]
+  cap_drop: [ALL]
+  stop_grace_period: 90s
+  logging:
+    driver: json-file
+    options: { max-size: 10m, max-file: "3" }
+
+services:
+  data-init:
+    image: ${IMAGE_REF:?Set IMAGE_REF}
+    user: "0:0"
+    entrypoint: [sh, -c]
+    command: ["chown 1000:1000 /data /assets && chmod 750 /data /assets"]
+    cap_drop: [ALL]
+    cap_add: [CHOWN, FOWNER, DAC_OVERRIDE]
+    security_opt: [no-new-privileges:true]
+    volumes: [appdata:/data, /opt/rakazo/web-assets:/assets]
+
+  migrate:
+    <<: *runtime
+    restart: "no"
+    profiles: [maintenance]
+    working_dir: /app/apps/api
+    command: [node, dist/cli/migrate-database.js]
+    env_file:
+      - { path: ./migration.env, format: raw, required: false }
+    mem_limit: 1536m
+
+  api:
+    <<: *runtime
+    working_dir: /app/apps/api
+    command: [node, --enable-source-maps, dist/index.js]
+    env_file:
+      - { path: ./api.env, format: raw }
+    volumes: [appdata:/data]
+    mem_limit: 2g
+    pids_limit: 256
+    depends_on:
+      data-init: { condition: service_completed_successfully }
+    healthcheck:
+      test: [CMD, node, -e, "fetch('http://127.0.0.1:3100/ready').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 60s
+
+  worker:
+    <<: *runtime
+    working_dir: /app/apps/worker
+    command: [node, --enable-source-maps, dist/index.js]
+    env_file:
+      - { path: ./worker.env, format: raw }
+    volumes: [appdata:/data]
+    mem_limit: 2g
+    pids_limit: 512
+    depends_on:
+      api: { condition: service_healthy }
+    healthcheck:
+      test: [CMD, node, dist/health-check.js]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 120s
+
+  web:
+    <<: *runtime
+    working_dir: /app/apps/web
+    command: [node_modules/.bin/vite, preview, --host, 0.0.0.0, --port, "5173"]
+    env_file:
+      - { path: ./web.env, format: raw }
+    volumes: [/opt/rakazo/web-assets:/app/apps/web/asset-archive]
+    mem_limit: 512m
+    pids_limit: 128
+    depends_on:
+      api: { condition: service_healthy }
+    healthcheck:
+      test: [CMD, node, -e, "fetch('http://127.0.0.1:5173/build-id').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  cloudflared:
+    image: ${CLOUDFLARED_IMAGE:?Pin the official cloudflared image by digest}
+    # The token bind mount is root-only on the host; this container has no capabilities.
+    user: "0:0"
+    command: [tunnel, --no-autoupdate, run, --token-file, /run/secrets/tunnel-token]
+    restart: unless-stopped
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    volumes: [./tunnel-token:/run/secrets/tunnel-token:ro]
+    mem_limit: 256m
+    pids_limit: 128
+    depends_on:
+      web: { condition: service_healthy }
+    logging:
+      driver: json-file
+      options: { max-size: 10m, max-file: "3" }
+
+# No public ports or Docker socket. Remote sandbox providers do not receive R2 credentials.
+volumes:
+  appdata:

@@ -20,6 +20,7 @@ import {
   findDefaultVoiceCredential,
   findModelCredential,
   findModelCredentialById,
+  hostedModelMeteringEnabled,
   listModelRoleChoices,
   listVoicePreferences,
   modelRoleTarget,
@@ -115,6 +116,7 @@ export async function aiConsentStatus(
       recipients.set(recipient.key, { ...recipient, allowed: allowed.has(recipient.key) });
   };
   if (modelsEnabled) {
+    const hostedEnabled = await hostedModelMeteringEnabled(deps.prisma);
     const deployment = deps.env.deploymentModelConfigured
       ? { provider: deps.env.defaultProvider, model: deps.env.defaultModel }
       : null;
@@ -133,7 +135,7 @@ export async function aiConsentStatus(
           override,
           overrideCredential,
           main,
-          hostedProvider: deps.billing?.modelCreditsEnabled ? deps.env.defaultProvider : undefined,
+          hostedProvider: hostedEnabled ? deps.env.defaultProvider : undefined,
           defaults: { settings, deployment },
         });
       }),

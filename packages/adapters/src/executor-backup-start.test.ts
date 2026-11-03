@@ -201,6 +201,9 @@ async function runTurn({
         ),
       },
       deploymentSettings: { findUnique: vi.fn(async () => null) },
+      hostedCreditPolicy: {
+        findUniqueOrThrow: vi.fn(async () => ({ enabled: false, activatedAt: null })),
+      },
       taughtSkill: { findMany: vi.fn(async () => []) },
       vaultCredential: { findMany: vi.fn(async () => []) },
       agentSkill: { findMany: vi.fn(async () => []) },

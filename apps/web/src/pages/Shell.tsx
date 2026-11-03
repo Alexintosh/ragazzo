@@ -659,7 +659,7 @@ function SpaceShell() {
     messaging: messagingSurfaceEnabled,
     wallet: Boolean(bootstrapMe?.paymentWalletProvider),
     computer: computersAreUnavailable(bootstrapMe?.sandboxProvider),
-    billing: bootstrapMe?.billingEnabled === true,
+    billing: bootstrapMe?.billingEnabled === true || bootstrapMe?.hostedCreditsEnabled === true,
     updates: Boolean(desktopBridge()?.update),
   });
   const paletteActions: CommandPaletteAction[] = [
@@ -693,6 +693,16 @@ function SpaceShell() {
       icon: ScrollText,
       onSelect: () => setOverlay({ kind: "skills" }),
     },
+    ...(bootstrapMe?.isAdmin
+      ? [
+          {
+            id: "credit-admin",
+            label: t`Credit administration`,
+            icon: ScrollText,
+            onSelect: () => navigate("/admin/credits"),
+          },
+        ]
+      : []),
     ...settingsNavItems.map(({ id, label, icon }) => ({
       id: `settings-${id}`,
       label: t`Settings: ${label}`,

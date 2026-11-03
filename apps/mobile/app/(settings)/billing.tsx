@@ -1,10 +1,11 @@
 import { MenuView } from "@expo/ui/community/menu";
-import type { BillingStatus } from "@rakazo/contracts";
+import type { BillingStatus, HostedCreditStatus } from "@rakazo/contracts";
 import {
   DEFAULT_MONTHLY_CREDIT_AMOUNT,
   MODEL_CREDIT_AMOUNTS,
   ModelCreditAmountSchema,
 } from "@rakazo/contracts";
+import { formatCreditAmount } from "@rakazo/core";
 import { useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useState } from "react";
 import { Alert, AppState, ScrollView, Share, StyleSheet } from "react-native";
@@ -12,6 +13,7 @@ import { SettingsGroup, SettingsRow, useStackedSettings } from "../../components
 import { rpc } from "../../lib/api";
 import { currentPlan, openBillingPage, planEndsAt } from "../../lib/billing";
 import { dateLocaleForUi, useI18n } from "../../lib/i18n";
+import { queryClient, rpcQuery } from "../../lib/query";
 import { openFromSettingsSheet } from "../../lib/settings-sheet";
 import { useSideInsets } from "../../lib/side-insets";
 
@@ -30,6 +32,8 @@ export default function BillingScreen() {
   const stacked = useStackedSettings();
   const { t } = useI18n();
   const router = useRouter();
+  const [hosted, setHosted] = useState<HostedCreditStatus | null>(null);
+  const [stripeEnabled, setStripeEnabled] = useState(false);
   const [status, setStatus] = useState<BillingStatus | null>(null);
   const [amount, setAmount] = useState<Amount>(DEFAULT_MONTHLY_CREDIT_AMOUNT);
   const [pending, setPending] = useState(false);
@@ -43,9 +47,19 @@ export default function BillingScreen() {
     useCallback(() => {
       let active = true;
       const load = () => {
-        void rpc("billing/status")
-          .then((next) => {
-            if (active) show(next);
+        void rpc("me")
+          .then(async (me) => {
+            if (active) setStripeEnabled(me.billingEnabled);
+            const [next, credits] = await Promise.all([
+              me.billingEnabled || me.hostedCreditsEnabled
+                ? rpc("billing/status")
+                : Promise.resolve(null),
+              me.hostedCreditsEnabled ? rpc("hostedCredits/status") : Promise.resolve(null),
+            ]);
+            if (active) {
+              if (next) show(next);
+              setHosted(credits);
+            }
           })
           .catch(() => {
             if (active) Alert.alert(t("Could not load billing"));
@@ -72,6 +86,37 @@ export default function BillingScreen() {
       setPending(false);
     }
   }
+  async function selectHostedFunding(funding: "byok" | "credits") {
+    await rpc("billing/selectFunding", { funding });
+    const [next, credits] = await Promise.all([rpc("billing/status"), rpc("hostedCredits/status")]);
+    show(next);
+    setHosted(credits);
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: rpcQuery("me").queryKey }),
+      queryClient.invalidateQueries({ queryKey: rpcQuery("models/list").queryKey }),
+      queryClient.invalidateQueries({ queryKey: rpcQuery("models/credentials").queryKey }),
+      queryClient.invalidateQueries({ queryKey: rpcQuery("billing/status").queryKey }),
+      queryClient.invalidateQueries({ queryKey: rpcQuery("hostedCredits/status").queryKey }),
+    ]);
+  }
+  if (!status && !hosted) return null;
+  if (!stripeEnabled && hosted)
+    return (
+      <ScrollView
+        style={sideInsets}
+        contentContainerStyle={[styles.content, stacked && styles.compactContent]}
+        contentInsetAdjustmentBehavior="automatic"
+      >
+        <HostedCreditRows
+          hosted={hosted}
+          status={status}
+          pending={pending}
+          onFundingChange={
+            stripeEnabled ? undefined : (funding) => void action(() => selectHostedFunding(funding))
+          }
+        />
+      </ScrollView>
+    );
   if (!status) return null;
 
   const plan = currentPlan(status);
@@ -88,6 +133,16 @@ export default function BillingScreen() {
       contentContainerStyle={[styles.content, stacked && styles.compactContent]}
       contentInsetAdjustmentBehavior="automatic"
     >
+      {hosted ? (
+        <HostedCreditRows
+          hosted={hosted}
+          status={status}
+          pending={pending}
+          onFundingChange={
+            stripeEnabled ? undefined : (funding) => void action(() => selectHostedFunding(funding))
+          }
+        />
+      ) : null}
       <SettingsGroup>
         <SettingsRow
           title={t("Plan")}
@@ -240,6 +295,54 @@ export default function BillingScreen() {
         </SettingsGroup>
       ) : null}
     </ScrollView>
+  );
+}
+
+function HostedCreditRows({
+  hosted,
+  status,
+  pending,
+  onFundingChange,
+}: {
+  hosted: HostedCreditStatus;
+  status: BillingStatus | null;
+  pending: boolean;
+  onFundingChange?: (funding: "byok" | "credits") => void;
+}) {
+  const { t } = useI18n();
+  const locale = dateLocaleForUi();
+  return (
+    <SettingsGroup
+      label={t("Rakazo credits")}
+      footer={t("1 credit = $0.001. Daily grants use UTC.")}
+    >
+      {!hosted.available ? <SettingsRow title={t("Hosted models are paused")} /> : null}
+      <SettingsRow
+        title={t("Available credits")}
+        value={formatCreditAmount(hosted.balanceMicros, locale)}
+      />
+      <SettingsRow
+        title={t("Daily credits")}
+        value={formatCreditAmount(hosted.dailyAllowanceMicros, locale)}
+      />
+      {hosted.nextGrantAt ? (
+        <SettingsRow
+          title={t("Renews")}
+          value={new Date(hosted.nextGrantAt).toLocaleString(locale)}
+        />
+      ) : null}
+      {status?.canManage && onFundingChange ? (
+        <SettingsRow
+          title={
+            status.funding === "byok"
+              ? t("Use Rakazo credits")
+              : t("Use my subscription or API key")
+          }
+          disabled={pending || (status.funding === "byok" && !hosted.available)}
+          onPress={() => onFundingChange(status.funding === "byok" ? "credits" : "byok")}
+        />
+      ) : null}
+    </SettingsGroup>
   );
 }
 

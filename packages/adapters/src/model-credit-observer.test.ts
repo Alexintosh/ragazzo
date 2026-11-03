@@ -1,11 +1,20 @@
 import type { ModelCallObserver } from "@rakazo/adapter-kit";
-import { creditAccount, organizationForMember, reserveModelCredits } from "@rakazo/db";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  creditAccount,
+  getHostedCreditPolicy,
+  hostedModelMeteringEnabled,
+  organizationForMember,
+  reserveModelCredits,
+} from "@rakazo/db";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { hostedModelCreditObserver } from "./model-credit-observer.js";
+import { resolveModelKey } from "./run-model.js";
 
 vi.mock("@rakazo/db", () => ({
   organizationForMember: vi.fn(),
   creditAccount: vi.fn(),
+  getHostedCreditPolicy: vi.fn(),
+  hostedModelMeteringEnabled: vi.fn(),
   reserveModelCredits: vi.fn(),
   recordModelCreditReceipt: vi.fn(),
 }));
@@ -13,8 +22,15 @@ vi.mock("@rakazo/db", () => ({
 const scope = { userId: "user-1", spaceId: "space-1" };
 beforeEach(() => {
   vi.resetAllMocks();
+  vi.stubEnv("PI_DEFAULT_PROVIDER", "openrouter");
   vi.mocked(organizationForMember).mockResolvedValue({ organizationId: "org-1" } as never);
+  vi.mocked(hostedModelMeteringEnabled).mockResolvedValue(true);
+  vi.mocked(getHostedCreditPolicy).mockResolvedValue({
+    enabled: false,
+    activatedAt: null,
+  } as never);
 });
+afterEach(() => vi.unstubAllEnvs());
 
 describe("hosted model credit gate", () => {
   it("refuses BYOK accounts even if old owner and subscription records exist", async () => {
@@ -49,4 +65,88 @@ describe("hosted model credit gate", () => {
       model: "test-model",
     });
   });
+  it("requires a reservation for new hosted accounts without a paid plan", async () => {
+    vi.mocked(creditAccount).mockResolvedValue({ mode: null } as never);
+    vi.mocked(getHostedCreditPolicy).mockResolvedValue({
+      enabled: true,
+      activatedAt: new Date(),
+    } as never);
+    vi.mocked(reserveModelCredits).mockResolvedValue("reservation-1");
+    const observer = await hostedModelCreditObserver({} as never, scope);
+    await expect(
+      observer.beforeCall({
+        callId: "hosted-call",
+        maxCostUsd: 0.02,
+        provider: "test",
+        modelId: "test",
+      } as never),
+    ).resolves.toBe("reservation-1");
+    expect(reserveModelCredits).toHaveBeenCalledOnce();
+  });
+  it("refuses hosted access after the policy has been suspended", async () => {
+    vi.mocked(creditAccount).mockResolvedValue({ mode: "credits" } as never);
+    vi.mocked(getHostedCreditPolicy).mockResolvedValue({
+      enabled: false,
+      activatedAt: new Date(),
+    } as never);
+    await expect(hostedModelCreditObserver({} as never, scope)).rejects.toThrow(
+      "Connect your own API key",
+    );
+    expect(reserveModelCredits).not.toHaveBeenCalled();
+  });
+  it.each([
+    { activation: "policy", missingCredential: false },
+    { activation: "policy", missingCredential: true },
+    { activation: "billing", missingCredential: false },
+  ])(
+    "rechecks $activation activation and suspension on the same legacy credential material (missing stored key=$missingCredential)",
+    async ({ activation, missingCredential }) => {
+      let enabled = false;
+      let activatedAt: Date | null = null;
+      let billingEnabled = false;
+      vi.mocked(hostedModelMeteringEnabled).mockImplementation(
+        async () => enabled || activatedAt !== null || billingEnabled,
+      );
+      vi.mocked(getHostedCreditPolicy).mockImplementation(
+        async () => ({ enabled, activatedAt }) as never,
+      );
+      vi.mocked(creditAccount).mockResolvedValue({ mode: "credits" } as never);
+      vi.mocked(reserveModelCredits).mockResolvedValue("reservation-live");
+      const material = await resolveModelKey(
+        {
+          prisma: { secret: { findFirst: async () => null } },
+          deploymentModelKey: "fixture-key",
+        } as never,
+        scope.userId,
+        scope.spaceId,
+        missingCredential
+          ? { id: "missing", provider: "openrouter", secretId: "missing-secret" }
+          : null,
+        "openrouter",
+        "fixture",
+      );
+      expect(material.apiKey).toBe("fixture-key");
+      expect(material.callObserver).toBeDefined();
+      const call = {
+        callId: "call-live",
+        maxCostUsd: 0.02,
+        provider: "openrouter",
+        modelId: "fixture",
+      } as never;
+      await expect(material.callObserver!.beforeCall(call)).resolves.toBeUndefined();
+      expect(reserveModelCredits).not.toHaveBeenCalled();
+      if (activation === "policy") {
+        enabled = true;
+        activatedAt = new Date();
+      } else billingEnabled = true;
+      await expect(material.callObserver!.beforeCall(call)).resolves.toBe("reservation-live");
+      expect(reserveModelCredits).toHaveBeenCalledOnce();
+      enabled = false;
+      activatedAt = new Date();
+      await expect(material.callObserver!.beforeCall(call)).rejects.toThrow(
+        "Connect your own API key",
+      );
+      expect(reserveModelCredits).toHaveBeenCalledOnce();
+    },
+  );
 });

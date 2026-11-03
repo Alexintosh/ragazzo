@@ -1,12 +1,38 @@
 import { Plural, Trans, useLingui } from "@lingui/react/macro";
 import type { BillingStatus } from "@rakazo/contracts";
 import { Button, Skeleton } from "@rakazo/ui-web";
+import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
+import { HostedCredits } from "../components/HostedCredits";
 import { ModelCreditsSettings } from "../components/ModelCredits";
 import { formatBillingDate, formatBillingPrice } from "../lib/billing";
+import { useSpaceQueries } from "../lib/query";
 import { rpc } from "../lib/rpc";
 
 export function BillingSettingsPanel() {
+  const me = useQuery(useSpaceQueries().me.queryOptions());
+  return (
+    <div className="space-y-5">
+      {me.data?.hostedCreditsEnabled ? (
+        <HostedCredits fundingControls={!me.data.billingEnabled} />
+      ) : null}
+      {me.data?.billingEnabled ? <StripeBillingSettingsPanel /> : null}
+      {me.isError ? (
+        <p role="alert" className="text-sm text-destructive">
+          <Trans>Could not load billing</Trans>
+        </p>
+      ) : null}
+      {me.data?.isAdmin ? (
+        <Link to="/admin/credits" className="text-sm underline">
+          <Trans>Credit administration</Trans>
+        </Link>
+      ) : null}
+    </div>
+  );
+}
+
+function StripeBillingSettingsPanel() {
   const { t, i18n } = useLingui();
   const locale = i18n.locale || "en";
   const [status, setStatus] = useState<BillingStatus | null>(null);

@@ -92,6 +92,10 @@ function oauthPrisma() {
     },
   };
   const prisma = {
+    hostedCreditPolicy: {
+      findUniqueOrThrow: vi.fn(async () => ({ enabled: false, activatedAt: null })),
+    },
+    deploymentSettings: { findUnique: vi.fn(async () => ({ modelCreditsEnabled: false })) },
     $transaction: vi.fn(async (callback: (txArg: typeof tx) => Promise<unknown>) => callback(tx)),
     userModelCredential: {
       findMany: vi.fn(async () => [...state.credentials]),

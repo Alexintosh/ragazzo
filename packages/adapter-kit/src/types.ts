@@ -615,6 +615,7 @@ export interface AgentUsage {
 export type UsageOperationKind = "answer" | "setup" | "retrieval" | "subagent" | "compaction";
 
 export interface ModelCallObserver {
+  /** Undefined authorizes an unmetered invocation without creating a reservation. */
   beforeCall(call: {
     callId?: string;
     runId?: string;
@@ -627,7 +628,7 @@ export interface ModelCallObserver {
     maxCostUsd?: number;
     /** Explicit adapter-known write bucket required by this request, not a billing prediction. */
     cacheWriteRetention?: "1h";
-  }): string | Promise<string>;
+  }): string | undefined | Promise<string | undefined>;
   afterCall(reservationId: string, usage: AgentUsage | null): void | Promise<void>;
   onRequestId?(reservationId: string, providerRequestId: string): void | Promise<void>;
 }

@@ -1116,6 +1116,7 @@ export type MobileMe = Pick<
   | "isDeploymentOwner"
   | "needsSignupSurvey"
   | "billingEnabled"
+  | "hostedCreditsEnabled"
   | "paymentWalletProvider"
 >;
 

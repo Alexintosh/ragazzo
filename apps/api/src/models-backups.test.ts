@@ -97,7 +97,13 @@ function setup(
     $queryRaw: vi.fn().mockResolvedValue([{ locked: 1 }]),
   };
   const prisma = {
-    deploymentSettings: { findUnique: vi.fn(async () => null), findFirst: vi.fn(async () => null) },
+    deploymentSettings: {
+      findUnique: vi.fn(async () => (options.credits ? { modelCreditsEnabled: true } : null)),
+      findFirst: vi.fn(async () => null),
+    },
+    hostedCreditPolicy: {
+      findUniqueOrThrow: vi.fn(async () => ({ enabled: false, activatedAt: null })),
+    },
     // Saved choices that keep a model listed after new users stop being offered it.
     bot: { findMany: vi.fn(async () => []) },
     routine: { findMany: vi.fn(async () => []) },

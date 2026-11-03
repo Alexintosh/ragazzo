@@ -190,6 +190,10 @@ msgstr "{count} weeks"
 msgid "{count} years"
 msgstr "{count} years"
 
+#: src/components/HostedCredits.tsx
+msgid "{daily} credits daily"
+msgstr "{daily} credits daily"
+
 #: src/lib/relative-time.ts
 msgid "{days}d ago"
 msgstr "{days}d ago"
@@ -411,9 +415,17 @@ msgstr "{toolCount, plural, one {# tool} other {# tools}}"
 msgid "@{0}"
 msgstr "@{0}"
 
+#: src/components/HostedCredits.tsx
+msgid "1 credit = $0.001. Model multipliers apply to provider cost."
+msgstr "1 credit = $0.001. Model multipliers apply to provider cost."
+
 #: src/components/integrations/space-availability.tsx
 msgid "1 space"
 msgstr "1 space"
+
+#: src/pages/AdminCreditsPage.tsx
+msgid "1× charges provider cost. Changes apply to new reservations."
+msgstr "1× charges provider cost. Changes apply to new reservations."
 
 #: src/pages/shell/message-cards.tsx
 msgid "A bit of everything"
@@ -461,6 +473,10 @@ msgstr "Account label"
 #: src/components/SidebarFooter.tsx
 msgid "Account menu for {name}"
 msgstr "Account menu for {name}"
+
+#: src/pages/AdminCreditsPage.tsx
+msgid "Accounts"
+msgstr "Accounts"
 
 #. placeholder {0}: bot.name
 #. placeholder {0}: group.spaceName
@@ -619,6 +635,10 @@ msgstr "Added"
 #: src/pages/PluginsOverlay.tsx
 msgid "Adding…"
 msgstr "Adding…"
+
+#: src/pages/AdminCreditsPage.tsx
+msgid "Adjustment recorded"
+msgstr "Adjustment recorded"
 
 #: src/pages/AccountSettingsOverlay.tsx
 #: src/pages/McpServersOverlay.tsx
@@ -816,6 +836,10 @@ msgstr "Appearance: {label}"
 msgid "Apply"
 msgstr "Apply"
 
+#: src/pages/AdminCreditsPage.tsx
+msgid "Apply dates"
+msgstr "Apply dates"
+
 #: src/components/teach/SkillDraftCard.tsx
 msgid "Approval boundaries"
 msgstr "Approval boundaries"
@@ -948,7 +972,9 @@ msgstr "Automated senders will appear after they post here."
 msgid "Available after the routine is saved"
 msgstr "Available after the routine is saved"
 
+#: src/components/HostedCredits.tsx
 #: src/components/ModelCredits.tsx
+#: src/pages/AdminCreditsPage.tsx
 msgid "Available credits"
 msgstr "Available credits"
 
@@ -966,6 +992,7 @@ msgstr "Avatar Studio"
 
 #: src/components/integrations/plugin-marketplace.tsx
 #: src/components/integrations/skills-dialog.tsx
+#: src/pages/AdminCreditsPage.tsx
 #: src/pages/AdminPluginsPage.tsx
 #: src/pages/Auth.tsx
 #: src/pages/Board.tsx
@@ -1209,6 +1236,10 @@ msgstr "Change password"
 msgid "Changing…"
 msgstr "Changing…"
 
+#: src/pages/AdminCreditsPage.tsx
+msgid "Charged credits"
+msgstr "Charged credits"
+
 #: src/pages/shell/message-cards.tsx
 msgid "Chart failed to render: {error}"
 msgstr "Chart failed to render: {error}"
@@ -1288,6 +1319,10 @@ msgstr "Checking…"
 #: src/pages/shell/avatar-studio-popover.tsx
 msgid "Choose a bot shape, color, or upload an image"
 msgstr "Choose a bot shape, color, or upload an image"
+
+#: src/pages/AdminCreditsPage.tsx
+msgid "Choose a date range between 1 and 93 days."
+msgstr "Choose a date range between 1 and 93 days."
 
 #: src/pages/ModelSettingsOverlay.tsx
 #: src/pages/shell/composer-error.tsx
@@ -1558,6 +1593,10 @@ msgstr "Confirm password"
 msgid "Confirm removal"
 msgstr "Confirm removal"
 
+#: src/pages/AdminCreditsPage.tsx
+msgid "Confirm revocation"
+msgstr "Confirm revocation"
+
 #: src/lib/model-connection-preflight.ts
 msgid "Confirm the URL is reachable from this browser session, then test again."
 msgstr "Confirm the URL is reachable from this browser session, then test again."
@@ -1748,6 +1787,10 @@ msgstr "Copy rows"
 #: src/pages/AccountSettingsOverlay.tsx
 msgid "Cost"
 msgstr "Cost"
+
+#: src/pages/AdminCreditsPage.tsx
+msgid "Cost multiplier"
+msgstr "Cost multiplier"
 
 #: src/pages/ScratchpadSection.tsx
 msgid "Could not add"
@@ -1963,6 +2006,7 @@ msgstr "Could not load approval rules"
 msgid "Could not load artifacts."
 msgstr "Could not load artifacts."
 
+#: src/components/HostedCredits.tsx
 #: src/pages/BillingSettingsPanel.tsx
 msgid "Could not load billing"
 msgstr "Could not load billing"
@@ -1975,6 +2019,11 @@ msgstr "Could not load bots. Reload to try again."
 msgid "Could not load credentials."
 msgstr "Could not load credentials."
 
+#: src/components/HostedCredits.tsx
+#: src/pages/AdminCreditsPage.tsx
+msgid "Could not load credits"
+msgstr "Could not load credits"
+
 #: src/pages/PluginsOverlay.tsx
 msgid "Could not load integrations"
 msgstr "Could not load integrations"
@@ -1983,6 +2032,10 @@ msgstr "Could not load integrations"
 #: src/pages/PluginsOverlay.tsx
 msgid "Could not load MCP servers"
 msgstr "Could not load MCP servers"
+
+#: src/components/HostedCredits.tsx
+msgid "Could not load model rates"
+msgstr "Could not load model rates"
 
 #: src/pages/model-settings/use-model-settings.ts
 msgid "Could not load model settings"
@@ -2234,6 +2287,7 @@ msgstr "Could not update"
 msgid "Could not update agent access"
 msgstr "Could not update agent access"
 
+#: src/components/HostedCredits.tsx
 #: src/components/ModelCredits.tsx
 msgid "Could not update billing"
 msgstr "Could not update billing"
@@ -2241,6 +2295,10 @@ msgstr "Could not update billing"
 #: src/components/ComputerMaintenanceActions.tsx
 msgid "Could not update computer"
 msgstr "Could not update computer"
+
+#: src/pages/AdminCreditsPage.tsx
+msgid "Could not update credits"
+msgstr "Could not update credits"
 
 #: src/pages/AccountSettingsOverlay.tsx
 msgid "Could not update name"
@@ -2343,9 +2401,27 @@ msgstr "Credentials are encrypted and never sent to the model."
 msgid "Credentials: {names}"
 msgstr "Credentials: {names}"
 
+#: src/pages/AdminCreditsPage.tsx
+msgid "Credit adjustment"
+msgstr "Credit adjustment"
+
+#: src/pages/AdminCreditsPage.tsx
+#: src/pages/BillingSettingsPanel.tsx
+#: src/pages/Shell.tsx
+msgid "Credit administration"
+msgstr "Credit administration"
+
 #: src/components/ModelCredits.tsx
 msgid "Credit amount"
 msgstr "Credit amount"
+
+#: src/pages/AdminCreditsPage.tsx
+msgid "Credit history"
+msgstr "Credit history"
+
+#: src/pages/AdminCreditsPage.tsx
+msgid "credits"
+msgstr "credits"
 
 #: src/lib/cron.ts
 msgid "Cron"
@@ -2383,6 +2459,22 @@ msgstr "Customize {label}"
 #: src/pages/shell/avatar-studio-popover.tsx
 msgid "Customize bot avatar"
 msgstr "Customize bot avatar"
+
+#: src/pages/AdminCreditsPage.tsx
+msgid "Daily allowance override"
+msgstr "Daily allowance override"
+
+#: src/pages/AdminCreditsPage.tsx
+msgid "Daily credits per account"
+msgstr "Daily credits per account"
+
+#: src/pages/AdminCreditsPage.tsx
+msgid "Daily grant budget"
+msgstr "Daily grant budget"
+
+#: src/pages/AdminCreditsPage.tsx
+msgid "Daily grants use UTC. A zero budget disables grants."
+msgstr "Daily grants use UTC. A zero budget disables grants."
 
 #: src/pages/AccountSettingsOverlay.tsx
 #: src/pages/Shell.tsx
@@ -2516,6 +2608,10 @@ msgstr "Denied"
 #: src/components/AskCard.tsx
 msgid "Deny"
 msgstr "Deny"
+
+#: src/pages/AdminCreditsPage.tsx
+msgid "Deployment default"
+msgstr "Deployment default"
 
 #: src/pages/Board.tsx
 #: src/pages/shell/agent-import.tsx
@@ -2696,6 +2792,7 @@ msgstr "Each name can be used once."
 
 #: src/components/AskCard.tsx
 #: src/pages/AccountSettingsOverlay.tsx
+#: src/pages/AdminCreditsPage.tsx
 #: src/pages/McpServersOverlay.tsx
 msgid "Edit"
 msgstr "Edit"
@@ -2732,6 +2829,10 @@ msgstr "Email verification required"
 #: src/pages/shell/bot-panel.tsx
 msgid "Enable {0}"
 msgstr "Enable {0}"
+
+#: src/pages/AdminCreditsPage.tsx
+msgid "Enable hosted models"
+msgstr "Enable hosted models"
 
 #: src/pages/BillingSettingsPanel.tsx
 msgid "Ends {day}"
@@ -2987,6 +3088,10 @@ msgstr "Finished."
 msgid "Finishing MCP connection…"
 msgstr "Finishing MCP connection…"
 
+#: src/pages/AdminCreditsPage.tsx
+msgid "First page"
+msgstr "First page"
+
 #: src/pages/Auth.tsx
 msgid "Forgot password?"
 msgstr "Forgot password?"
@@ -3007,6 +3112,10 @@ msgstr "Friday"
 #: src/pages/ActivityList.tsx
 msgid "From"
 msgstr "From"
+
+#: src/pages/AdminCreditsPage.tsx
+msgid "From (UTC)"
+msgstr "From (UTC)"
 
 #. placeholder {0}: filters.dateRange.from
 #: src/pages/ActivityList.tsx
@@ -3051,6 +3160,10 @@ msgstr "Git event"
 #: src/pages/NotFound.tsx
 msgid "Go home"
 msgstr "Go home"
+
+#: src/pages/AdminCreditsPage.tsx
+msgid "Grant credits"
+msgstr "Grant credits"
 
 #: src/lib/identity-display.ts
 #: src/pages/MessagingSettingsPanel.tsx
@@ -3146,6 +3259,14 @@ msgstr "Hold to talk"
 #: src/components/composer/HoldToTalk.tsx
 msgid "Hold to talk, release to send"
 msgstr "Hold to talk, release to send"
+
+#: src/pages/AdminCreditsPage.tsx
+msgid "Hosted credit policy"
+msgstr "Hosted credit policy"
+
+#: src/components/HostedCredits.tsx
+msgid "Hosted models are paused"
+msgstr "Hosted models are paused"
 
 #: src/lib/cron.ts
 msgid "hour"
@@ -3368,6 +3489,10 @@ msgstr "Keep memories"
 msgid "key"
 msgstr "key"
 
+#: src/pages/AdminCreditsPage.tsx
+msgid "Known provider cost"
+msgstr "Known provider cost"
+
 #: src/components/LoginFields.tsx
 msgid "Label"
 msgstr "Label"
@@ -3485,9 +3610,11 @@ msgstr "Loading preview…"
 msgid "Loading voice providers…"
 msgstr "Loading voice providers…"
 
+#: src/components/HostedCredits.tsx
 #: src/components/integrations/plugin-marketplace.tsx
 #: src/components/integrations/skills-dialog.tsx
 #: src/components/PageLoading.tsx
+#: src/pages/AdminCreditsPage.tsx
 #: src/pages/Artifacts.tsx
 #: src/pages/IntegrationSetup.tsx
 #: src/pages/PeerMessagesOverlay.tsx
@@ -3534,6 +3661,7 @@ msgstr "Lowercase letters, numbers, hyphens and underscores, starting with a let
 msgid "Main model"
 msgstr "Main model"
 
+#: src/pages/AdminCreditsPage.tsx
 #: src/pages/BillingSettingsPanel.tsx
 #: src/pages/SettingsOverlay.tsx
 msgid "Manage"
@@ -3767,6 +3895,7 @@ msgid "Mode"
 msgstr "Mode"
 
 #: src/pages/AccountSettingsOverlay.tsx
+#: src/pages/AdminCreditsPage.tsx
 #: src/pages/model-settings/compatible-model-fields.tsx
 #: src/pages/model-settings/model-picker.tsx
 #: src/pages/Onboarding.tsx
@@ -3793,6 +3922,10 @@ msgstr "Model id"
 #: src/pages/model-settings/role-model-picker.tsx
 msgid "Model options"
 msgstr "Model options"
+
+#: src/components/HostedCredits.tsx
+msgid "Model rates"
+msgstr "Model rates"
 
 #: src/pages/ModelSettingsOverlay.tsx
 #: src/pages/settings-nav.ts
@@ -3988,13 +4121,22 @@ msgstr "New space"
 msgid "New ticket"
 msgstr "New ticket"
 
+#: src/pages/AdminCreditsPage.tsx
+msgid "Next events"
+msgstr "Next events"
+
 #: src/components/markdown-copy.tsx
+#: src/pages/AdminCreditsPage.tsx
 msgid "Next page"
 msgstr "Next page"
 
 #: src/pages/SettingsOverlay.tsx
 msgid "Next settings sections"
 msgstr "Next settings sections"
+
+#: src/pages/AdminCreditsPage.tsx
+msgid "No accounts"
+msgstr "No accounts"
 
 #: src/pages/PluginsOverlay.tsx
 msgid "No apps match your search."
@@ -4016,6 +4158,10 @@ msgstr "No authentication"
 #: src/pages/shell/bot-picker.tsx
 msgid "No bots match"
 msgstr "No bots match"
+
+#: src/pages/AdminCreditsPage.tsx
+msgid "No events"
+msgstr "No events"
 
 #: src/components/AskCard.tsx
 msgid "No longer active"
@@ -4102,6 +4248,10 @@ msgstr "No tickets yet"
 #: src/pages/RoutineEditor.tsx
 msgid "No trigger"
 msgstr "No trigger"
+
+#: src/pages/AdminCreditsPage.tsx
+msgid "No usage in this period"
+msgstr "No usage in this period"
 
 #: src/lib/ticket-priority.ts
 msgid "Normal"
@@ -4414,6 +4564,10 @@ msgstr "Paused"
 msgid "Pending"
 msgstr "Pending"
 
+#: src/pages/AdminCreditsPage.tsx
+msgid "Pending credits"
+msgstr "Pending credits"
+
 #: src/pages/shell/bot-panel.tsx
 msgid "Permissions"
 msgstr "Permissions"
@@ -4484,6 +4638,10 @@ msgstr "Plugin submissions"
 msgid "Plugins"
 msgstr "Plugins"
 
+#: src/pages/AdminCreditsPage.tsx
+msgid "Positive to grant, negative to revoke"
+msgstr "Positive to grant, negative to revoke"
+
 #: src/pages/RoutineEditor.tsx
 msgid "Post \"No changes\" in chat"
 msgstr "Post \"No changes\" in chat"
@@ -4544,11 +4702,24 @@ msgstr "Program: {name}"
 msgid "Protected input"
 msgstr "Protected input"
 
+#: src/pages/AdminCreditsPage.tsx
 #: src/pages/MemorySettingsOverlay.tsx
 #: src/pages/Onboarding.tsx
 #: src/pages/VoiceSettingsOverlay.tsx
 msgid "Provider"
 msgstr "Provider"
+
+#: src/pages/AdminCreditsPage.tsx
+msgid "Provider / model"
+msgstr "Provider / model"
+
+#: src/pages/AdminCreditsPage.tsx
+msgid "Provider and model tariffs"
+msgstr "Provider and model tariffs"
+
+#: src/pages/AdminCreditsPage.tsx
+msgid "Provider costs and credits"
+msgstr "Provider costs and credits"
 
 #: src/pages/model-settings/providers-section.tsx
 msgid "Providers"
@@ -4591,6 +4762,7 @@ msgstr "Read replies aloud"
 msgid "Ready"
 msgstr "Ready"
 
+#: src/pages/AdminCreditsPage.tsx
 #: src/pages/PluginSubmissionsPanel.tsx
 msgid "Reason"
 msgstr "Reason"
@@ -4696,6 +4868,7 @@ msgstr "Redirect URI"
 
 #: src/App.tsx
 #: src/components/ErrorBoundary.tsx
+#: src/components/HostedCredits.tsx
 #: src/components/ModelCredits.tsx
 msgid "Refresh"
 msgstr "Refresh"
@@ -4837,6 +5010,10 @@ msgstr "Rename section"
 msgid "Renews {day}"
 msgstr "Renews {day}"
 
+#: src/components/HostedCredits.tsx
+msgid "Renews {next}"
+msgstr "Renews {next}"
+
 #: src/pages/ScratchpadSection.tsx
 msgid "Reopen"
 msgstr "Reopen"
@@ -4977,9 +5154,19 @@ msgstr "Return to Rakazo"
 msgid "Review provider settings and test again."
 msgstr "Review provider settings and test again."
 
+#: src/pages/AdminCreditsPage.tsx
+msgid "Review revocation"
+msgstr "Review revocation"
+
 #: src/pages/MessagingSettingsPanel.tsx
 msgid "Revoke"
 msgstr "Revoke"
+
+#. placeholder {0}: formatCreditAmount((-BigInt(micros)).toString(), i18n.locale)
+#. placeholder {1}: account.name
+#: src/pages/AdminCreditsPage.tsx
+msgid "Revoke {0} credits from {1}?"
+msgstr "Revoke {0} credits from {1}?"
 
 #: src/pages/ExternalConversationSettings.tsx
 msgid "Room guidance"
@@ -5070,6 +5257,10 @@ msgstr "Saturday"
 msgid "Save"
 msgstr "Save"
 
+#: src/pages/AdminCreditsPage.tsx
+msgid "Save allowance"
+msgstr "Save allowance"
+
 #: src/components/VaultSettings.tsx
 msgid "Save credential"
 msgstr "Save credential"
@@ -5077,6 +5268,14 @@ msgstr "Save credential"
 #: src/components/VaultSettings.tsx
 msgid "Save new value"
 msgstr "Save new value"
+
+#: src/pages/AdminCreditsPage.tsx
+msgid "Save policy"
+msgstr "Save policy"
+
+#: src/pages/AdminCreditsPage.tsx
+msgid "Save tariff"
+msgstr "Save tariff"
 
 #: src/components/ComputerMaintenanceActions.tsx
 msgid "Save the workspace and install current software."
@@ -5141,6 +5340,7 @@ msgstr "Scopes (optional)"
 msgid "Screen not connected"
 msgstr "Screen not connected"
 
+#: src/pages/AdminCreditsPage.tsx
 #: src/pages/model-settings/compatible-model-fields.tsx
 #: src/pages/model-settings/model-picker.tsx
 #: src/pages/model-settings/providers-section.tsx
@@ -5153,6 +5353,10 @@ msgstr "Screen not connected"
 #: src/pages/shell/sidebar-header.tsx
 msgid "Search"
 msgstr "Search"
+
+#: src/pages/AdminCreditsPage.tsx
+msgid "Search accounts"
+msgstr "Search accounts"
 
 #: src/components/integrations/IntegrationSetup.tsx
 #: src/pages/PluginsOverlay.tsx
@@ -6095,6 +6299,10 @@ msgstr "Undo"
 msgid "Uninstall"
 msgstr "Uninstall"
 
+#: src/pages/AdminCreditsPage.tsx
+msgid "Unknown cost"
+msgstr "Unknown cost"
+
 #: src/pages/MessagingSettingsPanel.tsx
 msgid "Unlink"
 msgstr "Unlink"
@@ -6111,6 +6319,10 @@ msgstr "Unpin"
 #: src/pages/shell/use-composer-actions.ts
 msgid "Unsupported file type: {0}"
 msgstr "Unsupported file type: {0}"
+
+#: src/pages/AdminCreditsPage.tsx
+msgid "Until (UTC, exclusive)"
+msgstr "Until (UTC, exclusive)"
 
 #: src/components/DesktopUpdates.tsx
 msgid "Up to date"
@@ -6225,6 +6437,7 @@ msgstr "Use defaults for {label}"
 msgid "Use in this bot"
 msgstr "Use in this bot"
 
+#: src/components/HostedCredits.tsx
 #: src/components/ModelCredits.tsx
 msgid "Use my subscription or API key"
 msgstr "Use my subscription or API key"
@@ -6233,6 +6446,7 @@ msgstr "Use my subscription or API key"
 msgid "Use Protected input for passwords."
 msgstr "Use Protected input for passwords."
 
+#: src/components/HostedCredits.tsx
 #: src/components/ModelCredits.tsx
 msgid "Use Rakazo credits"
 msgstr "Use Rakazo credits"

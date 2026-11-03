@@ -1954,6 +1954,8 @@ model ModelCreditAccount {
   balanceMicros         BigInt             @default(0)
   pendingCreditCheckout Boolean            @default(false)
   byokFreeUntil         DateTime?
+  /// Null uses the deployment allowance; zero explicitly opts out of daily grants.
+  dailyAllowanceMicros  BigInt?
   entries               ModelCreditEntry[]
   lots                  ModelCreditLot[]
   createdAt             DateTime           @default(now())
@@ -1985,11 +1987,41 @@ model ModelCreditEntry {
   allocations            Json?
   /// Sum of allocations; detects settlements by older writers without inferring credit provenance.
   fundedMicros           BigInt?
+  /// Frozen retail tariff. Legacy reservations remain at provider cost.
+  multiplierBps          Int                @default(10000)
+  providerCostMicros     BigInt?
+  actorId                String?
+  reason                 String?
+  grantDay               String?
   createdAt              DateTime           @default(now())
 
   @@index([reconciliationState, nextReconcileAt])
   @@index([organizationId, createdAt])
+  @@index([grantDay])
   @@map("model_credit_entries")
+}
+
+/// Hosted access and subsidies are independent of payment-provider configuration.
+model HostedCreditPolicy {
+  id                          String   @id @default("deployment")
+  enabled                     Boolean  @default(false)
+  /// Once activated, disabling hosted access must never restore unmetered legacy credentials.
+  activatedAt                 DateTime?
+  defaultDailyAllowanceMicros  BigInt   @default(0)
+  dailyGrantBudgetMicros       BigInt   @default(0)
+  updatedAt                   DateTime @updatedAt
+
+  @@map("hosted_credit_policies")
+}
+
+model HostedCreditTariff {
+  provider      String
+  model         String
+  multiplierBps Int      @default(10000)
+  updatedAt     DateTime @updatedAt
+
+  @@id([provider, model])
+  @@map("hosted_credit_tariffs")
 }
 
 /// Immutable financial journal. Deliberately no lifecycle foreign keys.

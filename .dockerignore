@@ -48,3 +48,10 @@ verify-report
 .playwright-cli
 .deploy.lock
 .last-deployed-revision
+**/.terraform
+**/*.tfstate
+**/*.tfstate.*
+**/*.tfplan
+**/*.tfvars
+infra/cloudflare/.runtime
+infra/cloudflare/*.local.json

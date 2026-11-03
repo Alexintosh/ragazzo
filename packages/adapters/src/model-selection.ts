@@ -7,7 +7,12 @@ import {
   usableModelId,
 } from "@rakazo/contracts";
 import type { PrismaClient } from "@rakazo/db";
-import { chooseModelCredential, findModelCredential, findModelCredentialById } from "@rakazo/db";
+import {
+  chooseModelCredential,
+  findModelCredential,
+  findModelCredentialById,
+  getHostedCreditPolicy,
+} from "@rakazo/db";
 import { resolveDeploymentModel } from "./deployment-model.js";
 import { modelCredentialDto } from "./model-connect.js";
 import type { ModelCredentialAuthKind } from "./pi-catalog-availability.js";
@@ -871,5 +876,10 @@ export async function hasHostedModelCredits(
     where: { id: scope.spaceId, organization: { members: { some: { userId: scope.userId } } } },
     select: { organization: { select: { modelCredits: { select: { mode: true } } } } },
   });
-  return space?.organization.modelCredits?.mode === "credits";
+  if (!space) return false;
+  const mode = space?.organization.modelCredits?.mode ?? null;
+  if (mode === "byok") return false;
+  const policy = await getHostedCreditPolicy(prisma);
+  if (policy.activatedAt && !policy.enabled) return false;
+  return mode === "credits" || (Boolean(space) && policy.enabled && mode === null);
 }

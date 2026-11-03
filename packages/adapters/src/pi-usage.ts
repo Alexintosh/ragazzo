@@ -408,7 +408,7 @@ export function observedPiStream(
           withChatCompletionsCompatibility(model, {
             ...options,
             ...(cacheRetention ? { cacheRetention } : {}),
-            ...(observer ? { maxRetries: 0 } : {}),
+            ...(reservation !== undefined ? { maxRetries: 0 } : {}),
           }),
         );
         let upstream: ReturnType<Models["streamSimple"]>;

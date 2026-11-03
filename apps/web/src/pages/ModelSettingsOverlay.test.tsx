@@ -195,6 +195,7 @@ function account(provider: string, modelId: string) {
     mcpStdioEnabled: false,
     avatarStyle: "organic" as const,
     billingEnabled: false,
+    hostedCreditsEnabled: false,
     ticketBoardEnabled: false,
     navLinks: [],
     phoneCallsEnabled: false,

@@ -1,0 +1,6 @@
+name             = "rakazo-production"
+node_count       = 1
+server_type      = "cx33"
+location         = "fsn1"
+ssh_key_ids      = ["existing-operator-key"]
+ssh_source_cidrs = ["192.0.2.10/32"]

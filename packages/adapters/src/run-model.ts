@@ -12,6 +12,7 @@ import {
   OPENAI_COMPATIBLE_PROVIDER_ID,
 } from "@rakazo/contracts";
 import { MISSING_MODEL_RUN_ERROR } from "@rakazo/core";
+import { hostedModelMeteringEnabled } from "@rakazo/db";
 import { cloudflareProviderEnv } from "./cloudflare-ai-gateway.js";
 import { resolveDeploymentModel } from "./deployment-model.js";
 import type { ExecutorDeps } from "./executor-deps.js";
@@ -140,15 +141,7 @@ function assertCompatibleModelEnabled(
 }
 
 export async function modelCreditBillingEnabled(deps: ExecutorDeps): Promise<boolean> {
-  if (deps.billingEnabled !== undefined) return deps.billingEnabled;
-  return (
-    (
-      await deps.prisma.deploymentSettings.findUnique({
-        where: { id: "default" },
-        select: { modelCreditsEnabled: true },
-      })
-    )?.modelCreditsEnabled === true
-  );
+  return hostedModelMeteringEnabled(deps.prisma);
 }
 
 export async function resolveModelKey(...args: Parameters<typeof resolveModelKeyMaterial>) {
@@ -178,8 +171,9 @@ export async function resolveModelKey(...args: Parameters<typeof resolveModelKey
   if (!material.apiKey?.trim() && !runtimeKey?.trim() && !keyless) {
     throw new UnavailableModelForAuthError(MISSING_MODEL_RUN_ERROR);
   }
-  const callObserver =
-    !credential && billingEnabled ? await hostedModelCreditObserver(deps.prisma, scope) : undefined;
+  const callObserver = !material.ownCredential
+    ? await hostedModelCreditObserver(deps.prisma, scope)
+    : undefined;
   return { ...material, apiKey: material.apiKey ?? runtimeKey, callObserver };
 }
 

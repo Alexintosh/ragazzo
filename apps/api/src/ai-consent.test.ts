@@ -28,6 +28,9 @@ function setup() {
       },
       spaceMemoryConfig: { findUnique: vi.fn(async () => null) },
       deploymentSettings: { findUnique: vi.fn(async () => null) },
+      hostedCreditPolicy: {
+        findUniqueOrThrow: vi.fn(async () => ({ enabled: false, activatedAt: null })),
+      },
       aiDataConsent: { findMany: vi.fn(async () => []), upsert },
       $transaction: vi.fn(async (write: (tx: unknown) => Promise<unknown>) =>
         write({ aiDataConsent: { upsert } }),

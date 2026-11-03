@@ -1,7 +1,30 @@
 import { describe, expect, it, vi } from "vitest";
 import type { PrismaClient } from "./client.js";
 import { Prisma } from "./generated/prisma/client.js";
-import { creditAccount } from "./model-credits.js";
+import { creditAccount, modelChargeMicros } from "./model-credits.js";
+
+describe("model tariffs", () => {
+  it("keeps provider cost distinct from the rounded retail charge", () => {
+    expect(modelChargeMicros(0.000001, 15_000)).toEqual({
+      providerCostMicros: 1n,
+      chargedMicros: 2n,
+    });
+    expect(modelChargeMicros(0.125, 20_000)).toEqual({
+      providerCostMicros: 125_000n,
+      chargedMicros: 250_000n,
+    });
+    expect(modelChargeMicros(0)).toEqual({ providerCostMicros: 0n, chargedMicros: 0n });
+  });
+  it.each([Number.NaN, Number.POSITIVE_INFINITY, -1, Number.MAX_SAFE_INTEGER])(
+    "rejects invalid or overflowing costs %s",
+    (cost) => {
+      expect(() => modelChargeMicros(cost)).toThrow("Invalid model cost");
+    },
+  );
+  it.each([0, -1, 1.5, 1_000_001])("rejects invalid tariffs %s", (tariff) => {
+    expect(() => modelChargeMicros(1, tariff)).toThrow("Invalid hosted model tariff");
+  });
+});
 
 describe("creditAccount", () => {
   const organizationId = "credit-race-fixture";

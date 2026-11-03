@@ -16,6 +16,7 @@ import { LoadFailure } from "../../components/load-failure";
 import { ModelProviders } from "../../components/model-providers";
 import type { ConnectableProvider, ModelConnectIntent } from "../../components/model-role-settings";
 import { ModelRoleSettings } from "../../components/model-role-settings";
+import { SettingsGroup, SettingsRow } from "../../components/settings-group";
 import type { MobileModel, MobileModelCredential } from "../../lib/api";
 // Connections belong to the account, so renaming and removing them go to the selected Space.
 import { rpc } from "../../lib/api";
@@ -60,6 +61,15 @@ export default function Models() {
       },
       queryClient,
     ).data ?? noCredentials;
+  const hosted = useQuery({
+    ...rpcQuery("hostedCredits/status"),
+    enabled: me?.hostedCreditsEnabled === true,
+  });
+  const hostedBilling = useQuery({
+    ...rpcQuery("billing/status"),
+    enabled: me?.hostedCreditsEnabled === true,
+  });
+  const [hostedPending, setHostedPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const openedRef = useRef(false);
@@ -265,6 +275,32 @@ export default function Models() {
         ) : null}
         {me ? (
           <>
+            {me.hostedCreditsEnabled &&
+            hostedBilling.data?.canManage &&
+            hostedBilling.data.funding !== "credits" &&
+            target.scope === "account" ? (
+              <SettingsGroup>
+                <SettingsRow
+                  title={t("Use Rakazo credits")}
+                  disabled={hostedPending || !hosted.data?.available}
+                  onPress={() => {
+                    if (hostedPending) return;
+                    setHostedPending(true);
+                    void changeConnection(async () => {
+                      await rpc("billing/selectFunding", { funding: "credits" });
+                      await Promise.all([
+                        queryClient.invalidateQueries({
+                          queryKey: rpcQuery("hostedCredits/status").queryKey,
+                        }),
+                        queryClient.invalidateQueries({
+                          queryKey: rpcQuery("billing/status").queryKey,
+                        }),
+                      ]);
+                    }, t("Could not update billing")).finally(() => setHostedPending(false));
+                  }}
+                />
+              </SettingsGroup>
+            ) : null}
             <ModelRoleSettings
               {...shared}
               modelRole="main"

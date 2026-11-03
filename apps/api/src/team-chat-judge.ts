@@ -15,7 +15,7 @@ import {
 } from "@rakazo/adapters";
 import { redactSecrets } from "@rakazo/core";
 import type { PrismaClient } from "@rakazo/db";
-import { findModelCredential, recordUsage } from "@rakazo/db";
+import { findModelCredential, hostedModelMeteringEnabled, recordUsage } from "@rakazo/db";
 import { getLogger } from "@rakazo/logging";
 
 const MAX_RULES_CHARS = 4_000;
@@ -236,11 +236,11 @@ export class ModelTeamChatEngagementJudge implements TeamChatEngagementJudge {
       requestedProvider && requestedModel && (explicitJudgeOverride || overrideCredential),
     );
     // The member's main model runs on its connection, or on funded deployment credits.
+    const metered = await hostedModelMeteringEnabled(this.deps.prisma);
     const main =
       member &&
       (member.credential ||
-        (settings?.modelCreditsEnabled &&
-          (await hasHostedModelCredits(this.deps.prisma, scope, member.provider))))
+        (metered && (await hasHostedModelCredits(this.deps.prisma, scope, member.provider))))
         ? member
         : null;
     const fallback = deploymentModelRole("main", {
@@ -252,15 +252,11 @@ export class ModelTeamChatEngagementJudge implements TeamChatEngagementJudge {
     const modelId = useOverride ? requestedModel : (main ?? fallback)?.modelId;
     if (!provider || !modelId) return null;
 
-    const hosted =
-      settings?.modelCreditsEnabled &&
-      (await hasHostedModelCredits(this.deps.prisma, scope, provider));
+    const hosted = metered && (await hasHostedModelCredits(this.deps.prisma, scope, provider));
     if (!credential || hosted) {
       const apiKey =
         provider === this.deps.deploymentProvider ? this.deps.deploymentModelKey : undefined;
-      const callObserver = settings?.modelCreditsEnabled
-        ? await hostedModelCreditObserver(this.deps.prisma, scope)
-        : undefined;
+      const callObserver = await hostedModelCreditObserver(this.deps.prisma, scope);
       return { model: { provider, id: modelId, ...(apiKey ? { apiKey } : {}), callObserver } };
     }
 

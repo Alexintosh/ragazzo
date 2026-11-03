@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import type { AgentUsage, BillingCreditPurchase } from "@rakazo/adapter-kit";
 import type { PrismaClient } from "./client.js";
 import { Prisma } from "./generated/prisma/client.js";
+import { grantDailyModelCredits } from "./hosted-credits.js";
 import type { CreditAllocation } from "./model-credit-lots.js";
 import {
   allocateCreditLots,
@@ -14,6 +15,23 @@ import {
 } from "./model-credit-lots.js";
 
 export const MICROS_PER_DOLLAR = 1_000_000;
+
+/** Round once to provider micros, then apply the frozen integer retail tariff. */
+export function modelChargeMicros(costUsd: number, multiplierBps = 10_000) {
+  if (
+    !Number.isFinite(costUsd) ||
+    costUsd < 0 ||
+    !Number.isSafeInteger(Math.ceil(costUsd * MICROS_PER_DOLLAR))
+  )
+    throw new Error("Invalid model cost");
+  if (!Number.isInteger(multiplierBps) || multiplierBps < 1 || multiplierBps > 1_000_000)
+    throw new Error("Invalid hosted model tariff");
+  const providerCostMicros = BigInt(Math.ceil(costUsd * MICROS_PER_DOLLAR));
+  return {
+    providerCostMicros,
+    chargedMicros: (providerCostMicros * BigInt(multiplierBps) + 9_999n) / 10_000n,
+  };
+}
 
 export async function creditAccount(prisma: PrismaClient, organizationId: string) {
   try {
@@ -110,7 +128,7 @@ export async function reserveModelCredits(
 ) {
   if (!Number.isFinite(maxCostUsd) || maxCostUsd <= 0 || maxCostUsd > 10_000)
     throw new Error("This model has no reliable price. Connect your own API key to use it.");
-  const amountMicros = BigInt(Math.ceil(maxCostUsd * MICROS_PER_DOLLAR));
+  await grantDailyModelCredits(prisma, organizationId, now);
   const callId = attribution?.callId ?? randomUUID();
   const source = `call:${callId}`;
   return prisma.$transaction(async (tx) => {
@@ -119,17 +137,34 @@ export async function reserveModelCredits(
     if (existing) {
       if (existing.organizationId !== organizationId)
         throw new Error("Model call belongs to another account");
+      for (const key of ["userId", "spaceId", "provider", "model"] as const)
+        if (attribution?.[key] !== undefined && existing[key] !== attribution[key])
+          throw new Error("Model call attribution changed");
       return existing.id;
     }
+    const policy = await tx.hostedCreditPolicy.findUniqueOrThrow({ where: { id: "deployment" } });
+    if (policy.activatedAt && !policy.enabled) throw new Error("Hosted model credits are disabled");
+    const tariff =
+      attribution?.provider && attribution.model
+        ? await tx.hostedCreditTariff.findUnique({
+            where: { provider_model: { provider: attribution.provider, model: attribution.model } },
+          })
+        : null;
+    const multiplierBps = tariff?.multiplierBps ?? 10_000;
+    const amountMicros = modelChargeMicros(maxCostUsd, multiplierBps).chargedMicros;
     await prepareCreditLots(tx, organizationId, now);
     await expireCreditLots(tx, organizationId, now);
     const reserved = await tx.modelCreditAccount.updateMany({
-      where: { organizationId, mode: "credits", balanceMicros: { gte: amountMicros } },
+      where: {
+        organizationId,
+        OR: [{ mode: "credits" }, ...(policy.enabled ? [{ mode: null }] : [])],
+        balanceMicros: { gte: amountMicros },
+      },
       data: { balanceMicros: { decrement: amountMicros } },
     });
     if (reserved.count !== 1)
       throw new Error(
-        "Not enough model credits. Add credits in Billing or connect your own API key.",
+        "Not enough model credits. Connect your own API key or try again when credits are available.",
       );
     const allocations = await allocateCreditLots(tx, organizationId, amountMicros, now);
     return (
@@ -141,6 +176,7 @@ export async function reserveModelCredits(
           source,
           organizationId,
           amountMicros: -amountMicros,
+          multiplierBps,
           pending: true,
           allocations,
           fundedMicros: allocatedMicros(allocations),
@@ -170,8 +206,14 @@ export async function settleModelCreditsTx(
   await expireCreditLots(tx, scope.organizationId, now);
   const entry = await tx.modelCreditEntry.findUnique({ where: { id: reservationId } });
   if (!entry || (!entry.pending && !reconcile)) return;
-  const amountMicros = -BigInt(Math.ceil(costUsd * MICROS_PER_DOLLAR));
-  if (!entry.pending && amountMicros === entry.amountMicros) return;
+  const { providerCostMicros, chargedMicros } = modelChargeMicros(costUsd, entry.multiplierBps);
+  const amountMicros = -chargedMicros;
+  if (
+    !entry.pending &&
+    amountMicros === entry.amountMicros &&
+    providerCostMicros === entry.providerCostMicros
+  )
+    return;
   let allocations = (entry.allocations ?? []) as CreditAllocation[];
   const difference = amountMicros - entry.amountMicros;
   if (difference > 0n) {
@@ -184,7 +226,13 @@ export async function settleModelCreditsTx(
   }
   await tx.modelCreditEntry.update({
     where: { id: reservationId },
-    data: { pending: false, amountMicros, allocations, fundedMicros: allocatedMicros(allocations) },
+    data: {
+      pending: false,
+      amountMicros,
+      providerCostMicros,
+      allocations,
+      fundedMicros: allocatedMicros(allocations),
+    },
   });
   await tx.modelCreditAccount.update({
     where: { organizationId: entry.organizationId },

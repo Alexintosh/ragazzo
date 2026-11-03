@@ -9,6 +9,12 @@ import {
 
 class ModelTeamChatEngagementJudge extends Judge {
   constructor(deps: ConstructorParameters<typeof Judge>[0]) {
+    if (!deps.prisma.hostedCreditPolicy)
+      Object.assign(deps.prisma, {
+        hostedCreditPolicy: {
+          findUniqueOrThrow: vi.fn(async () => ({ enabled: false, activatedAt: null })),
+        },
+      });
     super({ ...deps, prisma: withModelRoles(deps.prisma) });
   }
 }

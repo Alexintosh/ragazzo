@@ -143,6 +143,22 @@ import {
   VoiceStatusSchema,
 } from "./domain.js";
 import { ComputerCommandSchema, ProductEventSchema } from "./events.js";
+import {
+  CreditAccountsInputSchema,
+  CreditAccountsPageSchema,
+  CreditAdjustmentInputSchema,
+  CreditAdminOverviewSchema,
+  CreditAllowanceInputSchema,
+  CreditCostReportInputSchema,
+  CreditCostReportSchema,
+  CreditJournalInputSchema,
+  CreditJournalPageSchema,
+  HostedCreditPolicySchema,
+  HostedCreditStatusSchema,
+  HostedCreditTariffSchema,
+  UpdateHostedCreditPolicyInputSchema,
+  UpdateHostedCreditTariffInputSchema,
+} from "./hosted-credits.js";
 import { Id, IsoDate, ThinkingLevelSchema } from "./ids.js";
 import {
   IntegrationProviderConfigSchema,
@@ -257,6 +273,22 @@ export const appContract = {
   },
   health: oc.output(z.object({ ok: z.literal(true), version: z.string() })),
   me: oc.output(MeSchema),
+  hostedCredits: {
+    status: oc.output(HostedCreditStatusSchema),
+    tariffs: oc.output(z.array(HostedCreditTariffSchema)),
+  },
+  creditAdmin: {
+    overview: oc.output(CreditAdminOverviewSchema),
+    accounts: oc.input(CreditAccountsInputSchema).output(CreditAccountsPageSchema),
+    journal: oc.input(CreditJournalInputSchema).output(CreditJournalPageSchema),
+    policy: oc.output(HostedCreditPolicySchema),
+    updatePolicy: oc.input(UpdateHostedCreditPolicyInputSchema).output(HostedCreditPolicySchema),
+    tariffs: oc.output(z.array(HostedCreditTariffSchema)),
+    updateTariff: oc.input(UpdateHostedCreditTariffInputSchema).output(HostedCreditTariffSchema),
+    adjustment: oc.input(CreditAdjustmentInputSchema).output(z.object({ ok: z.literal(true) })),
+    updateAllowance: oc.input(CreditAllowanceInputSchema).output(z.object({ ok: z.literal(true) })),
+    costReport: oc.input(CreditCostReportInputSchema).output(CreditCostReportSchema),
+  },
   billing: {
     status: oc.output(BillingStatusSchema),
     /** Re-reads the subscription from the provider, e.g. right after a mobile checkout. */

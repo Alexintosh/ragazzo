@@ -1,0 +1,5 @@
+account_id  = "00000000000000000000000000000000"
+zone_id     = "00000000000000000000000000000000"
+hostname    = "bots.example.com"
+name        = "rakazo-production"
+r2_location = "weur"

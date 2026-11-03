@@ -1780,6 +1780,8 @@ export const MeSchema = z.object({
    */
   timezone: z.string().nullable().optional(),
   billingEnabled: z.boolean(),
+  /** Hosted credit settings are available, including while the operator pauses model calls. */
+  hostedCreditsEnabled: z.boolean().default(false),
   /** True until a user of a billing deployment answers or skips the signup survey. Absent from older servers. */
   needsSignupSurvey: z.boolean().optional(),
   /** The wallet bots can spend from, when this deployment offers one. Absent from older servers. */
