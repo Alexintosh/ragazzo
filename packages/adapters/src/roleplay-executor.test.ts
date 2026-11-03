@@ -1766,6 +1766,82 @@ describe("roleplay album execution", () => {
     });
     return f;
   }
+  it.each([
+    { contextWindow: 16_384, maxTokens: 2048, expected: 2048 },
+    { contextWindow: 16_384, maxTokens: undefined, expected: 4096 },
+    { contextWindow: 8192, maxTokens: 4096, expected: 2730 },
+    { contextWindow: 4096, maxTokens: 2048, expected: 1365 },
+    { contextWindow: 8192, maxTokens: 512, expected: 512 },
+  ])(
+    "gives hidden direction $expected completion tokens within model and context limits",
+    async ({ contextWindow, maxTokens, expected }) => {
+      const f = mediaFixture();
+      fake.resolveModel.mockResolvedValue({
+        provider: "neutral",
+        id: "fiction-model",
+        contextWindow,
+        maxTokens,
+        thinkingLevel: "medium",
+      });
+      await execute(f);
+      const request = f.requests.find((request) => request.purpose === "direction")!;
+      expect(request).toBeDefined();
+      // Reasoning may consume the completion allowance before the control JSON.
+      expect(request.model.maxTokens).toBe(expected);
+      expect(request.model.thinkingLevel).toBe("medium");
+      expect(
+        roleplayTokens(request.instructions + request.prompt) + expected + 32 + 256,
+      ).toBeLessThanOrEqual(contextWindow);
+      expect(f.finalizeRun.mock.calls[0]![0]).toMatchObject({
+        outcome: "completed",
+        blocks: [
+          { kind: "text", text: "The fox waits by the gate." },
+          { kind: "image", artifactId: "art-forest" },
+        ],
+        roleplayState: { media: { storyMode: true, scene: "forest" } },
+      });
+    },
+  );
+  it("trims catalog context while reserving the whole direction completion allowance", async () => {
+    const f = mediaFixture();
+    f.bot.roleplayCharacter = {
+      ...character,
+      conversationStyle: "chat",
+      media: {
+        ...media,
+        album: [
+          ...album,
+          ...Array.from({ length: 6 }, (_, index) => ({
+            id: `extra-${index}`,
+            artifactId: `art-extra-${index}`,
+            description: "森".repeat(800),
+            enabled: true,
+          })),
+        ],
+      },
+    };
+    fake.resolveModel.mockResolvedValue({
+      provider: "neutral",
+      id: "fiction-model",
+      contextWindow: 4096,
+      maxTokens: 2048,
+    });
+    await execute(f);
+    const request = f.requests.find((request) => request.purpose === "direction")!;
+    const catalog = JSON.parse(request.prompt).media.album;
+    expect(catalog.length).toBeLessThan(7);
+    expect(catalog[0].id).toBe("forest");
+    expect(
+      roleplayTokens(request.instructions + request.prompt) + request.model.maxTokens! + 32 + 256,
+    ).toBeLessThanOrEqual(4096);
+    expect(f.finalizeRun.mock.calls[0]![0]).toMatchObject({
+      outcome: "completed",
+      blocks: [
+        { kind: "text", text: "The fox waits by the gate." },
+        { kind: "image", artifactId: "art-forest" },
+      ],
+    });
+  });
   it("fits a saved multibyte scene before rejecting a small model and preserves the durable scene", async () => {
     const f = fixture();
     const scene = "森".repeat(800);

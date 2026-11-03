@@ -570,7 +570,7 @@ export async function executeRoleplayRun(
       });
       const directionFits = () =>
         roleplayTokens(directionRequest.instructions + directionRequest.prompt) + 32 <=
-        contextWindow - Math.min(outputBudget, 768) - 256;
+        contextWindow - outputBudget - 256;
       while (!directionFits() && directionHistory.length) {
         directionHistory = directionHistory.slice(1);
         directionRequest = buildRoleplayDirectionRequest({
@@ -615,7 +615,7 @@ export async function executeRoleplayRun(
               ...base,
               ...directionRequest,
               purpose: "direction",
-              model: { ...model, maxTokens: Math.min(outputBudget, 768) },
+              model: { ...model, maxTokens: outputBudget },
             },
             AbortSignal.any([signal, AbortSignal.timeout(60_000)]),
             4_096,
