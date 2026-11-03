@@ -7,6 +7,7 @@ import {
 } from "@rakazo/contracts";
 import type { RoleplayMessage, RoleplayStoryState, RoleplayTemporalContext } from "@rakazo/core";
 import {
+  boundedRoleplayImage,
   buildRoleplayContinuityRequest,
   buildRoleplayDirectionRequest,
   buildRoleplayMediaContext,
@@ -99,20 +100,10 @@ export async function assertRoleplayEnvironment(
   if (kind !== "docker") throw new Error("Roleplay requires the Docker sandbox provider");
 }
 
-function narrativeText(blocks: unknown, includeImages = false): string {
+function narrativeText(blocks: unknown): string {
   if (!Array.isArray(blocks)) return "";
   return blocks
     .flatMap((block: unknown) => {
-      if (
-        includeImages &&
-        block &&
-        typeof block === "object" &&
-        "kind" in block &&
-        block.kind === "image" &&
-        "description" in block &&
-        typeof block.description === "string"
-      )
-        return [`[Shared image: ${block.description.slice(0, 800)}]`];
       if (
         !block ||
         typeof block !== "object" ||
@@ -125,6 +116,15 @@ function narrativeText(blocks: unknown, includeImages = false): string {
       return [block.text];
     })
     .join("\n");
+}
+
+function narrativeImage(blocks: unknown): RoleplayMessage["image"] {
+  if (!Array.isArray(blocks)) return undefined;
+  return boundedRoleplayImage(
+    blocks.find((block: unknown) =>
+      Boolean(block && typeof block === "object" && "kind" in block && block.kind === "image"),
+    ),
+  );
 }
 
 function assertRoleplayInputBlocks(blocks: unknown): void {
@@ -443,19 +443,40 @@ export async function executeRoleplayRun(
     let history: RoleplayMessage[] = [
       ...state.retainedInputs,
       ...messages.flatMap((message) => {
-        const content = narrativeText(message.blocks, message.role === "bot");
-        return content.trim()
+        const content = narrativeText(message.blocks);
+        const image = message.role === "bot" ? narrativeImage(message.blocks) : undefined;
+        return content.trim() || image
           ? [
               {
                 seq: message.seq,
                 role: message.role === "user" ? ("user" as const) : ("assistant" as const),
                 content,
                 createdAt: message.createdAt?.toISOString(),
+                ...(image ? { image } : {}),
               },
             ]
           : [];
       }),
     ];
+    const transcriptUsers = [
+      ...history.filter((message) => message.role === "user"),
+      ...currentInputs,
+    ];
+    const historicalImageDescriptions = history.flatMap((message) =>
+      message.image ? [message.image.description] : [],
+    );
+    history = history.map((message) =>
+      message.role === "assistant"
+        ? {
+            ...message,
+            content: stripRoleplayMetadata(
+              message.content,
+              transcriptUsers,
+              historicalImageDescriptions,
+            ),
+          }
+        : message,
+    );
     const onUsage: RoleplayRunRequest["onUsage"] = (event) =>
       recordUsage(deps.prisma, event, {
         userId: run.userId,
@@ -761,9 +782,9 @@ export async function executeRoleplayRun(
       type: "run.started",
       payload: { trigger: run.trigger, routineId: run.routineId },
     });
-    const userMessages = [
-      ...history.filter((message) => message.role === "user"),
-      ...currentInputs,
+    const internalImageDescriptions = () => [
+      ...historicalImageDescriptions,
+      ...(selectedImage ? [selectedImage.description] : []),
     ];
     let assembled = "";
     let spontaneousReplies: string[] | undefined;
@@ -821,13 +842,18 @@ export async function executeRoleplayRun(
       spontaneousReplies =
         decision?.decision === "send" && (!decision.imageId || imageBlock)
           ? decision.messages
-              .map((text) => stripRoleplayMetadata(text, userMessages).trim())
+              .map((text) =>
+                stripRoleplayMetadata(text, transcriptUsers, internalImageDescriptions()).trim(),
+              )
               .filter(Boolean)
           : [];
       assembled = spontaneousReplies.join("\n\n");
     } else {
       const redactor = createStreamingRedactor(secrets);
-      const metadataFilter = createRoleplayMetadataFilter(userMessages);
+      const metadataFilter = createRoleplayMetadataFilter(
+        transcriptUsers,
+        internalImageDescriptions(),
+      );
 
       let streamed = false;
       let pending = "";
@@ -886,7 +912,7 @@ export async function executeRoleplayRun(
       pending += redactor.finish();
       await publishProgress(true);
     }
-    assembled = stripRoleplayMetadata(assembled, userMessages);
+    assembled = stripRoleplayMetadata(assembled, transcriptUsers, internalImageDescriptions());
     if (!spontaneous && !assembled.trim()) throw new Error("The roleplay model returned no text");
     await checkOwnership();
     signal.throwIfAborted();
@@ -902,10 +928,10 @@ export async function executeRoleplayRun(
           {
             seq: thread.nextMessageSeq,
             role: "assistant",
-            content:
-              imageBlock && selectedImage
-                ? `${reply}\n[Shared image: ${selectedImage.description}]`
-                : reply,
+            content: reply,
+            ...(imageBlock && selectedImage
+              ? { image: { description: selectedImage.description } }
+              : {}),
             createdAt: new Date().toISOString(),
           },
         ],

@@ -1962,9 +1962,12 @@ describe("roleplay album execution", () => {
         .mocked(f.deps.events.append)
         .mock.calls.some(([event]) => event.type === "thread.progress"),
     ).toBe(false);
-    expect(f.requests.find((request) => request.purpose === "continuity")?.prompt).toContain(
-      album[0]!.description,
-    );
+    const continuityRequest = f.requests.find((request) => request.purpose === "continuity")!;
+    expect(JSON.parse(continuityRequest.prompt).recentMessages.at(-1)).toMatchObject({
+      content: "The fox waits by the gate.",
+      image: { description: album[0]!.description },
+    });
+    expect(continuityRequest.prompt).not.toContain("[Shared image:");
   });
   it.each(["invented", "art-forest"])(
     "refuses a model-selected unavailable catalog ID %s",
@@ -2013,12 +2016,182 @@ describe("roleplay album execution", () => {
     } as never);
     await execute(f);
     const dialogue = f.requests.find((request) => request.purpose === "dialogue")!;
-    expect(dialogue.history.find((message) => message.seq === 2)?.content).toContain(
-      "[Shared image: The fox's old blue coat]",
-    );
+    expect(dialogue.history.find((message) => message.seq === 2)).toMatchObject({
+      content: "We found a map.",
+      image: { description: "The fox's old blue coat" },
+    });
+    expect(dialogue.instructions).toContain("The fox's old blue coat");
+    expect(JSON.stringify(dialogue)).not.toContain("[Shared image:");
     expect(f.thread.roleplayState).toMatchObject({
       media: { revision: 5, turn: 9, lastImageTurn: 6, sentImageIds: ["forest"] },
     });
+  });
+  it("cleans exact legacy image echoes from assistant history and streamed replies without losing attachment facts", async () => {
+    const f = mediaFixture();
+    const description = album[0]!.description;
+    const wrapper = `[Shared image: ${description}]`;
+    f.rows[2]!.blocks.push({ kind: "text", text: wrapper }, {
+      kind: "image",
+      description,
+    } as never);
+    f.runtime.run = vi.fn(async function* (request) {
+      f.requests.push(request);
+      const text =
+        request.purpose === "direction"
+          ? JSON.stringify({ ...direction, imageId: null })
+          : request.purpose === "continuity"
+            ? "{}"
+            : `The fox waits. ${wrapper}`;
+      for (const chunk of text) yield { type: "text" as const, text: chunk };
+      yield { type: "done" as const, text };
+    });
+    await execute(f);
+    const dialogue = f.requests.find((request) => request.purpose === "dialogue")!;
+    expect(dialogue.history.find((message) => message.seq === 2)).toMatchObject({
+      content: "We found a map.\n",
+      image: { description },
+    });
+    expect(f.finalizeRun.mock.calls[0]![0].blocks[0]).toEqual({
+      kind: "text",
+      text: "The fox waits.",
+    });
+    const continuityRequest = f.requests.find((request) => request.purpose === "continuity")!;
+    const recent = JSON.parse(continuityRequest.prompt).recentMessages;
+    expect(recent.at(-1)).toMatchObject({
+      content: "The fox waits. ",
+    });
+    expect(recent.find((message: { seq: number }) => message.seq === 2)).toMatchObject({
+      image: { description },
+    });
+    expect(
+      vi
+        .mocked(f.deps.events.append)
+        .mock.calls.flatMap(([event]) =>
+          event.type === "thread.progress" ? [event.payload.text ?? event.payload.delta ?? ""] : [],
+        )
+        .join(""),
+    ).toBe("The fox waits. ");
+    expect(JSON.stringify(dialogue)).not.toContain("[Shared image:");
+    expect(continuityRequest.prompt).not.toContain("[Shared image:");
+  });
+  it("preserves a literal image wrapper quoted by the player", async () => {
+    const f = mediaFixture();
+    const wrapper = `[Shared image: ${album[0]!.description}]`;
+    f.rows[1]!.blocks = [{ kind: "text", text: `Please quote ${wrapper}` }];
+    f.runtime.run = vi.fn(async function* (request) {
+      f.requests.push(request);
+      yield {
+        type: "done" as const,
+        text:
+          request.purpose === "direction"
+            ? JSON.stringify(direction)
+            : request.purpose === "continuity"
+              ? "{}"
+              : wrapper,
+      };
+    });
+    await execute(f);
+    expect(f.finalizeRun.mock.calls[0]![0].blocks[0]).toEqual({ kind: "text", text: wrapper });
+  });
+  it("preserves player-quoted wrappers after their message is compacted during the run", async () => {
+    const f = mediaFixture();
+    const description = album[0]!.description;
+    const wrapper = `[Shared image: ${description}]`;
+    f.rows.splice(
+      0,
+      f.rows.length,
+      ...Array.from({ length: 40 }, (_, seq) => ({
+        seq,
+        threadId: "story",
+        role: seq % 2 ? "user" : "bot",
+        botId: "aria",
+        blocks: [
+          {
+            kind: "text",
+            text:
+              seq === 1 ? `Please quote ${wrapper}` : `Scene ${seq}: ${"ancient map ".repeat(120)}`,
+          },
+          ...(seq === 0 ? [{ kind: "image", description } as never] : []),
+        ],
+      })),
+    );
+    fake.resolveModel.mockResolvedValue({
+      provider: "neutral",
+      id: "fiction-model",
+      contextWindow: 8192,
+      maxTokens: 1024,
+    });
+    f.runtime.run = vi.fn(async function* (request) {
+      f.requests.push(request);
+      const text =
+        request.purpose === "direction"
+          ? JSON.stringify({ ...direction, imageId: null })
+          : request.purpose === "memory"
+            ? "A picture and a literal quotation were discussed."
+            : request.purpose === "continuity"
+              ? "{}"
+              : wrapper;
+      for (const chunk of text) yield { type: "text" as const, text: chunk };
+      yield { type: "done" as const, text };
+    });
+    await execute(f);
+    const excerpts = f.requests
+      .filter((request) => request.purpose === "memory")
+      .flatMap((request) => JSON.parse(request.prompt).olderStoryDialogue);
+    expect(excerpts.find((message) => message.seq === 1)).toMatchObject({
+      content: `Please quote ${wrapper}`,
+    });
+    expect(
+      f.requests
+        .find((request) => request.purpose === "dialogue")!
+        .history.some((message) => message.seq === 1),
+    ).toBe(false);
+    expect(f.finalizeRun.mock.calls[0]![0]).toMatchObject({
+      outcome: "completed",
+      blocks: [{ kind: "text", text: wrapper }],
+    });
+    expect(
+      vi
+        .mocked(f.deps.events.append)
+        .mock.calls.flatMap(([event]) =>
+          event.type === "thread.progress" ? [event.payload.text ?? event.payload.delta ?? ""] : [],
+        )
+        .join(""),
+    ).toBe(wrapper);
+  });
+  it("passes older image attachment metadata into bounded story compaction", async () => {
+    const f = mediaFixture();
+    f.rows.splice(
+      0,
+      f.rows.length,
+      ...Array.from({ length: 40 }, (_, seq) => ({
+        seq,
+        threadId: "story",
+        role: seq % 2 ? "user" : "bot",
+        botId: "aria",
+        blocks: [
+          { kind: "text", text: `Scene ${seq}: ${"ancient map ".repeat(120)}` },
+          ...(seq === 0
+            ? [{ kind: "image", description: "The fox's old blue coat" } as never]
+            : []),
+        ],
+      })),
+    );
+    fake.resolveModel.mockResolvedValue({
+      provider: "neutral",
+      id: "fiction-model",
+      contextWindow: 8192,
+      maxTokens: 1024,
+    });
+    await execute(f);
+    const excerpts = f.requests
+      .filter((request) => request.purpose === "memory")
+      .flatMap((request) => JSON.parse(request.prompt).olderStoryDialogue);
+    expect(excerpts.find((message) => message.seq === 0)).toMatchObject({
+      image: { description: "The fox's old blue coat" },
+    });
+    expect(JSON.stringify(excerpts)).not.toContain("[Shared image:");
+    expect(f.run.status).toBe("completed");
   });
   it.each([true, false])(
     "extends existing spontaneous decision with allowSpontaneous=%s",

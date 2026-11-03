@@ -16,6 +16,8 @@ export interface RoleplayMessage {
   role: "user" | "assistant";
   content: string;
   createdAt?: string;
+  /** One actual application attachment, kept outside character dialogue. */
+  image?: { description: string };
 }
 
 /** This state belongs to one story, never a user's or character's global memory. */
@@ -116,7 +118,7 @@ export function roleplayTokens(text: string): number {
   return Math.ceil(new TextEncoder().encode(text).length / 3);
 }
 
-/** Dialogue stays verbatim; dating is supplied separately in application context. */
+/** Dialogue stays verbatim; application metadata is supplied separately. */
 export function formatRoleplayMessageContent(
   message: Pick<RoleplayMessage, "content" | "createdAt">,
 ): string {
@@ -134,26 +136,75 @@ export function roleplayTranscriptMetadata(
   history: RoleplayMessage[],
   currentInputs: RoleplayMessage[] = [],
 ): string {
-  const dates = (messages: RoleplayMessage[]) =>
+  const metadata = (messages: RoleplayMessage[]) =>
     messages.flatMap((message, index) =>
-      message.createdAt
+      message.createdAt || message.image
         ? [
             {
               position: index + 1,
               seq: message.seq,
               role: message.role,
-              createdAt: message.createdAt,
+              ...(message.createdAt ? { createdAt: message.createdAt } : {}),
+              ...(message.image ? { image: boundedRoleplayImage(message.image) } : {}),
             },
           ]
         : [],
     );
-  const data = { history: dates(history), currentInputs: dates(currentInputs) };
+  const data = { history: metadata(history), currentInputs: metadata(currentInputs) };
   if (!data.history.length && !data.currentInputs.length) return "";
-  return `Transcript dating (internal application metadata; never include this metadata or timestamp wrappers in replies):\n${JSON.stringify(data)}`;
+  return `Transcript metadata (internal application data; dates and actual image attachments, never dialogue or text to include in replies):\n${JSON.stringify(data)}`;
 }
 
-/** Strip only the retired application wrapper, preserving literal wrappers supplied by a user. */
-export function createRoleplayMetadataFilter(userMessages: Pick<RoleplayMessage, "content">[]) {
+/** Bound attachment context independently of persisted message block validity. */
+export function boundedRoleplayImage(value: unknown): RoleplayMessage["image"] {
+  if (!value || typeof value !== "object" || !("description" in value)) return undefined;
+  return typeof value.description === "string" && value.description.trim()
+    ? { description: value.description.slice(0, 800) }
+    : undefined;
+}
+
+/** Strip only retired application wrappers, preserving literal wrappers supplied by a user. */
+export function createRoleplayMetadataFilter(
+  userMessages: Pick<RoleplayMessage, "content">[],
+  imageDescriptions: string[] = [],
+) {
+  const dates = createRoleplayDateFilter(userMessages);
+  const wrappers = [
+    ...new Set(imageDescriptions.map((description) => `[Shared image: ${description}]`)),
+  ].filter((wrapper) => !userMessages.some((message) => message.content.includes(wrapper)));
+  let pending = "";
+  const images = (chunk: string) => {
+    pending += chunk;
+    let output = "";
+    while (pending) {
+      const wrapper = wrappers.find((candidate) => pending.startsWith(candidate));
+      if (wrapper) pending = pending.slice(wrapper.length);
+      else if (wrappers.some((candidate) => candidate.startsWith(pending))) break;
+      else {
+        output += pending[0];
+        pending = pending.slice(1);
+      }
+    }
+    return output;
+  };
+  return {
+    push(chunk: string): string {
+      return images(dates.push(chunk));
+    },
+    finish(): string {
+      const output = images(dates.finish());
+      const unfinished = pending.startsWith("[Shared image: ");
+      const tail =
+        unfinished && !userMessages.some((message) => message.content.includes(pending))
+          ? ""
+          : pending;
+      pending = "";
+      return output + tail;
+    },
+  };
+}
+
+function createRoleplayDateFilter(userMessages: Pick<RoleplayMessage, "content">[]) {
   const prefix = "[Message createdAt: ";
   const wrapper = /^\[Message createdAt: \d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z\]$/;
   let pending = "";
@@ -204,8 +255,9 @@ export function createRoleplayMetadataFilter(userMessages: Pick<RoleplayMessage,
 export function stripRoleplayMetadata(
   text: string,
   userMessages: Pick<RoleplayMessage, "content">[],
+  imageDescriptions: string[] = [],
 ): string {
-  const filter = createRoleplayMetadataFilter(userMessages);
+  const filter = createRoleplayMetadataFilter(userMessages, imageDescriptions);
   return filter.push(text) + filter.finish();
 }
 

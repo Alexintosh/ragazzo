@@ -96,6 +96,31 @@ describe("continuity extraction contract", () => {
       JSON.stringify({ priorContinuity: null, storySummary: "", recentMessages: [] }),
     );
   });
+  it("preserves actual attachment metadata separately from dialogue within the excerpt byte limit", () => {
+    const image = { description: "森".repeat(800) };
+    const messages = Array.from({ length: 20 }, (_, seq) => ({
+      seq,
+      role: "assistant" as const,
+      content: `Scene ${seq} ${"界".repeat(2_000)}`,
+      image,
+    }));
+    const data = JSON.parse(buildRoleplayContinuityRequest({ messages }).prompt);
+    expect(data.recentMessages.at(-1)).toMatchObject({ seq: 19, image });
+    expect(
+      data.recentMessages.every(
+        (message: { content: string }) => !message.content.includes("[Shared image:"),
+      ),
+    ).toBe(true);
+    expect(
+      data.recentMessages.reduce(
+        (bytes: number, message: { content: string; image: unknown }) =>
+          bytes +
+          new TextEncoder().encode(message.content).length +
+          new TextEncoder().encode(JSON.stringify(message.image)).length,
+        0,
+      ),
+    ).toBeLessThanOrEqual(24_000);
+  });
 });
 
 describe("bounded chat message splitting", () => {

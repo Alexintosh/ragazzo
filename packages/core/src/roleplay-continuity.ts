@@ -9,6 +9,7 @@ import {
   RoleplayRelationshipSchema,
 } from "@rakazo/contracts";
 import type { RoleplayMessage } from "./roleplay.js";
+import { boundedRoleplayImage } from "./roleplay.js";
 import type { RoleplayTemporalContext } from "./roleplay-temporal.js";
 import { buildRoleplayTemporalContext } from "./roleplay-temporal.js";
 
@@ -77,13 +78,17 @@ export function buildRoleplayContinuityRequest(input: {
   const messages: RoleplayMessage[] = [];
   let remaining = 24_000;
   for (const message of input.messages.slice(-20).reverse()) {
-    const content = boundedText(message.content, Math.min(6_000, remaining));
-    const cost = new TextEncoder().encode(content).length;
+    const image = boundedRoleplayImage(message.image);
+    const imageBytes = image ? new TextEncoder().encode(JSON.stringify(image)).length : 0;
+    if (remaining < imageBytes + 100) break;
+    const content = boundedText(message.content, Math.min(6_000, remaining - imageBytes));
+    const cost = new TextEncoder().encode(content).length + imageBytes;
     messages.unshift({
       seq: message.seq,
       role: message.role,
       content,
       ...(message.createdAt ? { createdAt: message.createdAt } : {}),
+      ...(image ? { image } : {}),
     });
     remaining -= cost;
     if (remaining < 100) break;

@@ -1,15 +1,19 @@
 import type { RoleplayCharacter, RoleplayLorebookEntry } from "@rakazo/contracts";
 import { describe, expect, it } from "vitest";
 import {
+  boundedRoleplayImage,
   buildRoleplayPrompt,
+  createRoleplayMetadataFilter,
   ROLEPLAY_CHAT_INSTRUCTION,
   ROLEPLAY_NARRATIVE_INSTRUCTION,
   roleplayMacros,
   roleplayMemoryWindow,
+  roleplayMessageTokens,
   roleplayStoryState,
   roleplayTokens,
   roleplayTranscriptMetadata,
   selectRoleplayLore,
+  stripRoleplayMetadata,
 } from "./roleplay.js";
 import { buildRoleplayRelationshipContext } from "./roleplay-continuity.js";
 
@@ -272,4 +276,52 @@ it("places original input and history dating in system context without changing 
     currentInputs: [{ position: 1, seq: 3, role: "user", createdAt: "2026-10-28T12:00:00Z" }],
   });
   expect(JSON.stringify(request)).not.toContain("[Message createdAt:");
+});
+
+it("keeps bounded actual image metadata outside dialogue and accounts for it in memory fitting", () => {
+  const image = { description: "A fox beneath a bridge" };
+  const message = { seq: 2, role: "assistant" as const, content: "Our next stop.", image };
+  const request = buildRoleplayPrompt({ character, history: [message], prompt: "Continue." });
+  expect(request.history[0]?.content).toBe("Our next stop.");
+  expect(JSON.parse(roleplayTranscriptMetadata([message]).split("\n")[1]!)).toEqual({
+    history: [{ position: 1, seq: 2, role: "assistant", image }],
+    currentInputs: [],
+  });
+  expect(request.instructions).toContain(image.description);
+  expect(JSON.stringify(request)).not.toContain("[Shared image:");
+  const cost =
+    roleplayMessageTokens(message) + roleplayTokens(roleplayTranscriptMetadata([message]));
+  expect(roleplayMemoryWindow([message], cost).recent).toEqual([message]);
+  expect(roleplayMemoryWindow([message], cost - 1).older).toEqual([message]);
+  expect(boundedRoleplayImage({ description: "森".repeat(900) })?.description).toHaveLength(800);
+  for (const value of [null, {}, { description: 42 }, { description: " " }])
+    expect(boundedRoleplayImage(value)).toBeUndefined();
+});
+
+it("removes only known image wrappers across streaming boundaries and preserves user quotations", () => {
+  const description = "A fox [beside] the bridge";
+  const wrapper = `[Shared image: ${description}]`;
+  const raw = `The fox waits. ${wrapper} Continue?`;
+  for (let split = 0; split <= raw.length; split++) {
+    const filter = createRoleplayMetadataFilter([], [description]);
+    expect(filter.push(raw.slice(0, split)) + filter.push(raw.slice(split)) + filter.finish()).toBe(
+      "The fox waits.  Continue?",
+    );
+  }
+  const filter = createRoleplayMetadataFilter([], [description]);
+  expect([...raw].map((char) => filter.push(char)).join("") + filter.finish()).toBe(
+    "The fox waits.  Continue?",
+  );
+  expect(stripRoleplayMetadata("Hello [Shared image: A fox", [], [description])).toBe("Hello ");
+  const user = { content: `Please quote ${wrapper}` };
+  expect(stripRoleplayMetadata(user.content, [user], [description])).toBe(user.content);
+  for (const text of [
+    "[Shared image: Another picture]",
+    "[Shared image: note]",
+    "[hello]",
+    "Trailing [",
+    "Trailing [S",
+    "Trailing [Shared",
+  ])
+    expect(stripRoleplayMetadata(text, [], [description])).toBe(text);
 });
