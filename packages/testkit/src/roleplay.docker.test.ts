@@ -1,16 +1,17 @@
 import { execFileSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
-import { mkdir, mkdtemp, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm } from "node:fs/promises";
 import type { AddressInfo } from "node:net";
 import path from "node:path";
 import { serve } from "@hono/node-server";
 import { DockerSandboxProvider } from "@rakazo/adapters";
-import type { Bot } from "@rakazo/contracts";
+import type { Bot, RpcOutput } from "@rakazo/contracts";
 import { parseRoleplayCharacterJson } from "@rakazo/contracts";
 import { asSystem, createDb } from "@rakazo/db";
 import { describe, expect, it, vi } from "vitest";
+import { installNinaStory } from "../../../examples/roleplay/nina-story/install.js";
 import { sessionCookieHeader } from "./index.js";
-import type { ModelEmulatorRequest } from "./model-emulator.js";
+import type { ModelEmulatorRequest, ModelEmulatorStep } from "./model-emulator.js";
 import { startModelEmulator } from "./model-emulator.js";
 
 const enabled = process.env.RUN_ROLEPLAY_DOCKER === "1" && process.env.VERIFY_DATABASE === "1";
@@ -66,10 +67,18 @@ describe.skipIf(!enabled)("roleplay product journey with real PostgreSQL and Doc
     const closed = Promise.withResolvers<void>();
     const queueOpened = Promise.withResolvers<void>();
     const queueRelease = Promise.withResolvers<void>();
+    const dialogueTools = (request: ModelEmulatorRequest) => {
+      expect((request.tools ?? []).map((tool) => tool.function.name)).toEqual([
+        "schedule_create",
+        "schedule_list",
+        "schedule_update",
+        "schedule_cancel",
+      ]);
+    };
     const baseCheck = (request: ModelEmulatorRequest) => {
       // These are protocol/data-flow assertions over synthetic fixtures, not
       // natural-language quality judgments.
-      expect(request.tools ?? []).toEqual([]);
+      dialogueTools(request);
       expect(
         request.messages.every((message) => ["system", "user", "assistant"].includes(message.role)),
       ).toBe(true);
@@ -91,85 +100,220 @@ describe.skipIf(!enabled)("roleplay product journey with real PostgreSQL and Doc
       ])
         expect(sent).not.toContain(forbidden);
     };
+    const legacySteps: ModelEmulatorStep[] = [
+      {
+        expect(request) {
+          baseCheck(request);
+          expect(JSON.stringify(request.messages)).toContain("EMBER_LORE_FIXTURE");
+        },
+        response: { type: "text", text: "STORY_A_REPLY" },
+      },
+      {
+        expect(request) {
+          baseCheck(request);
+          const sent = JSON.stringify(request.messages);
+          expect(sent).not.toContain("STORY_A_REPLY");
+          expect(sent).not.toContain("EMBER_LORE_FIXTURE");
+        },
+        response: { type: "text", text: "STORY_B_REPLY" },
+      },
+      {
+        expect(request) {
+          baseCheck(request);
+          const sent = JSON.stringify(request.messages);
+          for (const otherStory of ["STORY_A_REPLY", "STORY_B_REPLY", "EMBER_LORE_FIXTURE"])
+            expect(sent).not.toContain(otherStory);
+          expect(request.messages.filter((message) => message.role === "user")).toHaveLength(1);
+        },
+        response: { type: "text", text: "SAME_BOT_STORY_REPLY" },
+      },
+      {
+        expect(request) {
+          baseCheck(request);
+          expect(JSON.stringify(request.messages)).toContain("STORY_A_REPLY");
+        },
+        response: {
+          type: "hold",
+          text: "CANCELLED_PARTIAL_FIXTURE ".repeat(40),
+          onOpen: opened.resolve,
+          onClose: closed.resolve,
+        },
+      },
+      {
+        expect(request) {
+          baseCheck(request);
+          expect(JSON.stringify(request.messages)).not.toContain("CANCELLED_PARTIAL_FIXTURE");
+        },
+        response: { type: "text", text: "REUSED_STORY_REPLY" },
+      },
+      {
+        async expect(request) {
+          baseCheck(request);
+          queueOpened.resolve();
+          await queueRelease.promise;
+        },
+        response: { type: "text", text: "BEFORE_QUEUE_REPLY" },
+      },
+      {
+        expect(request) {
+          baseCheck(request);
+          expect(request.messages.at(-1)?.content).toContain("QUEUED_PLAYER_INPUT");
+          expect(JSON.stringify(request.messages)).toContain("BEFORE_QUEUE_REPLY");
+        },
+        response: { type: "text", text: "QUEUED_STORY_REPLY" },
+      },
+      {
+        expect(request) {
+          baseCheck(request);
+          expect(request.messages.filter((message) => message.role === "user")).toHaveLength(1);
+          const sent = JSON.stringify(request.messages);
+          for (const prior of [
+            "STORY_A_REPLY",
+            "REUSED_STORY_REPLY",
+            "QUEUED_STORY_REPLY",
+            "EMBER_LORE_FIXTURE",
+          ])
+            expect(sent).not.toContain(prior);
+        },
+        response: { type: "text", text: "FRESH_STORY_REPLY" },
+      },
+    ];
+    const directionStep = (
+      direction: {
+        storyMode: boolean;
+        scene: string;
+        imageId: string | null;
+        imageRequested: boolean;
+      },
+      check?: (data: Record<string, unknown>) => void,
+    ): ModelEmulatorStep => ({
+      expect(request) {
+        expect(request.tools ?? []).toEqual([]);
+        expect(request.messages).toHaveLength(2);
+        expect(request.messages[0]?.role).toBe("system");
+        expect(request.messages[0]?.content).toContain("Roleplay direction rubric v1");
+        expect(request.messages[1]?.role).toBe("user");
+        const data = JSON.parse(String(request.messages[1]?.content)) as Record<string, unknown>;
+        expect(data.latestPlayerMessage).toEqual(expect.any(String));
+        expect(data.character).toEqual(expect.objectContaining({ name: expect.any(String) }));
+        check?.(data);
+      },
+      response: { type: "text", text: JSON.stringify(direction) },
+    });
+    const forestScene = "Bosco al crepuscolo";
+    const forestDirection = {
+      storyMode: true,
+      scene: forestScene,
+      imageId: "forest",
+      imageRequested: false,
+    };
+    const laterScenes = [
+      {
+        id: "bridge",
+        scene: "Il ponte sul ruscello",
+        file: "02-bridge.png",
+        input: "Seguiamo Nina e Tilla fino al ponte sul ruscello.",
+        reply: "Sul ponte Nina incontra il gufo e guarda il riflesso di Tilla nell'acqua.",
+      },
+      {
+        id: "homecoming",
+        scene: "La collina delle stelle",
+        file: "03-homecoming.png",
+        input: "Accompagniamo Tilla sulla collina per ritrovare la strada di casa.",
+        reply: "Dalla collina Nina e il gufo salutano Tilla che ritrova la strada verso il cielo.",
+      },
+    ];
+    const ninaSteps: ModelEmulatorStep[] = [
+      directionStep(forestDirection, (data) => {
+        expect(data.latestPlayerMessage).toBe("Vorrei iniziare l'avventura di Nina nel bosco.");
+        expect(data.current).toMatchObject({ storyMode: false, sentImageIds: [] });
+        expect(data.media).toMatchObject({
+          enabled: true,
+          album: [
+            expect.objectContaining({ id: "forest" }),
+            expect.objectContaining({ id: "bridge" }),
+            expect.objectContaining({ id: "homecoming" }),
+          ],
+        });
+        expect(JSON.stringify(data)).not.toContain("STORY_A_REPLY");
+      }),
+      {
+        expect(request) {
+          dialogueTools(request);
+          const sent = JSON.stringify(request.messages);
+          expect(sent).toContain("Story mode is active");
+          expect(sent).toContain(forestScene);
+          expect(sent).toContain("This reply will include exactly one available album image");
+          expect(sent).not.toContain("CHARACTER_FIXTURE");
+        },
+        response: {
+          type: "text",
+          text: "Nina trova Tilla nella lanterna. Come possiamo aiutarla?",
+        },
+      },
+      ...laterScenes.flatMap((scene, index): ModelEmulatorStep[] => [
+        directionStep(
+          { storyMode: true, scene: scene.scene, imageId: scene.id, imageRequested: false },
+          (data) => {
+            expect(data.latestPlayerMessage).toBe(scene.input);
+            expect(data.current).toMatchObject({
+              storyMode: true,
+              scene: index === 0 ? forestScene : laterScenes[index - 1]!.scene,
+              sentImageIds: ["forest", ...laterScenes.slice(0, index).map((prior) => prior.id)],
+            });
+          },
+        ),
+        {
+          expect(request) {
+            dialogueTools(request);
+            const sent = JSON.stringify(request.messages);
+            expect(sent).toContain(scene.scene);
+            expect(sent).toContain("This reply will include exactly one available album image");
+          },
+          response: { type: "text", text: scene.reply },
+        },
+      ]),
+      directionStep(
+        { ...forestDirection, scene: laterScenes[1]!.scene, imageRequested: true },
+        (data) => {
+          expect(data.latestPlayerMessage).toBe("Mostrami di nuovo la prima immagine.");
+          expect(data.current).toMatchObject({
+            storyMode: true,
+            scene: laterScenes[1]!.scene,
+            sentImageIds: ["forest", "bridge", "homecoming"],
+          });
+        },
+      ),
+      {
+        expect(request) {
+          dialogueTools(request);
+          expect(JSON.stringify(request.messages)).toContain(
+            "This reply will include exactly one available album image",
+          );
+        },
+        response: { type: "text", text: "Ecco di nuovo Nina e Tilla nel bosco." },
+      },
+    ];
     const model = await startModelEmulator({
       apiKey: "roleplay-offline-fixture-key",
       steps: [
-        {
-          expect(request) {
-            baseCheck(request);
-            expect(JSON.stringify(request.messages)).toContain("EMBER_LORE_FIXTURE");
-          },
-          response: { type: "text", text: "STORY_A_REPLY" },
-        },
-        {
-          expect(request) {
-            baseCheck(request);
-            const sent = JSON.stringify(request.messages);
-            expect(sent).not.toContain("STORY_A_REPLY");
-            expect(sent).not.toContain("EMBER_LORE_FIXTURE");
-          },
-          response: { type: "text", text: "STORY_B_REPLY" },
-        },
-        {
-          expect(request) {
-            baseCheck(request);
-            const sent = JSON.stringify(request.messages);
-            for (const otherStory of ["STORY_A_REPLY", "STORY_B_REPLY", "EMBER_LORE_FIXTURE"])
-              expect(sent).not.toContain(otherStory);
-            expect(request.messages.filter((message) => message.role === "user")).toHaveLength(1);
-          },
-          response: { type: "text", text: "SAME_BOT_STORY_REPLY" },
-        },
-        {
-          expect(request) {
-            baseCheck(request);
-            expect(JSON.stringify(request.messages)).toContain("STORY_A_REPLY");
-          },
-          response: {
-            type: "hold",
-            text: "CANCELLED_PARTIAL_FIXTURE ".repeat(40),
-            onOpen: opened.resolve,
-            onClose: closed.resolve,
-          },
-        },
-        {
-          expect(request) {
-            baseCheck(request);
-            expect(JSON.stringify(request.messages)).not.toContain("CANCELLED_PARTIAL_FIXTURE");
-          },
-          response: { type: "text", text: "REUSED_STORY_REPLY" },
-        },
-        {
-          async expect(request) {
-            baseCheck(request);
-            queueOpened.resolve();
-            await queueRelease.promise;
-          },
-          response: { type: "text", text: "BEFORE_QUEUE_REPLY" },
-        },
-        {
-          expect(request) {
-            baseCheck(request);
-            expect(request.messages.at(-1)?.content).toContain("QUEUED_PLAYER_INPUT");
-            expect(JSON.stringify(request.messages)).toContain("BEFORE_QUEUE_REPLY");
-          },
-          response: { type: "text", text: "QUEUED_STORY_REPLY" },
-        },
-        {
-          expect(request) {
-            baseCheck(request);
-            expect(request.messages.filter((message) => message.role === "user")).toHaveLength(1);
-            const sent = JSON.stringify(request.messages);
-            for (const prior of [
-              "STORY_A_REPLY",
-              "REUSED_STORY_REPLY",
-              "QUEUED_STORY_REPLY",
-              "EMBER_LORE_FIXTURE",
-            ])
-              expect(sent).not.toContain(prior);
-          },
-          response: { type: "text", text: "FRESH_STORY_REPLY" },
-        },
+        ...legacySteps.flatMap((step) => [
+          directionStep(
+            { storyMode: false, scene: "", imageId: null, imageRequested: false },
+            (data) => {
+              expect(data.media).toBeNull();
+              const sent = JSON.stringify(data);
+              for (const forbidden of [
+                "GLOBAL_AGENT_MEMORY_FIXTURE",
+                "SAME_BOT_STORY_REPLY",
+                "UNIMPORTED_SCRIPT_FIXTURE",
+              ])
+                expect(sent).not.toContain(forbidden);
+            },
+          ),
+          step,
+        ]),
+        ...ninaSteps,
       ],
     });
     const { supervisorApp } = await import("@rakazo/sandbox-supervisor");
@@ -267,6 +411,13 @@ describe.skipIf(!enabled)("roleplay product journey with real PostgreSQL and Doc
           )
           .toBe(true);
         const run = await db.run.findUniqueOrThrow({ where: { id: runId } });
+        if (run.status !== "completed") {
+          try {
+            model.assertComplete();
+          } catch (cause) {
+            throw new Error(run.error ?? "Story run did not complete", { cause });
+          }
+        }
         expect(run.status, run.error ?? "Story run did not complete").toBe("completed");
       };
       const send = (bot: Bot, text: string) =>
@@ -334,12 +485,16 @@ describe.skipIf(!enabled)("roleplay product journey with real PostgreSQL and Doc
       expect(JSON.stringify(raw)).not.toContain("CHARACTER_FIXTURE");
       const cancelled = await send(a, "CANCEL_PLAYER_INPUT");
       await opened.promise;
-      await expect
-        .poll(
-          () => db.event.count({ where: { runId: cancelled.runId, type: "thread.progress" } }),
-          { timeout: 5000 },
-        )
-        .toBeGreaterThan(0);
+      // Scheduling buffers unverified dialogue; the open model request and its
+      // live execution lease prove that Stop interrupts an in-flight turn.
+      expect((await db.run.findUniqueOrThrow({ where: { id: cancelled.runId } })).status).toBe(
+        "running",
+      );
+      expect(
+        await db.computerExecutionLease.count({
+          where: { runId: cancelled.runId, expiresAt: { gt: new Date() } },
+        }),
+      ).toBeGreaterThan(0);
       await rpc(handles.app, cookie, "threads/stop", { botId: a.id });
       await closed.promise;
       await expect
@@ -401,7 +556,6 @@ describe.skipIf(!enabled)("roleplay product journey with real PostgreSQL and Doc
       expect(
         (await db.thread.findUniqueOrThrow({ where: { id: a.threadId } })).roleplayState,
       ).toMatchObject({ turnCount: 1, activeLoreEntries: [] });
-      model.assertComplete();
       expect(
         await db.event.count({
           where: { botId: { in: bots.map((bot) => bot.id) }, type: { startsWith: "agent.tool" } },
@@ -437,6 +591,192 @@ describe.skipIf(!enabled)("roleplay product journey with real PostgreSQL and Doc
           })
         ).blocks,
       ).toEqual([{ kind: "text", text: "👍" }]);
+      // Install the original illustrated example through the authenticated product API.
+      const installRpc = <T>(procedure: string, input?: unknown) =>
+        rpc<T>(handles.app, cookie, procedure, input);
+      const nina = await installNinaStory(installRpc);
+      bots.push(nina);
+      const album = nina.roleplayCharacter!.media!.album;
+      expect(album.map((image) => image.id)).toEqual(["forest", "bridge", "homecoming"]);
+      const forest = album.find((image) => image.id === "forest")!;
+      const installedArtifacts = await db.artifact.count({ where: { botId: nina.id } });
+      expect(installedArtifacts).toBe(3);
+      expect((await installNinaStory(installRpc)).id).toBe(nina.id);
+      expect(await db.artifact.count({ where: { botId: nina.id } })).toBe(installedArtifacts);
+      const initialMedia = await rpc<RpcOutput<"bots/roleplayMedia">>(
+        handles.app,
+        cookie,
+        "bots/roleplayMedia",
+        { botId: nina.id },
+      );
+      expect(initialMedia).toMatchObject({
+        storyMode: false,
+        scene: "",
+        artifacts: expect.arrayContaining([expect.objectContaining({ id: forest.artifactId })]),
+      });
+      const illustrated = await send(nina, "Vorrei iniziare l'avventura di Nina nel bosco.");
+      await wait(illustrated.runId);
+      const illustratedThread = await rpc<RpcOutput<"threads/get">>(
+        handles.app,
+        cookie,
+        "threads/get",
+        { botId: nina.id },
+      );
+      const firstIllustration = illustratedThread.messages.at(-1)!;
+      expect(firstIllustration.blocks).toEqual([
+        { kind: "text", text: "Nina trova Tilla nella lanterna. Come possiamo aiutarla?" },
+        expect.objectContaining({
+          kind: "image",
+          artifactId: forest.artifactId,
+          mimeType: "image/png",
+          name: "01-forest.png",
+        }),
+      ]);
+      expect(
+        (await db.thread.findUniqueOrThrow({ where: { id: nina.threadId } })).roleplayState,
+      ).toMatchObject({
+        turnCount: 1,
+        media: {
+          storyMode: true,
+          scene: forestScene,
+          sentImageIds: ["forest"],
+          lastImageTurn: 1,
+          turn: 1,
+        },
+      });
+      const imageContent = await rpc<RpcOutput<"artifacts/get">>(
+        handles.app,
+        cookie,
+        "artifacts/get",
+        { botId: nina.id, artifactId: forest.artifactId },
+      );
+      const sourceBytes = await readFile(
+        new URL("../../../examples/roleplay/nina-story/01-forest.png", import.meta.url),
+      );
+      expect(imageContent.mimeType).toBe("image/png");
+      expect(Buffer.from(imageContent.contentBase64, "base64")).toEqual(sourceBytes);
+      for (const [index, scene] of laterScenes.entries()) {
+        const sceneTurn = await send(nina, scene.input);
+        await wait(sceneTurn.runId);
+        const image = album.find((entry) => entry.id === scene.id)!;
+        const sceneThread = await rpc<RpcOutput<"threads/get">>(
+          handles.app,
+          cookie,
+          "threads/get",
+          { botId: nina.id },
+        );
+        expect(sceneThread.messages.at(-1)?.blocks).toEqual([
+          { kind: "text", text: scene.reply },
+          expect.objectContaining({
+            kind: "image",
+            artifactId: image.artifactId,
+            mimeType: "image/png",
+            name: scene.file,
+          }),
+        ]);
+        expect(
+          (await db.thread.findUniqueOrThrow({ where: { id: nina.threadId } })).roleplayState,
+        ).toMatchObject({
+          turnCount: index + 2,
+          media: {
+            storyMode: true,
+            scene: scene.scene,
+            turn: index + 2,
+            lastImageTurn: index + 2,
+            sentImageIds: ["forest", ...laterScenes.slice(0, index + 1).map((entry) => entry.id)],
+          },
+        });
+        const content = await rpc<RpcOutput<"artifacts/get">>(
+          handles.app,
+          cookie,
+          "artifacts/get",
+          { botId: nina.id, artifactId: image.artifactId },
+        );
+        expect(content.mimeType).toBe("image/png");
+        expect(Buffer.from(content.contentBase64, "base64")).toEqual(
+          await readFile(
+            new URL(`../../../examples/roleplay/nina-story/${scene.file}`, import.meta.url),
+          ),
+        );
+      }
+      const finalScene = laterScenes[1]!.scene;
+      const activeMedia = await rpc<RpcOutput<"bots/roleplayMedia">>(
+        handles.app,
+        cookie,
+        "bots/roleplayMedia",
+        { botId: nina.id },
+      );
+      expect(activeMedia).toMatchObject({ storyMode: true, scene: finalScene });
+      const pausedMedia = await rpc<RpcOutput<"bots/updateRoleplayStoryMode">>(
+        handles.app,
+        cookie,
+        "bots/updateRoleplayStoryMode",
+        {
+          botId: nina.id,
+          enabled: false,
+          historyGeneration: activeMedia.historyGeneration,
+          expectedRevision: activeMedia.revision,
+        },
+      );
+      expect(pausedMedia).toMatchObject({ storyMode: false, scene: finalScene });
+      expect(pausedMedia.revision).not.toBe(activeMedia.revision);
+      const resumedMedia = await rpc<RpcOutput<"bots/updateRoleplayStoryMode">>(
+        handles.app,
+        cookie,
+        "bots/updateRoleplayStoryMode",
+        {
+          botId: nina.id,
+          enabled: true,
+          historyGeneration: pausedMedia.historyGeneration,
+          expectedRevision: pausedMedia.revision,
+        },
+      );
+      expect(resumedMedia).toMatchObject({ storyMode: true, scene: finalScene });
+      const repeated = await send(nina, "Mostrami di nuovo la prima immagine.");
+      await wait(repeated.runId);
+      const repeatedThread = await rpc<RpcOutput<"threads/get">>(
+        handles.app,
+        cookie,
+        "threads/get",
+        { botId: nina.id },
+      );
+      expect(repeatedThread.messages.at(-1)?.blocks).toEqual([
+        { kind: "text", text: "Ecco di nuovo Nina e Tilla nel bosco." },
+        expect.objectContaining({
+          kind: "image",
+          artifactId: forest.artifactId,
+          mimeType: "image/png",
+        }),
+      ]);
+      expect(
+        repeatedThread.messages
+          .flatMap((message) => message.blocks)
+          .filter((block) => block.kind === "image"),
+      ).toHaveLength(4);
+      const visibleText = repeatedThread.messages
+        .flatMap((message) =>
+          message.blocks.flatMap((block) => (block.kind === "text" ? [block.text] : [])),
+        )
+        .join("\n");
+      for (const hidden of [
+        '"storyMode"',
+        '"imageId"',
+        '"imageRequested"',
+        "Roleplay direction rubric v1",
+      ])
+        expect(visibleText).not.toContain(hidden);
+      expect(
+        (await db.thread.findUniqueOrThrow({ where: { id: nina.threadId } })).roleplayState,
+      ).toMatchObject({
+        turnCount: 4,
+        media: {
+          storyMode: true,
+          scene: finalScene,
+          sentImageIds: ["forest", "bridge", "homecoming"],
+          lastImageTurn: 4,
+          turn: 4,
+        },
+      });
       model.assertComplete();
     } finally {
       queueRelease.resolve();

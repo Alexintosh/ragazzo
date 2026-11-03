@@ -206,6 +206,133 @@ describePostgres("roleplay storage and isolation (PostgreSQL)", () => {
         (await prisma.thread.findUniqueOrThrow({ where: { id: bot.threadId } })).roleplayState,
       ).toBeNull();
     }));
+  it.each([
+    { stale: false, repeat: false, requested: false },
+    { stale: true, repeat: false, requested: false },
+    { stale: false, repeat: true, requested: true },
+    { stale: false, repeat: true, requested: false },
+  ])(
+    "finalizes an owned image atomically: stale=$stale repeat=$repeat requested=$requested",
+    ({ stale, repeat, requested }) =>
+      runAsTenant(identity, async () => {
+        await prisma.user.update({
+          where: { id: identity.userId },
+          data: { roleplayEnabled: true },
+        });
+        const bot = await createRepos(prisma).createBot(actor, input);
+        const image = await prisma.artifact.create({
+          data: {
+            ...identity,
+            botId: bot.id,
+            name: "forest.png",
+            mimeType: "image/png",
+            size: 8,
+            hash: "fixture",
+            storageKey: "fixture-image",
+          },
+        });
+        const media = {
+          enabled: true,
+          allowSpontaneous: false,
+          normalIntervalTurns: 4,
+          storyIntervalTurns: 1,
+          album: [{ id: "forest", artifactId: image.id, description: "A forest", enabled: true }],
+        };
+        await prisma.bot.update({
+          where: { id: bot.id },
+          data: { roleplayCharacter: { ...character, media } },
+        });
+        const task = await prisma.task.create({
+          data: {
+            ...identity,
+            botId: bot.id,
+            threadId: bot.threadId,
+            prompt: "Continue",
+            status: "running",
+          },
+        });
+        const run = await prisma.run.create({
+          data: {
+            ...identity,
+            botId: bot.id,
+            threadId: bot.threadId,
+            taskId: task.id,
+            status: "running",
+            trigger: "user",
+            startedAt: new Date(),
+            leaseOwner: "image-fixture-worker",
+            leaseFence: 1,
+            leaseExpiresAt: new Date(Date.now() + 60_000),
+          },
+        });
+        const attempt = await prisma.attempt.create({
+          data: { runId: run.id, fence: 1, status: "running" },
+        });
+        if (stale)
+          await prisma.bot.update({
+            where: { id: bot.id },
+            data: {
+              roleplayCharacter: { ...character, media: { ...media, enabled: false } },
+            },
+          });
+        const saved = {
+          media: {
+            storyMode: true,
+            scene: "Forest",
+            revision: 1,
+            turn: 1,
+            lastImageTurn: 1,
+            sentImageIds: ["forest"],
+          },
+        };
+        const previous = repeat
+          ? { media: { ...saved.media, revision: 0, turn: 0, lastImageTurn: 0 } }
+          : null;
+        if (previous)
+          await prisma.thread.update({
+            where: { id: bot.threadId },
+            data: { roleplayState: previous },
+          });
+        const suppressed = stale || (repeat && !requested);
+        const result = await finalizeRun(prisma, {
+          ...identity,
+          botId: bot.id,
+          threadId: bot.threadId,
+          runId: run.id,
+          taskId: task.id,
+          attemptId: attempt.id,
+          leaseOwner: "image-fixture-worker",
+          leaseFence: 1,
+          outcome: "completed",
+          blocks: [
+            { kind: "text", text: "Here is the forest" },
+            {
+              kind: "image",
+              artifactId: image.id,
+              mimeType: "image/png",
+              name: "forest.png",
+              description: "A forest",
+            },
+          ],
+          roleplayState: saved,
+          roleplayMediaGuard: {
+            revision: 0,
+            historyGeneration: 0,
+            characterMedia: JSON.stringify(media),
+            imageRequested: requested,
+          },
+        });
+        expect(result).toEqual({
+          continuationRunId: null,
+          ...(suppressed ? { suppressed: true } : {}),
+        });
+        const messages = await prisma.message.findMany({ where: { runId: run.id } });
+        expect(messages).toHaveLength(suppressed ? 0 : 1);
+        expect(
+          (await prisma.thread.findUniqueOrThrow({ where: { id: bot.threadId } })).roleplayState,
+        ).toEqual(suppressed ? previous : saved);
+      }),
+  );
   it("rejects runtime/host/sharing and immutable-kind bypasses", () =>
     runAsTenant(identity, async () => {
       const repos = createRepos(prisma);

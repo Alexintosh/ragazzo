@@ -78,6 +78,7 @@ export * from "./retry-policy.js";
 export * from "./roleplay.js";
 export * from "./roleplay-continuity.js";
 export * from "./roleplay-editor.js";
+export * from "./roleplay-media.js";
 export * from "./roleplay-spontaneous.js";
 export * from "./roleplay-temporal.js";
 export * from "./room-settings.js";

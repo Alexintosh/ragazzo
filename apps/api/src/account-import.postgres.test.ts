@@ -10,8 +10,9 @@ import type {
 } from "@rakazo/adapter-kit";
 import { LocalAgentHomeStore } from "@rakazo/adapters";
 import type { AccountExportRecord, Actor } from "@rakazo/contracts";
+import { parseRoleplayCharacterJson, RoleplayCharacterSchema } from "@rakazo/contracts";
 import type { PrismaClient } from "@rakazo/db";
-import { asSystem, createDb } from "@rakazo/db";
+import { asSystem, createDb, readAccountExport } from "@rakazo/db";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { AccountImportError, importAccount } from "./account-import.js";
 import { buildArchive, chunked, exportFiles, manifestFor } from "./account-import.test-support.js";
@@ -389,6 +390,68 @@ describePostgres("account import (PostgreSQL)", () => {
     await rm(root, { recursive: true, force: true });
     await db.prisma.$disconnect();
     await db.pool.end();
+  });
+
+  it("remaps roleplay album artifacts and preserves the character through another export", async () => {
+    const source = sourceRecords().find((record) => record.type === "bot")!;
+    if (source.type !== "bot") throw new Error("Missing fixture bot");
+    const character = {
+      ...parseRoleplayCharacterJson(JSON.stringify({ name: "Guide" })).character,
+      media: {
+        enabled: true,
+        allowSpontaneous: false,
+        normalIntervalTurns: 4,
+        storyIntervalTurns: 1,
+        album: [{ id: "forest", artifactId: "src-image", description: "A forest", enabled: true }],
+      },
+    };
+    const records: AccountExportRecord[] = [
+      {
+        ...source,
+        botKind: "roleplay",
+        roleplayCharacter: character,
+        sectionId: null,
+        parentBotId: null,
+        disabledBuiltinTools: [],
+        fleetManagement: false,
+      },
+      {
+        type: "artifact",
+        id: "src-image",
+        botId: source.id,
+        groupId: null,
+        name: "forest.png",
+        description: null,
+        mimeType: "image/png",
+        size: 8,
+        hash: "ignored",
+        rootArtifactId: null,
+        version: 1,
+        createdAt: at,
+      },
+    ];
+    const bytes = buildArchive(
+      exportFiles(manifestFor([{ id: "src-space", name: "Story" }]), [
+        { id: "src-space", records, artifacts: [["src-image", "pngbytes"]] },
+      ]),
+    );
+    const result = await runImport(bytes);
+    const spaceId = result.spaces[0]!.id;
+    const bot = await system.bot.findFirstOrThrow({ where: { spaceId, botKind: "roleplay" } });
+    const imported = RoleplayCharacterSchema.parse(bot.roleplayCharacter);
+    const artifact = await system.artifact.findFirstOrThrow({ where: { spaceId, botId: bot.id } });
+    expect(imported.media!.album).toEqual([
+      { ...character.media.album[0], artifactId: artifact.id },
+    ]);
+    expect(artifact.id).not.toBe("src-image");
+    const exported = await readAccountExport(prisma, userId);
+    const space = exported.spaces.find((entry) => entry.id === spaceId)!;
+    const output = [];
+    for await (const record of space.records()) output.push(record);
+    expect(output.find((record) => record.type === "bot")).toMatchObject({
+      botKind: "roleplay",
+      roleplayCharacter: imported,
+    });
   });
 
   it("recreates the export under new ids in a new space the importer owns", async () => {

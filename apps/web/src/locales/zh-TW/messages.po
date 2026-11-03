@@ -663,6 +663,10 @@ msgstr "新增工作區"
 msgid "Added"
 msgstr "已新增"
 
+#: src/pages/shell/roleplay-images.tsx
+msgid "Adding image…"
+msgstr ""
+
 #: src/components/integrations/plugin-marketplace.tsx
 #: src/pages/McpServersOverlay.tsx
 #: src/pages/PluginsOverlay.tsx
@@ -1963,6 +1967,10 @@ msgstr "費用"
 msgid "Could not add"
 msgstr "無法新增"
 
+#: src/pages/shell/roleplay-images.tsx
+msgid "Could not add image"
+msgstr ""
+
 #: src/pages/McpServersOverlay.tsx
 msgid "Could not add MCP server"
 msgstr "無法新增 MCP 伺服器"
@@ -2249,6 +2257,10 @@ msgstr "無法載入登入選項"
 msgid "Could not load skill"
 msgstr "無法載入技能"
 
+#: src/pages/shell/roleplay-story-mode.tsx
+msgid "Could not load story mode"
+msgstr ""
+
 #: src/pages/Shell.tsx
 msgid "Could not load task"
 msgstr ""
@@ -2517,6 +2529,10 @@ msgstr "無法更新姓名"
 #: src/pages/shell/use-composer-actions.ts
 msgid "Could not update reaction"
 msgstr "無法更新反應"
+
+#: src/pages/shell/roleplay-story-mode.tsx
+msgid "Could not update story mode"
+msgstr ""
 
 #: src/pages/MemorySettingsOverlay.tsx
 msgid "Could not update the default memory scope"
@@ -2807,6 +2823,7 @@ msgstr "拒絕"
 #: src/pages/Board.tsx
 #: src/pages/shell/agent-import.tsx
 #: src/pages/shell/bot-panel.tsx
+#: src/pages/shell/roleplay-images.tsx
 #: src/pages/shell/roleplay-settings.tsx
 msgid "Description"
 msgstr "描述"
@@ -3062,6 +3079,7 @@ msgstr "需要驗證電子信箱"
 msgid "Enable {0}"
 msgstr "啟用 {0}"
 
+#: src/pages/shell/roleplay-images.tsx
 #: src/pages/shell/roleplay-settings.tsx
 msgid "Enabled"
 msgstr ""
@@ -3114,6 +3132,10 @@ msgstr "請輸入 1 到 {MAX_MODEL_MAX_TOKENS} 之間的整數作為最大輸出
 
 #: src/pages/model-settings/use-model-settings.ts
 msgid "Enter a whole number from 1 to {MAX_MODEL_TIMEOUT_MS} for request timeouts, or leave blank to use server defaults."
+msgstr ""
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Enter a whole number from 1 to 100."
 msgstr ""
 
 #: src/pages/model-settings/use-model-settings.ts
@@ -3383,6 +3405,7 @@ msgstr "免費"
 msgid "Free plan ends {day}"
 msgstr "免費方案將於 {day} 結束"
 
+#: src/pages/shell/roleplay-images.tsx
 #: src/pages/shell/roleplay-settings.tsx
 msgid "Frequency"
 msgstr "頻率"
@@ -3635,6 +3658,10 @@ msgstr "如果聽到了，說明語音已就緒。"
 msgid "Ignore"
 msgstr "忽略"
 
+#: src/pages/shell/roleplay-images.tsx
+msgid "Image"
+msgstr ""
+
 #. js-lingui-explicit-id
 #: src/lib/run-error.ts
 msgid "Image input is not configured for this model."
@@ -3648,6 +3675,19 @@ msgstr "此模型尚未設定圖片輸入。"
 msgid "Image upload area"
 msgstr "圖片上傳區域"
 
+#: src/pages/shell/roleplay-images.tsx
+msgid "Image URL"
+msgstr ""
+
+#: src/pages/shell/roleplay-images.tsx
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Images"
+msgstr ""
+
+#: src/pages/shell/roleplay-images.tsx
+msgid "Import"
+msgstr ""
+
 #: src/components/AccountDataSettings.tsx
 #: src/pages/shell/agent-import.tsx
 msgid "Import an agent"
@@ -3656,6 +3696,10 @@ msgstr "匯入代理程式"
 #: src/components/AccountDataSettings.tsx
 msgid "Import data"
 msgstr "匯入資料"
+
+#: src/pages/shell/roleplay-images.tsx
+msgid "Import from URL"
+msgstr ""
 
 #: src/pages/shell/create-bot-dialog.tsx
 msgid "Import warnings"
@@ -4666,6 +4710,10 @@ msgstr "無觸發器"
 msgid "Normal"
 msgstr "一般"
 
+#: src/pages/shell/roleplay-images.tsx
+msgid "Normal chat: turns between images"
+msgstr ""
+
 #: src/pages/shell/agent-import.tsx
 msgid "Not a valid skill"
 msgstr "不是有效的技能"
@@ -5458,6 +5506,10 @@ msgstr "移除 Git 事件"
 msgid "Remove header"
 msgstr "移除標頭"
 
+#: src/pages/shell/roleplay-images.tsx
+msgid "Remove image"
+msgstr ""
+
 #: src/pages/shell/roleplay-settings.tsx
 msgid "Remove lorebook"
 msgstr ""
@@ -5633,6 +5685,7 @@ msgstr "正在還原工作空間"
 #: src/pages/PluginSubmissionsPanel.tsx
 #: src/pages/RoutineCalendar.tsx
 #: src/pages/shell/conversation-files-panel.tsx
+#: src/pages/shell/roleplay-story-mode.tsx
 #: src/pages/SpaceSettingOverrides.tsx
 msgid "Retry"
 msgstr "重試"
@@ -5886,6 +5939,10 @@ msgstr ""
 
 #: src/pages/shell/roleplay-settings.tsx
 msgid "Scenario"
+msgstr ""
+
+#: src/pages/shell/roleplay-images.tsx
+msgid "Scene"
 msgstr ""
 
 #: src/pages/RoutineCalendar.tsx
@@ -6370,6 +6427,10 @@ msgstr "說話中"
 msgid "Speech model"
 msgstr "語音模型"
 
+#: src/pages/shell/roleplay-images.tsx
+msgid "Spontaneous images"
+msgstr ""
+
 #: src/pages/shell/roleplay-settings.tsx
 msgid "Spontaneous messages"
 msgstr "主動訊息"
@@ -6495,6 +6556,14 @@ msgstr "已加密儲存"
 
 #: src/pages/shell/roleplay-settings.tsx
 msgid "Story"
+msgstr ""
+
+#: src/pages/shell/roleplay-story-mode.tsx
+msgid "Story mode"
+msgstr ""
+
+#: src/pages/shell/roleplay-images.tsx
+msgid "Story mode: turns between images"
 msgstr ""
 
 #: src/pages/model-settings/request-timeout-fields.tsx
@@ -7120,6 +7189,10 @@ msgstr "立即升級"
 #: src/pages/shell/avatar-studio-popover.tsx
 msgid "Upload"
 msgstr "上傳"
+
+#: src/pages/shell/roleplay-images.tsx
+msgid "Upload image"
+msgstr ""
 
 #: src/lib/ticket-priority.ts
 msgid "Urgent"

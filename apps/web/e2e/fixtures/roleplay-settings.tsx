@@ -9,6 +9,13 @@ import "../../src/styles.css";
 
 const syntheticCharacter: RoleplayCharacter = {
   name: "Mira",
+  media: {
+    enabled: true,
+    allowSpontaneous: false,
+    normalIntervalTurns: 6,
+    storyIntervalTurns: 2,
+    album: [],
+  },
   description:
     "A cartographer who maps the islands that appear only at low tide. Her notebooks are full of careful observations and unfinished questions.",
   personality: "Observant, quietly adventurous, and slow to trust easy answers.",

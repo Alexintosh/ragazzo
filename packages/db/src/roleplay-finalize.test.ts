@@ -23,6 +23,13 @@ const character: RoleplayCharacter = {
   lorebook: null,
   conversationStyle: "chat",
 };
+const album = {
+  enabled: true,
+  allowSpontaneous: true,
+  normalIntervalTurns: 4,
+  storyIntervalTurns: 1,
+  album: [{ id: "forest", artifactId: "image", description: "A forest", enabled: true }],
+};
 const text = (value: string): MessageBlock[] => [{ kind: "text", text: value }];
 const input = {
   spaceId: "space",
@@ -46,6 +53,8 @@ function fixture(
     botKind?: string;
     style?: "chat" | "narrative";
     leaseFence?: number;
+    media?: boolean;
+    mediaRevision?: number;
   } = {},
 ) {
   let stored = {
@@ -54,7 +63,18 @@ function fixture(
     firstResponseAt: null as Date | null,
     nextMessageSeq: 5,
     nextEventSeq: 10,
-    roleplayState: null as unknown,
+    roleplayState: options.media
+      ? {
+          media: {
+            storyMode: true,
+            scene: "Forest",
+            revision: options.mediaRevision ?? 0,
+            turn: 0,
+            lastImageTurn: null,
+            sentImageIds: [],
+          },
+        }
+      : (null as unknown),
     messages: [] as Array<Record<string, unknown>>,
     events: [] as Array<Record<string, unknown>>,
     finishedAttempts: 0,
@@ -98,6 +118,10 @@ function fixture(
         }),
       },
       thread: {
+        findFirst: vi.fn(async () => ({
+          roleplayState: working.roleplayState,
+          historyCompactionGeneration: 0,
+        })),
         update: vi.fn(async ({ data }) => {
           if (data.nextMessageSeq) working.nextMessageSeq += data.nextMessageSeq.increment;
           if (data.nextEventSeq) working.nextEventSeq += data.nextEventSeq.increment;
@@ -122,7 +146,13 @@ function fixture(
         }),
         deleteMany: vi.fn(async () => ({ count: 0 })),
       },
+      user: { findUnique: vi.fn(async () => ({ roleplayEnabled: true })) },
+      artifact: { findMany: vi.fn(async () => [{ id: "image", mimeType: "image/png" }]) },
       bot: {
+        findFirst: vi.fn(async () => ({
+          botKind: options.botKind ?? "roleplay",
+          roleplayCharacter: { ...character, media: album },
+        })),
         findUnique: vi.fn(async () => ({
           botKind: options.botKind ?? "roleplay",
           roleplayCharacter: { ...character, conversationStyle: options.style ?? "chat" },
@@ -150,6 +180,64 @@ function fixture(
 }
 
 describe("atomic roleplay chat finalization", () => {
+  it("commits the image and delivery ledger under the same lease transaction", async () => {
+    const f = fixture({ media: true });
+    const blocks: MessageBlock[] = [
+      ...text("The forest opens ahead"),
+      { kind: "image", artifactId: "image", mimeType: "image/png", name: "forest.png" },
+    ];
+    const media = {
+      storyMode: true,
+      scene: "Forest",
+      revision: 1,
+      turn: 1,
+      lastImageTurn: 1,
+      sentImageIds: ["forest"],
+    };
+    await finalizeRun(f.prisma, {
+      ...input,
+      blocks,
+      additionalMessages: undefined,
+      roleplayState: { media },
+      roleplayMediaGuard: {
+        revision: 0,
+        historyGeneration: 0,
+        characterMedia: JSON.stringify(album),
+      },
+    });
+    expect(f.read().messages).toHaveLength(1);
+    expect(f.read().messages[0]!.blocks).toEqual(blocks);
+    expect(f.read().roleplayState).toEqual({ media });
+  });
+  it("suppresses stale prepared image dialogue without replacing the current ledger", async () => {
+    const f = fixture({ media: true, mediaRevision: 2 });
+    const result = await finalizeRun(f.prisma, {
+      ...input,
+      blocks: [
+        ...text("Here is the picture"),
+        { kind: "image", artifactId: "image", mimeType: "image/png", name: "forest.png" },
+      ],
+      additionalMessages: undefined,
+      roleplayState: {
+        media: {
+          storyMode: true,
+          scene: "Forest",
+          revision: 1,
+          turn: 1,
+          lastImageTurn: 1,
+          sentImageIds: ["forest"],
+        },
+      },
+      roleplayMediaGuard: {
+        revision: 0,
+        historyGeneration: 0,
+        characterMedia: JSON.stringify(album),
+      },
+    });
+    expect(result).toMatchObject({ suppressed: true });
+    expect(f.read().messages).toHaveLength(0);
+    expect(f.read().roleplayState).toMatchObject({ media: { revision: 2 } });
+  });
   it("commits all bubbles, ordered events, state, and one successful run finalization together", async () => {
     const f = fixture();
     await expect(finalizeRun(f.prisma, input, { publish: f.publish } as never)).resolves.toEqual({
@@ -210,17 +298,20 @@ describe("atomic roleplay chat finalization", () => {
     [text("Two"), text("Three"), text("Four")],
     [[]],
     [[{ kind: "image", url: "https://image.invalid/example.png" }]],
-  ])("rejects oversized or non-text reply sets before writing", async (...additionalMessages) => {
-    const f = fixture();
-    await expect(
-      finalizeRun(f.prisma, {
-        ...input,
-        additionalMessages: additionalMessages as MessageBlock[][],
-      }),
-    ).rejects.toThrow("at most three text messages");
-    expect(f.read().messages).toEqual([]);
-    expect(f.read().status).toBe("running");
-  });
+  ])(
+    "rejects oversized or unsupported reply sets before writing",
+    async (...additionalMessages) => {
+      const f = fixture();
+      await expect(
+        finalizeRun(f.prisma, {
+          ...input,
+          additionalMessages: additionalMessages as MessageBlock[][],
+        }),
+      ).rejects.toThrow("at most three messages");
+      expect(f.read().messages).toEqual([]);
+      expect(f.read().status).toBe("running");
+    },
+  );
 
   it("writes no messages or snapshot after the run lease changes", async () => {
     const f = fixture({ leaseFence: 2 });

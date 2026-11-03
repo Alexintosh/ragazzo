@@ -132,7 +132,7 @@ export function evaluateRoleplaySpontaneousEligibility(
 
 export type RoleplaySpontaneousDecision =
   | { decision: "skip" }
-  | { decision: "send"; messages: string[] };
+  | { decision: "send"; messages: string[]; imageId?: string };
 
 /** Only a complete, bounded structured response can authorize a send. No repair of model prose. */
 export function parseRoleplaySpontaneousDecision(text: string): RoleplaySpontaneousDecision | null {
@@ -144,7 +144,13 @@ export function parseRoleplaySpontaneousDecision(text: string): RoleplaySpontane
     if (data.decision === "skip" && Object.keys(data).length === 1) return { decision: "skip" };
     if (
       data.decision !== "send" ||
-      Object.keys(data).length !== 2 ||
+      (Object.keys(data).length !== 2 &&
+        !(
+          Object.keys(data).length === 3 &&
+          typeof data.imageId === "string" &&
+          data.imageId.length > 0 &&
+          data.imageId.length <= 100
+        )) ||
       !Array.isArray(data.messages) ||
       data.messages.length < 1 ||
       data.messages.length > 3 ||
@@ -154,7 +160,11 @@ export function parseRoleplaySpontaneousDecision(text: string): RoleplaySpontane
       )
     )
       return null;
-    return { decision: "send", messages: data.messages.map((message: string) => message.trim()) };
+    return {
+      decision: "send",
+      messages: data.messages.map((message: string) => message.trim()),
+      ...(typeof data.imageId === "string" ? { imageId: data.imageId } : {}),
+    };
   } catch {
     return null;
   }
@@ -169,17 +179,20 @@ export function buildRoleplaySpontaneousRequest(input: {
   relationshipState?: RoleplayRelationship;
   playerName?: string;
   loreTokenLimit?: number;
+  mediaContext?: string;
+  mediaCatalog?: { id: string; description: string; scene?: string }[];
 }): ReturnType<typeof buildRoleplayPrompt> {
   const request = buildRoleplayPrompt({ ...input, prompt: "" });
   return {
     ...request,
     instructions: [
       request.instructions,
-      "This is an optional spontaneous chat check-in, not a reply to a new user message. You have no tools or media capabilities. Choose skip unless there is a grounded reason to contact the user in this character's voice. Use established conversation details or a tentative follow-up on a real plan; never assume an elapsed event happened. Do not fabricate activities, photos, attachments, links, messages from others, or external facts. Avoid guilt, pressure, possessiveness, or repeated unanswered nudges. Warmth follows demonstrated reciprocal conversation, never an assumed relationship upgrade.",
-      'Return exactly {"decision":"skip"} or {"decision":"send","messages":["one short plain-text bubble"]}. A send has one to three nonempty bubbles, each at most 2000 characters. No markdown fences, extra fields, tool calls, or media.',
+      "This is an optional spontaneous chat check-in, not a reply to a new user message. You have no tools. Only explicitly supplied available album images may be attached. Choose skip unless there is a grounded reason to contact the user in this character's voice. Use established conversation details or a tentative follow-up on a real plan; never assume an elapsed event happened. Do not fabricate activities, photos, attachments, links, messages from others, or external facts. Only describe an image if you select its exact supplied catalog ID. Avoid guilt, pressure, possessiveness, or repeated unanswered nudges. Warmth follows demonstrated reciprocal conversation, never an assumed relationship upgrade.",
+      'Return exactly {"decision":"skip"} or {"decision":"send","messages":["one short plain-text bubble"]}. A send has one to three nonempty bubbles, each at most 2000 characters. No markdown fences or tool calls. If and only if an available image fits, a send may include one extra imageId field containing its exact catalog ID; otherwise omit imageId. Never claim to attach an image without selecting its catalog ID.',
     ].join("\n\n"),
     prompt: JSON.stringify({
       purpose: "Decide whether a spontaneous message is warranted now; skipping is welcome.",
+      ...(input.mediaCatalog?.length ? { availableAlbumImages: input.mediaCatalog } : {}),
     }),
   };
 }

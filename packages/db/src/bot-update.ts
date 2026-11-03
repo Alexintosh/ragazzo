@@ -1,5 +1,6 @@
 import { isDeepStrictEqual } from "node:util";
 import type { RoleplayCharacter } from "@rakazo/contracts";
+import { isAttachmentImageMimeType, RoleplayCharacterSchema } from "@rakazo/contracts";
 import { displayName } from "@rakazo/core";
 import { getLogger } from "@rakazo/logging";
 import { BotExecutionSettingsError } from "./bot-execution.js";
@@ -66,7 +67,7 @@ export async function commitBotUpdate(
       await tx.$queryRaw`SELECT id FROM bots WHERE id = ${options.botId} FOR UPDATE`;
       const bot = await tx.bot.findUniqueOrThrow({
         where: { id: options.botId },
-        select: { botKind: true, roleplayCharacter: true },
+        select: { botKind: true, roleplayCharacter: true, userId: true, spaceId: true },
       });
       if (bot.botKind !== "roleplay")
         throw new BotExecutionSettingsError("Characters require a roleplay bot");
@@ -77,6 +78,25 @@ export async function commitBotUpdate(
         throw new BotExecutionSettingsError(
           "Roleplay settings changed elsewhere. Reopen settings before saving.",
         );
+      const character = RoleplayCharacterSchema.parse(data.roleplayCharacter);
+      if (character.media?.album.length) {
+        const ids = character.media.album.map((entry) => entry.artifactId);
+        const images = await tx.artifact.findMany({
+          where: {
+            id: { in: ids },
+            botId: options.botId,
+            spaceId: bot.spaceId,
+            userId: bot.userId,
+            groupId: null,
+            uploadThreadId: null,
+          },
+        });
+        if (
+          images.length !== ids.length ||
+          images.some((image) => !isAttachmentImageMimeType(image.mimeType))
+        )
+          throw new BotExecutionSettingsError("Album images must belong to this character");
+      }
       const active = await tx.run.findFirst({
         where: {
           botId: options.botId,

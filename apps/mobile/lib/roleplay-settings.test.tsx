@@ -11,6 +11,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { RoleplayRelationshipDebug } from "../components/roleplay-relationship-debug";
 import type { RoleplaySettingsHandle } from "../components/roleplay-settings";
 import { RoleplaySettings } from "../components/roleplay-settings";
+import { RoleplayStoryMode } from "../components/roleplay-story-mode";
+import { rpc } from "./api";
+
+vi.mock("./api", () => ({ rpc: vi.fn() }));
+vi.mock("./pick-attachments", () => ({ pickFromLibrary: vi.fn() }));
+vi.mock("../components/reply-thumbnail", () => ({ ReplyThumbnail: () => null }));
 
 vi.mock("react-native", () => ({
   StyleSheet: { create: (styles: unknown) => styles, hairlineWidth: 1 },
@@ -519,5 +525,57 @@ describe("native roleplay settings", () => {
     expect(onSave).toHaveBeenCalledTimes(1);
     await click("Save changes");
     expect(onSave.mock.calls[1]![0].lorebook).toBeNull();
+  });
+  it("saves image frequency in the character draft and validates native number input", async () => {
+    props.botId = "bot-one";
+    props.character = {
+      ...initial,
+      media: {
+        enabled: true,
+        allowSpontaneous: false,
+        normalIntervalTurns: 6,
+        storyIntervalTurns: 2,
+        album: [],
+      },
+    };
+    vi.mocked(rpc).mockResolvedValue({
+      artifacts: [],
+      storyMode: false,
+      scene: "",
+      historyGeneration: 0,
+      revision: "one",
+    } as never);
+    await render();
+    await click("Images");
+    await click("Frequency");
+    await change("Normal chat: turns between images", "0");
+    await click("Save changes");
+    expect(onSave).not.toHaveBeenCalled();
+    expect(host.textContent).toContain("Enter a whole number from 1 to 100.");
+    await change("Normal chat: turns between images", "8");
+    await click("Save changes");
+    expect(onSave.mock.lastCall?.[0].media?.normalIntervalTurns).toBe(8);
+    expect(onSave.mock.lastCall?.[1]).toEqual(props.character);
+  });
+  it("loads native story state and toggles with its persisted revision", async () => {
+    const state = {
+      artifacts: [],
+      storyMode: true,
+      scene: "A quiet harbor",
+      historyGeneration: 3,
+      revision: "one",
+    };
+    vi.mocked(rpc).mockResolvedValue(state as never);
+    await act(async () => root.render(<RoleplayStoryMode botId="bot-one" refreshKey="turn-one" />));
+    expect(host.textContent).toContain("A quiet harbor");
+    vi.mocked(rpc).mockResolvedValue({ ...state, storyMode: false, revision: "two" } as never);
+    await click("Leave story mode");
+    expect(rpc).toHaveBeenLastCalledWith("bots/updateRoleplayStoryMode", {
+      botId: "bot-one",
+      enabled: false,
+      historyGeneration: 3,
+      expectedRevision: "one",
+    });
+    expect(button("Story mode").disabled).toBe(false);
   });
 });

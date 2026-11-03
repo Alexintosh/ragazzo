@@ -121,7 +121,7 @@ describe("dedicated roleplay runtime", () => {
     expect(fake.agent).not.toHaveBeenCalled();
   });
 
-  it.each(["memory", "continuity"] as const)(
+  it.each(["memory", "continuity", "direction"] as const)(
     "accounts for hidden %s completions as compaction with no tools",
     async (purpose) => {
       const usage = vi.fn();

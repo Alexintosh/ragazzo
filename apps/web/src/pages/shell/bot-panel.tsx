@@ -54,6 +54,7 @@ import { BotRuntimeSettings, BotRuntimeStatus } from "./bot-runtime-settings";
 import { ChatModelPicker } from "./chat-model-picker";
 import { RoleplayRelationshipDebug } from "./roleplay-relationship-debug";
 import { RoleplaySettings } from "./roleplay-settings";
+import { RoleplayStoryMode } from "./roleplay-story-mode";
 
 const ScratchpadSection = lazyComponent(() =>
   import("../ScratchpadSection").then((module) => module.ScratchpadSection),
@@ -705,6 +706,11 @@ export function BotSettings({
             {bot.botKind === "roleplay" ? (
               bot.roleplayCharacter ? (
                 <>
+                  <RoleplayStoryMode
+                    key={`story-${bot.id}`}
+                    botId={bot.id}
+                    refreshKey={bot.status}
+                  />
                   <RoleplaySettings
                     botId={bot.id}
                     character={bot.roleplayCharacter}

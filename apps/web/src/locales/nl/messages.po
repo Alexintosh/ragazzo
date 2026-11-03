@@ -662,6 +662,10 @@ msgstr "Werkruimte toevoegen"
 msgid "Added"
 msgstr "Toegevoegd"
 
+#: src/pages/shell/roleplay-images.tsx
+msgid "Adding image…"
+msgstr ""
+
 #: src/components/integrations/plugin-marketplace.tsx
 #: src/pages/McpServersOverlay.tsx
 #: src/pages/PluginsOverlay.tsx
@@ -1962,6 +1966,10 @@ msgstr "Kosten"
 msgid "Could not add"
 msgstr "Toevoegen mislukt"
 
+#: src/pages/shell/roleplay-images.tsx
+msgid "Could not add image"
+msgstr ""
+
 #: src/pages/McpServersOverlay.tsx
 msgid "Could not add MCP server"
 msgstr "MCP-server toevoegen mislukt"
@@ -2248,6 +2256,10 @@ msgstr "Aanmeldopties laden mislukt"
 msgid "Could not load skill"
 msgstr "Skill laden mislukt"
 
+#: src/pages/shell/roleplay-story-mode.tsx
+msgid "Could not load story mode"
+msgstr ""
+
 #: src/pages/Shell.tsx
 msgid "Could not load task"
 msgstr ""
@@ -2516,6 +2528,10 @@ msgstr "Naam kon niet worden bijgewerkt"
 #: src/pages/shell/use-composer-actions.ts
 msgid "Could not update reaction"
 msgstr "Reactie bijwerken mislukt"
+
+#: src/pages/shell/roleplay-story-mode.tsx
+msgid "Could not update story mode"
+msgstr ""
 
 #: src/pages/MemorySettingsOverlay.tsx
 msgid "Could not update the default memory scope"
@@ -2806,6 +2822,7 @@ msgstr "Weigeren"
 #: src/pages/Board.tsx
 #: src/pages/shell/agent-import.tsx
 #: src/pages/shell/bot-panel.tsx
+#: src/pages/shell/roleplay-images.tsx
 #: src/pages/shell/roleplay-settings.tsx
 msgid "Description"
 msgstr "Beschrijving"
@@ -3061,6 +3078,7 @@ msgstr "E-mailverificatie vereist"
 msgid "Enable {0}"
 msgstr "{0} inschakelen"
 
+#: src/pages/shell/roleplay-images.tsx
 #: src/pages/shell/roleplay-settings.tsx
 msgid "Enabled"
 msgstr ""
@@ -3113,6 +3131,10 @@ msgstr "Voer een geheel getal van 1 tot {MAX_MODEL_MAX_TOKENS} in voor het maxim
 
 #: src/pages/model-settings/use-model-settings.ts
 msgid "Enter a whole number from 1 to {MAX_MODEL_TIMEOUT_MS} for request timeouts, or leave blank to use server defaults."
+msgstr ""
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Enter a whole number from 1 to 100."
 msgstr ""
 
 #: src/pages/model-settings/use-model-settings.ts
@@ -3382,6 +3404,7 @@ msgstr "Gratis"
 msgid "Free plan ends {day}"
 msgstr "Gratis abonnement eindigt op {day}"
 
+#: src/pages/shell/roleplay-images.tsx
 #: src/pages/shell/roleplay-settings.tsx
 msgid "Frequency"
 msgstr "Frequentie"
@@ -3634,6 +3657,10 @@ msgstr "Als je dat hoorde, is de stem klaar."
 msgid "Ignore"
 msgstr "Negeren"
 
+#: src/pages/shell/roleplay-images.tsx
+msgid "Image"
+msgstr ""
+
 #. js-lingui-explicit-id
 #: src/lib/run-error.ts
 msgid "Image input is not configured for this model."
@@ -3647,6 +3674,19 @@ msgstr "Afbeeldingsinvoer is niet ingesteld voor dit model."
 msgid "Image upload area"
 msgstr "Gebied voor afbeeldingsuploads"
 
+#: src/pages/shell/roleplay-images.tsx
+msgid "Image URL"
+msgstr ""
+
+#: src/pages/shell/roleplay-images.tsx
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Images"
+msgstr ""
+
+#: src/pages/shell/roleplay-images.tsx
+msgid "Import"
+msgstr ""
+
 #: src/components/AccountDataSettings.tsx
 #: src/pages/shell/agent-import.tsx
 msgid "Import an agent"
@@ -3655,6 +3695,10 @@ msgstr "Een agent importeren"
 #: src/components/AccountDataSettings.tsx
 msgid "Import data"
 msgstr "Gegevens importeren"
+
+#: src/pages/shell/roleplay-images.tsx
+msgid "Import from URL"
+msgstr ""
 
 #: src/pages/shell/create-bot-dialog.tsx
 msgid "Import warnings"
@@ -4665,6 +4709,10 @@ msgstr "Geen trigger"
 msgid "Normal"
 msgstr "Normaal"
 
+#: src/pages/shell/roleplay-images.tsx
+msgid "Normal chat: turns between images"
+msgstr ""
+
 #: src/pages/shell/agent-import.tsx
 msgid "Not a valid skill"
 msgstr "Geen geldige skill"
@@ -5457,6 +5505,10 @@ msgstr "Git-gebeurtenis verwijderen"
 msgid "Remove header"
 msgstr "Header verwijderen"
 
+#: src/pages/shell/roleplay-images.tsx
+msgid "Remove image"
+msgstr ""
+
 #: src/pages/shell/roleplay-settings.tsx
 msgid "Remove lorebook"
 msgstr ""
@@ -5632,6 +5684,7 @@ msgstr "Je werkruimte herstellen"
 #: src/pages/PluginSubmissionsPanel.tsx
 #: src/pages/RoutineCalendar.tsx
 #: src/pages/shell/conversation-files-panel.tsx
+#: src/pages/shell/roleplay-story-mode.tsx
 #: src/pages/SpaceSettingOverrides.tsx
 msgid "Retry"
 msgstr "Opnieuw proberen"
@@ -5885,6 +5938,10 @@ msgstr ""
 
 #: src/pages/shell/roleplay-settings.tsx
 msgid "Scenario"
+msgstr ""
+
+#: src/pages/shell/roleplay-images.tsx
+msgid "Scene"
 msgstr ""
 
 #: src/pages/RoutineCalendar.tsx
@@ -6369,6 +6426,10 @@ msgstr "Spreekt"
 msgid "Speech model"
 msgstr "Spraakmodel"
 
+#: src/pages/shell/roleplay-images.tsx
+msgid "Spontaneous images"
+msgstr ""
+
 #: src/pages/shell/roleplay-settings.tsx
 msgid "Spontaneous messages"
 msgstr "Spontane berichten"
@@ -6494,6 +6555,14 @@ msgstr "Versleuteld opgeslagen"
 
 #: src/pages/shell/roleplay-settings.tsx
 msgid "Story"
+msgstr ""
+
+#: src/pages/shell/roleplay-story-mode.tsx
+msgid "Story mode"
+msgstr ""
+
+#: src/pages/shell/roleplay-images.tsx
+msgid "Story mode: turns between images"
 msgstr ""
 
 #: src/pages/model-settings/request-timeout-fields.tsx
@@ -7119,6 +7188,10 @@ msgstr ""
 #: src/pages/shell/avatar-studio-popover.tsx
 msgid "Upload"
 msgstr "Uploaden"
+
+#: src/pages/shell/roleplay-images.tsx
+msgid "Upload image"
+msgstr ""
 
 #: src/lib/ticket-priority.ts
 msgid "Urgent"

@@ -662,6 +662,10 @@ msgstr "वर्कस्पेस जोड़ें"
 msgid "Added"
 msgstr ""
 
+#: src/pages/shell/roleplay-images.tsx
+msgid "Adding image…"
+msgstr ""
+
 #: src/components/integrations/plugin-marketplace.tsx
 #: src/pages/McpServersOverlay.tsx
 #: src/pages/PluginsOverlay.tsx
@@ -1962,6 +1966,10 @@ msgstr "लागत"
 msgid "Could not add"
 msgstr "जोड़ा नहीं जा सका"
 
+#: src/pages/shell/roleplay-images.tsx
+msgid "Could not add image"
+msgstr ""
+
 #: src/pages/McpServersOverlay.tsx
 msgid "Could not add MCP server"
 msgstr "MCP सर्वर जोड़ा नहीं जा सका"
@@ -2248,6 +2256,10 @@ msgstr "साइन इन के विकल्प लोड नहीं ह
 msgid "Could not load skill"
 msgstr "स्किल लोड नहीं हो सकी"
 
+#: src/pages/shell/roleplay-story-mode.tsx
+msgid "Could not load story mode"
+msgstr ""
+
 #: src/pages/Shell.tsx
 msgid "Could not load task"
 msgstr ""
@@ -2515,6 +2527,10 @@ msgstr "नाम अपडेट नहीं किया जा सका"
 
 #: src/pages/shell/use-composer-actions.ts
 msgid "Could not update reaction"
+msgstr ""
+
+#: src/pages/shell/roleplay-story-mode.tsx
+msgid "Could not update story mode"
 msgstr ""
 
 #: src/pages/MemorySettingsOverlay.tsx
@@ -2806,6 +2822,7 @@ msgstr "अस्वीकार करें"
 #: src/pages/Board.tsx
 #: src/pages/shell/agent-import.tsx
 #: src/pages/shell/bot-panel.tsx
+#: src/pages/shell/roleplay-images.tsx
 #: src/pages/shell/roleplay-settings.tsx
 msgid "Description"
 msgstr "विवरण"
@@ -3061,6 +3078,7 @@ msgstr "ईमेल सत्यापन आवश्यक है"
 msgid "Enable {0}"
 msgstr "{0} सक्षम करें"
 
+#: src/pages/shell/roleplay-images.tsx
 #: src/pages/shell/roleplay-settings.tsx
 msgid "Enabled"
 msgstr ""
@@ -3113,6 +3131,10 @@ msgstr "अधिकतम आउटपुट टोकन के लिए 1 �
 
 #: src/pages/model-settings/use-model-settings.ts
 msgid "Enter a whole number from 1 to {MAX_MODEL_TIMEOUT_MS} for request timeouts, or leave blank to use server defaults."
+msgstr ""
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Enter a whole number from 1 to 100."
 msgstr ""
 
 #: src/pages/model-settings/use-model-settings.ts
@@ -3382,6 +3404,7 @@ msgstr ""
 msgid "Free plan ends {day}"
 msgstr "मुफ़्त प्लान {day} को खत्म होगा"
 
+#: src/pages/shell/roleplay-images.tsx
 #: src/pages/shell/roleplay-settings.tsx
 msgid "Frequency"
 msgstr "आवृत्ति"
@@ -3634,6 +3657,10 @@ msgstr "अगर आपने वह सुना, तो आवाज़ त�
 msgid "Ignore"
 msgstr ""
 
+#: src/pages/shell/roleplay-images.tsx
+msgid "Image"
+msgstr ""
+
 #. js-lingui-explicit-id
 #: src/lib/run-error.ts
 msgid "Image input is not configured for this model."
@@ -3647,6 +3674,19 @@ msgstr "इस मॉडल के लिए चित्र इनपुट क
 msgid "Image upload area"
 msgstr "छवि अपलोड क्षेत्र"
 
+#: src/pages/shell/roleplay-images.tsx
+msgid "Image URL"
+msgstr ""
+
+#: src/pages/shell/roleplay-images.tsx
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Images"
+msgstr ""
+
+#: src/pages/shell/roleplay-images.tsx
+msgid "Import"
+msgstr ""
+
 #: src/components/AccountDataSettings.tsx
 #: src/pages/shell/agent-import.tsx
 msgid "Import an agent"
@@ -3655,6 +3695,10 @@ msgstr "एजेंट इंपोर्ट करें"
 #: src/components/AccountDataSettings.tsx
 msgid "Import data"
 msgstr "डेटा आयात करें"
+
+#: src/pages/shell/roleplay-images.tsx
+msgid "Import from URL"
+msgstr ""
 
 #: src/pages/shell/create-bot-dialog.tsx
 msgid "Import warnings"
@@ -4665,6 +4709,10 @@ msgstr ""
 msgid "Normal"
 msgstr ""
 
+#: src/pages/shell/roleplay-images.tsx
+msgid "Normal chat: turns between images"
+msgstr ""
+
 #: src/pages/shell/agent-import.tsx
 msgid "Not a valid skill"
 msgstr "मान्य स्किल नहीं"
@@ -5457,6 +5505,10 @@ msgstr ""
 msgid "Remove header"
 msgstr "हेडर हटाएँ"
 
+#: src/pages/shell/roleplay-images.tsx
+msgid "Remove image"
+msgstr ""
+
 #: src/pages/shell/roleplay-settings.tsx
 msgid "Remove lorebook"
 msgstr ""
@@ -5632,6 +5684,7 @@ msgstr ""
 #: src/pages/PluginSubmissionsPanel.tsx
 #: src/pages/RoutineCalendar.tsx
 #: src/pages/shell/conversation-files-panel.tsx
+#: src/pages/shell/roleplay-story-mode.tsx
 #: src/pages/SpaceSettingOverrides.tsx
 msgid "Retry"
 msgstr "फिर कोशिश करें"
@@ -5885,6 +5938,10 @@ msgstr ""
 
 #: src/pages/shell/roleplay-settings.tsx
 msgid "Scenario"
+msgstr ""
+
+#: src/pages/shell/roleplay-images.tsx
+msgid "Scene"
 msgstr ""
 
 #: src/pages/RoutineCalendar.tsx
@@ -6369,6 +6426,10 @@ msgstr "बोल रहा है"
 msgid "Speech model"
 msgstr "वाक् मॉडल"
 
+#: src/pages/shell/roleplay-images.tsx
+msgid "Spontaneous images"
+msgstr ""
+
 #: src/pages/shell/roleplay-settings.tsx
 msgid "Spontaneous messages"
 msgstr "स्वतः भेजे गए संदेश"
@@ -6494,6 +6555,14 @@ msgstr "एन्क्रिप्टेड रूप में संग्र
 
 #: src/pages/shell/roleplay-settings.tsx
 msgid "Story"
+msgstr ""
+
+#: src/pages/shell/roleplay-story-mode.tsx
+msgid "Story mode"
+msgstr ""
+
+#: src/pages/shell/roleplay-images.tsx
+msgid "Story mode: turns between images"
 msgstr ""
 
 #: src/pages/model-settings/request-timeout-fields.tsx
@@ -7119,6 +7188,10 @@ msgstr ""
 #: src/pages/shell/avatar-studio-popover.tsx
 msgid "Upload"
 msgstr "अपलोड"
+
+#: src/pages/shell/roleplay-images.tsx
+msgid "Upload image"
+msgstr ""
 
 #: src/lib/ticket-priority.ts
 msgid "Urgent"

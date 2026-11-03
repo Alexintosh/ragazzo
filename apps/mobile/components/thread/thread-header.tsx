@@ -11,6 +11,7 @@ import { useI18n } from "../../lib/i18n";
 import { useResolvedAppearance } from "../../lib/native";
 import { removeFromSearchInbox } from "../../lib/search-inbox";
 import { threadEdgeOptions } from "../../lib/thread-edges";
+import { useRoleplayStoryMode } from "../../lib/use-roleplay-story-mode";
 import { errorText } from "../../lib/user-error";
 import type { ChatTitle } from "../chat-header-title";
 import { publishChatTitle } from "../chat-header-title";
@@ -30,6 +31,7 @@ export function useThreadHeader({
   inGroup,
   readOnly,
   roleplay = false,
+  storyRefreshKey,
   displayName,
   titleBot,
   titleName,
@@ -44,6 +46,7 @@ export function useThreadHeader({
   inGroup: boolean;
   readOnly: boolean;
   roleplay?: boolean;
+  storyRefreshKey?: unknown;
   displayName?: string;
   /** The chat's bot, or the inbox's copy of it until the chat's roster arrives. */
   titleBot?: ChatTitle["bot"];
@@ -65,6 +68,7 @@ export function useThreadHeader({
   const router = useRouter();
   const [botActionsOpen, setBotActionsOpen] = useState(false);
   const [restoring, setRestoring] = useState(false);
+  const story = useRoleplayStoryMode(roleplay && !readOnly ? botId : undefined, storyRefreshKey);
 
   // The route draws the title from the screen's first frame; the chat feeds it its own data.
   const titleComposing = Boolean(botId) && composingBots.split(",").includes(botId ?? "");
@@ -131,6 +135,9 @@ export function useThreadHeader({
     tokens,
     colorScheme,
     styles,
+    story.state,
+    story.pending,
+    story.failure,
   ]);
 
   async function restoreConversation() {
@@ -169,6 +176,31 @@ export function useThreadHeader({
   }
 
   const botActions = [
+    ...(!readOnly && botId && roleplay
+      ? [
+          {
+            text: story.pending
+              ? t("Saving…")
+              : story.state?.storyMode
+                ? t("Leave story mode")
+                : t("Story mode"),
+            onPress: () => {
+              if (story.failure) {
+                Alert.alert(t("Story mode"), story.failure);
+                story.retry();
+              } else if (story.state) void story.toggle();
+            },
+          },
+          ...(story.state?.scene
+            ? [
+                {
+                  text: t("Current scene"),
+                  onPress: () => Alert.alert(t("Current scene"), story.state?.scene),
+                },
+              ]
+            : []),
+        ]
+      : []),
     ...(!readOnly && botId && !roleplay
       ? [
           {
@@ -185,7 +217,9 @@ export function useThreadHeader({
           },
         ]
       : []),
-    ...(!readOnly && botId && !roleplay ? [{ text: t("Open computer"), onPress: openBotComputer }] : []),
+    ...(!readOnly && botId && !roleplay
+      ? [{ text: t("Open computer"), onPress: openBotComputer }]
+      : []),
     {
       text: t("Profile"),
       onPress: () =>
@@ -208,9 +242,11 @@ export function useThreadHeader({
       onPress: () =>
         Alert.alert(
           t("Clear conversation?"),
-          roleplay ? t("This clears the story and its memory, then restores the character's greeting.") : t(
-            "This removes every message and stops current work. The bot, computer, memory, and routines are kept.",
-          ),
+          roleplay
+            ? t("This clears the story and its memory, then restores the character's greeting.")
+            : t(
+                "This removes every message and stops current work. The bot, computer, memory, and routines are kept.",
+              ),
           [
             { text: t("Cancel"), style: "cancel" },
             { text: t("Clear"), style: "destructive", onPress: clearConversation },

@@ -662,6 +662,10 @@ msgstr "הוספת סביבת עבודה"
 msgid "Added"
 msgstr "נוסף"
 
+#: src/pages/shell/roleplay-images.tsx
+msgid "Adding image…"
+msgstr ""
+
 #: src/components/integrations/plugin-marketplace.tsx
 #: src/pages/McpServersOverlay.tsx
 #: src/pages/PluginsOverlay.tsx
@@ -1962,6 +1966,10 @@ msgstr "עלות"
 msgid "Could not add"
 msgstr "לא ניתן להוסיף"
 
+#: src/pages/shell/roleplay-images.tsx
+msgid "Could not add image"
+msgstr ""
+
 #: src/pages/McpServersOverlay.tsx
 msgid "Could not add MCP server"
 msgstr "לא ניתן להוסיף את שרת ה-MCP"
@@ -2248,6 +2256,10 @@ msgstr "לא ניתן לטעון את אפשרויות ההתחברות"
 msgid "Could not load skill"
 msgstr "לא ניתן לטעון את המיומנות"
 
+#: src/pages/shell/roleplay-story-mode.tsx
+msgid "Could not load story mode"
+msgstr ""
+
 #: src/pages/Shell.tsx
 msgid "Could not load task"
 msgstr ""
@@ -2516,6 +2528,10 @@ msgstr "לא ניתן לעדכן את השם"
 #: src/pages/shell/use-composer-actions.ts
 msgid "Could not update reaction"
 msgstr "לא ניתן לעדכן את האמוג׳י"
+
+#: src/pages/shell/roleplay-story-mode.tsx
+msgid "Could not update story mode"
+msgstr ""
 
 #: src/pages/MemorySettingsOverlay.tsx
 msgid "Could not update the default memory scope"
@@ -2806,6 +2822,7 @@ msgstr "דחייה"
 #: src/pages/Board.tsx
 #: src/pages/shell/agent-import.tsx
 #: src/pages/shell/bot-panel.tsx
+#: src/pages/shell/roleplay-images.tsx
 #: src/pages/shell/roleplay-settings.tsx
 msgid "Description"
 msgstr "תיאור"
@@ -3061,6 +3078,7 @@ msgstr "נדרש אימות אימייל"
 msgid "Enable {0}"
 msgstr "הפעלת {0}"
 
+#: src/pages/shell/roleplay-images.tsx
 #: src/pages/shell/roleplay-settings.tsx
 msgid "Enabled"
 msgstr ""
@@ -3113,6 +3131,10 @@ msgstr "יש להזין מספר שלם בין 1 ל-{MAX_MODEL_MAX_TOKENS} עב�
 
 #: src/pages/model-settings/use-model-settings.ts
 msgid "Enter a whole number from 1 to {MAX_MODEL_TIMEOUT_MS} for request timeouts, or leave blank to use server defaults."
+msgstr ""
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Enter a whole number from 1 to 100."
 msgstr ""
 
 #: src/pages/model-settings/use-model-settings.ts
@@ -3382,6 +3404,7 @@ msgstr "חינם"
 msgid "Free plan ends {day}"
 msgstr "התוכנית החינמית מסתיימת ב-{day}"
 
+#: src/pages/shell/roleplay-images.tsx
 #: src/pages/shell/roleplay-settings.tsx
 msgid "Frequency"
 msgstr "תדירות"
@@ -3634,6 +3657,10 @@ msgstr "אם שמעת את זה, הקול מוכן."
 msgid "Ignore"
 msgstr "התעלמות"
 
+#: src/pages/shell/roleplay-images.tsx
+msgid "Image"
+msgstr ""
+
 #. js-lingui-explicit-id
 #: src/lib/run-error.ts
 msgid "Image input is not configured for this model."
@@ -3647,6 +3674,19 @@ msgstr "קלט תמונה לא מוגדר עבור המודל הזה."
 msgid "Image upload area"
 msgstr "אזור העלאת תמונה"
 
+#: src/pages/shell/roleplay-images.tsx
+msgid "Image URL"
+msgstr ""
+
+#: src/pages/shell/roleplay-images.tsx
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Images"
+msgstr ""
+
+#: src/pages/shell/roleplay-images.tsx
+msgid "Import"
+msgstr ""
+
 #: src/components/AccountDataSettings.tsx
 #: src/pages/shell/agent-import.tsx
 msgid "Import an agent"
@@ -3655,6 +3695,10 @@ msgstr "ייבוא סוכן"
 #: src/components/AccountDataSettings.tsx
 msgid "Import data"
 msgstr "ייבוא נתונים"
+
+#: src/pages/shell/roleplay-images.tsx
+msgid "Import from URL"
+msgstr ""
 
 #: src/pages/shell/create-bot-dialog.tsx
 msgid "Import warnings"
@@ -4665,6 +4709,10 @@ msgstr "ללא טריגר"
 msgid "Normal"
 msgstr "רגיל"
 
+#: src/pages/shell/roleplay-images.tsx
+msgid "Normal chat: turns between images"
+msgstr ""
+
 #: src/pages/shell/agent-import.tsx
 msgid "Not a valid skill"
 msgstr "מיומנות לא תקינה"
@@ -5457,6 +5505,10 @@ msgstr "הסרת אירוע Git"
 msgid "Remove header"
 msgstr "הסרת header"
 
+#: src/pages/shell/roleplay-images.tsx
+msgid "Remove image"
+msgstr ""
+
 #: src/pages/shell/roleplay-settings.tsx
 msgid "Remove lorebook"
 msgstr ""
@@ -5632,6 +5684,7 @@ msgstr "משחזר את סביבת העבודה"
 #: src/pages/PluginSubmissionsPanel.tsx
 #: src/pages/RoutineCalendar.tsx
 #: src/pages/shell/conversation-files-panel.tsx
+#: src/pages/shell/roleplay-story-mode.tsx
 #: src/pages/SpaceSettingOverrides.tsx
 msgid "Retry"
 msgstr "לנסות שוב"
@@ -5885,6 +5938,10 @@ msgstr ""
 
 #: src/pages/shell/roleplay-settings.tsx
 msgid "Scenario"
+msgstr ""
+
+#: src/pages/shell/roleplay-images.tsx
+msgid "Scene"
 msgstr ""
 
 #: src/pages/RoutineCalendar.tsx
@@ -6369,6 +6426,10 @@ msgstr ""
 msgid "Speech model"
 msgstr "מודל דיבור"
 
+#: src/pages/shell/roleplay-images.tsx
+msgid "Spontaneous images"
+msgstr ""
+
 #: src/pages/shell/roleplay-settings.tsx
 msgid "Spontaneous messages"
 msgstr "הודעות ספונטניות"
@@ -6494,6 +6555,14 @@ msgstr "נשמר מוצפן"
 
 #: src/pages/shell/roleplay-settings.tsx
 msgid "Story"
+msgstr ""
+
+#: src/pages/shell/roleplay-story-mode.tsx
+msgid "Story mode"
+msgstr ""
+
+#: src/pages/shell/roleplay-images.tsx
+msgid "Story mode: turns between images"
 msgstr ""
 
 #: src/pages/model-settings/request-timeout-fields.tsx
@@ -7119,6 +7188,10 @@ msgstr ""
 #: src/pages/shell/avatar-studio-popover.tsx
 msgid "Upload"
 msgstr "העלאה"
+
+#: src/pages/shell/roleplay-images.tsx
+msgid "Upload image"
+msgstr ""
 
 #: src/lib/ticket-priority.ts
 msgid "Urgent"

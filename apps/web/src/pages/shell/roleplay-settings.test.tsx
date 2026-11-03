@@ -46,8 +46,21 @@ vi.mock("@rakazo/ui-web", () => ({
   ),
 }));
 
+vi.mock("../../lib/rpc", () => ({
+  rpc: {
+    bots: {
+      importRoleplayMedia: vi.fn(),
+      roleplayMedia: vi.fn(),
+      updateRoleplayStoryMode: vi.fn(),
+    },
+    artifacts: { get: vi.fn(), create: vi.fn() },
+  },
+}));
+
+import { rpc } from "../../lib/rpc";
 import { RoleplayRelationshipDebug } from "./roleplay-relationship-debug";
 import { RoleplaySettings } from "./roleplay-settings";
+import { RoleplayStoryMode } from "./roleplay-story-mode";
 
 const initial: RoleplayCharacter = {
   name: "Mira",
@@ -494,4 +507,108 @@ it("loads relationship debug only when expanded and explicitly saves validated s
   await change("Love", "100");
   await click("Save changes");
   expect(save.mock.lastCall?.[0].revision).toBe("revision-two");
+});
+
+it("keeps album edits in the character draft and rejects invalid image intervals", async () => {
+  const character = {
+    ...initial,
+    media: {
+      enabled: true,
+      allowSpontaneous: false,
+      normalIntervalTurns: 6,
+      storyIntervalTurns: 2,
+      album: [
+        {
+          id: "image-one",
+          artifactId: "artifact-one",
+          description: "Harbor at dawn",
+          enabled: true,
+        },
+      ],
+    },
+  };
+  vi.mocked(rpc.artifacts.get).mockRejectedValue(new Error("No preview"));
+  await render(character);
+  await change("Description", "Harbor at dusk");
+  await change("Normal chat: turns between images", "0");
+  await click("Save changes");
+  expect(onSave).not.toHaveBeenCalled();
+  await change("Normal chat: turns between images", "8");
+  await click("Save changes");
+  expect(onSave.mock.lastCall?.[0].media?.album[0]?.description).toBe("Harbor at dusk");
+  expect(onSave.mock.lastCall?.[1]).toEqual(character);
+  await click("Remove image");
+  await click("Discard");
+  expect(field("Description").value).toBe("Harbor at dawn");
+});
+
+it("loads persisted story mode, refreshes after turns, and sends the current revision", async () => {
+  const snapshot = {
+    artifacts: [],
+    storyMode: true,
+    scene: "The harbor at dusk",
+    historyGeneration: 2,
+    revision: "one",
+  };
+  vi.mocked(rpc.bots.roleplayMedia).mockResolvedValue(snapshot);
+  vi.mocked(rpc.bots.updateRoleplayStoryMode).mockResolvedValue({
+    ...snapshot,
+    storyMode: false,
+    revision: "two",
+  });
+  await act(async () => root.render(<RoleplayStoryMode botId="bot-one" refreshKey="turn-one" />));
+  expect(container.textContent).toContain("The harbor at dusk");
+  vi.mocked(rpc.bots.roleplayMedia).mockResolvedValue({
+    ...snapshot,
+    storyMode: false,
+    revision: "two",
+  });
+  await click("Story mode");
+  expect(rpc.bots.updateRoleplayStoryMode).toHaveBeenLastCalledWith({
+    botId: "bot-one",
+    enabled: false,
+    historyGeneration: 2,
+    expectedRevision: "one",
+  });
+  expect(container.querySelector('[aria-pressed="false"]')).not.toBeNull();
+  vi.mocked(rpc.bots.roleplayMedia).mockResolvedValue({
+    ...snapshot,
+    scene: "The lighthouse",
+    revision: "three",
+  });
+  await act(async () => root.render(<RoleplayStoryMode botId="bot-one" refreshKey="turn-two" />));
+  expect(container.textContent).toContain("The lighthouse");
+});
+
+it("keeps save and discard disabled while an album import is pending", async () => {
+  let finish!: (value: Awaited<ReturnType<typeof rpc.bots.importRoleplayMedia>>) => void;
+  vi.mocked(rpc.bots.importRoleplayMedia).mockReturnValue(
+    new Promise((resolve) => {
+      finish = resolve;
+    }),
+  );
+  vi.mocked(rpc.artifacts.get).mockRejectedValue(new Error("No preview"));
+  await render({
+    ...initial,
+    media: {
+      enabled: true,
+      allowSpontaneous: false,
+      normalIntervalTurns: 6,
+      storyIntervalTurns: 2,
+      album: [],
+    },
+  });
+  await change("Character name", "Mira Vale");
+  await change("Image URL", "https://example.com/harbor.png");
+  await click("Import");
+  const action = (label: string) =>
+    [...container.querySelectorAll("button")].find((button) => button.textContent === label)!;
+  expect(action("Save changes").disabled).toBe(true);
+  expect(action("Discard").disabled).toBe(true);
+  await act(async () =>
+    finish({ id: "imported-image", name: "Harbor", mimeType: "image/png" } as never),
+  );
+  expect(action("Save changes").disabled).toBe(false);
+  await click("Save changes");
+  expect(onSave.mock.lastCall?.[0].media?.album[0]?.artifactId).toBe("imported-image");
 });

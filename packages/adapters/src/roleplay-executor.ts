@@ -1,9 +1,15 @@
 import { runContinueJob } from "@rakazo/adapter-kit";
-import type { RoleplayContinuity } from "@rakazo/contracts";
-import { RoleplayCharacterSchema, RoleplayContinuitySchema } from "@rakazo/contracts";
+import type { MessageBlock, RoleplayContinuity } from "@rakazo/contracts";
+import {
+  isAttachmentImageMimeType,
+  RoleplayCharacterSchema,
+  RoleplayContinuitySchema,
+} from "@rakazo/contracts";
 import type { RoleplayMessage, RoleplayStoryState, RoleplayTemporalContext } from "@rakazo/core";
 import {
   buildRoleplayContinuityRequest,
+  buildRoleplayDirectionRequest,
+  buildRoleplayMediaContext,
   buildRoleplayPrompt,
   buildRoleplaySpontaneousRequest,
   buildRoleplayTemporalContext,
@@ -13,13 +19,16 @@ import {
   formatRoleplayMessageContent,
   MISSING_MODEL_RUN_ERROR,
   parseRoleplayContinuity,
+  parseRoleplayDirection,
   parseRoleplaySpontaneousDecision,
   redactSecrets,
+  roleplayMediaState,
   roleplayMemoryWindow,
   roleplayMessageTokens,
   roleplayStoryState,
   roleplayTokens,
   STEERING_CONTINUATION_PROMPT,
+  selectRoleplayImage,
   splitRoleplayChatMessages,
   stripRoleplayMetadata,
   updateRoleplayRelationshipState,
@@ -90,10 +99,20 @@ export async function assertRoleplayEnvironment(
   if (kind !== "docker") throw new Error("Roleplay requires the Docker sandbox provider");
 }
 
-function narrativeText(blocks: unknown): string {
+function narrativeText(blocks: unknown, includeImages = false): string {
   if (!Array.isArray(blocks)) return "";
   return blocks
     .flatMap((block: unknown) => {
+      if (
+        includeImages &&
+        block &&
+        typeof block === "object" &&
+        "kind" in block &&
+        block.kind === "image" &&
+        "description" in block &&
+        typeof block.description === "string"
+      )
+        return [`[Shared image: ${block.description.slice(0, 800)}]`];
       if (
         !block ||
         typeof block !== "object" ||
@@ -314,6 +333,19 @@ export async function executeRoleplayRun(
       botId: bot.id,
       historyGeneration: thread.historyCompactionGeneration,
     });
+    const initialMedia = roleplayMediaState(state.media);
+    const hasMediaDirection = !autonomous || Boolean(character.media || state.media);
+    const mediaGuard = hasMediaDirection
+      ? {
+          revision: initialMedia.revision,
+          historyGeneration: thread.historyCompactionGeneration,
+          characterMedia: JSON.stringify(character.media ?? null),
+        }
+      : undefined;
+    let selectedImage: ReturnType<typeof selectRoleplayImage>;
+    let imageRequested = false;
+    let imageBlock: MessageBlock | undefined;
+    let mediaContext = hasMediaDirection ? buildRoleplayMediaContext(initialMedia) : undefined;
     // A queued message gets its own story turn after the previous answer commits.
     // Claim it once so successful finalization consumes it instead of scheduling it again.
     const steering =
@@ -411,7 +443,7 @@ export async function executeRoleplayRun(
     let history: RoleplayMessage[] = [
       ...state.retainedInputs,
       ...messages.flatMap((message) => {
-        const content = narrativeText(message.blocks);
+        const content = narrativeText(message.blocks, message.role === "bot");
         return content.trim()
           ? [
               {
@@ -451,10 +483,12 @@ export async function executeRoleplayRun(
       : scheduled
         ? "deliver"
         : "manage";
-    const availableInput = contextWindow - outputBudget - 1024 - (spontaneous ? 768 : 0);
+    const availableInput =
+      contextWindow - outputBudget - (hasMediaDirection ? 768 : 1024) - (spontaneous ? 768 : 0);
     let toolBudget = scheduling ? roleplayTokens(JSON.stringify(scheduling.tools)) : 0;
     const initialInput = {
       character,
+      mediaContext,
       history: [],
       prompt: spontaneous ? "" : promptText,
       temporal,
@@ -465,7 +499,19 @@ export async function executeRoleplayRun(
       relationshipState: state.continuity?.relationshipState,
       loreTokenLimit: 0,
     };
-    const withScheduling = buildRoleplayPrompt(initialInput);
+    let withScheduling = buildRoleplayPrompt(initialInput);
+    // A saved scene is optional prompt context and may outlive a switch to a smaller model.
+    // Fit it before deciding whether mandatory dialogue or scheduling context can fit.
+    if (
+      hasMediaDirection &&
+      initialMedia.scene &&
+      roleplayTokens(withScheduling.instructions + withScheduling.prompt) + 32 + toolBudget >
+        availableInput
+    ) {
+      mediaContext = buildRoleplayMediaContext({ ...initialMedia, scene: "" });
+      initialInput.mediaContext = mediaContext;
+      withScheduling = buildRoleplayPrompt(initialInput);
+    }
     // A small model still supports dialogue when its mandatory context cannot also fit tools.
     // Capability instructions follow the actual advertised surface, never an imaginary timer.
     if (
@@ -511,21 +557,168 @@ export async function executeRoleplayRun(
       history = window.recent;
     }
     const historyTokens = history.reduce((sum, message) => sum + roleplayMessageTokens(message), 0);
-    const fitted = boundedContinuityPrompt(
-      {
-        character,
-        history,
-        prompt: spontaneous ? "" : promptText,
-        temporal,
-        currentInputs,
-        scheduleMode,
-        summary: state.summary,
-        continuity: promptContinuity,
-        relationshipState: initialInput.relationshipState,
-        loreTokenLimit: 0,
-      },
-      inputBudget - historyTokens,
-    );
+    if (hasMediaDirection && !autonomous) {
+      let directionHistory = history.slice(-12);
+      let directionCharacter = character;
+      let directionSummary = state.summary;
+      let directionRequest = buildRoleplayDirectionRequest({
+        character: directionCharacter,
+        state: initialMedia,
+        history: directionHistory,
+        prompt: promptText,
+        summary: directionSummary,
+      });
+      const directionFits = () =>
+        roleplayTokens(directionRequest.instructions + directionRequest.prompt) + 32 <=
+        contextWindow - Math.min(outputBudget, 768) - 256;
+      while (!directionFits() && directionHistory.length) {
+        directionHistory = directionHistory.slice(1);
+        directionRequest = buildRoleplayDirectionRequest({
+          character: directionCharacter,
+          state: initialMedia,
+          history: directionHistory,
+          prompt: promptText,
+          summary: directionSummary,
+        });
+      }
+      while (!directionFits() && directionCharacter.media?.album.length) {
+        directionCharacter = {
+          ...directionCharacter,
+          media: {
+            ...directionCharacter.media,
+            album: directionCharacter.media.album.slice(0, -1),
+          },
+        };
+        directionRequest = buildRoleplayDirectionRequest({
+          character: directionCharacter,
+          state: initialMedia,
+          history: directionHistory,
+          prompt: promptText,
+          summary: directionSummary,
+        });
+      }
+      if (!directionFits()) {
+        directionSummary = "";
+        directionRequest = buildRoleplayDirectionRequest({
+          character: directionCharacter,
+          state: initialMedia,
+          history: directionHistory,
+          prompt: promptText,
+          summary: directionSummary,
+        });
+      }
+      if (directionFits()) {
+        try {
+          const raw = await collectRoleplayText(
+            runtime,
+            {
+              ...base,
+              ...directionRequest,
+              purpose: "direction",
+              model: { ...model, maxTokens: Math.min(outputBudget, 768) },
+            },
+            AbortSignal.any([signal, AbortSignal.timeout(60_000)]),
+            4_096,
+          );
+          const direction = parseRoleplayDirection(redactSecrets(raw, secrets));
+          if (direction) {
+            selectedImage = selectRoleplayImage({
+              character: directionCharacter,
+              state: initialMedia,
+              direction,
+            });
+            imageRequested = Boolean(selectedImage && direction.imageRequested);
+            state.media = {
+              ...initialMedia,
+              storyMode: direction.storyMode,
+              scene: direction.scene,
+            };
+          }
+        } catch {
+          signal.throwIfAborted();
+        }
+      }
+      // Check availability before dialogue can describe the selected attachment.
+      if (selectedImage) {
+        const artifact = await deps.prisma.artifact.findFirst({
+          where: {
+            id: selectedImage.artifactId,
+            spaceId: run.spaceId,
+            userId: run.userId,
+            botId: run.botId,
+            groupId: null,
+            uploadThreadId: null,
+            mimeType: { startsWith: "image/" },
+          },
+          select: { id: true, mimeType: true, name: true },
+        });
+        if (artifact && isAttachmentImageMimeType(artifact.mimeType))
+          imageBlock = {
+            kind: "image",
+            artifactId: artifact.id,
+            mimeType: artifact.mimeType,
+            name: artifact.name,
+            description: selectedImage.description,
+          };
+        else selectedImage = undefined;
+      }
+      mediaContext = buildRoleplayMediaContext(state.media ?? initialMedia, selectedImage);
+    }
+    const spontaneousCatalog =
+      spontaneous && hasMediaDirection
+        ? (character.media?.album ?? [])
+            .filter((entry) =>
+              selectRoleplayImage({
+                character,
+                state: initialMedia,
+                direction: {
+                  storyMode: initialMedia.storyMode,
+                  scene: initialMedia.scene,
+                  imageId: entry.id,
+                  imageRequested: false,
+                },
+                spontaneous: true,
+              }),
+            )
+            .map(({ id, description, scene }) => ({ id, description, scene }))
+        : [];
+    // Spontaneous selection happens in the existing bounded send/skip completion.
+    if (spontaneous && hasMediaDirection)
+      mediaContext = spontaneousCatalog.length
+        ? `Story direction: ${JSON.stringify({ storyMode: initialMedia.storyMode, scene: initialMedia.scene })}. Only a selected availableAlbumImages catalog item can be attached. Do not claim to send media otherwise.`
+        : buildRoleplayMediaContext(initialMedia);
+    const fitDialogue = () =>
+      boundedContinuityPrompt(
+        {
+          character,
+          mediaContext,
+          history,
+          prompt: spontaneous ? "" : promptText,
+          temporal,
+          currentInputs,
+          scheduleMode,
+          summary: state.summary,
+          continuity: promptContinuity,
+          relationshipState: initialInput.relationshipState,
+          loreTokenLimit: 0,
+        },
+        inputBudget - historyTokens,
+      );
+    let fitted = fitDialogue();
+    const fitsDialogue = () =>
+      roleplayTokens(fitted.prompt.instructions + fitted.prompt.prompt) + historyTokens + 32 <=
+      inputBudget;
+    // An optional illustration must never crowd out the player's dialogue on a small model.
+    if (!fitsDialogue() && imageBlock) {
+      selectedImage = undefined;
+      imageBlock = undefined;
+      mediaContext = buildRoleplayMediaContext(state.media ?? initialMedia);
+      fitted = fitDialogue();
+    }
+    if (!fitsDialogue() && hasMediaDirection) {
+      mediaContext = buildRoleplayMediaContext({ ...(state.media ?? initialMedia), scene: "" });
+      fitted = fitDialogue();
+    }
     promptContinuity = fitted.continuity;
     const withoutLore = fitted.prompt;
     const remaining =
@@ -535,18 +728,31 @@ export async function executeRoleplayRun(
       32;
     if (remaining < 0) throw new Error("This story exceeds the model context window");
     const promptBuilder = spontaneous ? buildRoleplaySpontaneousRequest : buildRoleplayPrompt;
-    const prompt = promptBuilder({
-      character,
-      history,
-      prompt: spontaneous ? "" : promptText,
-      temporal,
-      currentInputs,
-      scheduleMode,
-      summary: state.summary,
-      continuity: promptContinuity,
-      relationshipState: initialInput.relationshipState,
-      loreTokenLimit: remaining,
-    });
+    const buildPrompt = () =>
+      promptBuilder({
+        character,
+        mediaContext,
+        ...(spontaneousCatalog.length ? { mediaCatalog: spontaneousCatalog } : {}),
+        history,
+        prompt: spontaneous ? "" : promptText,
+        temporal,
+        currentInputs,
+        scheduleMode,
+        summary: state.summary,
+        continuity: promptContinuity,
+        relationshipState: initialInput.relationshipState,
+        loreTokenLimit: remaining,
+      });
+    let prompt = buildPrompt();
+    while (
+      spontaneousCatalog.length &&
+      roleplayTokens(prompt.instructions + prompt.prompt) + historyTokens + 32 > inputBudget
+    ) {
+      spontaneousCatalog.pop();
+      prompt = buildPrompt();
+    }
+    if (roleplayTokens(prompt.instructions + prompt.prompt) + historyTokens + 32 > inputBudget)
+      throw new Error("This story exceeds the model context window");
     await deps.events.append({
       spaceId: run.spaceId,
       threadId: thread.id,
@@ -574,8 +780,46 @@ export async function executeRoleplayRun(
         16_384,
       );
       const decision = parseRoleplaySpontaneousDecision(redactSecrets(raw, secrets));
+      if (decision?.decision === "send" && decision.imageId) {
+        const listed = spontaneousCatalog.some((image) => image.id === decision.imageId);
+        selectedImage = listed
+          ? selectRoleplayImage({
+              character,
+              state: initialMedia,
+              direction: {
+                storyMode: initialMedia.storyMode,
+                scene: initialMedia.scene,
+                imageId: decision.imageId,
+                imageRequested: false,
+              },
+              spontaneous: true,
+            })
+          : undefined;
+        if (selectedImage) {
+          const artifact = await deps.prisma.artifact.findFirst({
+            where: {
+              id: selectedImage.artifactId,
+              spaceId: run.spaceId,
+              userId: run.userId,
+              botId: run.botId,
+              groupId: null,
+              uploadThreadId: null,
+              mimeType: { startsWith: "image/" },
+            },
+            select: { id: true, mimeType: true, name: true },
+          });
+          if (artifact && isAttachmentImageMimeType(artifact.mimeType))
+            imageBlock = {
+              kind: "image",
+              artifactId: artifact.id,
+              mimeType: artifact.mimeType,
+              name: artifact.name,
+              description: selectedImage.description,
+            };
+        }
+      }
       spontaneousReplies =
-        decision?.decision === "send"
+        decision?.decision === "send" && (!decision.imageId || imageBlock)
           ? decision.messages
               .map((text) => stripRoleplayMetadata(text, userMessages).trim())
               .filter(Boolean)
@@ -589,7 +833,7 @@ export async function executeRoleplayRun(
       let pending = "";
       let lastProgress = 0;
       const publishProgress = async (force = false) => {
-        if (!pending || (!force && Date.now() - lastProgress < 100)) return;
+        if (imageBlock || !pending || (!force && Date.now() - lastProgress < 100)) return;
         await deps.events.append({
           spaceId: run.spaceId,
           threadId: thread.id,
@@ -658,7 +902,10 @@ export async function executeRoleplayRun(
           {
             seq: thread.nextMessageSeq,
             role: "assistant",
-            content: reply,
+            content:
+              imageBlock && selectedImage
+                ? `${reply}\n[Shared image: ${selectedImage.description}]`
+                : reply,
             createdAt: new Date().toISOString(),
           },
         ],
@@ -691,6 +938,19 @@ export async function executeRoleplayRun(
     const replies =
       spontaneousReplies ??
       (character.conversationStyle === "chat" ? splitRoleplayChatMessages(reply) : [reply]);
+    if (hasMediaDirection && replies.length) {
+      const media = state.media ?? initialMedia;
+      state.media = {
+        ...media,
+        revision: initialMedia.revision + 1,
+        turn: initialMedia.turn + 1,
+        lastImageTurn: imageBlock ? initialMedia.turn + 1 : initialMedia.lastImageTurn,
+        sentImageIds:
+          imageBlock && selectedImage
+            ? [...new Set([...initialMedia.sentImageIds, selectedImage.id])].slice(-32)
+            : initialMedia.sentImageIds,
+      };
+    }
     const result = await deps.events.finalizeRun({
       spaceId: run.spaceId,
       threadId: thread.id,
@@ -701,7 +961,17 @@ export async function executeRoleplayRun(
       leaseOwner: workerId,
       leaseFence: fence,
       outcome: "completed",
-      blocks: replies.length ? [{ kind: "text", text: replies[0]! }] : [],
+      blocks: replies.length
+        ? [{ kind: "text", text: replies[0]! }, ...(imageBlock ? [imageBlock] : [])]
+        : [],
+      ...(mediaGuard && replies.length
+        ? {
+            roleplayMediaGuard: {
+              ...mediaGuard,
+              ...(imageBlock && imageRequested && !autonomous ? { imageRequested: true } : {}),
+            },
+          }
+        : {}),
       ...(spontaneousGuard ? { spontaneousGuard } : {}),
       ...(autonomous ? { markUnread: true } : {}),
       ...(replies.length > 1

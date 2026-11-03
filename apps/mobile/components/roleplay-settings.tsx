@@ -14,6 +14,7 @@ import { errorText } from "../lib/user-error";
 import { MenuPicker } from "./menu-picker";
 import { NativeActionButton } from "./native-action-button";
 import { NativeSwitch } from "./native-switch";
+import { RoleplayImages } from "./roleplay-images";
 import { Chevron } from "./row-accessories";
 
 type Lorebook = NonNullable<RoleplayCharacter["lorebook"]>;
@@ -66,12 +67,14 @@ export type RoleplaySettingsHandle = { save: () => Promise<boolean> };
 
 /** The bot id keys this component; refreshes may update the saved baseline but never a dirty draft. */
 export function RoleplaySettings({
+  botId,
   character,
   disabled = false,
   onSave,
   onStateChange,
   ref,
 }: {
+  botId?: string;
   character: RoleplayCharacter;
   disabled?: boolean;
   onSave: (character: RoleplayCharacter, expected: RoleplayCharacter) => Promise<RoleplayCharacter>;
@@ -85,11 +88,12 @@ export function RoleplaySettings({
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [failure, setFailure] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  const [addingImage, setAddingImage] = useState(false);
   const saving = useRef(false);
   const lastReceivedCharacter = useRef(character);
   const [showErrors, setShowErrors] = useState(false);
   const dirty = JSON.stringify(draft) !== JSON.stringify(draftFrom(baseline));
-  const inactive = pending || disabled;
+  const inactive = pending || disabled || addingImage;
 
   useEffect(() => {
     if (lastReceivedCharacter.current === character) return;
@@ -100,8 +104,8 @@ export function RoleplaySettings({
     }
   }, [character, dirty]);
   useEffect(() => {
-    onStateChange?.({ dirty, pending });
-  }, [dirty, pending, onStateChange]);
+    onStateChange?.({ dirty, pending: pending || addingImage });
+  }, [dirty, pending, addingImage, onStateChange]);
 
   function update(change: Partial<Draft>) {
     setDraft((value) => ({ ...value, ...change }));
@@ -129,7 +133,7 @@ export function RoleplaySettings({
     setShowErrors(false);
   }
   async function save() {
-    if (saving.current || disabled) return false;
+    if (saving.current || disabled || addingImage) return false;
     if (!dirty) return true;
     const parsed = RoleplayCharacterSchema.safeParse(characterFrom(draft));
     if (!parsed.success) {
@@ -138,10 +142,26 @@ export function RoleplaySettings({
         const path = issue.path.join(".");
         const last = issue.path.at(-1);
         next[path] =
-          last === "scanDepth" || last === "tokenBudget" || last === "insertionOrder"
+          last === "scanDepth" ||
+          last === "tokenBudget" ||
+          last === "insertionOrder" ||
+          last === "normalIntervalTurns" ||
+          last === "storyIntervalTurns"
             ? t("Enter a whole number from {min} to {max}.", {
-                min: last === "insertionOrder" ? -100000 : 0,
-                max: last === "scanDepth" ? 100 : last === "tokenBudget" ? 32768 : 100000,
+                min:
+                  last === "insertionOrder"
+                    ? -100000
+                    : last === "normalIntervalTurns" || last === "storyIntervalTurns"
+                      ? 1
+                      : 0,
+                max:
+                  last === "scanDepth" ||
+                  last === "normalIntervalTurns" ||
+                  last === "storyIntervalTurns"
+                    ? 100
+                    : last === "tokenBudget"
+                      ? 32768
+                      : 100000,
               })
             : issue.message;
       }
@@ -171,7 +191,10 @@ export function RoleplaySettings({
   useImperativeHandle(ref, () => ({ save }));
 
   const field = (
-    key: keyof Omit<Draft, "lorebook" | "alternateGreetings" | "conversationStyle" | "spontaneous">,
+    key: keyof Omit<
+      Draft,
+      "lorebook" | "alternateGreetings" | "conversationStyle" | "spontaneous" | "media"
+    >,
     label: string,
   ) => (
     <Field
@@ -187,6 +210,18 @@ export function RoleplaySettings({
   const book = draft.lorebook;
   return (
     <View style={styles.editor}>
+      {botId ? (
+        <Disclosure title={t("Images")} forceOpen={showErrors}>
+          <RoleplayImages
+            botId={botId}
+            value={draft.media}
+            errors={errors}
+            onPendingChange={setAddingImage}
+            disabled={inactive}
+            onChange={(media) => update({ media })}
+          />
+        </Disclosure>
+      ) : null}
       <Disclosure title={t("Character")} initiallyOpen forceOpen={showErrors}>
         <MenuPicker
           label={t("Conversation style")}

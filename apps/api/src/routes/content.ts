@@ -4,7 +4,7 @@ import { resolveBotWorkspacePath } from "@rakazo/adapters";
 import type { ExportManifest } from "@rakazo/contracts";
 import { attachmentMaxBytes, resolveBotAvatarSet } from "@rakazo/contracts";
 import { AttachmentValidationError } from "@rakazo/core";
-import { IsolationError, parseComputerMode } from "@rakazo/db";
+import { IsolationError, isRoleplayEnabled, parseComputerMode } from "@rakazo/db";
 import {
   ArtifactListCursorError,
   createOwnedArtifact,
@@ -74,11 +74,17 @@ export function contentRoutes(ctx: RouterContext) {
         const taskTarget = input.taskId
           ? await resolveThreadTarget(deps.prisma, context.actor, { taskId: input.taskId })
           : null;
+        const directBot = input.botId ? await repos.getBot(context.actor, input.botId) : null;
+        if (
+          directBot?.botKind === "roleplay" &&
+          !(await isRoleplayEnabled(deps.prisma, context.actor.userId))
+        )
+          throw new ORPCError("FORBIDDEN", { message: "Roleplay is not enabled" });
         const botId =
           taskTarget?.kind === "bot"
             ? taskTarget.botId
             : input.botId
-              ? (await repos.getBot(context.actor, input.botId)).id
+              ? directBot!.id
               : (await groupRepos.getGroupTarget(context.actor, input.groupId!)).members[0]?.bot.id;
         if (!botId) throw new IsolationError();
         try {

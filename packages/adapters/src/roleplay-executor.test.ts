@@ -261,6 +261,13 @@ function fixture() {
       create: vi.fn(async () => ({ id: "attempt" })),
       updateMany: vi.fn(async () => ({ count: 1 })),
     },
+    artifact: {
+      findFirst: vi.fn(async () => ({
+        id: "art-forest",
+        mimeType: "image/png",
+        name: "forest.png",
+      })),
+    },
     connection: { findMany: forbidden },
     agentSecret: { findMany: forbidden },
     taughtSkill: { findMany: forbidden },
@@ -287,6 +294,10 @@ function fixture() {
     browser: {},
   } as unknown as ExecutorDeps;
   return { deps, run, thread, bot, rows, requests, runtime, forbidden, finalizeRun, prisma, user };
+}
+
+function visibleRequests(f: { requests: RoleplayRunRequest[] }) {
+  return f.requests.filter((request) => request.purpose !== "direction");
 }
 
 beforeEach(() => {
@@ -336,8 +347,8 @@ describe("roleplay chat continuity", () => {
       continuity: { ...continuity, relationshipState },
     };
     await execute(f);
-    expect(f.requests[0]!.purpose).toBe("dialogue");
-    expect(f.requests[0]!.instructions).toContain(
+    expect(visibleRequests(f)[0]!.purpose).toBe("dialogue");
+    expect(visibleRequests(f)[0]!.instructions).toContain(
       buildRoleplayRelationshipContext(relationshipState),
     );
     expect(f.thread.roleplayState).toMatchObject({
@@ -357,6 +368,10 @@ describe("roleplay chat continuity", () => {
       continuity: { ...continuity, relationshipState },
     };
     f.runtime.run = vi.fn(async function* (request) {
+      if (request.purpose === "direction") {
+        yield { type: "done" as const, text: "{}" };
+        return;
+      }
       f.requests.push(request);
       yield {
         type: "done" as const,
@@ -364,7 +379,7 @@ describe("roleplay chat continuity", () => {
       };
     });
     await execute(f);
-    expect(f.requests[0]!.instructions).toContain(
+    expect(visibleRequests(f)[0]!.instructions).toContain(
       buildRoleplayRelationshipContext(relationshipState),
     );
     expect(f.thread.roleplayState).toMatchObject({
@@ -401,6 +416,10 @@ describe("roleplay chat continuity", () => {
       false,
     );
     f.runtime.run = vi.fn(async function* (request) {
+      if (request.purpose === "direction") {
+        yield { type: "done" as const, text: "{}" };
+        return;
+      }
       f.requests.push(request);
       yield {
         type: "done" as const,
@@ -433,16 +452,20 @@ describe("roleplay chat continuity", () => {
       continuity: { ...continuity, relationshipState },
     };
     await execute(f);
-    expect(f.requests.map((request) => request.purpose)).toEqual(["dialogue"]);
-    expect(f.requests[0]!.instructions).toContain(
+    expect(visibleRequests(f).map((request) => request.purpose)).toEqual(["dialogue"]);
+    expect(visibleRequests(f)[0]!.instructions).toContain(
       buildRoleplayRelationshipContext(relationshipState),
     );
-    expect(f.requests[0]!.instructions).not.toContain(JSON.stringify(continuity));
+    expect(visibleRequests(f)[0]!.instructions).not.toContain(JSON.stringify(continuity));
   });
 
   it("commits three real chat bubbles with a redacted, scoped continuity snapshot", async () => {
     const f = chatFixture();
     f.runtime.run = vi.fn(async function* (request) {
+      if (request.purpose === "direction") {
+        yield { type: "done" as const, text: "{}" };
+        return;
+      }
       f.requests.push(request);
       const text =
         request.purpose === "continuity"
@@ -456,9 +479,12 @@ describe("roleplay chat continuity", () => {
       yield { type: "done" as const, text };
     });
     await execute(f);
-    expect(f.requests.map((request) => request.purpose)).toEqual(["dialogue", "continuity"]);
-    expect(f.requests[0]!.instructions).toContain(continuity.scene);
-    const extracted = f.requests[1]!;
+    expect(visibleRequests(f).map((request) => request.purpose)).toEqual([
+      "dialogue",
+      "continuity",
+    ]);
+    expect(visibleRequests(f)[0]!.instructions).toContain(continuity.scene);
+    const extracted = visibleRequests(f)[1]!;
     expect(extracted.model.maxTokens).toBe(2048);
     expect(extracted.history).toEqual([]);
     const data = JSON.parse(extracted.prompt);
@@ -498,6 +524,10 @@ describe("roleplay chat continuity", () => {
     async (failure) => {
       const f = chatFixture();
       f.runtime.run = vi.fn(async function* (request) {
+        if (request.purpose === "direction") {
+          yield { type: "done" as const, text: "{}" };
+          return;
+        }
         f.requests.push(request);
         if (request.purpose === "continuity" && failure === "provider error")
           throw new Error("Unavailable");
@@ -524,8 +554,8 @@ describe("roleplay chat continuity", () => {
     const f = chatFixture();
     f.bot.roleplayCharacter = { ...character, conversationStyle: "narrative" };
     await execute(f);
-    expect(f.requests.map((request) => request.purpose)).toEqual(["dialogue"]);
-    expect(f.requests[0]!.instructions).not.toContain(continuity.scene);
+    expect(visibleRequests(f).map((request) => request.purpose)).toEqual(["dialogue"]);
+    expect(visibleRequests(f)[0]!.instructions).not.toContain(continuity.scene);
     expect(f.thread.roleplayState).toMatchObject({ continuity });
     expect(f.finalizeRun.mock.calls[0]![0]).not.toHaveProperty("additionalMessages");
   });
@@ -547,6 +577,10 @@ describe("roleplay chat continuity", () => {
         maxTokens,
       });
       f.runtime.run = vi.fn(async function* (request) {
+        if (request.purpose === "direction") {
+          yield { type: "done" as const, text: "{}" };
+          return;
+        }
         f.requests.push(request);
         yield {
           type: "done" as const,
@@ -554,8 +588,11 @@ describe("roleplay chat continuity", () => {
         };
       });
       await execute(f);
-      expect(f.requests.map((request) => request.purpose)).toEqual(["dialogue", "continuity"]);
-      for (const request of f.requests) {
+      expect(visibleRequests(f).map((request) => request.purpose)).toEqual([
+        "dialogue",
+        "continuity",
+      ]);
+      for (const request of visibleRequests(f)) {
         expect(request.model.maxTokens).toBe(expected);
         const input =
           roleplayTokens(request.instructions + request.prompt) +
@@ -584,6 +621,10 @@ describe("roleplay chat continuity", () => {
     });
     let extractionSignal: AbortSignal | undefined;
     f.runtime.run = vi.fn(async function* (request, signal) {
+      if (request.purpose === "direction") {
+        yield { type: "done" as const, text: "{}" };
+        return;
+      }
       f.requests.push(request);
       if (request.purpose === "dialogue") {
         yield { type: "done" as const, text: "Onward." };
@@ -620,6 +661,10 @@ describe("roleplay chat continuity", () => {
     });
     let extractionSignal: AbortSignal | undefined;
     f.runtime.run = vi.fn(async function* (request, signal) {
+      if (request.purpose === "direction") {
+        yield { type: "done" as const, text: "{}" };
+        return;
+      }
       if (request.purpose === "dialogue") {
         yield { type: "done" as const, text: "Onward." };
         return;
@@ -654,6 +699,10 @@ describe("roleplay chat continuity", () => {
       const controller = new AbortController();
       f.deps.shutdownSignal = controller.signal;
       f.runtime.run = vi.fn(async function* (request) {
+        if (request.purpose === "direction") {
+          yield { type: "done" as const, text: "{}" };
+          return;
+        }
         if (request.purpose === "continuity") {
           if (loss === "cancel") controller.abort();
           else {
@@ -699,7 +748,7 @@ describe("roleplay chat continuity", () => {
     const dialogue = f.requests.find((request) => request.purpose === "dialogue")!;
     expect(dialogue.instructions).toContain(continuity.scene);
     expect(f.thread.roleplayState).toMatchObject({ continuity, summary: "Scoped story memory." });
-    for (const request of f.requests) {
+    for (const request of visibleRequests(f)) {
       const input =
         roleplayTokens(request.instructions + request.prompt) +
         request.history.reduce((sum, message) => sum + roleplayTokens(message.content) + 8, 0) +
@@ -735,14 +784,14 @@ describe("roleplay chat continuity", () => {
       });
       await execute(f);
       expect(f.run.status).toBe("completed");
-      expect(f.requests[0]!.purpose).toBe("dialogue");
+      expect(visibleRequests(f)[0]!.purpose).toBe("dialogue");
       if (large.relationshipState)
-        expect(f.requests[0]!.instructions).toContain(
+        expect(visibleRequests(f)[0]!.instructions).toContain(
           buildRoleplayRelationshipContext(large.relationshipState),
         );
-      expect(f.requests[0]!.instructions).not.toContain(JSON.stringify(large));
+      expect(visibleRequests(f)[0]!.instructions).not.toContain(JSON.stringify(large));
       expect(f.thread.roleplayState).toMatchObject({ continuity: large });
-      for (const request of f.requests) {
+      for (const request of visibleRequests(f)) {
         const cost =
           roleplayTokens(request.instructions + request.prompt) +
           request.history.reduce((sum, message) => sum + roleplayTokens(message.content) + 8, 0) +
@@ -775,6 +824,10 @@ describe("roleplay chat continuity", () => {
       });
       const updated = { ...continuity, scene: "By the stream" };
       f.runtime.run = vi.fn(async function* (request) {
+        if (request.purpose === "direction") {
+          yield { type: "done" as const, text: "{}" };
+          return;
+        }
         f.requests.push(request);
         yield {
           type: "done" as const,
@@ -809,6 +862,10 @@ describe("roleplay chat continuity", () => {
     });
     let extractionSignal: AbortSignal | undefined;
     f.runtime.run = vi.fn(async function* (request, signal) {
+      if (request.purpose === "direction") {
+        yield { type: "done" as const, text: "{}" };
+        return;
+      }
       if (request.purpose === "dialogue") {
         yield { type: "done" as const, text: "Onward." };
         return;
@@ -847,8 +904,8 @@ describe("roleplay executor boundary", () => {
       expect.anything(),
       expect.objectContaining({ kind: "completion", body: "Aria lifts the lantern." }),
     );
-    expect(f.requests).toHaveLength(1);
-    expect(f.requests[0]!.history.map((message) => message.content)).toEqual([
+    expect(visibleRequests(f)).toHaveLength(1);
+    expect(visibleRequests(f)[0]!.history.map((message) => message.content)).toEqual([
       "The gate opens.",
       "Earlier scene.",
       "We found a map.",
@@ -863,8 +920,8 @@ describe("roleplay executor boundary", () => {
       "UNCLAIMED FUTURE INPUT",
     ])
       expect(sent).not.toContain(secret);
-    expect(f.requests[0]).not.toHaveProperty("tools");
-    expect(f.requests[0]).not.toHaveProperty("executeTool");
+    expect(visibleRequests(f)[0]).not.toHaveProperty("tools");
+    expect(visibleRequests(f)[0]).not.toHaveProperty("executeTool");
     expect(f.forbidden).not.toHaveBeenCalled();
     expect(f.thread.roleplayState).toMatchObject({
       threadId: "story",
@@ -881,7 +938,7 @@ describe("roleplay executor boundary", () => {
     await createRunExecutor(f.deps).continueRun(f.run.id, "worker");
     expect(f.run.status).toBe("completed");
     expect(f.run.leaseFence).toBe(2);
-    expect(f.requests).toHaveLength(1);
+    expect(visibleRequests(f)).toHaveLength(1);
     expect(f.forbidden).not.toHaveBeenCalled();
     expect(f.finalizeRun).toHaveBeenCalledWith(
       expect.objectContaining({ leaseFence: 2, leaseOwner: "worker" }),
@@ -937,12 +994,12 @@ describe("roleplay executor boundary", () => {
     f.user.roleplayEnabled = true;
     f.run.status = "running";
     await execute();
-    expect(f.requests).toHaveLength(1);
+    expect(visibleRequests(f)).toHaveLength(1);
     f.user.roleplayEnabled = false;
     f.run.status = "running";
     await execute();
     expect(f.run.status).toBe("failed");
-    expect(f.requests).toHaveLength(1);
+    expect(visibleRequests(f)).toHaveLength(1);
   });
 
   it("never borrows another account's enabled preference", async () => {
@@ -1008,8 +1065,10 @@ describe("roleplay executor boundary", () => {
         workerId: "worker",
         fence: 1,
       });
-      expect(f.requests[0]!.instructions.includes("Earlier trusted story memory.")).toBe(!reset);
-      expect(f.requests[0]!.history.length).toBe(reset ? 3 : 1);
+      expect(visibleRequests(f)[0]!.instructions.includes("Earlier trusted story memory.")).toBe(
+        !reset,
+      );
+      expect(visibleRequests(f)[0]!.history.length).toBe(reset ? 3 : 1);
       expect(f.thread.roleplayState).toMatchObject({ turnCount: reset ? 1 : 5 });
     }
   });
@@ -1042,7 +1101,7 @@ describe("roleplay executor boundary", () => {
     const summaries = f.requests.filter((request) => request.purpose === "memory");
     expect(summaries.length).toBeGreaterThan(1);
     expect(f.requests.at(-1)!.purpose).toBe("dialogue");
-    for (const request of f.requests)
+    for (const request of visibleRequests(f))
       expect(
         roleplayTokens(
           request.instructions +
@@ -1082,7 +1141,7 @@ describe("roleplay executor boundary", () => {
       fence: 1,
     });
     expect(f.run.status).toBe("completed");
-    expect(f.requests[0]!.prompt).toBe("I follow the map.");
+    expect(visibleRequests(f)[0]!.prompt).toBe("I follow the map.");
     expect(f.deps.events.claimSteering).toHaveBeenCalledOnce();
   });
 
@@ -1105,6 +1164,14 @@ describe("roleplay executor boundary", () => {
       blocks: [{ kind: "text", text: "I follow the map." }],
     });
     f.runtime.run = vi.fn(async function* (request) {
+      if (request.purpose === "direction") {
+        yield { type: "done" as const, text: "{}" };
+        return;
+      }
+      if (request.purpose === "direction") {
+        yield { type: "done" as const, text: "{}" };
+        return;
+      }
       requests.push(request);
       if (requests.length === 1) {
         enter();
@@ -1289,7 +1356,7 @@ describe("roleplay executor boundary", () => {
         workerId: "worker",
         fence: 1,
       });
-      expect(f.requests).toHaveLength(0);
+      expect(visibleRequests(f)).toHaveLength(0);
       expect(f.finalizeRun).toHaveBeenCalledWith(
         expect.objectContaining({
           outcome: "failed",
@@ -1391,12 +1458,16 @@ describe("spontaneous roleplay execution", () => {
   ])("keeps decision %s invisible and records a completed attempt", async (decision) => {
     const f = spontaneousFixture();
     f.runtime.run = vi.fn(async function* (request) {
+      if (request.purpose === "direction") {
+        yield { type: "done" as const, text: "{}" };
+        return;
+      }
       f.requests.push(request);
       yield { type: "text" as const, text: decision };
       yield { type: "done" as const, text: decision };
     });
     await execute(f);
-    expect(f.requests.map((request) => request.purpose)).toEqual(["spontaneous"]);
+    expect(visibleRequests(f).map((request) => request.purpose)).toEqual(["spontaneous"]);
     expect(f.finalizeRun).toHaveBeenCalledWith(
       expect.objectContaining({ outcome: "completed", blocks: [], spontaneousGuard: guard }),
     );
@@ -1414,6 +1485,10 @@ describe("spontaneous roleplay execution", () => {
       continuity: { ...continuity, relationshipState },
     };
     f.runtime.run = vi.fn(async function* (request) {
+      if (request.purpose === "direction") {
+        yield { type: "done" as const, text: "{}" };
+        return;
+      }
       f.requests.push(request);
       const text =
         request.purpose === "spontaneous"
@@ -1429,8 +1504,11 @@ describe("spontaneous roleplay execution", () => {
       yield { type: "done" as const, text };
     });
     await execute(f);
-    expect(f.requests.map((request) => request.purpose)).toEqual(["spontaneous", "continuity"]);
-    expect(f.requests[0]!.instructions).toContain(
+    expect(visibleRequests(f).map((request) => request.purpose)).toEqual([
+      "spontaneous",
+      "continuity",
+    ]);
+    expect(visibleRequests(f)[0]!.instructions).toContain(
       buildRoleplayRelationshipContext(relationshipState),
     );
     expect(f.finalizeRun).toHaveBeenCalledWith(
@@ -1510,10 +1588,12 @@ it("grounds a returning user's gap in the prior interaction and preserves input 
     workerId: "worker",
     fence: 1,
   });
-  expect(f.requests[0]?.instructions).toContain(`"lastInteractionAt":"${prior.toISOString()}"`);
-  expect(f.requests[0]?.instructions).toContain('"elapsedMilliseconds":237600000');
-  expect(f.requests[0]?.prompt).toBe("Tomorrow I am leaving.");
-  expect(f.requests[0]?.instructions).toContain(
+  expect(visibleRequests(f)[0]?.instructions).toContain(
+    `"lastInteractionAt":"${prior.toISOString()}"`,
+  );
+  expect(visibleRequests(f)[0]?.instructions).toContain('"elapsedMilliseconds":237600000');
+  expect(visibleRequests(f)[0]?.prompt).toBe("Tomorrow I am leaving.");
+  expect(visibleRequests(f)[0]?.instructions).toContain(
     `"currentInputs":[{"position":1,"seq":99,"role":"user","createdAt":"${current.toISOString()}"}]`,
   );
 });
@@ -1571,7 +1651,7 @@ describe("roleplay scheduled routine delivery", () => {
       fence: 1,
     });
     expect(f.run.status).toBe("completed");
-    const request = f.requests[0]!;
+    const request = visibleRequests(f)[0]!;
     expect(request.purpose).toBe("routine");
     expect(request.prompt).toBe("Check in about our conversation after 45 minutes.");
     expect(request.history.some((message) => message.content === "UNCLAIMED FUTURE INPUT")).toBe(
@@ -1601,6 +1681,10 @@ describe("roleplay scheduled routine delivery", () => {
       continuity: { ...continuity, relationshipState: { warmth: 20, intimacy: 10, love: 0 } },
     };
     f.runtime.run = async function* (request) {
+      if (request.purpose === "direction") {
+        yield { type: "done" as const, text: "{}" };
+        return;
+      }
       f.requests.push(request);
       const text =
         request.purpose === "continuity"
@@ -1631,7 +1715,7 @@ describe("roleplay scheduled routine delivery", () => {
       workerId: "worker",
       fence: 1,
     });
-    expect(f.requests[0]?.scheduling?.tools.map((tool) => tool.name)).toEqual([
+    expect(visibleRequests(f)[0]?.scheduling?.tools.map((tool) => tool.name)).toEqual([
       "schedule_create",
       "schedule_list",
       "schedule_update",
@@ -1641,4 +1725,271 @@ describe("roleplay scheduled routine delivery", () => {
       f.requests.find((request) => request.purpose === "continuity")?.scheduling,
     ).toBeUndefined();
   });
+});
+
+describe("roleplay album execution", () => {
+  const album = [
+    {
+      id: "forest",
+      artifactId: "art-forest",
+      description: "A friendly fox beside a forest gate",
+      scene: "forest",
+      enabled: true,
+    },
+  ];
+  const media = {
+    enabled: true,
+    allowSpontaneous: true,
+    normalIntervalTurns: 6,
+    storyIntervalTurns: 2,
+    album,
+  };
+  const direction = { storyMode: true, scene: "forest", imageId: "forest", imageRequested: false };
+  const execute = (f: ReturnType<typeof fixture>) =>
+    executeRoleplayRun(f.deps, f.runtime, f.run as unknown as Run, {
+      workerId: "worker",
+      fence: 1,
+    });
+  function mediaFixture(raw = JSON.stringify(direction)) {
+    const f = fixture();
+    f.bot.roleplayCharacter = { ...character, conversationStyle: "chat", media };
+    f.runtime.run = vi.fn(async function* (request) {
+      f.requests.push(request);
+      const text =
+        request.purpose === "direction"
+          ? raw
+          : request.purpose === "continuity"
+            ? "{}"
+            : "The fox waits by the gate.";
+      yield { type: "text" as const, text };
+      yield { type: "done" as const, text };
+    });
+    return f;
+  }
+  it("fits a saved multibyte scene before rejecting a small model and preserves the durable scene", async () => {
+    const f = fixture();
+    const scene = "森".repeat(800);
+    f.rows.splice(0);
+    f.thread.roleplayState = {
+      ...roleplayStoryState(null, { threadId: "story", botId: "aria", historyGeneration: 0 }),
+      media: {
+        storyMode: true,
+        scene,
+        revision: 4,
+        turn: 8,
+        lastImageTurn: null,
+        sentImageIds: [],
+      },
+    };
+    fake.resolveModel.mockResolvedValue({
+      provider: "neutral",
+      id: "fiction-model",
+      contextWindow: 3072,
+      maxTokens: 1024,
+    });
+    await execute(f);
+    expect(f.run.status).toBe("completed");
+    const dialogue = f.requests.find((request) => request.purpose === "dialogue")!;
+    expect(dialogue).toBeDefined();
+    expect(dialogue.instructions).not.toContain(scene);
+    expect(f.thread.roleplayState).toMatchObject({
+      media: { storyMode: true, scene, revision: 5, turn: 9 },
+    });
+    for (const request of f.requests) {
+      const tokens =
+        roleplayTokens(request.instructions + request.prompt) +
+        request.history.reduce((sum, message) => sum + roleplayTokens(message.content) + 8, 0) +
+        32;
+      expect(tokens + request.model.maxTokens!).toBeLessThanOrEqual(3072);
+    }
+  });
+
+  it("carries explicit repeat authorization only for a verified requested user attachment", async () => {
+    const f = mediaFixture(JSON.stringify({ ...direction, imageRequested: true }));
+    f.thread.roleplayState = {
+      ...roleplayStoryState(null, { threadId: "story", botId: "aria", historyGeneration: 0 }),
+      media: {
+        storyMode: true,
+        scene: "forest",
+        revision: 2,
+        turn: 2,
+        lastImageTurn: 2,
+        sentImageIds: ["forest"],
+      },
+    };
+    await execute(f);
+    expect(f.finalizeRun.mock.calls[0]![0]).toMatchObject({
+      roleplayMediaGuard: { imageRequested: true },
+      roleplayState: { media: { lastImageTurn: 3, sentImageIds: ["forest"] } },
+    });
+    const missing = mediaFixture(JSON.stringify({ ...direction, imageRequested: true }));
+    missing.prisma.artifact.findFirst.mockResolvedValue(null as never);
+    await execute(missing);
+    expect(missing.finalizeRun.mock.calls[0]![0].roleplayMediaGuard).not.toHaveProperty(
+      "imageRequested",
+    );
+  });
+
+  it("accepts natural story direction for a legacy card without an album", async () => {
+    const f = mediaFixture(JSON.stringify({ ...direction, imageId: null }));
+    f.bot.roleplayCharacter = { ...character, conversationStyle: "chat" };
+    await execute(f);
+    expect(f.requests[0]?.purpose).toBe("direction");
+    expect(f.requests[1]?.instructions).toContain("Story mode is active");
+    expect(f.thread.roleplayState).toMatchObject({
+      media: { storyMode: true, scene: "forest", sentImageIds: [] },
+    });
+    expect(f.finalizeRun.mock.calls[0]![0].blocks).toHaveLength(1);
+  });
+  it("keeps direction hidden, delivers verified text and image together and persists scene/cadence", async () => {
+    const f = mediaFixture();
+    await execute(f);
+    expect(f.requests.map((request) => request.purpose)).toEqual([
+      "direction",
+      "dialogue",
+      "continuity",
+    ]);
+    expect(f.requests[0]?.scheduling).toBeUndefined();
+    expect(f.requests[1]?.scheduling?.tools.length).toBe(4);
+    expect(f.requests[1]?.instructions).toContain(album[0]!.description);
+    expect(f.finalizeRun).toHaveBeenCalledWith(
+      expect.objectContaining({
+        blocks: [
+          { kind: "text", text: "The fox waits by the gate." },
+          {
+            kind: "image",
+            artifactId: "art-forest",
+            mimeType: "image/png",
+            name: "forest.png",
+            description: album[0]!.description,
+          },
+        ],
+        roleplayMediaGuard: {
+          revision: 0,
+          historyGeneration: 0,
+          characterMedia: JSON.stringify(media),
+        },
+        roleplayState: expect.objectContaining({
+          media: {
+            storyMode: true,
+            scene: "forest",
+            revision: 1,
+            turn: 1,
+            lastImageTurn: 1,
+            sentImageIds: ["forest"],
+          },
+        }),
+      }),
+    );
+    expect(
+      vi
+        .mocked(f.deps.events.append)
+        .mock.calls.some(([event]) => event.type === "thread.progress"),
+    ).toBe(false);
+    expect(f.requests.find((request) => request.purpose === "continuity")?.prompt).toContain(
+      album[0]!.description,
+    );
+  });
+  it.each(["invented", "art-forest"])(
+    "refuses a model-selected unavailable catalog ID %s",
+    async (imageId) => {
+      const f = mediaFixture(JSON.stringify({ ...direction, imageId }));
+      await execute(f);
+      expect(f.prisma.artifact.findFirst).not.toHaveBeenCalled();
+      expect(f.requests[1]?.instructions).toContain("no image attachment");
+      expect(f.finalizeRun.mock.calls[0]![0].blocks).toEqual([
+        { kind: "text", text: "The fox waits by the gate." },
+      ]);
+    },
+  );
+  it("falls back safely after malformed direction and a missing owned artifact", async () => {
+    const malformed = mediaFixture("control JSON fragment");
+    await execute(malformed);
+    expect(malformed.requests[1]?.instructions).toContain("no image attachment");
+    expect(malformed.thread.roleplayState).toMatchObject({
+      media: { storyMode: false, scene: "", sentImageIds: [] },
+    });
+    const missing = mediaFixture();
+    missing.prisma.artifact.findFirst.mockResolvedValue(null as never);
+    await execute(missing);
+    expect(missing.requests[1]?.instructions).toContain("no image attachment");
+    expect(missing.thread.roleplayState).toMatchObject({
+      media: { storyMode: true, scene: "forest", lastImageTurn: null, sentImageIds: [] },
+    });
+  });
+  it("reconstructs actual historical image descriptions and retains story cadence", async () => {
+    const f = mediaFixture(JSON.stringify({ ...direction, imageId: null }));
+    f.thread.roleplayState = {
+      ...roleplayStoryState(null, { threadId: "story", botId: "aria", historyGeneration: 0 }),
+      media: {
+        storyMode: true,
+        scene: "forest",
+        revision: 4,
+        turn: 8,
+        lastImageTurn: 6,
+        sentImageIds: ["forest"],
+      },
+    };
+    f.rows[2]!.blocks.push({
+      kind: "image",
+      artifactId: "earlier-image",
+      description: "The fox's old blue coat",
+    } as never);
+    await execute(f);
+    const dialogue = f.requests.find((request) => request.purpose === "dialogue")!;
+    expect(dialogue.history.find((message) => message.seq === 2)?.content).toContain(
+      "[Shared image: The fox's old blue coat]",
+    );
+    expect(f.thread.roleplayState).toMatchObject({
+      media: { revision: 5, turn: 9, lastImageTurn: 6, sentImageIds: ["forest"] },
+    });
+  });
+  it.each([true, false])(
+    "extends existing spontaneous decision with allowSpontaneous=%s",
+    async (allowed) => {
+      const f = mediaFixture();
+      const guard = {
+        historyGeneration: 0,
+        nextMessageSeq: 101,
+        character: "hash",
+        timezone: "Europe/Lisbon",
+        sourceMessageId: "source",
+        botUpdatedAt: "revision",
+        userUpdatedAt: "revision",
+      };
+      f.run.trigger = "roleplay_spontaneous";
+      f.bot.roleplayCharacter = {
+        ...character,
+        conversationStyle: "chat",
+        spontaneous: { enabled: true, frequency: "balanced", allowLateNight: false },
+        media: { ...media, allowSpontaneous: allowed },
+      };
+      fake.snapshot.mockReset().mockResolvedValue({ guard });
+      f.prisma.task.findUniqueOrThrow.mockResolvedValue({
+        id: "task",
+        botId: "aria",
+        threadId: "story",
+        spaceId: "space",
+        prompt: JSON.stringify(guard),
+      });
+      f.runtime.run = vi.fn(async function* (request) {
+        f.requests.push(request);
+        yield {
+          type: "done" as const,
+          text:
+            request.purpose === "spontaneous"
+              ? JSON.stringify({
+                  decision: "send",
+                  messages: ["Here is our fox."],
+                  imageId: "forest",
+                })
+              : "{}",
+        };
+      });
+      await execute(f);
+      expect(f.requests.some((request) => request.purpose === "direction")).toBe(false);
+      expect(f.finalizeRun.mock.calls[0]![0].blocks).toHaveLength(allowed ? 2 : 0);
+      expect(f.prisma.artifact.findFirst).toHaveBeenCalledTimes(allowed ? 1 : 0);
+    },
+  );
 });

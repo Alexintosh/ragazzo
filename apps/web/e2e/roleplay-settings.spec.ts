@@ -70,3 +70,49 @@ test("chat settings disclose spontaneous messages and conversation relationship 
   await captureScreenshot(page, testInfo, "roleplay-chat-spontaneous-relationship-mobile");
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
 });
+
+test("image album imports, edits metadata, and saves a character draft", async ({
+  page,
+}, testInfo) => {
+  const pixel =
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aL1cAAAAASUVORK5CYII=";
+  await page.route("**/rpc/bots/importRoleplayMedia", (route) =>
+    route.fulfill({
+      json: { json: { id: "fixture-image", name: "Harbor at dusk", mimeType: "image/png" } },
+    }),
+  );
+  await page.route("**/rpc/artifacts/get", (route) =>
+    route.fulfill({
+      json: { json: { id: "fixture-image", mimeType: "image/png", contentBase64: pixel } },
+    }),
+  );
+  await page.goto("/e2e/fixtures/roleplay-settings.html");
+  await page
+    .locator("summary")
+    .filter({ hasText: /^Images$/ })
+    .click();
+  await page
+    .locator("summary")
+    .filter({ hasText: /^Import from URL$/ })
+    .click();
+  await page.getByLabel("Image URL", { exact: true }).fill("https://example.com/harbor.png");
+  await page.getByRole("button", { name: "Import", exact: true }).click();
+  await page
+    .locator("summary")
+    .filter({ hasText: /^Harbor at dusk$/ })
+    .click();
+  await page.locator('textarea[maxlength="800"]').fill("Mira watching the harbor at dusk");
+  await page.getByLabel("Scene", { exact: true }).fill("Glass Harbor");
+  await page
+    .locator("summary")
+    .filter({ hasText: /^Frequency$/ })
+    .click();
+  await page.getByLabel("Normal chat: turns between images", { exact: true }).fill("8");
+  await page.getByRole("button", { name: "Save changes", exact: true }).click();
+  await expect(page.getByRole("status")).toHaveText("Changes saved");
+  await page.setViewportSize({ width: 1280, height: 1000 });
+  await captureScreenshot(page, testInfo, "roleplay-images-desktop");
+  await page.setViewportSize({ width: 390, height: 844 });
+  await captureScreenshot(page, testInfo, "roleplay-images-mobile");
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+});

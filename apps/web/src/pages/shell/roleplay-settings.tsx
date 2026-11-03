@@ -11,6 +11,7 @@ import { ChevronDown, Plus, X } from "lucide-react";
 import type { ChangeEvent, ReactNode } from "react";
 import { useEffect, useId, useRef, useState } from "react";
 import { errorText } from "../../lib/user-error";
+import { RoleplayImages } from "./roleplay-images";
 
 type TextField =
   | "name"
@@ -38,14 +39,23 @@ export function RoleplaySettings({
   onSave: (character: RoleplayCharacter, expected: RoleplayCharacter) => Promise<void>;
 }) {
   // A new bot owns a new draft even if this component is reused outside BotSettings.
-  return <CharacterEditor key={botId} character={character} status={status} onSave={onSave} />;
+  return (
+    <CharacterEditor
+      key={botId}
+      botId={botId}
+      character={character}
+      status={status}
+      onSave={onSave}
+    />
+  );
 }
 
 function CharacterEditor({
+  botId,
   character,
   status,
   onSave,
-}: Omit<Parameters<typeof RoleplaySettings>[0], "botId">) {
+}: Parameters<typeof RoleplaySettings>[0]) {
   const { t } = useLingui();
   const id = useId();
   const [draft, setDraft] = useState(() => clone(character));
@@ -54,6 +64,7 @@ function CharacterEditor({
   const [errors, setErrors] = useState<Errors>({});
   const [failure, setFailure] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [addingImage, setAddingImage] = useState(false);
   const savingRef = useRef(false);
   const dirty = JSON.stringify(draft) !== baseline || Object.keys(numbers).length > 0;
   const busy = busyStatuses.has(status);
@@ -131,7 +142,7 @@ function CharacterEditor({
     );
   }
   async function save() {
-    if (savingRef.current || busy) return;
+    if (savingRef.current || busy || addingImage) return;
     const candidate = clone(draft);
     for (const [path, raw] of Object.entries(numbers)) {
       const value = parseRoleplayInteger(raw);
@@ -150,17 +161,19 @@ function CharacterEditor({
       for (const issue of result.error.issues) {
         const path = issue.path.join(".");
         next[path] =
-          path === "lorebook.scanDepth"
-            ? t`Enter a whole number from 0 to 100.`
-            : path === "lorebook.tokenBudget"
-              ? t`Enter a whole number from 0 to 32768.`
-              : path.endsWith(".insertionOrder")
-                ? t`Enter a whole number from -100000 to 100000.`
-                : path === "name"
-                  ? t`Enter a character name (1–500 characters).`
-                  : path === ""
-                    ? t`Character content must be at most 1 MB.`
-                    : t`This field exceeds the character limit.`;
+          path.startsWith("media.") && path.endsWith("IntervalTurns")
+            ? t`Enter a whole number from 1 to 100.`
+            : path === "lorebook.scanDepth"
+              ? t`Enter a whole number from 0 to 100.`
+              : path === "lorebook.tokenBudget"
+                ? t`Enter a whole number from 0 to 32768.`
+                : path.endsWith(".insertionOrder")
+                  ? t`Enter a whole number from -100000 to 100000.`
+                  : path === "name"
+                    ? t`Enter a character name (1–500 characters).`
+                    : path === ""
+                      ? t`Character content must be at most 1 MB.`
+                      : t`This field exceeds the character limit.`;
       }
       setErrors(next);
       setFailure(t`Check the highlighted fields.`);
@@ -197,7 +210,19 @@ function CharacterEditor({
       className="mt-6 space-y-1"
       data-testid="roleplay-settings"
     >
-      <fieldset disabled={saving} className="min-w-0 space-y-1">
+      <fieldset disabled={saving || addingImage} className="min-w-0 space-y-1">
+        <Disclosure
+          label={t`Images`}
+          error={Object.keys(errors).some((path) => path.startsWith("media"))}
+        >
+          <RoleplayImages
+            botId={botId}
+            value={draft.media}
+            errors={errors}
+            onPendingChange={setAddingImage}
+            onChange={(media) => update({ media })}
+          />
+        </Disclosure>
         <Disclosure
           label={t`Character`}
           open
@@ -516,10 +541,10 @@ function CharacterEditor({
                 : t`Changes apply to the next reply. Story history and memory are kept.`}
             </p>
             <div className="flex gap-2">
-              <Button disabled={saving || busy} onClick={() => void save()}>
+              <Button disabled={saving || busy || addingImage} onClick={() => void save()}>
                 {saving ? t`Saving…` : t`Save changes`}
               </Button>
-              <Button variant="ghost" disabled={saving} onClick={discard}>
+              <Button variant="ghost" disabled={saving || addingImage} onClick={discard}>
                 <Trans>Discard</Trans>
               </Button>
             </div>

@@ -474,6 +474,43 @@ export const appContract = {
     list: oc.output(z.array(BotSchema)),
     listArchived: oc.output(z.array(BotSchema)),
     get: oc.input(botId).output(BotSchema),
+    roleplayMedia: oc.input(botId).output(
+      z.object({
+        artifacts: z.array(ArtifactSchema),
+        storyMode: z.boolean(),
+        scene: z.string(),
+        historyGeneration: z.number().int().nonnegative(),
+        revision: z.string(),
+      }),
+    ),
+    updateRoleplayStoryMode: oc
+      .input(
+        z.object({
+          botId: Id,
+          enabled: z.boolean(),
+          historyGeneration: z.number().int().nonnegative(),
+          expectedRevision: z.string().min(1).max(128),
+        }),
+      )
+      .output(
+        z.object({
+          artifacts: z.array(ArtifactSchema),
+          storyMode: z.boolean(),
+          scene: z.string(),
+          historyGeneration: z.number().int().nonnegative(),
+          revision: z.string(),
+        }),
+      ),
+    importRoleplayMedia: oc
+      .input(
+        z.object({
+          botId: Id,
+          url: z.url().max(4096),
+          name: z.string().trim().min(1).max(200).optional(),
+          description: z.string().max(800).optional(),
+        }),
+      )
+      .output(ArtifactSchema),
     roleplayRelationship: oc.input(botId).output(RoleplayRelationshipDebugSchema),
     updateRoleplayRelationship: oc
       .input(

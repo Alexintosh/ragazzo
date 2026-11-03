@@ -662,6 +662,10 @@ msgstr "워크스페이스 추가"
 msgid "Added"
 msgstr ""
 
+#: src/pages/shell/roleplay-images.tsx
+msgid "Adding image…"
+msgstr ""
+
 #: src/components/integrations/plugin-marketplace.tsx
 #: src/pages/McpServersOverlay.tsx
 #: src/pages/PluginsOverlay.tsx
@@ -1962,6 +1966,10 @@ msgstr "비용"
 msgid "Could not add"
 msgstr "추가하지 못했습니다."
 
+#: src/pages/shell/roleplay-images.tsx
+msgid "Could not add image"
+msgstr ""
+
 #: src/pages/McpServersOverlay.tsx
 msgid "Could not add MCP server"
 msgstr "MCP 서버를 추가하지 못했습니다."
@@ -2248,6 +2256,10 @@ msgstr "로그인 옵션을 불러올 수 없습니다"
 msgid "Could not load skill"
 msgstr "스킬을 불러오지 못했습니다"
 
+#: src/pages/shell/roleplay-story-mode.tsx
+msgid "Could not load story mode"
+msgstr ""
+
 #: src/pages/Shell.tsx
 msgid "Could not load task"
 msgstr ""
@@ -2516,6 +2528,10 @@ msgstr "이름을 업데이트하지 못했습니다"
 #: src/pages/shell/use-composer-actions.ts
 msgid "Could not update reaction"
 msgstr "반응을 업데이트할 수 없습니다"
+
+#: src/pages/shell/roleplay-story-mode.tsx
+msgid "Could not update story mode"
+msgstr ""
 
 #: src/pages/MemorySettingsOverlay.tsx
 msgid "Could not update the default memory scope"
@@ -2806,6 +2822,7 @@ msgstr "거부"
 #: src/pages/Board.tsx
 #: src/pages/shell/agent-import.tsx
 #: src/pages/shell/bot-panel.tsx
+#: src/pages/shell/roleplay-images.tsx
 #: src/pages/shell/roleplay-settings.tsx
 msgid "Description"
 msgstr "설명"
@@ -3061,6 +3078,7 @@ msgstr "이메일 인증이 필요합니다"
 msgid "Enable {0}"
 msgstr "{0} 활성화"
 
+#: src/pages/shell/roleplay-images.tsx
 #: src/pages/shell/roleplay-settings.tsx
 msgid "Enabled"
 msgstr ""
@@ -3113,6 +3131,10 @@ msgstr "최대 출력 토큰 수는 1에서 {MAX_MODEL_MAX_TOKENS} 사이의 정
 
 #: src/pages/model-settings/use-model-settings.ts
 msgid "Enter a whole number from 1 to {MAX_MODEL_TIMEOUT_MS} for request timeouts, or leave blank to use server defaults."
+msgstr ""
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Enter a whole number from 1 to 100."
 msgstr ""
 
 #: src/pages/model-settings/use-model-settings.ts
@@ -3382,6 +3404,7 @@ msgstr "무료"
 msgid "Free plan ends {day}"
 msgstr "무료 플랜이 {day}에 종료됩니다"
 
+#: src/pages/shell/roleplay-images.tsx
 #: src/pages/shell/roleplay-settings.tsx
 msgid "Frequency"
 msgstr "빈도"
@@ -3634,6 +3657,10 @@ msgstr "샘플이 들렸다면 음성 설정이 완료되었습니다."
 msgid "Ignore"
 msgstr ""
 
+#: src/pages/shell/roleplay-images.tsx
+msgid "Image"
+msgstr ""
+
 #. js-lingui-explicit-id
 #: src/lib/run-error.ts
 msgid "Image input is not configured for this model."
@@ -3647,6 +3674,19 @@ msgstr "이 모델에는 이미지 입력이 설정되어 있지 않습니다."
 msgid "Image upload area"
 msgstr "이미지 업로드 영역"
 
+#: src/pages/shell/roleplay-images.tsx
+msgid "Image URL"
+msgstr ""
+
+#: src/pages/shell/roleplay-images.tsx
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Images"
+msgstr ""
+
+#: src/pages/shell/roleplay-images.tsx
+msgid "Import"
+msgstr ""
+
 #: src/components/AccountDataSettings.tsx
 #: src/pages/shell/agent-import.tsx
 msgid "Import an agent"
@@ -3655,6 +3695,10 @@ msgstr "에이전트 가져오기"
 #: src/components/AccountDataSettings.tsx
 msgid "Import data"
 msgstr "데이터 가져오기"
+
+#: src/pages/shell/roleplay-images.tsx
+msgid "Import from URL"
+msgstr ""
 
 #: src/pages/shell/create-bot-dialog.tsx
 msgid "Import warnings"
@@ -4665,6 +4709,10 @@ msgstr "트리거 없음"
 msgid "Normal"
 msgstr ""
 
+#: src/pages/shell/roleplay-images.tsx
+msgid "Normal chat: turns between images"
+msgstr ""
+
 #: src/pages/shell/agent-import.tsx
 msgid "Not a valid skill"
 msgstr "올바른 스킬이 아닙니다"
@@ -5457,6 +5505,10 @@ msgstr ""
 msgid "Remove header"
 msgstr "헤더 삭제"
 
+#: src/pages/shell/roleplay-images.tsx
+msgid "Remove image"
+msgstr ""
+
 #: src/pages/shell/roleplay-settings.tsx
 msgid "Remove lorebook"
 msgstr ""
@@ -5632,6 +5684,7 @@ msgstr ""
 #: src/pages/PluginSubmissionsPanel.tsx
 #: src/pages/RoutineCalendar.tsx
 #: src/pages/shell/conversation-files-panel.tsx
+#: src/pages/shell/roleplay-story-mode.tsx
 #: src/pages/SpaceSettingOverrides.tsx
 msgid "Retry"
 msgstr "다시 시도"
@@ -5885,6 +5938,10 @@ msgstr ""
 
 #: src/pages/shell/roleplay-settings.tsx
 msgid "Scenario"
+msgstr ""
+
+#: src/pages/shell/roleplay-images.tsx
+msgid "Scene"
 msgstr ""
 
 #: src/pages/RoutineCalendar.tsx
@@ -6369,6 +6426,10 @@ msgstr ""
 msgid "Speech model"
 msgstr "음성 모델"
 
+#: src/pages/shell/roleplay-images.tsx
+msgid "Spontaneous images"
+msgstr ""
+
 #: src/pages/shell/roleplay-settings.tsx
 msgid "Spontaneous messages"
 msgstr "자발적인 메시지"
@@ -6494,6 +6555,14 @@ msgstr "암호화해 저장"
 
 #: src/pages/shell/roleplay-settings.tsx
 msgid "Story"
+msgstr ""
+
+#: src/pages/shell/roleplay-story-mode.tsx
+msgid "Story mode"
+msgstr ""
+
+#: src/pages/shell/roleplay-images.tsx
+msgid "Story mode: turns between images"
 msgstr ""
 
 #: src/pages/model-settings/request-timeout-fields.tsx
@@ -7119,6 +7188,10 @@ msgstr ""
 #: src/pages/shell/avatar-studio-popover.tsx
 msgid "Upload"
 msgstr "업로드"
+
+#: src/pages/shell/roleplay-images.tsx
+msgid "Upload image"
+msgstr ""
 
 #: src/lib/ticket-priority.ts
 msgid "Urgent"

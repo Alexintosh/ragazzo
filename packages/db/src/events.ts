@@ -55,6 +55,8 @@ import {
   partialReplyClientNonce,
   RunHistoryWriteError,
 } from "./messages.js";
+import type { RoleplayMediaGuard } from "./roleplay-media.js";
+import { validateRoleplayMediaDelivery } from "./roleplay-media.js";
 import type { RoleplaySpontaneousGuard } from "./roleplay-spontaneous.js";
 import {
   lockRoleplaySpontaneousPreferences,
@@ -199,6 +201,7 @@ export type FinalizeRunInput = FinalizeRunBase &
         additionalMessages?: MessageBlock[][];
         markUnread?: boolean;
         roleplayState?: Prisma.InputJsonValue;
+        roleplayMediaGuard?: RoleplayMediaGuard;
       }
     | {
         outcome: "failed";
@@ -1905,6 +1908,41 @@ async function finalizeRunOnce(
           roleplayState: undefined,
         };
     }
+    if (
+      input.outcome === "completed" &&
+      input.additionalMessages !== undefined &&
+      !input.roleplayMediaGuard &&
+      [input.blocks, ...input.additionalMessages].flat().some((block) => block.kind !== "text")
+    )
+      throw new Error("Roleplay chat replies support at most three messages");
+    if (
+      input.outcome === "completed" &&
+      (input.roleplayMediaGuard ||
+        (input.roleplayState &&
+          typeof input.roleplayState === "object" &&
+          "media" in input.roleplayState) ||
+        [input.blocks, ...(input.additionalMessages ?? [])]
+          .flat()
+          .some((block) => block.kind === "image"))
+    ) {
+      await lockRoleplaySpontaneousPreferences(tx, {
+        botId: input.botId,
+        userId: writableRun!.userId,
+      });
+      const checked = await validateRoleplayMediaDelivery(tx, {
+        ...input,
+        userId: writableRun!.userId,
+        spontaneous: !!input.spontaneousGuard,
+      });
+      suppressed ||= checked.suppress;
+      input = {
+        ...input,
+        roleplayState: checked.roleplayState,
+        ...(checked.suppress
+          ? { blocks: [], additionalMessages: undefined, roleplayState: undefined }
+          : {}),
+      };
+    }
     if (input.outcome === "completed" && input.additionalMessages !== undefined) {
       const replies = [input.blocks, ...input.additionalMessages];
       if (
@@ -1914,11 +1952,13 @@ async function finalizeRunOnce(
             !Array.isArray(blocks) ||
             blocks.length === 0 ||
             blocks.some(
-              (block) => !MessageBlockSchema.safeParse(block).success || block.kind !== "text",
+              (block) =>
+                !MessageBlockSchema.safeParse(block).success ||
+                !["text", "image"].includes(block.kind),
             ),
         )
       )
-        throw new Error("Roleplay chat replies support at most three text messages");
+        throw new Error("Roleplay chat replies support at most three messages");
       const bot = await tx.bot.findUnique({
         where: { id: input.botId },
         select: { botKind: true, roleplayCharacter: true },

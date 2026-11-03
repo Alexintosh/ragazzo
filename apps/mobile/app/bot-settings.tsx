@@ -52,6 +52,7 @@ import { RegisteredHostPicker } from "../components/registered-host-picker";
 import { RoleplayRelationshipDebug } from "../components/roleplay-relationship-debug";
 import type { RoleplaySettingsHandle } from "../components/roleplay-settings";
 import { RoleplaySettings } from "../components/roleplay-settings";
+import { RoleplayStoryMode } from "../components/roleplay-story-mode";
 import { Chevron } from "../components/row-accessories";
 import type { MobileMe, MobileModel, MobileModelCredential } from "../lib/api";
 import { rpc } from "../lib/api";
@@ -643,9 +644,11 @@ export default function BotSettingsScreen() {
         {bot?.botKind === "roleplay" ? (
           bot.roleplayCharacter ? (
             <>
+              <RoleplayStoryMode key={`story-${bot.id}`} botId={bot.id} refreshKey={bot.status} />
               <RoleplaySettings
                 key={bot.id}
                 ref={roleplaySettingsRef}
+                botId={bot.id}
                 character={bot.roleplayCharacter}
                 disabled={pending}
                 onStateChange={setRoleplaySettingsState}

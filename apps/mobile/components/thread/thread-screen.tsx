@@ -305,6 +305,7 @@ export function Thread({ sessionEpoch, userId }: { sessionEpoch: number; userId:
     inGroup,
     readOnly,
     roleplay: currentBot?.botKind === "roleplay",
+    storyRefreshKey: latestMessage?.id,
     displayName,
     titleBot,
     titleName,

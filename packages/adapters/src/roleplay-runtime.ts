@@ -25,7 +25,7 @@ export interface RoleplayRunRequest {
   threadId: string;
   botId: string;
   historyGeneration: number;
-  purpose: "dialogue" | "routine" | "memory" | "continuity" | "spontaneous";
+  purpose: "dialogue" | "routine" | "memory" | "continuity" | "spontaneous" | "direction";
   model: AgentRunModel;
   instructions: string;
   history: RoleplayMessage[];

@@ -54,6 +54,13 @@ import { requireIdentityConfirmation } from "../identity-confirmation.js";
 import { resolveNativeProjectConfig } from "../native-project-config.js";
 import { assertNativeSetupAdmission } from "../native-setup-admission.js";
 import {
+  assertRoleplayAlbum,
+  duplicateRoleplayAlbum,
+  importRoleplayMedia,
+  loadRoleplayMedia,
+  updateRoleplayStoryMode,
+} from "../roleplay-media.js";
+import {
   assertRoleplaySpontaneousTimezone,
   loadRoleplayRelationship,
   updateRoleplayRelationship,
@@ -272,6 +279,15 @@ export function botsRoutes(ctx: RouterContext) {
       listArchived: authed.bots.listArchived.handler(async ({ context }) =>
         repos.listBots(context.actor, { archived: true }),
       ),
+      roleplayMedia: authed.bots.roleplayMedia.handler(({ context, input }) =>
+        loadRoleplayMedia(deps, context.actor, input.botId),
+      ),
+      updateRoleplayStoryMode: authed.bots.updateRoleplayStoryMode.handler(({ context, input }) =>
+        updateRoleplayStoryMode(deps, context.actor, input),
+      ),
+      importRoleplayMedia: authed.bots.importRoleplayMedia.handler(({ context, input }) =>
+        importRoleplayMedia(deps, context.actor, input),
+      ),
       roleplayRelationship: authed.bots.roleplayRelationship.handler(({ context, input }) =>
         loadRoleplayRelationship(deps, context.actor, input.botId),
       ),
@@ -316,6 +332,7 @@ export function botsRoutes(ctx: RouterContext) {
             message: "Roleplay requires Docker on this server",
           });
         await assertRoleplaySpontaneousTimezone(deps, context.actor, input.roleplayCharacter);
+        await assertRoleplayAlbum(deps, context.actor, null, input.roleplayCharacter);
         if (
           input.executionTarget === "host" &&
           !input.registeredHostId &&
@@ -411,13 +428,16 @@ export function botsRoutes(ctx: RouterContext) {
           throw new ORPCError("BAD_REQUEST", {
             message: "Roleplay requires Docker on this server",
           });
+        const sourceCharacter =
+          source.roleplayCharacter == null
+            ? null
+            : RoleplayCharacterSchema.parse(source.roleplayCharacter);
         const duplicate = await repos
           .createBot(context.actor, {
             botKind: source.botKind === "roleplay" ? "roleplay" : "agent",
-            roleplayCharacter:
-              source.roleplayCharacter == null
-                ? null
-                : RoleplayCharacterSchema.parse(source.roleplayCharacter),
+            roleplayCharacter: sourceCharacter?.media
+              ? { ...sourceCharacter, media: { ...sourceCharacter.media, album: [] } }
+              : sourceCharacter,
             name: duplicateBotName(source.name),
             description: source.description,
             instructions: source.instructions,
@@ -433,6 +453,15 @@ export function botsRoutes(ctx: RouterContext) {
           .catch((error: unknown) => {
             throw mapSpaceLifecycleError(error);
           });
+        if (source.botKind === "roleplay" && source.roleplayCharacter) {
+          duplicate.roleplayCharacter = await duplicateRoleplayAlbum(
+            deps,
+            context.actor,
+            source.id,
+            duplicate.id,
+            RoleplayCharacterSchema.parse(source.roleplayCharacter),
+          );
+        }
         const assignments = await deps.prisma.botMcpServer.findMany({
           where: {
             botId: source.id,
@@ -460,6 +489,7 @@ export function botsRoutes(ctx: RouterContext) {
       }),
       update: authed.bots.update.handler(async ({ context, input }) => {
         const existing = await repos.getBot(context.actor, input.botId);
+        await assertRoleplayAlbum(deps, context.actor, input.botId, input.roleplayCharacter);
         await assertRoleplaySpontaneousTimezone(deps, context.actor, input.roleplayCharacter);
         if (input.roleplayCharacter !== undefined && existing.botKind !== "roleplay")
           throw new ORPCError("BAD_REQUEST", { message: "Characters require a roleplay bot" });

@@ -60,11 +60,48 @@ export const RoleplayLorebookEntrySchema = z.object({
   position: z.enum(["before_char", "after_char"]),
 });
 export type RoleplayLorebookEntry = z.infer<typeof RoleplayLorebookEntrySchema>;
+export const RoleplayMediaEntrySchema = z.strictObject({
+  id: z.string().min(1).max(100),
+  artifactId: z.string().min(1).max(200),
+  description: z.string().trim().min(1).max(800),
+  scene: z.string().max(400).optional(),
+  enabled: z.boolean(),
+});
+export type RoleplayMediaEntry = z.infer<typeof RoleplayMediaEntrySchema>;
+export const RoleplayMediaSettingsSchema = z
+  .strictObject({
+    enabled: z.boolean(),
+    allowSpontaneous: z.boolean(),
+    normalIntervalTurns: z.number().int().min(1).max(100),
+    storyIntervalTurns: z.number().int().min(1).max(100),
+    album: z.array(RoleplayMediaEntrySchema).max(32),
+  })
+  .refine(
+    (value) =>
+      new Set(value.album.map((entry) => entry.id)).size === value.album.length &&
+      new Set(value.album.map((entry) => entry.artifactId)).size === value.album.length,
+    { message: "Album entries and artifacts must be unique" },
+  );
+export type RoleplayMediaSettings = z.infer<typeof RoleplayMediaSettingsSchema>;
+export const RoleplayMediaStateSchema = z
+  .strictObject({
+    storyMode: z.boolean(),
+    scene: z.string().max(800),
+    revision: z.number().int().nonnegative(),
+    lastImageTurn: z.number().int().nonnegative().nullable(),
+    sentImageIds: z.array(z.string().min(1).max(100)).max(32),
+    turn: z.number().int().nonnegative(),
+  })
+  .refine((value) => value.lastImageTurn === null || value.lastImageTurn <= value.turn, {
+    message: "Image turn exceeds the current turn",
+  });
+export type RoleplayMediaState = z.infer<typeof RoleplayMediaStateSchema>;
 export const RoleplayCharacterSchema = z
   .object({
     name: z.string().trim().min(1).max(500),
     conversationStyle: RoleplayConversationStyleSchema.optional(),
     spontaneous: RoleplaySpontaneousSettingsSchema.optional(),
+    media: RoleplayMediaSettingsSchema.optional(),
     description: text,
     personality: text,
     scenario: text,
@@ -162,6 +199,8 @@ export function parseRoleplayCharacterJson(source: string): {
   }
   if (data.group_only_greetings !== undefined)
     warnings.add("Group-only greetings are not imported.");
+  if (data.media !== undefined || root.media !== undefined)
+    warnings.add("Character album images are not imported. Add them in settings.");
   if (data.spontaneous !== undefined || root.spontaneous !== undefined)
     warnings.add("Spontaneous messaging settings are not imported. Enable them in settings.");
   const bookValue = data.character_book ?? data.lorebook ?? data.globalLore;

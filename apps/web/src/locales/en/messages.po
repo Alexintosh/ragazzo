@@ -662,6 +662,10 @@ msgstr "Add workspace"
 msgid "Added"
 msgstr "Added"
 
+#: src/pages/shell/roleplay-images.tsx
+msgid "Adding image…"
+msgstr "Adding image…"
+
 #: src/components/integrations/plugin-marketplace.tsx
 #: src/pages/McpServersOverlay.tsx
 #: src/pages/PluginsOverlay.tsx
@@ -1962,6 +1966,10 @@ msgstr "Cost"
 msgid "Could not add"
 msgstr "Could not add"
 
+#: src/pages/shell/roleplay-images.tsx
+msgid "Could not add image"
+msgstr "Could not add image"
+
 #: src/pages/McpServersOverlay.tsx
 msgid "Could not add MCP server"
 msgstr "Could not add MCP server"
@@ -2248,6 +2256,10 @@ msgstr "Could not load sign-in options"
 msgid "Could not load skill"
 msgstr "Could not load skill"
 
+#: src/pages/shell/roleplay-story-mode.tsx
+msgid "Could not load story mode"
+msgstr "Could not load story mode"
+
 #: src/pages/Shell.tsx
 msgid "Could not load task"
 msgstr "Could not load task"
@@ -2516,6 +2528,10 @@ msgstr "Could not update name"
 #: src/pages/shell/use-composer-actions.ts
 msgid "Could not update reaction"
 msgstr "Could not update reaction"
+
+#: src/pages/shell/roleplay-story-mode.tsx
+msgid "Could not update story mode"
+msgstr "Could not update story mode"
 
 #: src/pages/MemorySettingsOverlay.tsx
 msgid "Could not update the default memory scope"
@@ -2806,6 +2822,7 @@ msgstr "Deny"
 #: src/pages/Board.tsx
 #: src/pages/shell/agent-import.tsx
 #: src/pages/shell/bot-panel.tsx
+#: src/pages/shell/roleplay-images.tsx
 #: src/pages/shell/roleplay-settings.tsx
 msgid "Description"
 msgstr "Description"
@@ -3061,6 +3078,7 @@ msgstr "Email verification required"
 msgid "Enable {0}"
 msgstr "Enable {0}"
 
+#: src/pages/shell/roleplay-images.tsx
 #: src/pages/shell/roleplay-settings.tsx
 msgid "Enabled"
 msgstr "Enabled"
@@ -3114,6 +3132,10 @@ msgstr "Enter a whole number from 1 to {MAX_MODEL_MAX_TOKENS} for maximum output
 #: src/pages/model-settings/use-model-settings.ts
 msgid "Enter a whole number from 1 to {MAX_MODEL_TIMEOUT_MS} for request timeouts, or leave blank to use server defaults."
 msgstr "Enter a whole number from 1 to {MAX_MODEL_TIMEOUT_MS} for request timeouts, or leave blank to use server defaults."
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Enter a whole number from 1 to 100."
+msgstr "Enter a whole number from 1 to 100."
 
 #: src/pages/model-settings/use-model-settings.ts
 #: src/pages/Onboarding.tsx
@@ -3382,6 +3404,7 @@ msgstr "Free"
 msgid "Free plan ends {day}"
 msgstr "Free plan ends {day}"
 
+#: src/pages/shell/roleplay-images.tsx
 #: src/pages/shell/roleplay-settings.tsx
 msgid "Frequency"
 msgstr "Frequency"
@@ -3634,6 +3657,10 @@ msgstr "If you heard that, voice is ready."
 msgid "Ignore"
 msgstr "Ignore"
 
+#: src/pages/shell/roleplay-images.tsx
+msgid "Image"
+msgstr "Image"
+
 #. js-lingui-explicit-id
 #: src/lib/run-error.ts
 msgid "Image input is not configured for this model."
@@ -3647,6 +3674,19 @@ msgstr "Image input is not configured for this model."
 msgid "Image upload area"
 msgstr "Image upload area"
 
+#: src/pages/shell/roleplay-images.tsx
+msgid "Image URL"
+msgstr "Image URL"
+
+#: src/pages/shell/roleplay-images.tsx
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Images"
+msgstr "Images"
+
+#: src/pages/shell/roleplay-images.tsx
+msgid "Import"
+msgstr "Import"
+
 #: src/components/AccountDataSettings.tsx
 #: src/pages/shell/agent-import.tsx
 msgid "Import an agent"
@@ -3655,6 +3695,10 @@ msgstr "Import an agent"
 #: src/components/AccountDataSettings.tsx
 msgid "Import data"
 msgstr "Import data"
+
+#: src/pages/shell/roleplay-images.tsx
+msgid "Import from URL"
+msgstr "Import from URL"
 
 #: src/pages/shell/create-bot-dialog.tsx
 msgid "Import warnings"
@@ -4665,6 +4709,10 @@ msgstr "No trigger"
 msgid "Normal"
 msgstr "Normal"
 
+#: src/pages/shell/roleplay-images.tsx
+msgid "Normal chat: turns between images"
+msgstr "Normal chat: turns between images"
+
 #: src/pages/shell/agent-import.tsx
 msgid "Not a valid skill"
 msgstr "Not a valid skill"
@@ -5457,6 +5505,10 @@ msgstr "Remove Git event"
 msgid "Remove header"
 msgstr "Remove header"
 
+#: src/pages/shell/roleplay-images.tsx
+msgid "Remove image"
+msgstr "Remove image"
+
 #: src/pages/shell/roleplay-settings.tsx
 msgid "Remove lorebook"
 msgstr "Remove lorebook"
@@ -5632,6 +5684,7 @@ msgstr "Restoring your workspace"
 #: src/pages/PluginSubmissionsPanel.tsx
 #: src/pages/RoutineCalendar.tsx
 #: src/pages/shell/conversation-files-panel.tsx
+#: src/pages/shell/roleplay-story-mode.tsx
 #: src/pages/SpaceSettingOverrides.tsx
 msgid "Retry"
 msgstr "Retry"
@@ -5886,6 +5939,10 @@ msgstr "Scan depth"
 #: src/pages/shell/roleplay-settings.tsx
 msgid "Scenario"
 msgstr "Scenario"
+
+#: src/pages/shell/roleplay-images.tsx
+msgid "Scene"
+msgstr "Scene"
 
 #: src/pages/RoutineCalendar.tsx
 msgid "Scheduled"
@@ -6369,6 +6426,10 @@ msgstr "Speaking"
 msgid "Speech model"
 msgstr "Speech model"
 
+#: src/pages/shell/roleplay-images.tsx
+msgid "Spontaneous images"
+msgstr "Spontaneous images"
+
 #: src/pages/shell/roleplay-settings.tsx
 msgid "Spontaneous messages"
 msgstr "Spontaneous messages"
@@ -6495,6 +6556,14 @@ msgstr "Stored encrypted"
 #: src/pages/shell/roleplay-settings.tsx
 msgid "Story"
 msgstr "Story"
+
+#: src/pages/shell/roleplay-story-mode.tsx
+msgid "Story mode"
+msgstr "Story mode"
+
+#: src/pages/shell/roleplay-images.tsx
+msgid "Story mode: turns between images"
+msgstr "Story mode: turns between images"
 
 #: src/pages/model-settings/request-timeout-fields.tsx
 msgid "Stream inactivity (ms)"
@@ -7119,6 +7188,10 @@ msgstr "Upgrade now"
 #: src/pages/shell/avatar-studio-popover.tsx
 msgid "Upload"
 msgstr "Upload"
+
+#: src/pages/shell/roleplay-images.tsx
+msgid "Upload image"
+msgstr "Upload image"
 
 #: src/lib/ticket-priority.ts
 msgid "Urgent"

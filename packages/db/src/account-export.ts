@@ -1,4 +1,5 @@
 import type { AccountExportManifest, AccountExportRecord } from "@rakazo/contracts";
+import { RoleplayCharacterSchema } from "@rakazo/contracts";
 import type { Prisma, PrismaClient } from "./client.js";
 import { runAsTenant } from "./row-security.js";
 
@@ -143,6 +144,10 @@ async function* spaceRecords(
   for (const bot of bots)
     yield {
       type: "bot",
+      botKind: bot.botKind === "roleplay" ? "roleplay" : "agent",
+      roleplayCharacter: RoleplayCharacterSchema.safeParse(bot.roleplayCharacter).success
+        ? RoleplayCharacterSchema.parse(bot.roleplayCharacter)
+        : null,
       id: bot.id,
       name: bot.name,
       description: bot.description,

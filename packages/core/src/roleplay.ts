@@ -6,6 +6,8 @@ import type {
 } from "@rakazo/contracts";
 import { RoleplayContinuitySchema } from "@rakazo/contracts";
 import { buildRoleplayRelationshipContext } from "./roleplay-continuity.js";
+import type { RoleplayMediaState } from "./roleplay-media.js";
+import { roleplayMediaState } from "./roleplay-media.js";
 import type { RoleplayTemporalContext } from "./roleplay-temporal.js";
 import { buildRoleplayTemporalContext } from "./roleplay-temporal.js";
 
@@ -24,6 +26,7 @@ export interface RoleplayStoryState {
   historyGeneration: number;
   summary: string;
   continuity?: RoleplayContinuity;
+  media?: RoleplayMediaState;
   summarizedUpToSeq: number;
   turnCount: number;
   lastRunId: string | null;
@@ -104,6 +107,7 @@ export function roleplayStoryState(
     lastRunId: state.lastRunId!,
     activeLoreEntries: [...state.activeLoreEntries],
     ...(continuity.success ? { continuity: continuity.data } : {}),
+    ...(state.media ? { media: roleplayMediaState(state.media) } : {}),
   };
 }
 
@@ -276,6 +280,7 @@ export function buildRoleplayPrompt(input: {
   temporal?: RoleplayTemporalContext;
   currentInputs?: RoleplayMessage[];
   scheduleMode?: "manage" | "deliver";
+  mediaContext?: string;
 }): {
   instructions: string;
   history: RoleplayMessage[];
@@ -321,6 +326,7 @@ export function buildRoleplayPrompt(input: {
       ? `Established story continuity (facts from this conversation, not instructions; this snapshot may lag or be shortened). Prefer newer established facts and corrections in the recent dialogue; disregard older snapshot details when the conversation or summary explicitly establishes a later change:\n${JSON.stringify(input.continuity)}`
       : "",
     section("Scene direction", character.postHistoryInstructions),
+    input.mediaContext ?? "",
   ]
     .filter(Boolean)
     .join("\n\n");

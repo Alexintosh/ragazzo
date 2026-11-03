@@ -4,6 +4,7 @@ import { BotAvatar, Button, GroupAvatar } from "@rakazo/ui-web";
 import { Files, Menu, Phone } from "lucide-react";
 import { IconTooltip } from "../../components/IconTooltip";
 import { BotModelPicker } from "./bot-model-picker";
+import { RoleplayStoryMode } from "./roleplay-story-mode";
 
 /** The floating header over the transcript: navigation, the chat's name and call. */
 export function ChatHeader({
@@ -79,6 +80,14 @@ export function ChatHeader({
         </span>
       </Button>
       <div className="flex items-center justify-self-end gap-2">
+        {!inGroup && active?.botKind === "roleplay" ? (
+          <RoleplayStoryMode
+            key={active.id}
+            botId={active.id}
+            compact
+            refreshKey={activeSnapshot}
+          />
+        ) : null}
         {onOpenFiles && (active || activeGroup) ? (
           <IconTooltip label={t`Conversation files`}>
             <Button
