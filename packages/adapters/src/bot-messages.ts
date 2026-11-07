@@ -6,6 +6,7 @@ import {
   botMessageHopExhausted,
   buildBotMessageWakePrompt,
   clampBotMessage,
+  isFarmingControlSpecialist,
   nextBotMessageHop,
   resolveBotAddress,
 } from "@rakazo/core";
@@ -105,6 +106,12 @@ export async function messageBot(
     name: input.confirm_name,
   });
   if (!target) return { ok: false as const, error: "no bot found with that id or name" };
+  if (isFarmingControlSpecialist({ id: target.id, spaceId: run.spaceId })) {
+    return {
+      ok: false as const,
+      error: "Farming Control specialists accept requests only in their private owner app chats.",
+    };
+  }
   if (target.id === sender.id) return { ok: false as const, error: "a bot cannot message itself" };
   if (!target.thread)
     return { ok: false as const, error: `${target.name} has no chat to deliver to` };

@@ -271,6 +271,8 @@ See [CONTRIBUTING.md](./CONTRIBUTING.md) for the development workflow and test m
 
 ## Documentation
 
+- [Farming Control workspace and specialist team](./docs/farming-control.md)
+
 - [Self-hosting](./docs/self-host.md)
 - [Self-host configuration](./docs/self-host-configuration.md)
 - [Self-host secrets](./docs/self-host-secrets.md)

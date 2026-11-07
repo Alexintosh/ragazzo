@@ -35,6 +35,7 @@ export * from "./display-name.js";
 export * from "./echo.js";
 export * from "./events.js";
 export * from "./farewell.js";
+export * from "./farming-control-team.js";
 export * from "./featured-connectors.js";
 export * from "./format-file-size.js";
 export * from "./group-mentions.js";

@@ -8,7 +8,11 @@ import type {
 } from "@rakazo/adapter-kit";
 import { messagingDeliverJob, runContinueJob } from "@rakazo/adapter-kit";
 import type { MessageBlock } from "@rakazo/contracts";
-import { botMessageHopExhausted, nextBotMessageHop } from "@rakazo/core";
+import {
+  botMessageHopExhausted,
+  isFarmingControlSpecialist,
+  nextBotMessageHop,
+} from "@rakazo/core";
 import type { PrismaClient, ThreadEvents } from "@rakazo/db";
 import {
   appendEventInTransaction,
@@ -241,6 +245,9 @@ async function fanOutToPeers(
         where: { id: peer.identityId! },
       });
       if (!peerIdentity) continue;
+      // Includes context-only fanout, which bypasses sendUserMessage and would taint history.
+      if (isFarmingControlSpecialist({ id: peerIdentity.botId, spaceId: peerIdentity.spaceId }))
+        continue;
       if (!(await crossSpaceCommunicationAllowed(deps.prisma, identity.botId, peerIdentity.botId)))
         continue;
       const peerThread = await deps.prisma.thread.findFirst({

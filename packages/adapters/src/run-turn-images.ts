@@ -1,7 +1,7 @@
 import type { AgentRunRequest, AgentSteeringMessage } from "@rakazo/adapter-kit";
 import type { MessageBlock } from "@rakazo/contracts";
 import { ATTACHMENT_MAX_BYTES, isAttachmentImageMimeType } from "@rakazo/contracts";
-import { blocksToAgentHistoryText } from "@rakazo/core";
+import { blocksToAgentHistoryText, farmingControlOutsideBlocks } from "@rakazo/core";
 import type { ExecutorDeps } from "./executor-deps.js";
 import { loadReplyContext } from "./reply-context.js";
 import { currentTurnFilesInstruction, listCurrentTurnFiles } from "./thread-artifacts.js";
@@ -372,43 +372,50 @@ export async function claimRunSteering(
   context: Parameters<typeof loadCurrentTurnImages>[2],
   pendingTurnFiles: MessageBlock[][],
   currentTurn: { messageId?: string; hasImages: boolean },
+  privateOwnerOnly = false,
 ): Promise<AgentSteeringMessage[]> {
   const steering = await deps.events.claimSteering({ ...lease, seenIds });
   return Promise.all(
-    steering.map(async (item) => {
-      const { images, files, unavailableInstruction } = await settleSteeringAttachmentLoads(
-        loadCurrentTurnImages(deps, item.blocks, context),
-        deps.artifacts ? listCurrentTurnFiles(deps, item.blocks, context) : Promise.resolve([]),
-        item.blocks,
-        context.signal,
-      );
-      if (files.length) pendingTurnFiles.push(item.blocks);
-      const filesInstruction = currentTurnFilesInstruction(files);
-      return {
-        id: item.id,
-        messageId: item.messageId,
-        origin: item.origin,
-        historyText: item.text,
-        text: [
-          await loadReplyContext(deps.prisma, lease.threadId, item.messageId),
-          item.text,
-          filesInstruction,
-          unavailableInstruction,
-        ]
-          .filter(Boolean)
-          .join("\n\n"),
-        // A legacy run without sourceMessageId may resolve this same
-        // message as its current turn. Its images are already supplied.
-        images:
-          item.messageId === currentTurn.messageId && currentTurn.hasImages ? undefined : images,
-        imageFileFallback: Boolean(
-          images?.length &&
-            files.length &&
-            !item.blocks.some(
-              (block) => block.kind === "image" && block.imageHandling === "confirm",
-            ),
-        ),
-      };
-    }),
+    steering
+      .filter(
+        (item) =>
+          !privateOwnerOnly ||
+          (item.origin === "user" && !farmingControlOutsideBlocks(item.blocks)),
+      )
+      .map(async (item) => {
+        const { images, files, unavailableInstruction } = await settleSteeringAttachmentLoads(
+          loadCurrentTurnImages(deps, item.blocks, context),
+          deps.artifacts ? listCurrentTurnFiles(deps, item.blocks, context) : Promise.resolve([]),
+          item.blocks,
+          context.signal,
+        );
+        if (files.length) pendingTurnFiles.push(item.blocks);
+        const filesInstruction = currentTurnFilesInstruction(files);
+        return {
+          id: item.id,
+          messageId: item.messageId,
+          origin: item.origin,
+          historyText: item.text,
+          text: [
+            await loadReplyContext(deps.prisma, lease.threadId, item.messageId),
+            item.text,
+            filesInstruction,
+            unavailableInstruction,
+          ]
+            .filter(Boolean)
+            .join("\n\n"),
+          // A legacy run without sourceMessageId may resolve this same
+          // message as its current turn. Its images are already supplied.
+          images:
+            item.messageId === currentTurn.messageId && currentTurn.hasImages ? undefined : images,
+          imageFileFallback: Boolean(
+            images?.length &&
+              files.length &&
+              !item.blocks.some(
+                (block) => block.kind === "image" && block.imageHandling === "confirm",
+              ),
+          ),
+        };
+      }),
   );
 }

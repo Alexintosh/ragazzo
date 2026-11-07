@@ -35,6 +35,7 @@ export function useSpaceRoster({
   groupId,
   navigate,
   redirectKeepingOverlay,
+  preserveRoute = false,
 }: {
   rpc: ReturnType<typeof createSpaceRpc>;
   seed: AppBootstrap | undefined;
@@ -42,6 +43,8 @@ export function useSpaceRoster({
   groupId: string | undefined;
   navigate: Navigation["navigate"];
   redirectKeepingOverlay: Navigation["redirectKeepingOverlay"];
+  /** Native workspace pages do not resolve to a bot or require a first chat. */
+  preserveRoute?: boolean;
 }) {
   const [groups, setGroups] = useState<Group[]>(seed?.groups ?? []);
   const [bots, setBots] = useState<Bot[]>(seed?.bots ?? []);
@@ -66,6 +69,8 @@ export function useSpaceRoster({
   const botsRefreshApplied = useRef(0);
   const archivedBotsRefreshEpoch = useRef(0);
   const botsRefreshInFlight = useRef(0);
+  const preserveRouteRef = useRef(preserveRoute);
+  preserveRouteRef.current = preserveRoute;
   const routeBotId = useRef<string | undefined>(botId);
   routeBotId.current = botId;
   const routeGroupId = useRef<string | undefined>(groupId);
@@ -109,6 +114,7 @@ export function useSpaceRoster({
         setInitialBotsLoaded(true);
         botsRefreshApplied.current = request;
         if (
+          !preserveRouteRef.current &&
           includeArchived &&
           list.length === 0 &&
           archived?.length === 0 &&
@@ -122,6 +128,7 @@ export function useSpaceRoster({
           navigate("/onboarding", { replace: true });
           return;
         }
+        if (preserveRouteRef.current) return;
         const currentGroupId = routeGroupId.current;
         if (currentGroupId) {
           if (!groupList.some((group) => group.id === currentGroupId)) {
@@ -214,6 +221,7 @@ export function useSpaceRoster({
     botsRefreshInFlight,
     routeBotId,
     routeGroupId,
+    preserveRouteRef,
     refreshBots,
     reorderRosterBot,
     addCreatedBot,
@@ -277,11 +285,12 @@ export function useSpaceBootstrap({
     botsRefreshInFlight,
     routeBotId,
     routeGroupId,
+    preserveRouteRef,
     refreshBots,
   } = roster;
   const { snapshotRef, commitSnapshot, setRoutines, setRoutinesBotId, bootstrappedThread } = thread;
   // Until the route names the chat reopened from cache, that chat stands in for it.
-  const routeChat = botId || groupId ? undefined : startChat;
+  const routeChat = botId || groupId || preserveRouteRef.current ? undefined : startChat;
 
   function saveSeed(bootstrap: AppBootstrap, chat?: ChatTarget) {
     // With no space chosen the server picks one, so a shell reopened that way looks there too.
@@ -372,7 +381,7 @@ export function useSpaceBootstrap({
           markOnce("rk:renderer:bots-response");
           markOnce("rk:renderer:thread-response");
         }
-        if (!applyBotLists) return;
+        if (!applyBotLists || preserveRouteRef.current) return;
         // A shell that reopened from cache is already on a chat; it moves only if that chat is gone.
         if (
           seed &&

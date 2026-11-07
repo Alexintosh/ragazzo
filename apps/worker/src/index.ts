@@ -22,6 +22,7 @@ import {
   createCloudAgentConnection,
   createConnectorStack,
   createDeadJobPruner,
+  createFarmingControlService,
   createIdleComputerSweeper,
   createJobReconciler,
   createMessagingContextLoader,
@@ -253,7 +254,12 @@ async function main() {
     jobs,
     accessToken: process.env.EXPO_ACCESS_TOKEN,
   });
+  const farmingControl = createFarmingControlService(prisma, {
+    farmingControlApiUrl: process.env.FARMING_CONTROL_API_URL?.trim() || undefined,
+    farmingControlOwnerUserId: process.env.FARMING_CONTROL_OWNER_USER_ID?.trim() || undefined,
+  });
   const executor = createRunExecutor({
+    farmingControl,
     maxUploadSizeBytes: uploadSizeFromEnv(process.env),
     prisma,
     runtime,

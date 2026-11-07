@@ -1,0 +1,554 @@
+import type {
+  FarmingControlAccounting,
+  FarmingControlHarvest,
+  FarmingControlPortfolio,
+  FarmingControlRisk,
+  FarmingControlSection,
+} from "@rakazo/contracts";
+import {
+  FarmingControlAccountingMonthSchema,
+  FarmingControlAccountingTotalsSchema,
+  FarmingControlAlertSchema,
+  FarmingControlAssessmentSchema,
+  FarmingControlHarvestContributionSchema,
+  FarmingControlHarvestTotalsSchema,
+  FarmingControlHistoryPointSchema,
+  FarmingControlMonitorSchema,
+  FarmingControlPortfolioTotalsSchema,
+  FarmingControlPositionSchema,
+} from "@rakazo/contracts";
+import { isPrivateNetworkHost } from "@rakazo/contracts/network-host";
+import * as z from "zod";
+
+const ms = z.number().int().nonnegative();
+// Explicit projections strip all source fields outside the read-only workspace contract.
+const portfolioSource = z.object({
+  asOfMs: ms,
+  cumulative: FarmingControlPortfolioTotalsSchema,
+  items: z
+    .array(
+      FarmingControlPositionSchema.extend({
+        dataQuality: FarmingControlPositionSchema.shape.dataQuality.omit({
+          valueFreshness: true,
+          aprFreshness: true,
+        }),
+      }),
+    )
+    .max(2_000),
+});
+const historySource = z.object({
+  asOfMs: ms,
+  points: z.array(FarmingControlHistoryPointSchema).max(200),
+  page: z.object({ nextCursor: z.string().max(2_000).nullable() }),
+});
+const harvestSource = FarmingControlHarvestTotalsSchema.extend({
+  asOfMs: ms,
+  complete: z.boolean(),
+  components: z
+    .array(z.object({ contributions: z.array(FarmingControlHarvestContributionSchema) }))
+    .max(2_000),
+  rewardComponents: z.array(FarmingControlHarvestContributionSchema).max(10_000),
+});
+const alertsSource = z.object({
+  asOfMs: ms,
+  retired: z.boolean().optional(),
+  items: z.array(FarmingControlAlertSchema).max(100),
+});
+const assessmentsSource = z.object({
+  asOfMs: ms,
+  retired: z.boolean().optional(),
+  items: z.array(FarmingControlAssessmentSchema).max(100),
+});
+const monitorsSource = z.array(FarmingControlMonitorSchema).max(1_000);
+const accountingSource = z.object({
+  asOfMs: ms,
+  totals: FarmingControlAccountingTotalsSchema,
+  months: z.array(FarmingControlAccountingMonthSchema).max(1_200),
+});
+const taxSource = z.object({
+  enabled: z.boolean(),
+  availableInBuild: z.boolean(),
+  moduleVersion: z.string(),
+  moduleSchemaStatus: z.string(),
+  features: z.record(z.string(), z.boolean()),
+});
+const healthSource = z.object({ status: z.string() });
+const MAX_BODY_BYTES = 4 * 1024 * 1024;
+const TIMEOUT_MS = 8_000;
+const SOURCES = {
+  portfolio: "/positions",
+  history: "/portfolio/metrics/projections",
+  harvest: "/harvest/outstanding",
+  alerts: "/monitoring/alerts?status=open&limit=100",
+  assessments: "/monitoring/assessments?limit=100",
+  monitors: "/monitoring/hot/monitors/",
+  accounting: "/harvest/accounting",
+  tax: "/cashout-tax/capabilities",
+  health: "/health",
+} as const;
+type Source = (typeof SOURCES)[keyof typeof SOURCES];
+type HistoryPoint = z.infer<typeof FarmingControlHistoryPointSchema>;
+type HistorySource = `${typeof SOURCES.history}?${string}`;
+const DAY_MS = 86_400_000;
+const HISTORY_DEADLINE_MS = 12_000;
+const HISTORY_BODY_BUDGET = 8 * 1024 * 1024;
+type ReadResult<T> = { data: T; issue: null } | { data: null; issue: string };
+
+/** Configuration is server-owned. No URL, endpoint, query, header or account comes from a caller. */
+export function farmingControlBaseUrl(value: string): string {
+  const url = new URL(value);
+  if (
+    !["http:", "https:"].includes(url.protocol) ||
+    url.username ||
+    url.password ||
+    url.search ||
+    url.hash ||
+    url.pathname !== "/"
+  ) {
+    throw new Error(
+      "FARMING_CONTROL_API_URL must be an HTTP origin without credentials, path, query or fragment",
+    );
+  }
+  if (!isPrivateNetworkHost(url.hostname) && url.hostname !== "host.docker.internal") {
+    throw new Error("FARMING_CONTROL_API_URL must use a private network host");
+  }
+  return url.origin;
+}
+
+async function boundedJson(
+  response: Response,
+  onBytes?: (bytes: number) => void,
+): Promise<unknown> {
+  const declared = response.headers.get("content-length");
+  if (declared && Number(declared) > MAX_BODY_BYTES) {
+    await response.body?.cancel().catch(() => undefined);
+    throw new Error("body_limit");
+  }
+  if (!response.body) throw new Error("invalid_body");
+  const reader = response.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  try {
+    while (true) {
+      const chunk = await reader.read();
+      if (chunk.done) break;
+      size += chunk.value.byteLength;
+      onBytes?.(chunk.value.byteLength);
+      if (size > MAX_BODY_BYTES) throw new Error("body_limit");
+      chunks.push(chunk.value);
+    }
+  } finally {
+    await reader.cancel().catch(() => undefined);
+  }
+  const body = new Uint8Array(size);
+  let offset = 0;
+  for (const chunk of chunks) {
+    body.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return JSON.parse(new TextDecoder().decode(body));
+}
+
+export function createFarmingControlClient(options: {
+  baseUrl: string;
+  fetch?: typeof fetch;
+  now?: () => number;
+}) {
+  const baseUrl = farmingControlBaseUrl(options.baseUrl);
+  const http = options.fetch ?? globalThis.fetch;
+  const now = options.now ?? Date.now;
+  async function read<T>(
+    path: Source | HistorySource,
+    schema: z.ZodType<T>,
+    limits?: { signal: AbortSignal; onBytes: (bytes: number) => void },
+  ): Promise<ReadResult<T>> {
+    const sourceLabel = path.split("?")[0];
+    try {
+      const response = await http(`${baseUrl}${path}`, {
+        method: "GET",
+        redirect: "error",
+        cache: "no-store",
+        headers: { Accept: "application/json" },
+        signal: limits
+          ? AbortSignal.any([AbortSignal.timeout(TIMEOUT_MS), limits.signal])
+          : AbortSignal.timeout(TIMEOUT_MS),
+      });
+      if (!response.ok) {
+        await response.body?.cancel().catch(() => undefined);
+        return {
+          data: null,
+          issue: `${sourceLabel}: source unavailable (HTTP ${response.status}).`,
+        };
+      }
+      const parsed = schema.safeParse(await boundedJson(response, limits?.onBytes));
+      if (!parsed.success)
+        return {
+          data: null,
+          issue: `${sourceLabel}: source response does not match the supported schema.`,
+        };
+      return { data: parsed.data, issue: null };
+    } catch {
+      return {
+        data: null,
+        issue: `${sourceLabel}: source unavailable, timed out, or exceeded the response limit.`,
+      };
+    }
+  }
+  const meta = (
+    asOfMs: number | null,
+    sources: string[],
+    issues: string[],
+    available: boolean,
+  ) => ({
+    state: !available
+      ? ("unavailable" as const)
+      : issues.length
+        ? ("partial" as const)
+        : ("available" as const),
+    fetchedAtMs: now(),
+    asOfMs,
+    sources,
+    issues,
+  });
+  /** Read bounded recent ranges independently so a dense older range cannot starve newer evidence. */
+  async function recentHistory(toMs: number) {
+    const fromMs = Math.max(0, toMs - 90 * DAY_MS);
+    const start60 = Math.max(0, toMs - 60 * DAY_MS);
+    const start30 = Math.max(0, toMs - 30 * DAY_MS);
+    const ranges = [
+      { fromMs, toMs: Math.max(fromMs, start60 - 1), maxPages: 4 },
+      { fromMs: start60, toMs: Math.max(start60, start30 - 1), maxPages: 4 },
+      { fromMs: start30, toMs, maxPages: 4 },
+      { fromMs: Math.max(0, toMs - DAY_MS), toMs, maxPages: 2 },
+    ];
+    const controller = new AbortController();
+    const signal = AbortSignal.any([controller.signal, AbortSignal.timeout(HISTORY_DEADLINE_MS)]);
+    let bodyBytes = 0;
+    const onBytes = (bytes: number) => {
+      bodyBytes += bytes;
+      if (bodyBytes > HISTORY_BODY_BUDGET) {
+        controller.abort();
+        throw new Error("history_body_budget");
+      }
+    };
+    const fetched = await Promise.all(
+      ranges.map(async (range) => {
+        const points: HistoryPoint[] = [];
+        let cursor: string | null = null;
+        let failed = false;
+        let truncated = false;
+        const seenCursors = new Set<string>();
+        for (let page = 0; page < range.maxPages; page += 1) {
+          if (signal.aborted) {
+            failed = true;
+            truncated = true;
+            break;
+          }
+          const query = new URLSearchParams({
+            fromMs: String(range.fromMs),
+            toMs: String(range.toMs),
+            limit: "200",
+          });
+          if (cursor) query.set("cursor", cursor);
+          const path: HistorySource = `${SOURCES.history}?${query.toString()}`;
+          const response = await read(path, historySource, { signal, onBytes });
+          if (
+            !response.data ||
+            response.data.points.some(
+              (point) => point.sampledAtMs < range.fromMs || point.sampledAtMs > range.toMs,
+            )
+          ) {
+            failed = true;
+            truncated = true;
+            break;
+          }
+          points.push(...response.data.points);
+          cursor = response.data.page.nextCursor;
+          if (!cursor) break;
+          if (seenCursors.has(cursor)) {
+            failed = true;
+            truncated = true;
+            break;
+          }
+          seenCursors.add(cursor);
+          if (page + 1 === range.maxPages) truncated = true;
+        }
+        points.sort(
+          (left, right) =>
+            left.sampledAtMs - right.sampledAtMs ||
+            left.recordedAtMs - right.recordedAtMs ||
+            left.snapshotId.localeCompare(right.snapshotId),
+        );
+        return {
+          points,
+          summary: {
+            fromMs: range.fromMs,
+            toMs: range.toMs,
+            state:
+              failed && points.length === 0
+                ? ("unavailable" as const)
+                : truncated
+                  ? ("partial" as const)
+                  : ("available" as const),
+            truncated,
+            observedPointCount: points.length,
+            firstSampleAtMs: points[0]?.sampledAtMs ?? null,
+            lastSampleAtMs: points.at(-1)?.sampledAtMs ?? null,
+          },
+        };
+      }),
+    );
+    const unique = new Map<string, HistoryPoint>();
+    for (const range of fetched)
+      for (const point of range.points) unique.set(point.snapshotId, point);
+    const all = [...unique.values()].sort(
+      (left, right) =>
+        left.sampledAtMs - right.sampledAtMs ||
+        left.recordedAtMs - right.recordedAtMs ||
+        left.snapshotId.localeCompare(right.snapshotId),
+    );
+    const selected = new Map<string, HistoryPoint>();
+    const perDay = new Map<number, HistoryPoint>();
+    for (const point of all) perDay.set(Math.floor(point.sampledAtMs / DAY_MS), point);
+    for (const point of perDay.values()) selected.set(point.snapshotId, point);
+    // Preserve actual range boundary samples too; no value or timestamp is interpolated.
+    for (const range of fetched) {
+      const first = range.points[0];
+      const last = range.points.at(-1);
+      if (first) selected.set(first.snapshotId, first);
+      if (last) selected.set(last.snapshotId, last);
+    }
+    const points = [...selected.values()].sort(
+      (left, right) =>
+        left.sampledAtMs - right.sampledAtMs ||
+        left.recordedAtMs - right.recordedAtMs ||
+        left.snapshotId.localeCompare(right.snapshotId),
+    );
+    const retrievalComplete = fetched.every((range) => !range.summary.truncated);
+    return {
+      points,
+      range: {
+        fromMs,
+        toMs,
+        windowDays: 90 as const,
+        sampling: "last_saved_sample_per_utc_day_with_boundary_points" as const,
+        observedPointCount: all.length,
+        returnedPointCount: points.length,
+        retrievalComplete,
+        windows: fetched.map((range) => range.summary),
+      },
+      issues: retrievalComplete
+        ? []
+        : [
+            "Recent history is partial: at least one date window exceeded the page, time or response budget, or was unavailable. Displayed dates are actual saved samples; gaps are not reconstructed.",
+          ],
+    };
+  }
+  async function portfolio(): Promise<FarmingControlPortfolio> {
+    const fetchedAtMs = now();
+    const [source, history] = await Promise.all([
+      read(SOURCES.portfolio, portfolioSource),
+      recentHistory(fetchedAtMs),
+    ]);
+    const issues = [...(source.issue ? [source.issue] : []), ...history.issues];
+    if (
+      source.data?.cumulative.coverage.excluded.length ||
+      source.data?.cumulative.coverage.earnedExcludedPositionIds.length ||
+      source.data?.cumulative.coverage.earnedExcluded.length ||
+      source.data?.cumulative.liveEarnedBreakdownUsd.valuationComplete === false ||
+      (source.data &&
+        source.data.items.length > 0 &&
+        source.data.cumulative.liveEarnedUsd === null) ||
+      source.data?.items.some(
+        (item) => item.current.valueUsd === null || !item.dataQuality.hasObservations,
+      )
+    )
+      issues.push(
+        "Portfolio valuation, earnings components or forward projections have incomplete coverage; inspect the component exclusions. Unknown values are not zero.",
+      );
+    const freshness = (observedAtMs: number | null, maxAgeMs: number, known: boolean) =>
+      !known || observedAtMs === null
+        ? ("unknown" as const)
+        : fetchedAtMs - observedAtMs > maxAgeMs
+          ? ("stale" as const)
+          : ("current" as const);
+    const positions = (source.data?.items ?? []).map((item) => ({
+      ...item,
+      dataQuality: {
+        ...item.dataQuality,
+        valueFreshness: freshness(
+          item.current.observedAtMs,
+          item.dataQuality.maxObservationAgeMs,
+          item.current.valueUsd !== null,
+        ),
+        aprFreshness: freshness(
+          item.apr?.observedAtMs ?? item.dataQuality.rateObservedAtMs,
+          item.dataQuality.maxObservationAgeMs,
+          item.apr?.percentPerYear != null,
+        ),
+      },
+    }));
+    if (positions.some((item) => item.dataQuality.valueFreshness === "stale"))
+      issues.push("Some position value observations exceed Farming Control's freshness window.");
+    if (positions.some((item) => item.dataQuality.aprFreshness === "stale"))
+      issues.push(
+        "Some APR observations exceed Farming Control's freshness window even where position values are current.",
+      );
+    return {
+      ...meta(
+        source.data?.asOfMs ?? null,
+        [SOURCES.portfolio, SOURCES.history],
+        issues,
+        source.data !== null,
+      ),
+      totals: source.data?.cumulative ?? null,
+      positions,
+      history: history.points,
+      historyTruncated: !history.range.retrievalComplete,
+      historyRange: history.range,
+    };
+  }
+  async function harvest(): Promise<FarmingControlHarvest> {
+    const source = await read(SOURCES.harvest, harvestSource);
+    const issues = source.issue ? [source.issue] : [];
+    if (source.data && !source.data.complete)
+      issues.push(
+        "Outstanding returns have incomplete coverage; fallback and unknown evidence do not authorize execution.",
+      );
+    if (
+      source.data &&
+      [
+        ...source.data.components.flatMap((item) => item.contributions),
+        ...source.data.rewardComponents,
+      ].some((item) => item.quality !== "current")
+    ) {
+      issues.push(
+        "Some returns use fallback, unknown, or invalidated evidence; complete coverage does not establish fresh or executable values.",
+      );
+    }
+    return {
+      ...meta(source.data?.asOfMs ?? null, [SOURCES.harvest], issues, source.data !== null),
+      complete: source.data?.complete ?? null,
+      totals: source.data ? FarmingControlHarvestTotalsSchema.parse(source.data) : null,
+      contributions: source.data
+        ? [
+            ...source.data.components.flatMap((item) => item.contributions),
+            ...source.data.rewardComponents,
+          ]
+        : [],
+    };
+  }
+  async function risk(): Promise<FarmingControlRisk> {
+    const [alerts, assessments, monitors] = await Promise.all([
+      read(SOURCES.alerts, alertsSource),
+      read(SOURCES.assessments, assessmentsSource),
+      read(SOURCES.monitors, monitorsSource),
+    ]);
+    const issues = [alerts.issue, assessments.issue, monitors.issue].filter(
+      (issue): issue is string => issue !== null,
+    );
+    issues.push(
+      "This bounded Monitoring view is not complete portfolio risk coverage. Empty results do not establish safety. Monitor health describes runtime readiness, not the safety of positions.",
+    );
+    if (alerts.data?.retired || assessments.data?.retired)
+      issues.push(
+        "The generic alerts or assessments surface is retired; current hot-monitor runtime states are listed separately and do not substitute for alert evidence.",
+      );
+    if (alerts.data?.items.length === 100 || assessments.data?.items.length === 100)
+      issues.push("Generic monitoring results may be truncated at 100 records per source.");
+    if (
+      monitors.data?.some(
+        (item) =>
+          !item.supervisorReachable ||
+          item.health === "degraded" ||
+          (item.desiredState === "running" && item.actualState !== "running"),
+      )
+    )
+      issues.push(
+        "Some hot monitors are unreachable, degraded, or have not reached their desired running state.",
+      );
+    const availability = (
+      data: { asOfMs: number; retired?: boolean; items: unknown[] } | null,
+    ) => ({
+      state: !data
+        ? ("unavailable" as const)
+        : data.retired
+          ? ("retired" as const)
+          : ("available" as const),
+      asOfMs: data?.asOfMs ?? null,
+      returnedCount: data?.items.length ?? null,
+      truncated: data?.items.length === 100,
+    });
+    const monitorTime = monitors.data?.length
+      ? Math.max(...monitors.data.map((item) => item.asOfMs))
+      : null;
+    return {
+      ...meta(
+        monitorTime ?? alerts.data?.asOfMs ?? assessments.data?.asOfMs ?? null,
+        [SOURCES.alerts, SOURCES.assessments, SOURCES.monitors],
+        issues,
+        alerts.data !== null || assessments.data !== null || monitors.data !== null,
+      ),
+      complete: false,
+      alerts: alerts.data?.items ?? [],
+      assessments: assessments.data?.items ?? [],
+      monitors: monitors.data ?? [],
+      sourceAvailability: {
+        alerts: availability(alerts.data),
+        assessments: availability(assessments.data),
+        monitors: {
+          state: monitors.data ? ("available" as const) : ("unavailable" as const),
+          asOfMs: monitorTime,
+          returnedCount: monitors.data?.length ?? null,
+          truncated: false,
+        },
+      },
+    };
+  }
+  async function accounting(): Promise<FarmingControlAccounting> {
+    const [source, tax] = await Promise.all([
+      read(SOURCES.accounting, accountingSource),
+      read(SOURCES.tax, taxSource),
+    ]);
+    const issues = [source.issue, tax.issue].filter((issue): issue is string => issue !== null);
+    return {
+      ...meta(
+        source.data?.asOfMs ?? null,
+        [SOURCES.accounting, SOURCES.tax],
+        issues,
+        source.data !== null,
+      ),
+      totals: source.data?.totals ?? null,
+      months: source.data?.months ?? [],
+      tax: {
+        state: !tax.data
+          ? "unavailable"
+          : tax.data.enabled && tax.data.availableInBuild
+            ? "enabled"
+            : "disabled",
+        moduleVersion: tax.data?.moduleVersion ?? null,
+        moduleSchemaStatus: tax.data?.moduleSchemaStatus ?? null,
+        features: tax.data?.features ?? {},
+      },
+    };
+  }
+  return {
+    portfolio,
+    harvest,
+    risk,
+    accounting,
+    async status() {
+      const source = await read(SOURCES.health, healthSource);
+      return {
+        configured: true,
+        readOnly: true as const,
+        connection: source.data ? ("connected" as const) : ("unavailable" as const),
+        fetchedAtMs: now(),
+      };
+    },
+    read(section: FarmingControlSection) {
+      return { portfolio, harvest, risk, accounting }[section]();
+    },
+  };
+}
+export type FarmingControlClient = ReturnType<typeof createFarmingControlClient>;

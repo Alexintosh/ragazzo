@@ -28,6 +28,8 @@ import { monitoringPseudonymSecret } from "@rakazo/logging";
 export { resolveCloudAgentProvider, resolveSandboxProvider } from "@rakazo/adapters";
 
 export interface AppEnv {
+  farmingControlApiUrl?: string;
+  farmingControlOwnerUserId?: string;
   passwordAuth?: boolean;
   /** Opt-in Have I Been Pwned check for new passwords. Default off: it calls an outside service. */
   breachedPasswordCheck?: boolean;
@@ -241,6 +243,8 @@ export function loadEnv(source: NodeJS.ProcessEnv = process.env): AppEnv {
     ticketBoardEnabled: source.TICKET_BOARD_ENABLED === "true",
     userDevicesEnabled: source.USER_DEVICES_ENABLED !== "false",
     navLinks: parseNavLinks(source.RAKAZO_NAV_LINKS),
+    farmingControlApiUrl: source.FARMING_CONTROL_API_URL?.trim() || undefined,
+    farmingControlOwnerUserId: source.FARMING_CONTROL_OWNER_USER_ID?.trim() || undefined,
     adminEmails: list(source.RAKAZO_ADMIN_EMAILS).map((email) => email.toLowerCase()),
     ...phoneCallSettings(source),
     maxUploadSizeBytes: uploadSizeFromEnv(source),

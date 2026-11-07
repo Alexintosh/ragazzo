@@ -1,5 +1,6 @@
 import type { AgentToolExecutionObserver } from "@rakazo/adapter-kit";
 import { toolResultTaintsRun } from "@rakazo/core";
+import { FARMING_CONTROL_TOOL_SECTIONS } from "./farming-control-team-policy.js";
 import { IMAGE_RETURNING_COMPUTER_TOOLS, MODEL_CANNOT_SEE_MESSAGE } from "./model-vision.js";
 import type { RunContext } from "./run-context.js";
 import type { ToolHandler } from "./run-tool-gate.js";
@@ -7,6 +8,7 @@ import { auditToolCall, gateToolCall } from "./run-tool-gate.js";
 import { prepareToolRequest, resolveToolRequest } from "./run-tool-request.js";
 import { PAGE_BROWSER_TOOL_NAMES } from "./run-tool-selection.js";
 import { computerTools, pageBrowserTool } from "./run-tools-computer.js";
+import { farmingControlReadTool, farmingControlToolDenied } from "./run-tools-farming-control.js";
 import { fileTools } from "./run-tools-files.js";
 import { fleetTools } from "./run-tools-fleet.js";
 import { cloudAgentTool, connectorTool, integrationTools } from "./run-tools-integrations.js";
@@ -27,6 +29,9 @@ import {
 import { argumentGiven } from "./update-bot-patch.js";
 
 const TOOL_HANDLERS = new Map<string, ToolHandler>([
+  ...[...FARMING_CONTROL_TOOL_SECTIONS.keys()].map(
+    (name) => [name, farmingControlReadTool] as const,
+  ),
   ...Object.entries(computerTools),
   ...Object.entries(fileTools),
   ...Object.entries(memoryTools),
@@ -80,6 +85,9 @@ async function dispatchTool(
       error: "This stage was handed off. End the turn without more tool calls.",
     };
   }
+  if (farmingControlToolDenied(ctx.bot, name, args, ctx.thread.groupId)) {
+    return { error: "This capability is not granted to this Farming Control specialist." };
+  }
   if (ctx.tools.disabled.has(name)) {
     return { error: "This tool is disabled for this bot." };
   }
@@ -91,6 +99,9 @@ async function dispatchTool(
   }
   const request = await resolveToolRequest(ctx, name, args, executionId);
   if ("error" in request) return request;
+  if (farmingControlToolDenied(ctx.bot, request.name, request.args, ctx.thread.groupId)) {
+    return { error: "This capability is not granted to this Farming Control specialist." };
+  }
   const refused = await prepareToolRequest(ctx, request);
   if (refused) return refused;
   const gate = await gateToolCall(ctx, request, observer);

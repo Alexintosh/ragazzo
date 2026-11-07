@@ -49,6 +49,7 @@ import {
 import { reviewWithBackups } from "./auto-review-backups.js";
 import { RAKAZO_DOCS_URLS } from "./builtin-skills.js";
 import type { ExecutorDeps } from "./executor-deps.js";
+import { FARMING_CONTROL_TOOL_SECTIONS } from "./farming-control-team-policy.js";
 import { findConnectedModelCredential } from "./model-selection.js";
 import { paidRequestEffect } from "./paid-request.js";
 import { autoReviewCheckerProvider } from "./run-auto-review.js";
@@ -143,7 +144,10 @@ export async function gateToolCall(
     request;
   const { replayEffectToolName } = request;
   let { args, effectRequest } = request;
-  const viaConnector = !BUILTIN_AGENT_TOOL_NAMES.has(name);
+  // Scoped no-argument FC reads use the builtin gate after dispatch enforces their role.
+  // This does not trust arbitrary connector routes or relax their approval requirements.
+  const fixedFarmingControlRead = FARMING_CONTROL_TOOL_SECTIONS.has(name);
+  const viaConnector = !BUILTIN_AGENT_TOOL_NAMES.has(name) && !fixedFarmingControlRead;
   // Declared effect of the operation this call dispatches (installed API method and
   // flag). Install config is immutable per route resource, so it cannot drift before
   // execute; a catalog call uses the tool it was just resolved to.
@@ -363,7 +367,7 @@ export async function gateToolCall(
   // Connector read-only hints must not bypass approval, review, or replay decisions.
   // A fetch to a new site is gated like any action, so it needs an effect to approve.
   const applied =
-    READ_ONLY_AGENT_TOOLS.has(name) &&
+    (READ_ONLY_AGENT_TOOLS.has(name) || fixedFarmingControlRead) &&
     siteGate !== "new" &&
     nextApprovedTool !== name &&
     !approvedEffectKey

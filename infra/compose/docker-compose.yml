@@ -3,6 +3,8 @@
 # when .env (or the shell) sets it and left unset otherwise. Keep in sync with the code:
 # infra/updater/src/compose-env.test.ts fails when a read is missing here or a key is unused.
 x-app-environment: &app-environment
+  FARMING_CONTROL_API_URL:
+  FARMING_CONTROL_OWNER_USER_ID:
   # Runtime
   NODE_ENV: ${NODE_ENV:-production}
   # The app's own login, subject to row-level security (docs/self-host-configuration.md#database-roles).

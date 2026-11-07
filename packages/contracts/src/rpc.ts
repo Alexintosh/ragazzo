@@ -143,6 +143,14 @@ import {
   VoiceStatusSchema,
 } from "./domain.js";
 import { ComputerCommandSchema, ProductEventSchema } from "./events.js";
+import {
+  FarmingControlAccountingSchema,
+  FarmingControlHarvestSchema,
+  FarmingControlPortfolioSchema,
+  FarmingControlRiskSchema,
+  FarmingControlStatusSchema,
+  FarmingControlTeamSchema,
+} from "./farming-control.js";
 import { Id, IsoDate, ThinkingLevelSchema } from "./ids.js";
 import {
   IntegrationProviderConfigSchema,
@@ -239,6 +247,14 @@ const threadSendWithRoutinesInput = threadSendFields.safeExtend({
 const spaceName = z.string().trim().min(1).max(60);
 
 export const appContract = {
+  farmingControl: {
+    status: oc.output(FarmingControlStatusSchema),
+    portfolio: oc.output(FarmingControlPortfolioSchema),
+    harvest: oc.output(FarmingControlHarvestSchema),
+    risk: oc.output(FarmingControlRiskSchema),
+    accounting: oc.output(FarmingControlAccountingSchema),
+    ensureTeam: oc.output(FarmingControlTeamSchema),
+  },
   analytics: { screen: oc.input(AnalyticsScreenInput).output(z.object({ ok: z.literal(true) })) },
   aiConsent: {
     status: oc.input(AiConsentQuerySchema).output(AiConsentStatusSchema),

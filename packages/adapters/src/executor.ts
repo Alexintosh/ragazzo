@@ -12,6 +12,7 @@ import {
   assertTransition,
   botMessageAllowsSilence,
   expandSkillReferencesInPrompt,
+  farmingControlOutsideBlocks,
   formatSkillRunPrompt,
   formatSkillsCatalogInstruction,
   isBackgroundRunTrigger,
@@ -83,6 +84,12 @@ import {
 import { formatCurrentTimeInstruction } from "./current-time.js";
 import { resolveDeploymentModel } from "./deployment-model.js";
 import type { ExecutorDeps } from "./executor-deps.js";
+import {
+  FARMING_CONTROL_SAFE_TOOLS,
+  farmingControlRole,
+  farmingControlToolsForRole,
+  isFarmingControlSpecialist,
+} from "./farming-control-team-policy.js";
 import type { FleetRun } from "./fleet-tools.js";
 import { loadBotGroupDirectory, loadGroupContext } from "./group-handoff.js";
 import {
@@ -172,6 +179,7 @@ import {
   selectBuiltinToolsForRun,
 } from "./run-tool-selection.js";
 import { applyTool } from "./run-tools.js";
+import { authorizeFarmingControlRun } from "./run-tools-farming-control.js";
 import { historyMyChatsAllowed } from "./run-tools-memory.js";
 import type { UserComputerState } from "./run-tools-user-computer.js";
 import { USER_COMPUTER_SHELL_TOOL, userComputerOwner } from "./run-tools-user-computer.js";
@@ -507,6 +515,8 @@ export function createRunExecutor(executorDeps: ExecutorDeps) {
           deps.paymentWallet ? loadPurchaseRedactions(deps, run) : [],
           loadRunLoginRedactions(deps.prisma, deps.secretStore, run, run.id),
         ]);
+        // Do not expose private history or model context to an externally started specialist run.
+        if (isFarmingControlSpecialist(bot)) await authorizeFarmingControlRun(deps, run, bot);
         const historySearchBeforeSeq =
           contextStrategy !== "current" && run.sourceMessageId
             ? (messages.find((message) => message.id === run.sourceMessageId)?.seq ??
@@ -593,13 +603,19 @@ export function createRunExecutor(executorDeps: ExecutorDeps) {
           payload: { trigger: run.trigger, routineId: run.routineId },
         });
 
-        const discoveredPromise = deps.connector
-          ? deps.connector.discoverTools(context)
-          : Promise.resolve([]);
+        const fcSpecialist = isFarmingControlSpecialist(bot);
+        const fcRole = farmingControlRole(bot);
+        const discoveredPromise =
+          !fcSpecialist && deps.connector
+            ? deps.connector.discoverTools(context)
+            : Promise.resolve([]);
+        const safeMessages = fcSpecialist
+          ? messages.filter((message) => !farmingControlOutsideBlocks(message.blocks))
+          : messages;
         const threadContext = threadContextForRun(
           run.trigger,
           {
-            messages: [...messages].reverse().map((m) => ({
+            messages: [...safeMessages].reverse().map((m) => ({
               id: m.id,
               createdAt: m.createdAt?.toISOString(),
               seq: m.seq,
@@ -611,8 +627,8 @@ export function createRunExecutor(executorDeps: ExecutorDeps) {
                 ? `${messageToAgentHistoryText(m)}\n\n${PARTIAL_REPLY_NOTE}`
                 : messageToAgentHistoryText(m),
             })),
-            summary: thread.historyCompactionSummary,
-            historyCompactedUpToSeq: thread.historyCompactedUpToSeq,
+            summary: fcSpecialist ? null : thread.historyCompactionSummary,
+            historyCompactedUpToSeq: fcSpecialist ? null : thread.historyCompactedUpToSeq,
           },
           messagingChannelRun,
           run.sourceMessageId,
@@ -628,7 +644,7 @@ export function createRunExecutor(executorDeps: ExecutorDeps) {
           role,
           content,
         }));
-        const historyMessages = messages.map((message) => ({
+        const historyMessages = safeMessages.map((message) => ({
           id: message.id,
           role: message.role,
           runId: message.runId,
@@ -1117,8 +1133,9 @@ export function createRunExecutor(executorDeps: ExecutorDeps) {
           run.trigger !== "created"
             ? agentConnectionTools.filter((tool) => !disabledBuiltinTools.has(tool.name))
             : []),
-        ];
-        const exposedConnectorTools = discovered.filter(
+        ].filter((tool) => !fcSpecialist || FARMING_CONTROL_SAFE_TOOLS.has(tool.name));
+        const fcTools = fcRole && deps.farmingControl ? farmingControlToolsForRole(fcRole) : [];
+        const exposedConnectorTools = [...fcTools, ...(fcSpecialist ? [] : discovered)].filter(
           (tool) => !builtinAgentTools.some((builtin) => builtin.name === tool.name),
         );
         const connectorTools = new Map(
@@ -1704,6 +1721,7 @@ export function createRunExecutor(executorDeps: ExecutorDeps) {
                     messageId: currentTurnMessage?.id,
                     hasImages: Boolean(currentTurnImages?.length),
                   },
+                  fcSpecialist,
                 ),
             },
             context,

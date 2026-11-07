@@ -19,9 +19,11 @@ import {
   ACTIVE_RUN_STATUSES,
   blocksToAgentHistoryText,
   callIdFromClientNonce,
+  farmingControlOutsideBlocks,
   instructionUpdateDiff,
   isApprovalAskBlock,
   isConversationalRun,
+  isFarmingControlSpecialist,
   isSecretAskBlock,
   messageBypassesTakeoverWait,
   messageReaction,
@@ -55,6 +57,7 @@ import {
 import { deleteRunSecretsInTransaction } from "./run-secrets.js";
 import { isRunResponse, readRunTimingFields } from "./run-timing.js";
 import { RUN_TURN_CHECKPOINT_KIND } from "./run-turn-checkpoint.js";
+import { IsolationError } from "./scope.js";
 import { recordSecurityEvent } from "./security-events.js";
 import { withTransactionRetry } from "./transaction-retry.js";
 
@@ -467,6 +470,16 @@ export async function sendUserMessage(
   realtime?: RealtimeFanout,
   analytics?: ProductAnalytics,
 ): Promise<SendUserMessageResult> {
+  // Private deployment specialists never ingest channel, webhook, or bot-delivery context.
+  // Reject before storing a message: history must remain private even while the bot is busy.
+  if (
+    isFarmingControlSpecialist({ id: input.botId, spaceId: input.spaceId }) &&
+    ((input.trigger !== "user" && input.trigger !== "follow_up") ||
+      input.crossSpaceSenderBotId ||
+      farmingControlOutsideBlocks(input.blocks))
+  ) {
+    throw new IsolationError("Farming Control specialists accept only private owner app messages.");
+  }
   const replay = async (): Promise<SendUserMessageResult | null> => {
     if (!input.clientNonce) return null;
     const message = await prisma.message.findUnique({
@@ -680,7 +693,7 @@ async function claimSteeringOnce(
       : channelId
         ? { runId: null, originTrigger: "messaging" }
         : { runId: null, originTrigger: null };
-    const steering = await tx.steeringMessage.findMany({
+    const candidates = await tx.steeringMessage.findMany({
       where: {
         botId: input.botId,
         id: input.seenIds.length ? { notIn: input.seenIds } : undefined,
@@ -702,6 +715,14 @@ async function claimSteeringOnce(
       include: { message: { select: { blocks: true, seq: true } } },
       orderBy: [{ message: { seq: "asc" } }, { id: "asc" }],
     });
+    const steering = isFarmingControlSpecialist({ id: input.botId, spaceId: run.spaceId })
+      ? candidates.filter(
+          (item) =>
+            item.originTrigger == null &&
+            item.userId === run.userId &&
+            !farmingControlOutsideBlocks(item.message.blocks),
+        )
+      : candidates;
     if (steering.length === 0) return [];
     await tx.steeringMessage.updateMany({
       where: { id: { in: steering.map((item) => item.id) }, claimedAt: null },
