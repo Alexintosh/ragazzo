@@ -37,6 +37,7 @@ import { useThreadFocus } from "../../lib/thread-focus";
 import { useThreadSnapshot } from "../../lib/thread-history";
 import { threadKeyboardAvoidance } from "../../lib/thread-keyboard-offset";
 import { useThreadListScroll } from "../../lib/thread-list-scroll";
+import { useThreadFarmingMentions } from "../../lib/thread-farming-mentions";
 import { useThreadMentionCatalog } from "../../lib/thread-mention-catalog";
 import { useThreadPaging } from "../../lib/thread-paging";
 import { useThreadRead } from "../../lib/thread-read";
@@ -171,10 +172,22 @@ export function Thread({ sessionEpoch, userId }: { sessionEpoch: number; userId:
   const {
     routines: mentionRoutines,
     connectors: mentionConnectors,
-    onMentionRequested,
+    onMentionRequested: onCatalogMentionRequested,
   } = useThreadMentionCatalog(
     JSON.stringify([userId, sessionEpoch, botId, groupId, requestedThreadId]),
     mentionBots,
+  );
+  const farmingMentions = useThreadFarmingMentions(
+    JSON.stringify([userId, sessionEpoch, botId, groupId]),
+    mentionBots.find((bot) => bot.id === botId),
+    groupId,
+  );
+  const onMentionRequested = useCallback(
+    (query: string | null) => {
+      if (query !== null) onCatalogMentionRequested();
+      farmingMentions.onMentionRequested(query);
+    },
+    [onCatalogMentionRequested, farmingMentions.onMentionRequested],
   );
   const attachments = useThreadAttachments({ botId, groupId, readOnly, uploadConfig });
   const draftScope = useMemo(
@@ -203,8 +216,8 @@ export function Thread({ sessionEpoch, userId }: { sessionEpoch: number; userId:
   const visibleMessages = transcript.visibleMessages;
   const latestMessage = latestArrivalMessage(reactionView.visibleMessages, peerTranscript.markerOf);
   const composerMentionTargets = useMemo(
-    () =>
-      buildComposerMentionOptions({
+    () => [
+      ...buildComposerMentionOptions({
         query: "",
         includeEveryone: inGroup,
         currentGroupId: groupId,
@@ -220,7 +233,18 @@ export function Thread({ sessionEpoch, userId }: { sessionEpoch: number; userId:
         connectors: mentionConnectors,
         cronLabels: cronLabels(locale),
       }),
-    [groupId, inGroup, locale, mentionBots, mentionConnectors, mentionGroups, mentionRoutines],
+      ...farmingMentions.farmingEntities,
+    ],
+    [
+      groupId,
+      inGroup,
+      locale,
+      mentionBots,
+      mentionConnectors,
+      mentionGroups,
+      mentionRoutines,
+      farmingMentions.farmingEntities,
+    ],
   );
   const currentBot = botId ? mentionBots.find((bot) => bot.id === botId) : undefined;
   // Until the chat's own roster arrives, the bot as the inbox last loaded it.
@@ -599,6 +623,8 @@ export function Thread({ sessionEpoch, userId }: { sessionEpoch: number; userId:
             agentSkills={agentSkills}
             composerMentionTargets={composerMentionTargets}
             onMentionRequested={onMentionRequested}
+            allowFarmingMentions={farmingMentions.allowFarmingMentions}
+            farmingMentionState={farmingMentions.farmingMentionState}
             composerPrompt={composerPrompt}
             replyTargetId={replyTarget?.id}
             replyQuote={replyQuote}

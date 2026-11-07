@@ -1,4 +1,5 @@
 import { ORPCError } from "@orpc/server";
+import { farmingControlMentionKinds } from "@rakazo/core";
 import { FarmingControlAccessError } from "@rakazo/adapters";
 import { ensureFarmingControlTeam } from "../farming-control-team.js";
 import type { RouterContext } from "./context.js";
@@ -22,6 +23,26 @@ export function farmingControlRoutes({ deps, authed }: RouterContext) {
     farmingControl: {
       status: authed.farmingControl.status.handler(async ({ context }) =>
         api(() => service().status(context.actor)),
+      ),
+      mentionTargets: authed.farmingControl.mentionTargets.handler(({ context, input }) =>
+        api(async () => {
+          await service().authorize(context.actor);
+          const bot = await deps.prisma.bot.findFirst({
+            where: {
+              id: input.botId,
+              spaceId: context.actor.spaceId,
+              userId: context.actor.userId,
+              archivedAt: null,
+            },
+            select: { id: true, spaceId: true, spawnKey: true },
+          });
+          const allowed = farmingControlMentionKinds(bot);
+          if (!allowed.length) throw new ORPCError("FORBIDDEN");
+          const kinds = input.kinds ?? allowed.filter((kind) => kind !== "risk");
+          if (kinds.some((kind) => !allowed.includes(kind))) throw new ORPCError("FORBIDDEN");
+          const { botId: _botId, ...query } = input;
+          return service().mentionTargets(context.actor, { ...query, kinds });
+        }),
       ),
       portfolio: authed.farmingControl.portfolio.handler(({ context, input }) =>
         api(() => service().portfolio(context.actor, input)),

@@ -1,10 +1,13 @@
 import { useLingui } from "@lingui/react/macro";
 import type { AgentSkillCatalogEntry, ThreadMessage } from "@rakazo/contracts";
+import { FARMING_CONTROL_RISK_SELECTION_LIMIT } from "@rakazo/contracts";
 import type { ComposerMention, ComposerMentionRange, SlashActionId } from "@rakazo/core";
 import {
   bindComposerMention,
   clampMentionHighlightIndex,
   composerMentionQuery,
+  composerMentionMatchesQuery,
+  farmingControlMentionCount,
   composerMentionsForPrompt,
   composerSelectedMentions,
   mentionChipKey,
@@ -80,6 +83,9 @@ export const Composer = memo(function Composer({
   replyTargetName,
   onClearReply,
   mentionTargets,
+  onMentionRequested,
+  allowFarmingMentions = false,
+  farmingMentionState = null,
   agentSkills,
   onSlashOpen,
   onSlashAction,
@@ -120,6 +126,9 @@ export const Composer = memo(function Composer({
   replyTargetName?: string;
   onClearReply?: () => void;
   mentionTargets?: ComposerMention[];
+  onMentionRequested?: (query: string | null) => void;
+  allowFarmingMentions?: boolean;
+  farmingMentionState?: "loading" | "unavailable" | "partial" | "empty" | null;
   agentSkills?: AgentSkillCatalogEntry[];
   onSlashOpen?: () => void;
   onSlashAction?: (action: SlashActionId) => void;
@@ -157,9 +166,16 @@ export const Composer = memo(function Composer({
   }
   const [mentionQuery, setMentionQuery] = useState<string | null>(
     () =>
-      composerMentionQuery(draft, draft.length, draft.length, mentionTargets, mentionBindings)
-        ?.query ?? null,
+      composerMentionQuery(
+        draft,
+        draft.length,
+        draft.length,
+        mentionTargets,
+        mentionBindings,
+        allowFarmingMentions,
+      )?.query ?? null,
   );
+  const [mentionLimitReached, setMentionLimitReached] = useState(false);
   const [mentionHighlightKey, setMentionHighlightKey] = useState<string | null>(null);
   const [slashQuery, setSlashQuery] = useState<string | null>(() => {
     const slashMatch = /^\/([^\n]*)$/.exec(draft);
@@ -315,7 +331,8 @@ export const Composer = memo(function Composer({
     if (edit.caret !== null) pendingCaret.current = { start: caret, end };
     commitComposition({ text: value, bindings: edit.bindings });
     setMentionQuery(
-      composerMentionQuery(value, caret, end, knownMentions, edit.bindings)?.query ?? null,
+      composerMentionQuery(value, caret, end, knownMentions, edit.bindings, allowFarmingMentions)
+        ?.query ?? null,
     );
     // `/` only at the start of the draft so forced skills expand (`Use skill:` / `/Name` prefix).
     const slashMatch = selectedSkill === null ? /^\/([^\n]*)$/.exec(value) : null;
@@ -333,10 +350,18 @@ export const Composer = memo(function Composer({
       field.selectionEnd,
       knownMentions,
       mentionBindings,
+      allowFarmingMentions,
     );
     if (!query || query.query !== mentionQuery) return;
-    markEdited();
     const completion = bindComposerMention(draft, query, mention, mentionBindings);
+    if (
+      farmingControlMentionCount(completion.bindings.map((binding) => binding.mention)) >
+      FARMING_CONTROL_RISK_SELECTION_LIMIT
+    ) {
+      setMentionLimitReached(true);
+      return;
+    }
+    markEdited();
     commitComposition({ text: completion.text, bindings: completion.bindings });
     setMentionQuery(null);
     setMentionHighlightKey(null);
@@ -363,15 +388,22 @@ export const Composer = memo(function Composer({
     setSelectedSkill(null);
   }
 
+  useEffect(() => {
+    onMentionRequested?.(mentionQuery);
+  }, [mentionQuery, onMentionRequested]);
+
   const mentionOptions = useMemo(() => {
     if (mentionQuery === null || !mentionTargets?.length) return [];
     const query = mentionQuery.trim().toLowerCase();
-    return mentionTargets
-      .filter((target) => !query || target.name.toLowerCase().startsWith(query))
-      .slice(0, 10);
+    const matches = mentionTargets.filter((target) => composerMentionMatchesQuery(target, query));
+    if (query) return matches.slice(0, 10);
+    const farming = matches.filter((target) => target.kind.startsWith("farming-"));
+    const existing = matches.filter((target) => !target.kind.startsWith("farming-"));
+    return [...existing.slice(0, farming.length ? 5 : 10), ...farming.slice(0, 5)].slice(0, 10);
   }, [mentionQuery, mentionTargets]);
 
   useEffect(() => {
+    setMentionLimitReached(false);
     setMentionHighlightKey(null);
   }, [mentionQuery]);
 
@@ -379,10 +411,10 @@ export const Composer = memo(function Composer({
     mentionOptions.findIndex((mention) => mentionChipKey(mention) === mentionHighlightKey),
     mentionOptions.length,
   );
-  const mentionPickerOpen = mentionOptions.length > 0;
-  const activeMentionOptionId = mentionPickerOpen
-    ? `${mentionListboxId}-option-${activeMentionIndex}`
-    : undefined;
+  const mentionPickerOpen =
+    mentionOptions.length > 0 || (mentionQuery !== null && farmingMentionState !== null);
+  const activeMentionOptionId =
+    mentionOptions.length > 0 ? `${mentionListboxId}-option-${activeMentionIndex}` : undefined;
 
   const slashSkillOptions = useMemo(() => {
     if (slashQuery === null) return [];
@@ -673,6 +705,22 @@ export const Composer = memo(function Composer({
               </button>
             );
           })}
+          {mentionLimitReached ? (
+            <p
+              role="status"
+              className="px-4 py-2 text-[12.5px] text-muted-foreground"
+            >{t`You can add up to ${FARMING_CONTROL_RISK_SELECTION_LIMIT} FC tags per message.`}</p>
+          ) : farmingMentionState ? (
+            <p role="status" className="px-4 py-2 text-[12.5px] text-muted-foreground">
+              {farmingMentionState === "loading"
+                ? t`Loading Farming Control references…`
+                : farmingMentionState === "unavailable"
+                  ? t`Farming Control references are unavailable.`
+                  : farmingMentionState === "partial"
+                    ? t`Some Farming Control references are unavailable.`
+                    : t`No Farming Control references match.`}
+            </p>
+          ) : null}
         </div>
       ) : null}
       {showSlashPicker ? (
@@ -795,6 +843,7 @@ export const Composer = memo(function Composer({
                     field.selectionEnd,
                     knownMentions,
                     mentionBindings,
+                    allowFarmingMentions,
                   )?.query ?? null,
                 );
               }}
@@ -804,6 +853,30 @@ export const Composer = memo(function Composer({
                 if (event.key === "Backspace" && draft.length === 0 && selectedSkill !== null) {
                   event.preventDefault();
                   removeSkill();
+                  return;
+                }
+                if (
+                  mentionQuery !== null &&
+                  event.key === "Escape" &&
+                  !event.nativeEvent.isComposing
+                ) {
+                  event.preventDefault();
+                  completedSelection.current = event.currentTarget.selectionStart;
+                  setMentionQuery(null);
+                  setMentionHighlightKey(null);
+                  return;
+                }
+                if (
+                  mentionQuery !== null &&
+                  farmingMentionState === "loading" &&
+                  mentionOptions.length === 0 &&
+                  (event.key === "Enter" || event.key === "Tab") &&
+                  !event.ctrlKey &&
+                  !event.metaKey &&
+                  !event.shiftKey &&
+                  !event.nativeEvent.isComposing
+                ) {
+                  event.preventDefault();
                   return;
                 }
                 const action = resolveMentionPickerKey({

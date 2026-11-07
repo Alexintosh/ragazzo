@@ -1,4 +1,4 @@
-import { FarmingControlRiskSelectionSchema } from "@rakazo/contracts";
+import { FarmingControlEntitySelectionSchema, FarmingControlRiskSelectionSchema } from "@rakazo/contracts";
 import type {
   ComposerMention,
   ComposerMentionQuery,
@@ -8,6 +8,7 @@ import {
   COMPOSER_MENTION_KINDS,
   completeComposerMention,
   createFarmingRiskMention,
+  createFarmingControlEntityMention,
   mentionChipKey,
 } from "./composer-mentions.js";
 
@@ -58,6 +59,15 @@ export function validateComposerMentionBindings(
       if (canonical.id !== mention.id) continue;
       mention.farmingRisk = parsed.data;
     }
+    if (["farming-position", "farming-wallet", "farming-protocol"].includes(mention.kind)) {
+      const parsed = FarmingControlEntitySelectionSchema.safeParse(source.farmingEntity);
+      if (!parsed.success || parsed.data.kind === "risk" || !mention.name.trim()) continue;
+      const canonical = createFarmingControlEntityMention({ ...parsed.data, name: mention.name });
+      if (canonical.id !== mention.id || canonical.kind !== mention.kind) continue;
+      mention.farmingEntity = parsed.data;
+    }
+    if (Array.isArray(source.aliases) && source.aliases.every((value: unknown) => typeof value === "string"))
+      mention.aliases = source.aliases;
     for (const key of ["subtitle", "color", "botId", "connectionId"] as const)
       if (typeof source[key] === "string") mention[key] = source[key];
     if (source.authStatus === "connected" || source.authStatus === "needs_auth")

@@ -324,11 +324,13 @@ export function useComposerActions({
       const editsAtSend = draftEdits.current;
       const originThreadKey = initialGroupTarget ?? initialBotTarget;
       const attachments = attachmentsForThread(pendingAttachments, originThreadKey);
-      const plan = resolveComposerSendPlan({
-        text,
-        mentions,
-        hasAttachments: attachments.length > 0,
-      });
+      let plan: ReturnType<typeof resolveComposerSendPlan>;
+      try {
+        plan = resolveComposerSendPlan({ text, mentions, hasAttachments: attachments.length > 0 });
+      } catch (error) {
+        setSendError(errorText(error, t`Failed to send message`));
+        return false;
+      }
       if (plan.isNoOp) return false;
       const reroutedToGroup = Boolean(
         plan.rerouteGroupId && plan.rerouteGroupId !== initialGroupTarget,
@@ -414,6 +416,7 @@ export function useComposerActions({
           text: trimmed || undefined,
           mentions: plan.mentionPayload.length ? plan.mentionPayload : undefined,
           farmingControlRiskContext: plan.farmingControlRiskContext,
+    farmingControlEntityContext: plan.farmingControlEntityContext,
           artifactIds: artifactIds.length ? artifactIds : undefined,
           replyToMessageId: reroutedToGroup ? undefined : activeReplyTarget?.id,
           replyQuote: reroutedToGroup ? undefined : (activeReplyQuote ?? undefined),

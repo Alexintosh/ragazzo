@@ -1,6 +1,6 @@
 import { FARMING_CONTROL_RISK_SELECTION_LIMIT } from "@rakazo/contracts";
 import type { ComposerMentionBinding } from "@rakazo/core";
-import { validateComposerMentionBindings } from "@rakazo/core";
+import { farmingControlMentionCount, validateComposerMentionBindings } from "@rakazo/core";
 import { upgradeLegacyFarmingRiskDraft } from "./farming-risk-draft";
 
 export const COMPOSER_DRAFT_STORAGE_PREFIX = "rakazo.composerDraft.";
@@ -159,12 +159,8 @@ export function prepareComposerDraft(
   // Risk card handoffs are private specialist drafts, never group/history messages.
   if (!/^bot:fc-specialist:.+:risk$/.test(threadKey)) return { text, bindings };
   const prepared = upgradeLegacyFarmingRiskDraft(text, bindings);
-  const riskTags = new Set(
-    prepared.bindings
-      .filter((binding) => binding.mention.kind === "farming-risk")
-      .map((binding) => binding.mention.id),
-  );
-  if (riskTags.size > FARMING_CONTROL_RISK_SELECTION_LIMIT) return { text, bindings };
+  if (farmingControlMentionCount(prepared.bindings.map((binding) => binding.mention)) > FARMING_CONTROL_RISK_SELECTION_LIMIT)
+    return { text, bindings };
   if (
     prepared.text !== text &&
     !writeVerifiedComposerDraft(threadKey, prepared.text, storage, prepared.bindings)

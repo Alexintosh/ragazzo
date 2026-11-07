@@ -1,6 +1,7 @@
 import type { MenuAction } from "@expo/ui/community/menu";
 import { MenuView } from "@expo/ui/community/menu";
 import type { AgentSkillCatalogEntry } from "@rakazo/contracts";
+import { FARMING_CONTROL_RISK_SELECTION_LIMIT } from "@rakazo/contracts";
 import type {
   buildComposerMentionOptions,
   ComposerMention,
@@ -12,6 +13,8 @@ import type {
 import {
   bindComposerMention,
   composerMentionQuery,
+  composerMentionMatchesQuery,
+  farmingControlMentionCount,
   composerMentionSegments,
   composerMentionsForPrompt,
   composerSelectedMentions,
@@ -62,7 +65,9 @@ type ThreadComposerProps = {
   ref: Ref<ThreadComposerHandle>;
   /** Where the unsent text is kept; without it the draft lives only while mounted. */
   draftScope?: ComposerDraftScope;
-  onMentionRequested?: () => void;
+  onMentionRequested?: (query: string | null) => void;
+  allowFarmingMentions?: boolean;
+  farmingMentionState?: "loading" | "unavailable" | "partial" | "empty" | null;
   agentSkills: AgentSkillCatalogEntry[];
   composerMentionTargets: ReturnType<typeof buildComposerMentionOptions>;
   composerPrompt: string;
@@ -86,6 +91,8 @@ export function ThreadComposer({
   ref,
   draftScope,
   onMentionRequested,
+  allowFarmingMentions = false,
+  farmingMentionState = null,
   agentSkills,
   composerMentionTargets,
   composerPrompt,
@@ -125,6 +132,7 @@ export function ThreadComposer({
   const completedSelection = useRef<number | null>(null);
   const [selection, setSelection] = useState<{ start: number; end: number }>();
   const [mentionQuery, setMentionQuery] = useState<ComposerMentionQuery | null>(null);
+  const [mentionLimitReached, setMentionLimitReached] = useState(false);
   const [slashQuery, setSlashQuery] = useState<string | null>(null);
   const [mentionBindings, setMentionBindings] = useState(saved.bindings);
   const bindingsRef = useRef(saved.bindings);
@@ -189,12 +197,20 @@ export function ThreadComposer({
       setDraft(draftRef.current);
     },
   }));
+  useEffect(() => {
+    onMentionRequested?.(mentionQuery?.query ?? null);
+  }, [mentionQuery?.query, onMentionRequested]);
+
   const mentionOptions = useMemo(() => {
     if (mentionQuery === null || composerMentionTargets.length === 0) return [];
     const query = mentionQuery.query.trim().toLowerCase();
-    return composerMentionTargets
-      .filter((target) => !query || target.name.toLowerCase().startsWith(query))
-      .slice(0, 10);
+    const matches = composerMentionTargets.filter((target) =>
+      composerMentionMatchesQuery(target, query),
+    );
+    if (query) return matches.slice(0, 10);
+    const farming = matches.filter((target) => target.kind.startsWith("farming-"));
+    const existing = matches.filter((target) => !target.kind.startsWith("farming-"));
+    return [...existing.slice(0, farming.length ? 5 : 10), ...farming.slice(0, 5)].slice(0, 10);
   }, [composerMentionTargets, mentionQuery]);
   const slashQueryNormalized = slashQuery?.trim().toLowerCase() ?? null;
   const slashSkillOptions =
@@ -227,8 +243,9 @@ export function ThreadComposer({
       end,
       [...composerMentionTargets, ...composerSelectedMentions(bindingsRef.current)],
       bindingsRef.current,
+      allowFarmingMentions,
     );
-    if (query) onMentionRequested?.();
+    setMentionLimitReached(false);
     setMentionQuery(query);
   }
 
@@ -284,6 +301,13 @@ export function ThreadComposer({
   function insertMention(mention: ComposerMention) {
     if (!mentionQuery) return;
     const next = bindComposerMention(draftRef.current, mentionQuery, mention, bindingsRef.current);
+    if (
+      farmingControlMentionCount(next.bindings.map((binding) => binding.mention)) >
+      FARMING_CONTROL_RISK_SELECTION_LIMIT
+    ) {
+      setMentionLimitReached(true);
+      return;
+    }
     pendingNativeEdit.current = null;
     updateBindings(next.bindings);
     draftRef.current = next.text;
@@ -334,7 +358,7 @@ export function ThreadComposer({
 
   return (
     <>
-      {mentionOptions.length ? (
+      {mentionOptions.length || (mentionQuery && farmingMentionState) ? (
         <ScrollView
           testID="mention-picker"
           keyboardShouldPersistTaps="handled"
@@ -380,6 +404,39 @@ export function ThreadComposer({
               </View>
             </Pressable>
           ))}
+          {mentionLimitReached ? (
+            <Text
+              accessibilityRole="text"
+              style={{
+                paddingHorizontal: 14,
+                paddingVertical: 10,
+                fontSize: 12.5,
+                color: tokens.mutedForeground,
+              }}
+            >
+              {t("You can add up to {limit} FC tags per message.", {
+                limit: FARMING_CONTROL_RISK_SELECTION_LIMIT,
+              })}
+            </Text>
+          ) : farmingMentionState ? (
+            <Text
+              accessibilityRole="text"
+              style={{
+                paddingHorizontal: 14,
+                paddingVertical: 10,
+                fontSize: 12.5,
+                color: tokens.mutedForeground,
+              }}
+            >
+              {farmingMentionState === "loading"
+                ? t("Loading Farming Control references…")
+                : farmingMentionState === "unavailable"
+                  ? t("Farming Control references are unavailable.")
+                  : farmingMentionState === "partial"
+                    ? t("Some Farming Control references are unavailable.")
+                    : t("No Farming Control references match.")}
+            </Text>
+          ) : null}
         </ScrollView>
       ) : null}
       {slashSkillOptions.length || slashActionOptions.length ? (
@@ -711,6 +768,25 @@ export function ThreadComposer({
 
 function MentionOptionIcon({ mention }: { mention: ComposerMention }) {
   const tokens = useMobileTokens();
+  if (mention.kind.startsWith("farming-")) {
+    const ios =
+      mention.kind === "farming-risk"
+        ? "shield.lefthalf.filled"
+        : mention.kind === "farming-wallet"
+          ? "wallet.bifold"
+          : mention.kind === "farming-protocol"
+            ? "building.columns"
+            : "square.stack";
+    const android =
+      mention.kind === "farming-risk"
+        ? "shield-outline"
+        : mention.kind === "farming-wallet"
+          ? "wallet-outline"
+          : mention.kind === "farming-protocol"
+            ? "business-outline"
+            : "layers-outline";
+    return <NativeSymbol ios={ios} android={android} size={16} color={tokens.mutedForeground} />;
+  }
   if (mention.kind === "routine") {
     return (
       <NativeSymbol ios="clock" android="time-outline" size={16} color={tokens.mutedForeground} />

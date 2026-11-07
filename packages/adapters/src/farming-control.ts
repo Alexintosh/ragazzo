@@ -1,5 +1,11 @@
 import type {
   FarmingControlAccounting,
+  FarmingControlEntity,
+  FarmingControlEntityCatalog,
+  FarmingControlEntityCatalogInput,
+  FarmingControlEntityKind,
+  FarmingControlEntityRead,
+  FarmingControlEntitySelection,
   FarmingControlHarvest,
   FarmingControlPortfolio,
   FarmingControlPortfolioInput,
@@ -7,6 +13,8 @@ import type {
   FarmingControlSection,
 } from "@rakazo/contracts";
 import {
+  FarmingControlEntityCatalogInputSchema,
+  FarmingControlEntitySelectionSchema,
   FarmingControlAccountingMonthSchema,
   FarmingControlAccountingTotalsSchema,
   FarmingControlAlertSchema,
@@ -47,6 +55,51 @@ const portfolioSource = z.object({
           valueFreshness: true,
           aprFreshness: true,
         }),
+      }),
+    )
+    .max(2_000),
+});
+// Project only safe identity/association fields, never adapter configuration or documents.
+const entityWalletSource = walletVisibilitySource.extend({
+  wallets: z
+    .array(
+      z.object({
+        address: z.string().regex(/^0x[0-9a-fA-F]{40}$/),
+        label: z.string().max(4_000),
+        positionIds: z.array(z.string().max(500)).max(2_000),
+        visible: z.boolean(),
+      }),
+    )
+    .max(2_000)
+    .optional(),
+});
+const entityPortfolioSource = portfolioSource.extend({
+  items: z
+    .array(
+      portfolioSource.shape.items.element.extend({
+        metadata: z
+          .object({
+            nodes: z
+              .array(
+                z.object({
+                  id: z.string().max(500),
+                  kind: z.string().max(100),
+                  label: z.string().max(4_000).nullable(),
+                  displayLabel: z.string().max(4_000).nullable().optional(),
+                }),
+              )
+              .max(500),
+            relations: z
+              .array(
+                z.object({
+                  fromNodeId: z.string().max(500),
+                  relation: z.string().max(100),
+                  toNodeId: z.string().max(500),
+                }),
+              )
+              .max(2_000),
+          })
+          .optional(),
       }),
     )
     .max(2_000),
@@ -734,6 +787,242 @@ export function createFarmingControlClient(options: {
       },
     };
   }
+  /** One bounded, revision-fenced snapshot is shared by completion and selected-subject reads. */
+  async function entitySnapshot(kinds: readonly FarmingControlEntityKind[]) {
+    const settings = await read(SOURCES.walletVisibility, entityWalletSource);
+    const revision = settings.data?.revision ?? null;
+    const query = new URLSearchParams({
+      walletVisibility: "visible",
+      walletVisibilityRevision: String(revision),
+    });
+    const source =
+      revision === null
+        ? {
+            data: null,
+            issue: settings.issue ?? "Wallet display scope is unavailable.",
+          }
+        : await read(
+            `${SOURCES.portfolio}?${query}`,
+            entityPortfolioSource.refine((value) => value.walletVisibility.revision === revision),
+          );
+    const issues = [settings.issue, source.issue].filter(
+      (issue): issue is string => issue !== null,
+    );
+    const rows = source.data?.items ?? [];
+    const included = new Set(source.data?.scope.includedPositionIds ?? []);
+    const visibleRows = rows.filter((item) => included.has(item.id));
+    const entities: FarmingControlEntity[] = [];
+    if (kinds.includes("position"))
+      for (const item of visibleRows)
+        entities.push({
+          selection: { kind: "position", id: item.id },
+          label: item.label?.trim() || item.id,
+          detail: item.state,
+          aliases: [item.id, ...(item.adapter.key ? [item.adapter.key] : [])],
+          positionIds: [item.id],
+        });
+    if (kinds.includes("wallet") && source.data && settings.data) {
+      if (!settings.data.wallets) issues.push("The source did not return its wallet inventory.");
+      const hidden = new Set(
+        settings.data.hiddenWalletAddresses.map((value) => value.toLowerCase()),
+      );
+      for (const wallet of settings.data.wallets ?? []) {
+        const positionIds = wallet.positionIds.filter((id) => included.has(id));
+        if (!wallet.visible || hidden.has(wallet.address.toLowerCase()) || !positionIds.length)
+          continue;
+        entities.push({
+          selection: { kind: "wallet", id: wallet.address.toLowerCase() },
+          label: wallet.label.trim() || wallet.address,
+          detail: wallet.address,
+          aliases: [wallet.address],
+          positionIds,
+        });
+      }
+    }
+    if (kinds.includes("protocol")) {
+      const protocols = new Map<string, FarmingControlEntity>();
+      for (const item of visibleRows) {
+        if (!item.metadata) {
+          issues.push("Protocol associations are unavailable for some positions.");
+          continue;
+        }
+        const linked = new Set(
+          item.metadata.relations
+            .filter((edge) => edge.fromNodeId === item.id && edge.relation === "uses_protocol")
+            .map((edge) => edge.toNodeId),
+        );
+        for (const node of item.metadata.nodes) {
+          if (node.kind !== "protocol" || !linked.has(node.id)) continue;
+          const protocol = protocols.get(node.id) ?? {
+            selection: { kind: "protocol" as const, id: node.id },
+            label: node.displayLabel?.trim() || node.label?.trim() || node.id,
+            detail: "Protocol",
+            aliases: [node.id],
+            positionIds: [],
+          };
+          if (!protocol.positionIds.includes(item.id)) protocol.positionIds.push(item.id);
+          protocols.set(node.id, protocol);
+        }
+      }
+      entities.push(...protocols.values());
+    }
+    let riskRead: FarmingControlRisk | null = null;
+    if (kinds.includes("risk") && source.data) {
+      riskRead = await risk();
+      // Both native reads must share the exact saved scope before linking a card.
+      if (riskRead.exposureScope.walletVisibilityRevision !== revision) {
+        issues.push("Risk discovery did not match the saved wallet scope.");
+        riskRead = null;
+      } else {
+        issues.push(...riskRead.issues);
+        for (const exposure of riskRead.exposures) {
+          const positionIds = exposure.positions.map((position) => position.id);
+          if (!positionIds.length || !positionIds.every((id) => included.has(id))) continue;
+          entities.push({
+            selection: { kind: "risk", id: exposure.id },
+            label: exposure.label.trim() || exposure.id,
+            detail: exposure.protocol,
+            aliases: [exposure.id, exposure.protocol],
+            positionIds,
+          });
+        }
+      }
+    }
+    const uniqueIssues = [...new Set(issues)];
+    return {
+      ...meta(
+        source.data?.asOfMs ?? null,
+        [SOURCES.walletVisibility, SOURCES.portfolio, ...(riskRead?.sources ?? [])],
+        uniqueIssues,
+        source.data !== null,
+      ),
+      walletVisibilityRevision: source.data ? revision : null,
+      entities,
+      rows: visibleRows,
+      riskRead,
+
+    };
+  }
+  async function mentionTargets(
+    input?: FarmingControlEntityCatalogInput,
+  ): Promise<FarmingControlEntityCatalog> {
+    const selected = FarmingControlEntityCatalogInputSchema.parse(input ?? {});
+    const snapshot = await entitySnapshot(selected.kinds ?? ["position", "wallet", "protocol"]);
+    const query = selected.query?.trim().toLocaleLowerCase("en-US") ?? "";
+    const terms = query.split(/\s+/).filter(Boolean);
+    const filtered = snapshot.entities.filter(
+      (entity) =>
+        (!selected.positionId || entity.positionIds.includes(selected.positionId)) &&
+        (terms.length === 0 ||
+          terms.every((term) =>
+            [
+              entity.label,
+              entity.detail ?? "",
+              entity.selection.id,
+              ...entity.aliases,
+              ...entity.positionIds,
+            ].some((value) => value.toLocaleLowerCase("en-US").includes(term)),
+          )),
+    );
+    const {
+      rows: _rows,
+      riskRead: _riskRead,
+      entities: _entities,
+      ...metadata
+    } = snapshot;
+    const limit = selected.limit ?? 100;
+    return {
+      ...metadata,
+      entities: filtered.slice(0, limit),
+      truncated: filtered.length > limit,
+    };
+  }
+  async function entity(input: FarmingControlEntitySelection): Promise<FarmingControlEntityRead> {
+    const selection = FarmingControlEntitySelectionSchema.parse(input);
+    const snapshot = await entitySnapshot([selection.kind]);
+    const found =
+      snapshot.entities.find(
+        (item) => item.selection.kind === selection.kind && item.selection.id === selection.id,
+      ) ?? null;
+    const { entities: _entities, rows, riskRead, ...metadata } = snapshot;
+    const positionIds = new Set(found?.positionIds ?? []);
+    const fetchedAtMs = metadata.fetchedAtMs;
+    const freshness = (observedAtMs: number | null, maxAgeMs: number, known: boolean) =>
+      !known || observedAtMs === null
+        ? ("unknown" as const)
+        : fetchedAtMs - observedAtMs > maxAgeMs
+          ? ("stale" as const)
+          : ("current" as const);
+    let withheld = false;
+    const positions = rows
+      .filter((item) => positionIds.has(item.id))
+      .map(({ metadata: _metadata, ...item }) => {
+        // Current configuration links do not prove the account attributed to a saved observation.
+        const attributed = selection.kind !== "wallet";
+        if (!attributed) withheld = true;
+        const { projectedRewards, ...withoutProjection } = item;
+        return {
+          ...withoutProjection,
+          ...(attributed && projectedRewards ? { projectedRewards } : {}),
+          // The source's visible-scope position mark can include several visible wallets.
+          // No position-wide amount is attributed to one selected wallet.
+          ...(!attributed
+            ? {
+                current: {
+                  ...item.current,
+                  valueUsd: null,
+                  capitalBaselineUsd: null,
+                },
+                apr: null,
+              }
+            : {}),
+          dataQuality: {
+            ...item.dataQuality,
+            valueFreshness: freshness(
+              item.current.observedAtMs,
+              item.dataQuality.maxObservationAgeMs,
+              attributed && item.current.valueUsd !== null,
+            ),
+            aprFreshness: freshness(
+              item.apr?.observedAtMs ?? item.dataQuality.rateObservedAtMs,
+              item.dataQuality.maxObservationAgeMs,
+              attributed && item.apr?.percentPerYear != null,
+            ),
+          },
+        };
+      });
+    if (withheld) {
+      metadata.state = "partial";
+      metadata.issues = [
+        ...metadata.issues,
+        "Current wallet links do not establish the account attributed to saved observations; wallet financial amounts, APRs, and yield projections are withheld.",
+      ];
+    }
+    const exposure =
+      found && selection.kind === "risk"
+        ? (riskRead?.exposures.find((item) => item.id === selection.id) ?? null)
+        : null;
+    return {
+      ...metadata,
+      selection,
+      selectionStatus: found
+        ? "matched"
+        : snapshot.state === "unavailable"
+          ? "discovery_unavailable"
+          : snapshot.state === "partial"
+            ? "discovery_partial"
+            : "missing",
+      entity: found,
+      positions,
+      risk:
+        exposure && selection.signalKey
+          ? {
+              ...exposure,
+              signals: exposure.signals.filter((signal) => signal.key === selection.signalKey),
+            }
+          : exposure,
+    };
+  }
   async function accounting(): Promise<FarmingControlAccounting> {
     const [source, tax] = await Promise.all([
       read(SOURCES.accounting, accountingSource),
@@ -762,6 +1051,8 @@ export function createFarmingControlClient(options: {
     };
   }
   return {
+    mentionTargets,
+    entity,
     portfolio,
     harvest,
     risk,

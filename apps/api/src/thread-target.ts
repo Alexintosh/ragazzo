@@ -5,6 +5,7 @@ import { cancelComputerRunWork, screenLeaseIdForRun, toComputerRef } from "@raka
 import type {
   Actor,
   FarmingControlRiskContext,
+  FarmingControlEntityContext,
   GroupMember,
   MessageBlock,
   MessageReaction,
@@ -183,6 +184,7 @@ async function replayExistingSend(
   clientNonce: string | undefined,
   releaseTakeover?: (runId: string) => Promise<void>,
   riskContext?: FarmingControlRiskContext,
+  entityContext?: FarmingControlEntityContext,
 ) {
   if (!clientNonce) return null;
   const message = await findSendReceipt(deps.prisma, threadId, clientNonce);
@@ -195,6 +197,12 @@ async function replayExistingSend(
   if (JSON.stringify(previous ?? null) !== JSON.stringify(riskContext ?? null)) {
     throw new ORPCError("CONFLICT", { message: "This message nonce has different Risk selections." });
   }
+  const savedEntities = blocks.success
+    ? blocks.data.find((block) => block.kind === "text" && block.farmingControlEntityContext)
+    : undefined;
+  const previousEntities = savedEntities?.kind === "text" ? savedEntities.farmingControlEntityContext : undefined;
+  if (JSON.stringify(previousEntities ?? null) !== JSON.stringify(entityContext ?? null))
+    throw new ORPCError("CONFLICT", { message: "This message nonce has different FC selections." });
   const receiptEvent = await deps.prisma.event.findFirst({
     where: {
       threadId,
@@ -746,6 +754,7 @@ export async function sendThreadMessage(
   input: {
     text?: string;
     farmingControlRiskContext?: FarmingControlRiskContext;
+    farmingControlEntityContext?: FarmingControlEntityContext;
     artifactIds?: string[];
     imageHandling?: "confirm" | "file";
     mentions?: MentionTargetInput[];
@@ -763,6 +772,7 @@ export async function sendThreadMessage(
     input.clientNonce,
     releaseTakeover,
     input.farmingControlRiskContext,
+    input.farmingControlEntityContext,
   );
   if (existing) return existing;
   // Live events carry the call id so a spoken turn joins the call card on first
@@ -866,11 +876,12 @@ export async function sendThreadMessage(
           input.text,
           sendAttachmentBlocks(attachmentBlocks, artifacts, input.imageHandling),
         );
-        if (input.farmingControlRiskContext) {
+        if (input.farmingControlRiskContext || input.farmingControlEntityContext) {
           const caption = blocks.find((block) => block.kind === "text");
           if (caption?.kind === "text")
             Object.assign(caption, {
-              farmingControlRiskContext: input.farmingControlRiskContext,
+              ...(input.farmingControlRiskContext ? { farmingControlRiskContext: input.farmingControlRiskContext } : {}),
+              ...(input.farmingControlEntityContext ? { farmingControlEntityContext: input.farmingControlEntityContext } : {}),
             });
         }
         const message = await createThreadMessageInTransaction(tx, {
@@ -908,7 +919,7 @@ export async function sendThreadMessage(
           if (!primary) throw new IsolationError();
           await tx.message.update({ where: { id: message.id }, data: { runId: primary.id } });
           const steered = answered.filter((run) =>
-            Boolean(input.farmingControlRiskContext) ||
+            Boolean(input.farmingControlRiskContext || input.farmingControlEntityContext) ||
             answerSteersRun(run, attachmentBlocks, input.imageHandling),
           );
           for (const run of steered) {
@@ -1215,6 +1226,7 @@ export async function sendThreadMessage(
       input.clientNonce,
       releaseTakeover,
       input.farmingControlRiskContext,
+    input.farmingControlEntityContext,
     );
     if (winner) return { replay: winner } as const;
     throw error;

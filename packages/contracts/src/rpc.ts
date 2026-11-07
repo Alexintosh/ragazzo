@@ -1,3 +1,4 @@
+import { FarmingControlEntityContextSchema } from "./farming-control-entities.js";
 import type {
   AnyContractProcedure,
   InferContractRouterInputs,
@@ -144,6 +145,7 @@ import {
 } from "./domain.js";
 import { ComputerCommandSchema, ProductEventSchema } from "./events.js";
 import {
+  FARMING_CONTROL_RISK_SELECTION_LIMIT,
   FarmingControlAccountingSchema,
   FarmingControlHarvestSchema,
   FarmingControlPortfolioInputSchema,
@@ -153,6 +155,7 @@ import {
   FarmingControlStatusSchema,
   FarmingControlTeamSchema,
 } from "./farming-control.js";
+import { FarmingControlEntityCatalogSchema, FarmingControlMentionTargetsInputSchema } from "./farming-control-entities.js";
 import { Id, IsoDate, ThinkingLevelSchema } from "./ids.js";
 import {
   IntegrationProviderConfigSchema,
@@ -204,6 +207,7 @@ const threadSendFields = threadTarget.safeExtend({
   imageHandling: z.enum(["confirm", "file"]).optional(),
   text: z.string().optional(),
   farmingControlRiskContext: FarmingControlRiskContextSchema.optional(),
+  farmingControlEntityContext: FarmingControlEntityContextSchema.optional(),
   artifactIds: z.array(Id).max(ATTACHMENT_COUNT_CEILING).optional(),
   /** Bare bot ids (legacy) or typed mention chips from the composer. */
   mentions: z
@@ -225,6 +229,11 @@ const threadSendInput = threadSendFields.superRefine((input, ctx) => {
       path: ["text"],
     });
   }
+  if (input.farmingControlRiskContext || input.farmingControlEntityContext) {
+    if (!text) ctx.addIssue({ code: "custom", message: "FC context requires message text", path: ["text"] });
+    if ((input.farmingControlRiskContext?.selections.length ?? 0) + (input.farmingControlEntityContext?.selections.length ?? 0) > FARMING_CONTROL_RISK_SELECTION_LIMIT)
+      ctx.addIssue({ code: "custom", message: "Too many FC selections", path: ["farmingControlEntityContext"] });
+  }
   if (input.replyQuote && !input.replyToMessageId) {
     ctx.addIssue({
       code: "custom",
@@ -245,15 +254,18 @@ const threadSendOutput = z.object({
 const threadSendWithRoutinesInput = threadSendFields.safeExtend({
   clientNonce: z.string().min(1).max(200),
   routineIds: z.array(Id).min(1).max(64),
-}).refine((input) => !input.farmingControlRiskContext || Boolean(input.text?.trim()), {
-  message: "Risk context requires message text",
-  path: ["text"],
+}).superRefine((input, ctx) => {
+  if ((input.farmingControlRiskContext || input.farmingControlEntityContext) && !input.text?.trim())
+    ctx.addIssue({ code: "custom", message: "FC context requires message text", path: ["text"] });
+  if ((input.farmingControlRiskContext?.selections.length ?? 0) + (input.farmingControlEntityContext?.selections.length ?? 0) > FARMING_CONTROL_RISK_SELECTION_LIMIT)
+    ctx.addIssue({ code: "custom", message: "Too many FC selections", path: ["farmingControlEntityContext"] });
 });
 
 const spaceName = z.string().trim().min(1).max(60);
 
 export const appContract = {
   farmingControl: {
+    mentionTargets: oc.input(FarmingControlMentionTargetsInputSchema).output(FarmingControlEntityCatalogSchema),
     status: oc.output(FarmingControlStatusSchema),
     portfolio: oc
       .input(FarmingControlPortfolioInputSchema.optional())

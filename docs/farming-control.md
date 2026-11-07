@@ -25,7 +25,7 @@ alias in its configuration. FC can stay on its own host runtime and database.
 
 ## Using the team
 
-Use **Ask team** on a page or position to prepare a message for the coordinator.
+Use **Ask team** on a page to prepare a message for the coordinator.
 The draft carries the selected context. You can edit and send it in the
 Farming Control group. Connect a supported model through the ordinary Ragazzo
 model settings to receive a generated reply.
@@ -39,6 +39,18 @@ The tag identifies the monitor by its stable exposure ID. FC Risk uses that
 reference to read the current evidence and linked positions within the
 account's visible wallet scope. The card chooses the specialist by role, so
 renaming the specialist preserves the same conversation.
+
+Type `@` in the FC Coordinator chat to search visible positions, wallets,
+protocols and monitored exposures. Pick a suggestion and add your question.
+Position, wallet and protocol tags also work with Operations and Risk. Monitor
+tags use the Risk tool in chats with that grant. From a position's detail view,
+you can also mention the position or one of its linked wallets or protocols.
+
+The specialist rereads the selected subject under the current wallet visibility
+setting. A wallet tag returns linked positions and their status. Balance, APR
+and projected yield for an individual position are available through its position
+tag. The wallet inventory records current links and does not prove which wallet
+owned a historical valuation.
 
 | Specialist | Available financial reads |
 | --- | --- |

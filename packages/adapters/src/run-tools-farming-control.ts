@@ -1,5 +1,6 @@
 import type { Actor, FarmingControlRisk, FarmingControlRiskExposure } from "@rakazo/contracts";
 import {
+  FarmingControlEntitySelectionSchema,
   FarmingControlPortfolioInputSchema,
   FarmingControlRiskSchema,
   MessageBlock,
@@ -37,6 +38,16 @@ export function farmingControlToolDenied(
   args: Record<string, unknown>,
   groupId: string | null,
 ): boolean {
+  if (name === "farming_control_entity") {
+    const role = farmingControlRole(bot);
+    const parsed = FarmingControlEntitySelectionSchema.safeParse(args);
+    return (
+      !role ||
+      !parsed.success ||
+      parsed.data.kind === "risk" ||
+      !FARMING_CONTROL_GRANTS[role].includes("portfolio")
+    );
+  }
   const section = FARMING_CONTROL_TOOL_SECTIONS.get(name);
   const role = farmingControlRole(bot);
   if (!isFarmingControlSpecialist(bot)) return Boolean(section);
@@ -155,6 +166,24 @@ export function scopedFarmingControlRiskRead(
         : [],
   };
 }
+
+export const farmingControlEntityTool: ToolHandler = async (ctx, call) => {
+  if (farmingControlToolDenied(ctx.bot, call.name, call.args, ctx.thread.groupId))
+    return { error: DENIED };
+  if (!ctx.deps.farmingControl?.entity) return { error: "Farming Control is not configured." };
+  try {
+    const actor = await authorizeFarmingControlRun(ctx.deps, ctx.run, ctx.bot);
+    return await ctx.deps.farmingControl.entity(
+      actor,
+      FarmingControlEntitySelectionSchema.parse(call.args),
+    );
+  } catch {
+    return {
+      error:
+        "The selected Farming Control subject is unavailable or this run is no longer authorized. No fresh evidence was returned.",
+    };
+  }
+};
 
 export const farmingControlReadTool: ToolHandler = async (ctx, call) => {
   const section = FARMING_CONTROL_TOOL_SECTIONS.get(call.name);

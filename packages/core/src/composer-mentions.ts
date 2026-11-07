@@ -3,9 +3,12 @@ import type {
   Connection,
   ConnectionCatalogItem,
   FarmingControlRiskContext,
+  FarmingControlEntityContext,
+  FarmingControlEntitySelection,
+  FarmingControlEntity,
   FarmingControlRiskSelection,
 } from "@rakazo/contracts";
-import { FarmingControlRiskSelectionSchema } from "@rakazo/contracts";
+import { FARMING_CONTROL_RISK_SELECTION_LIMIT, FarmingControlEntitySelectionSchema, FarmingControlRiskSelectionSchema } from "@rakazo/contracts";
 import type { CronLabels } from "./cron.js";
 import { ENGLISH_CRON_LABELS, formatCron } from "./cron.js";
 import { displayName } from "./display-name.js";
@@ -17,6 +20,9 @@ export const COMPOSER_MENTION_KINDS = [
   "connector",
   "everyone",
   "farming-risk",
+  "farming-position",
+  "farming-wallet",
+  "farming-protocol",
 ] as const;
 
 export type ComposerMentionKind = (typeof COMPOSER_MENTION_KINDS)[number];
@@ -40,11 +46,13 @@ export type ComposerMention = {
   authStatus?: "connected" | "needs_auth";
   /** Stable selectors only; current risk data and positions are read on the server. */
   farmingRisk?: FarmingControlRiskSelection;
+  farmingEntity?: FarmingControlEntitySelection;
+  aliases?: string[];
 };
 
 /** A display name never determines the identity of a selected exposure or signal. */
 export function createFarmingRiskMention(
-  input: FarmingControlRiskSelection & { name: string; subtitle?: string },
+  input: FarmingControlRiskSelection & { name: string; subtitle?: string; aliases?: string[] },
 ): ComposerMention {
   const selection = FarmingControlRiskSelectionSchema.parse({
     exposureId: input.exposureId,
@@ -57,8 +65,55 @@ export function createFarmingRiskMention(
     id: JSON.stringify([selection.exposureId, selection.signalKey ?? null]),
     name,
     farmingRisk: selection,
+    ...(input.aliases ? { aliases: input.aliases } : {}),
     ...(input.subtitle ? { subtitle: input.subtitle } : {}),
   };
+}
+
+/** Entity labels are display data; opaque selectors remain independent of names. */
+export function createFarmingControlEntityMention(
+  input: FarmingControlEntitySelection & { name: string; subtitle?: string; aliases?: string[] },
+): ComposerMention {
+  const selection = FarmingControlEntitySelectionSchema.parse({
+    kind: input.kind, id: input.id,
+    ...(input.signalKey !== undefined ? { signalKey: input.signalKey } : {}),
+  });
+  if (selection.kind === "risk") return createFarmingRiskMention({
+    exposureId: selection.id,
+    ...(selection.signalKey !== undefined ? { signalKey: selection.signalKey } : {}),
+    name: input.name,
+    ...(input.aliases ? { aliases: input.aliases } : {}),
+    ...(input.subtitle ? { subtitle: input.subtitle } : {}),
+  });
+  const name = input.name.trim();
+  if (!name) throw new Error("An entity mention requires a name");
+  return {
+    kind: `farming-${selection.kind}`,
+    id: JSON.stringify([selection.kind, selection.id]),
+    name,
+    farmingEntity: selection,
+    ...(input.subtitle ? { subtitle: input.subtitle } : {}),
+    ...(input.aliases ? { aliases: input.aliases } : {}),
+  };
+}
+
+export function composerMentionFromFarmingEntity(entity: FarmingControlEntity): ComposerMention {
+  return createFarmingControlEntityMention({ ...entity.selection, name: entity.label,
+    ...(entity.detail ? { subtitle: entity.detail } : {}), aliases: entity.aliases });
+}
+
+export function composerMentionMatchesQuery(mention: ComposerMention, query: string): boolean {
+  const normalized = query.trim().toLocaleLowerCase();
+  if (!normalized) return true;
+  if (!mention.kind.startsWith("farming-")) return mention.name.toLocaleLowerCase().startsWith(normalized);
+  const fields = [mention.name, mention.subtitle, ...(mention.aliases ?? [])]
+    .map((value) => value?.toLocaleLowerCase() ?? "");
+  return normalized.split(/\s+/).every((term) => fields.some((value) => value.includes(term)));
+}
+
+export function farmingControlMentionCount(mentions: readonly ComposerMention[]): number {
+  return new Set(mentions.filter((mention) => mention.kind.startsWith("farming-"))
+    .map((mention) => `${mention.kind}:${mention.id}`)).size;
 }
 
 export type MentionPickerBot = {
@@ -153,6 +208,7 @@ export function composerMentionQuery(
   selectionEnd = selectionStart,
   knownMentions: readonly MentionName[] = [],
   bindings: readonly (ComposerMentionRange & { mention: MentionName })[] = [],
+  allowSpaces = false,
 ): ComposerMentionQuery | null {
   if (selectionStart !== selectionEnd || selectionStart < 0 || selectionStart > text.length)
     return null;
@@ -167,10 +223,14 @@ export function composerMentionQuery(
     (span) => selectionStart > span.start && selectionStart <= span.end,
   );
   if (recognized) return { ...recognized, query: text.slice(recognized.start + 1, selectionStart) };
-  const match = /(?:^|\s)@([\w-]*)$/.exec(text.slice(0, selectionStart));
+  const match = (allowSpaces
+    ? /(?:^|\s)@([^@\r\n]{0,500})$/u
+    : /(?:^|\s)@([\w-]*)$/).exec(text.slice(0, selectionStart));
   if (!match) return null;
   const query = match[1] ?? "";
   const start = selectionStart - query.length - 1;
+  // A completed chip ends the query, including subsequent plain words on its line.
+  if (bindings.some((span) => span.start === start && span.end < selectionStart)) return null;
   const rest = /^[\w-]*/.exec(text.slice(selectionStart))?.[0] ?? "";
   return { start, end: selectionStart + rest.length, query };
 }
@@ -258,6 +318,7 @@ export function partitionComposerMentions(mentions: readonly ComposerMention[]) 
   const routines: ComposerMention[] = [];
   const connectors: ComposerMention[] = [];
   const farmingRisks: ComposerMention[] = [];
+  const farmingEntities: ComposerMention[] = [];
   let everyone = false;
   for (const mention of mentions) {
     if (mention.kind === "bot") bots.push(mention);
@@ -266,8 +327,9 @@ export function partitionComposerMentions(mentions: readonly ComposerMention[]) 
     else if (mention.kind === "connector") connectors.push(mention);
     else if (mention.kind === "everyone") everyone = true;
     else if (mention.kind === "farming-risk") farmingRisks.push(mention);
+    else if (mention.kind.startsWith("farming-")) farmingEntities.push(mention);
   }
-  return { bots, groups, routines, connectors, farmingRisks, everyone };
+  return { bots, groups, routines, connectors, farmingRisks, farmingEntities, everyone };
 }
 
 /** Payload entries for `threads/send` mentions (legacy bare bot ids still accepted). */
@@ -439,6 +501,7 @@ export function resolveComposerSendPlan(input: {
   rerouteGroupName: string | null;
   mentionPayload: ReturnType<typeof toThreadMentionPayload>;
   farmingControlRiskContext?: FarmingControlRiskContext;
+  farmingControlEntityContext?: FarmingControlEntityContext;
   shouldSend: boolean;
   shouldOpenGroup: boolean;
   shouldRunRoutines: boolean;
@@ -454,6 +517,18 @@ export function resolveComposerSendPlan(input: {
     const key = JSON.stringify([parsed.data.exposureId, parsed.data.signalKey ?? null]);
     if (mention.id === key) riskSelections.set(key, parsed.data);
   }
+  const entitySelections = new Map<string, FarmingControlEntitySelection>();
+  for (const mention of parts.farmingEntities) {
+    const parsed = FarmingControlEntitySelectionSchema.safeParse(mention.farmingEntity);
+    if (!parsed.success || parsed.data.kind === "risk") continue;
+    const key = JSON.stringify([parsed.data.kind, parsed.data.id]);
+    if (mention.id === key && mention.kind === `farming-${parsed.data.kind}`)
+      entitySelections.set(key, parsed.data);
+  }
+  if (riskSelections.size + entitySelections.size > FARMING_CONTROL_RISK_SELECTION_LIMIT)
+    throw new Error(`You can add up to ${FARMING_CONTROL_RISK_SELECTION_LIMIT} FC tags per message.`);
+  if ((riskSelections.size || entitySelections.size) && (parts.groups.length || parts.routines.length))
+    throw new Error("FC tags require the current private FC chat.");
   trimmed = appendConnectorIntent(trimmed, needsAuthConnectorNames(input.mentions));
   if (!trimmed && parts.connectors.length) {
     trimmed = parts.connectors.map((mention) => `@${mention.name}`).join(" ");
@@ -472,6 +547,9 @@ export function resolveComposerSendPlan(input: {
     ),
     ...(riskSelections.size
       ? { farmingControlRiskContext: { selections: [...riskSelections.values()] } }
+      : {}),
+    ...(entitySelections.size
+      ? { farmingControlEntityContext: { selections: [...entitySelections.values()] } }
       : {}),
     shouldSend,
     shouldOpenGroup,

@@ -3,10 +3,13 @@ import type { Bot, Connection, ConnectionCatalogItem, Group, Routine } from "@ra
 import {
   buildComposerMentionOptions,
   createRoutineMentionBatcher,
+  composerMentionFromFarmingEntity,
+  composerMentionMatchesQuery,
+  farmingControlMentionKinds,
   mentionConnectorsFrom,
 } from "@rakazo/core";
 import { useQueries, useQuery } from "@tanstack/react-query";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { connectedAppMarks } from "../../lib/connected-apps";
 import { cronLabels } from "../../lib/cron";
 import type { SpaceQueries } from "../../lib/query";
@@ -33,6 +36,8 @@ export function useComposerMentions({
   groupId,
   integrationsOpen,
   initialBotsLoaded,
+  activeBotId,
+  farmingConfigured = false,
 }: {
   rpc: ReturnType<typeof createSpaceRpc>;
   queries: SpaceQueries;
@@ -42,8 +47,87 @@ export function useComposerMentions({
   groupId: string | undefined;
   integrationsOpen: boolean;
   initialBotsLoaded: boolean;
+  activeBotId?: string;
+  farmingConfigured?: boolean;
 }) {
   const { i18n } = useLingui();
+  const activeBot = bots.find((bot) => bot.id === activeBotId);
+  const farmingKinds = activeBot ? farmingControlMentionKinds(activeBot, { groupId }) : [];
+  const farmingScope = JSON.stringify([
+    queries.farmingControl.key(),
+    activeBotId,
+    farmingKinds,
+    farmingConfigured,
+  ]);
+  const [mentionRequest, setMentionRequest] = useState<{ scope: string; query: string } | null>(
+    null,
+  );
+  const [farmingSearch, setFarmingSearch] = useState<{ scope: string; query: string } | null>(null);
+  const onMentionRequested = useCallback(
+    (query: string | null) => {
+      setMentionRequest(query === null ? null : { scope: farmingScope, query });
+    },
+    [farmingScope],
+  );
+  useEffect(() => {
+    if (!mentionRequest || mentionRequest.scope !== farmingScope) {
+      setFarmingSearch(null);
+      return;
+    }
+    const timer = window.setTimeout(
+      () => setFarmingSearch(mentionRequest),
+      mentionRequest.query ? 180 : 0,
+    );
+    return () => window.clearTimeout(timer);
+  }, [mentionRequest, farmingScope]);
+  const farmingTargets = useQuery({
+    ...queries.farmingControl.mentionTargets.queryOptions({
+      input: {
+        botId: activeBotId ?? "",
+        query: farmingSearch?.scope === farmingScope ? farmingSearch.query : "",
+        kinds: ["position", "wallet", "protocol"],
+        limit: 100,
+      },
+    }),
+    enabled: farmingConfigured && farmingKinds.length > 0 && farmingSearch?.scope === farmingScope,
+    staleTime: 30_000,
+    retry: false,
+  });
+
+  const farmingRisks = useQuery({
+    ...queries.farmingControl.mentionTargets.queryOptions({
+      input: { botId: activeBotId ?? "", kinds: ["risk"], limit: 100 },
+    }),
+    enabled:
+      farmingConfigured && farmingKinds.includes("risk") && mentionRequest?.scope === farmingScope,
+    staleTime: 60_000,
+    retry: false,
+  });
+  const farmingActive =
+    farmingConfigured && farmingKinds.length > 0 && mentionRequest?.scope === farmingScope;
+  const farmingReads = farmingKinds.includes("risk")
+    ? [farmingTargets, farmingRisks]
+    : [farmingTargets];
+  const farmingMentionState: "loading" | "unavailable" | "partial" | "empty" | null = !farmingActive
+    ? null
+    : farmingReads.some((read) => read.isError || read.data?.state === "unavailable")
+      ? "unavailable"
+      : farmingSearch?.query !== mentionRequest?.query ||
+          farmingReads.some((read) => read.isPending)
+        ? "loading"
+        : farmingReads.some((read) => read.data?.state === "partial")
+          ? "partial"
+          : farmingReads.every(
+                (read) =>
+                  !(read.data?.entities ?? []).some((entity) =>
+                    composerMentionMatchesQuery(
+                      composerMentionFromFarmingEntity(entity),
+                      mentionRequest?.query ?? "",
+                    ),
+                  ),
+              )
+            ? "empty"
+            : null;
   const loadRoutineMentions = useMemo(
     () =>
       createRoutineMentionBatcher(
@@ -109,8 +193,8 @@ export function useComposerMentions({
     return bots.length === 0 ? [] : mentionConnectorsFrom(connections ?? [], catalog ?? []);
   }, [bots.length, composerConnections.data]);
   const composerMentionTargets = useMemo(
-    () =>
-      buildComposerMentionOptions({
+    () => [
+      ...buildComposerMentionOptions({
         query: "",
         includeEveryone: inGroup,
         currentGroupId: groupId,
@@ -131,7 +215,34 @@ export function useComposerMentions({
         connectors: mentionConnectors,
         cronLabels: cronLabels(i18n.locale),
       }),
-    [bots, groupId, groups, i18n.locale, inGroup, mentionConnectors, mentionRoutines],
+      ...(farmingConfigured && farmingKinds.length && farmingSearch?.scope === farmingScope
+        ? [
+            ...(farmingTargets.data?.entities ?? []),
+            ...(farmingKinds.includes("risk") ? (farmingRisks.data?.entities ?? []) : []),
+          ].map(composerMentionFromFarmingEntity)
+        : []),
+    ],
+    [
+      bots,
+      groupId,
+      groups,
+      i18n.locale,
+      inGroup,
+      mentionConnectors,
+      mentionRoutines,
+      farmingConfigured,
+      farmingScope,
+      farmingSearch,
+      farmingTargets.data,
+      farmingRisks.data,
+    ],
   );
-  return { composerMentionTargets, footerLogos, setFooterLogos };
+  return {
+    composerMentionTargets,
+    footerLogos,
+    setFooterLogos,
+    onMentionRequested,
+    farmingMentionState,
+    allowFarmingMentions: farmingConfigured && farmingKinds.length > 0,
+  };
 }

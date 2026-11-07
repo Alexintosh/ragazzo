@@ -13,6 +13,7 @@ import {
   botMessageAllowsSilence,
   expandSkillReferencesInPrompt,
   farmingControlOutsideBlocks,
+  farmingControlMentionKinds,
   formatSkillRunPrompt,
   formatSkillsCatalogInstruction,
   isBackgroundRunTrigger,
@@ -84,7 +85,7 @@ import {
 import { formatCurrentTimeInstruction } from "./current-time.js";
 import { resolveDeploymentModel } from "./deployment-model.js";
 import type { ExecutorDeps } from "./executor-deps.js";
-import { loadFarmingControlRiskContext } from "./farming-control-risk-context.js";
+import { loadFarmingControlContext } from "./farming-control-risk-context.js";
 import {
   FARMING_CONTROL_SAFE_TOOLS,
   farmingControlRole,
@@ -606,8 +607,7 @@ export function createRunExecutor(executorDeps: ExecutorDeps) {
 
         const fcSpecialist = isFarmingControlSpecialist(bot);
         const fcRole = farmingControlRole(bot);
-        const riskContextAllowed =
-          fcRole === "risk" && !thread.groupId && !thread.externalConversationId;
+        const fcContextKinds = deps.farmingControl ? farmingControlMentionKinds(bot, thread) : [];
         const discoveredPromise =
           !fcSpecialist && deps.connector
             ? deps.connector.discoverTools(context)
@@ -627,8 +627,8 @@ export function createRunExecutor(executorDeps: ExecutorDeps) {
                 | "assistant"
                 | "system",
               content: isPartialReplyClientNonce(m.clientNonce)
-                ? `${messageToAgentHistoryText(m, riskContextAllowed)}\n\n${PARTIAL_REPLY_NOTE}`
-                : messageToAgentHistoryText(m, riskContextAllowed),
+                ? `${messageToAgentHistoryText(m, fcContextKinds)}\n\n${PARTIAL_REPLY_NOTE}`
+                : messageToAgentHistoryText(m, fcContextKinds),
             })),
             summary: fcSpecialist ? null : thread.historyCompactionSummary,
             historyCompactedUpToSeq: fcSpecialist ? null : thread.historyCompactedUpToSeq,
@@ -1404,8 +1404,8 @@ export function createRunExecutor(executorDeps: ExecutorDeps) {
             // Lateness is optional context; a lookup failure must not prevent a run.
           }
         }
-        const riskContext = riskContextAllowed
-          ? await loadFarmingControlRiskContext(deps.prisma, thread.id, run.sourceMessageId)
+        const riskContext = fcContextKinds.length
+          ? await loadFarmingControlContext(deps.prisma, thread.id, run.sourceMessageId, fcContextKinds)
           : undefined;
         const prompt = [
           replyContext,
@@ -1729,7 +1729,7 @@ export function createRunExecutor(executorDeps: ExecutorDeps) {
                     hasImages: Boolean(currentTurnImages?.length),
                   },
                   fcSpecialist,
-                  riskContextAllowed,
+                  fcContextKinds,
                 ),
             },
             context,

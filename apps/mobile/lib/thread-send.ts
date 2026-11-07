@@ -114,14 +114,20 @@ export function useThreadSend({
     const submitted = composerRef.current?.snapshot();
     if (!submitted) return;
     const attachments = attachmentsForThread(pendingAttachments, originThreadKey);
-    const plan = resolveComposerSendPlan({
-      text: submitted.promptText,
-      mentions: submitted.mentions,
-      hasAttachments: attachments.length > 0,
-    });
+    let plan: ReturnType<typeof resolveComposerSendPlan>;
+    try {
+      plan = resolveComposerSendPlan({
+        text: submitted.promptText,
+        mentions: submitted.mentions,
+        hasAttachments: attachments.length > 0,
+      });
+    } catch (error) {
+      Alert.alert(t("Failed to send message"), errorText(error));
+      return;
+    }
     if (plan.isNoOp) return;
     const typedSwitch =
-      initialBotTarget && attachments.length === 0
+      initialBotTarget && attachments.length === 0 && !plan.farmingControlRiskContext && !plan.farmingControlEntityContext
         ? findSwitchTarget(plan.trimmed, mentionBotsRef.current)
         : undefined;
     if (typedSwitch && typedSwitch.id !== initialBotTarget) {

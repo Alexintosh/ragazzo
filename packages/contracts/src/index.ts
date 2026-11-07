@@ -19,6 +19,7 @@ export * from "./desktop.js";
 export * from "./domain.js";
 export * from "./events.js";
 export * from "./farming-control.js";
+export * from "./farming-control-entities.js";
 export * from "./history.js";
 export * from "./ids.js";
 export * from "./integration-settings.js";

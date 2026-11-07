@@ -2,7 +2,7 @@ import { t } from "@lingui/core/macro";
 import type { ComposerMention, ComposerMentionBinding, SlashActionId } from "@rakazo/core";
 import { composerMentionSegments, mentionChipKey } from "@rakazo/core";
 import { BotAvatar, resolvePersonaColorDef } from "@rakazo/ui-web";
-import { Clock, Puzzle, ShieldAlert, X } from "lucide-react";
+import { Clock, Landmark, Layers, Puzzle, ShieldAlert, Wallet, X } from "lucide-react";
 import type { ComponentProps, ReactNode, Ref } from "react";
 import { Fragment } from "react";
 import { FALLBACK_BOT_COLOR } from "./chat-shared";
@@ -19,6 +19,19 @@ export function slashActionLabel(id: SlashActionId) {
 }
 
 export function MentionOptionIcon({ mention }: { mention: ComposerMention }) {
+  if (
+    mention.kind === "farming-position" ||
+    mention.kind === "farming-wallet" ||
+    mention.kind === "farming-protocol"
+  ) {
+    const Icon =
+      mention.kind === "farming-wallet"
+        ? Wallet
+        : mention.kind === "farming-protocol"
+          ? Landmark
+          : Layers;
+    return <Icon size={16} strokeWidth={1.7} className="shrink-0 text-muted-foreground" />;
+  }
   if (mention.kind === "farming-risk") {
     return <ShieldAlert size={16} strokeWidth={1.7} className="shrink-0 text-muted-foreground" />;
   }
@@ -53,6 +66,19 @@ export function MentionOptionIcon({ mention }: { mention: ComposerMention }) {
 }
 
 function MentionCardIcon({ mention }: { mention: ComposerMention }) {
+  if (
+    mention.kind === "farming-position" ||
+    mention.kind === "farming-wallet" ||
+    mention.kind === "farming-protocol"
+  ) {
+    const Icon =
+      mention.kind === "farming-wallet"
+        ? Wallet
+        : mention.kind === "farming-protocol"
+          ? Landmark
+          : Layers;
+    return <Icon size={12} strokeWidth={1.7} className="text-muted-foreground/70" />;
+  }
   if (mention.kind === "farming-risk") {
     return <ShieldAlert size={12} strokeWidth={1.7} className="text-muted-foreground/70" />;
   }

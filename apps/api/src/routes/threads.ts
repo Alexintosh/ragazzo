@@ -7,7 +7,7 @@ import {
   CALL_CLIENT_NONCE_PREFIX,
   callClientNonce,
   expandSkillReferencesInPrompt,
-  farmingControlRole,
+  farmingControlMentionKinds,
   MODEL_REQUIRED_SEND_ERROR,
   QUEUE_HOLDING_RUN_STATUSES,
 } from "@rakazo/core";
@@ -108,27 +108,25 @@ export function threadsRoutes(ctx: RouterContext) {
   ) => {
     const setup = await modelSetup(deps, actor);
     const target = await resolveThreadTarget(deps.prisma, actor, input);
-    if (input.farmingControlRiskContext) {
+    if (input.farmingControlRiskContext || input.farmingControlEntityContext) {
+      const kinds = target.kind === "bot" ? farmingControlMentionKinds(target.bot, target.bot.thread) : [];
       if (
         target.kind !== "bot" ||
-        farmingControlRole(target.bot) !== "risk" ||
         target.bot.userId !== actor.userId ||
         target.bot.spaceId !== actor.spaceId ||
         !target.bot.thread ||
         target.bot.thread.userId !== actor.userId ||
         target.bot.thread.spaceId !== actor.spaceId ||
-        target.bot.thread.groupId ||
-        target.bot.thread.externalConversationId ||
+        (input.farmingControlRiskContext && !kinds.includes("risk")) ||
+        input.farmingControlEntityContext?.selections.some((selection) => !kinds.includes(selection.kind)) ||
         !input.text?.trim() ||
         !deps.farmingControl
       ) {
-        throw new ORPCError("FORBIDDEN", {
-          message: "Risk context requires the private FC Risk chat.",
-        });
+        throw new ORPCError("FORBIDDEN", { message: "FC context requires an authorized private FC chat." });
       }
-      // This is an authorization read only. Sending stays available while FC is offline.
+      // Authorization reads no FC data: offline sends retain selectors for a later fresh read.
       await deps.farmingControl.authorize(actor).catch(() => {
-        throw new ORPCError("FORBIDDEN", { message: "Risk context requires the private FC Risk chat." });
+        throw new ORPCError("FORBIDDEN", { message: "FC context requires an authorized private FC chat." });
       });
     }
     // A bot with its own runnable model needs no main model.

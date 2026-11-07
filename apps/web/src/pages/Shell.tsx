@@ -12,6 +12,7 @@ import {
   FarmingControlSectionSchema,
 } from "@rakazo/contracts";
 import {
+  farmingControlMentionCount,
   answerableAskMessageIds,
   channelMessageSender,
   chatUserBubbleColors,
@@ -527,13 +528,22 @@ function SpaceShell() {
     (botId: string | undefined) => memberName(transcriptMembers, botId),
     [transcriptMembers],
   );
-  const { composerMentionTargets, footerLogos, setFooterLogos } = useComposerMentions({
+  const {
+    composerMentionTargets,
+    footerLogos,
+    setFooterLogos,
+    onMentionRequested,
+    allowFarmingMentions,
+    farmingMentionState,
+  } = useComposerMentions({
     rpc,
     queries,
     bots,
     groups,
     inGroup,
     groupId,
+    activeBotId: active?.id,
+    farmingConfigured: farmingStatus.data?.configured === true,
     integrationsOpen: overlay?.kind === "integrations",
     initialBotsLoaded,
   });
@@ -959,6 +969,7 @@ function SpaceShell() {
               view={farmingView}
               rpc={rpc}
               queryScope={`${userId ?? ""}:${shellSpaceId ?? ""}`}
+              coordinatorId={farmingTeam.data?.coordinatorId}
               onOpenNavigation={() => setMobileSidebarOpen(true)}
               openChat={async ({ target, text, bindings = [] }: FarmingControlChatDraft) => {
                 const startedNavigation = renderedNavigationRevision;
@@ -1013,14 +1024,9 @@ function SpaceShell() {
                     end: binding.end + prefix.length,
                   })),
                 ];
-                const riskTags = new Set(
-                  combinedBindings
-                    .filter((binding) => binding.mention.kind === "farming-risk")
-                    .map((binding) => binding.mention.id),
-                );
                 const limit = FARMING_CONTROL_RISK_SELECTION_LIMIT;
-                if (riskTags.size > limit)
-                  throw new Error(t`You can add up to ${limit} risk tags per message.`);
+                if (farmingControlMentionCount(combinedBindings.map((binding) => binding.mention)) > limit)
+                  throw new Error(t`You can add up to ${limit} FC tags per message.`);
                 if (
                   !writeVerifiedComposerDraft(key, draft, undefined, combinedBindings) ||
                   !composerDraftMatches(key, draft, combinedBindings)
@@ -1205,6 +1211,9 @@ function SpaceShell() {
                   replyTargetName={replyTargetName}
                   onClearReply={composer.clearReply}
                   mentionTargets={composerMentionTargets}
+                  onMentionRequested={onMentionRequested}
+                  allowFarmingMentions={allowFarmingMentions}
+                  farmingMentionState={farmingMentionState}
                   agentSkills={agentSkills}
                   onSlashOpen={refreshAgentSkills}
                   onSlashAction={(action) => {

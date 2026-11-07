@@ -7,6 +7,7 @@ import type {
   FarmingControlRisk,
   FarmingControlSection,
 } from "@rakazo/contracts";
+import { createFarmingControlEntityMention } from "@rakazo/core";
 import {
   Badge,
   Button,
@@ -70,6 +71,7 @@ type Props = {
   queryScope: string;
   onOpenNavigation: () => void;
   openChat: (draft: FarmingControlChatDraft) => Promise<void>;
+  coordinatorId?: string;
 };
 
 type PortfolioControls = {
@@ -101,7 +103,14 @@ function initialPortfolioState(queryScope: string): PortfolioPageState {
 }
 
 /** Native shell consumer. Reads and team setup go through the authenticated RPC boundary. */
-export function FarmingControlPage({ view, rpc, queryScope, onOpenNavigation, openChat }: Props) {
+export function FarmingControlPage({
+  view,
+  rpc,
+  queryScope,
+  onOpenNavigation,
+  openChat,
+  coordinatorId,
+}: Props) {
   const { t } = useLingui();
   const titles = {
     portfolio: t`Portfolio`,
@@ -170,9 +179,29 @@ export function FarmingControlPage({ view, rpc, queryScope, onOpenNavigation, op
     try {
       const team = await rpc.farmingControl.ensureTeam();
       if (!mounted.current) return;
-      const specialist = context.owner
-        ? team.bots.find((bot) => bot.role === context.owner)
-        : undefined;
+      const entityKind =
+        context.entityType === "position" ||
+        context.entityType === "wallet" ||
+        context.entityType === "protocol"
+          ? context.entityType
+          : undefined;
+      const owner = context.owner ?? (entityKind ? "coordinator" : undefined);
+      const specialist = owner ? team.bots.find((bot) => bot.role === owner) : undefined;
+      if (entityKind && context.entityId) {
+        if (!specialist) throw new Error(t`The card specialist is unavailable.`);
+        const mention = createFarmingControlEntityMention({
+          kind: entityKind,
+          id: context.entityId,
+          name: context.label ?? context.entityId,
+        });
+        const token = `@${mention.name}`;
+        await openChat({
+          target: { botId: specialist.id },
+          text: `${token} `,
+          bindings: [{ start: 0, end: token.length, mention }],
+        });
+        return;
+      }
       if (context.owner && !specialist) throw new Error(t`The card specialist is unavailable.`);
       if (specialist && context.owner === "risk" && context.exposureId) {
         await openChat({
@@ -320,6 +349,9 @@ export function FarmingControlPage({ view, rpc, queryScope, onOpenNavigation, op
               {view === "portfolio" ? (
                 <Portfolio
                   data={data as FarmingControlPortfolio}
+                  rpc={rpc}
+                  queryScope={queryScope}
+                  coordinatorId={coordinatorId}
                   ask={ask}
                   assetSetKey={assetSetKey}
                   controls={scopedPortfolioState.controls}
@@ -427,12 +459,18 @@ function Freshness({ state }: { state: "current" | "stale" | "unknown" }) {
 
 function Portfolio({
   data,
+  rpc,
+  queryScope,
+  coordinatorId,
   ask,
   assetSetKey,
   controls,
   onControlsChange,
 }: {
   data: FarmingControlPortfolio;
+  rpc: RpcClient;
+  queryScope: string;
+  coordinatorId?: string;
   ask: (context?: FarmingControlAskContext) => Promise<void>;
   assetSetKey: string | null;
   controls: PortfolioControls;
@@ -440,6 +478,23 @@ function Portfolio({
 }) {
   const { t } = useLingui();
   const [selected, setSelected] = useState<string | null>(null);
+  const relatedEntities = useQuery({
+    queryKey: [
+      "farming-control",
+      queryScope,
+      coordinatorId,
+      "mentionTargets",
+      { positionId: selected },
+    ],
+    queryFn: ({ signal }) =>
+      rpc.farmingControl.mentionTargets(
+        { botId: coordinatorId!, positionId: selected!, kinds: ["wallet", "protocol"], limit: 100 },
+        { signal },
+      ),
+    enabled: Boolean(selected && coordinatorId),
+    staleTime: 30_000,
+    retry: false,
+  });
   const { period, search, lifecycle, sort, direction } = controls;
   const needle = search.trim().toLocaleLowerCase();
   const positions = data.positions
@@ -913,7 +968,34 @@ function Portfolio({
                   value={<Stamp value={position.dataQuality.lastObservedAtMs} />}
                 />
               </dl>
-              <div className="flex justify-end">
+              <div className="flex flex-wrap justify-end gap-2">
+                {(relatedEntities.data?.entities ?? [])
+                  .filter(
+                    (entity) =>
+                      entity.selection.kind === "wallet" || entity.selection.kind === "protocol",
+                  )
+                  .map((entity) => (
+                    <Button
+                      key={`${entity.selection.kind}:${entity.selection.id}`}
+                      variant="outline"
+                      title={entity.detail ?? undefined}
+                      aria-label={
+                        entity.selection.kind === "wallet"
+                          ? t`Ask about wallet ${entity.label}`
+                          : t`Ask about protocol ${entity.label}`
+                      }
+                      onClick={() =>
+                        void ask({
+                          entityType: entity.selection.kind,
+                          entityId: entity.selection.id,
+                          label: entity.label,
+                        })
+                      }
+                    >
+                      <MessageSquare size={15} />
+                      {entity.label}
+                    </Button>
+                  ))}
                 <Button
                   variant="outline"
                   onClick={() =>

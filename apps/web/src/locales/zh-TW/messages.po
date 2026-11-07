@@ -7313,3 +7313,37 @@ msgstr "Within limits"
 #: src/pages/Shell.tsx
 msgid "You can add up to {limit} risk tags per message."
 msgstr "You can add up to {limit} risk tags per message."
+
+#. placeholder {0}: entity.label
+#: src/pages/FarmingControl.tsx
+msgid "Ask about protocol {0}"
+msgstr "Ask about protocol {0}"
+
+#. placeholder {0}: entity.label
+#: src/pages/FarmingControl.tsx
+msgid "Ask about wallet {0}"
+msgstr "Ask about wallet {0}"
+
+#: src/pages/shell/composer.tsx
+msgid "Farming Control references are unavailable."
+msgstr "Farming Control references are unavailable."
+
+#: src/pages/shell/composer.tsx
+msgid "Loading Farming Control references…"
+msgstr "Loading Farming Control references…"
+
+#: src/pages/shell/composer.tsx
+msgid "No Farming Control references match."
+msgstr "No Farming Control references match."
+
+#: src/pages/shell/composer.tsx
+msgid "Some Farming Control references are unavailable."
+msgstr "Some Farming Control references are unavailable."
+
+#: src/pages/shell/composer.tsx
+msgid "You can add up to {FARMING_CONTROL_RISK_SELECTION_LIMIT} FC tags per message."
+msgstr "You can add up to {FARMING_CONTROL_RISK_SELECTION_LIMIT} FC tags per message."
+
+#: src/pages/Shell.tsx
+msgid "You can add up to {limit} FC tags per message."
+msgstr "You can add up to {limit} FC tags per message."
