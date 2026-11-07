@@ -3,6 +3,7 @@ import type { MessageBlock } from "@rakazo/contracts";
 import { ATTACHMENT_MAX_BYTES, isAttachmentImageMimeType } from "@rakazo/contracts";
 import { blocksToAgentHistoryText, farmingControlOutsideBlocks } from "@rakazo/core";
 import type { ExecutorDeps } from "./executor-deps.js";
+import { farmingControlRiskContextForModel } from "./farming-control-risk-context.js";
 import { loadReplyContext } from "./reply-context.js";
 import { currentTurnFilesInstruction, listCurrentTurnFiles } from "./thread-artifacts.js";
 
@@ -373,6 +374,7 @@ export async function claimRunSteering(
   pendingTurnFiles: MessageBlock[][],
   currentTurn: { messageId?: string; hasImages: boolean },
   privateOwnerOnly = false,
+  riskContextAllowed = false,
 ): Promise<AgentSteeringMessage[]> {
   const steering = await deps.events.claimSteering({ ...lease, seenIds });
   return Promise.all(
@@ -399,6 +401,9 @@ export async function claimRunSteering(
           text: [
             await loadReplyContext(deps.prisma, lease.threadId, item.messageId),
             item.text,
+            riskContextAllowed && item.origin === "user"
+              ? farmingControlRiskContextForModel(item.blocks)
+              : undefined,
             filesInstruction,
             unavailableInstruction,
           ]

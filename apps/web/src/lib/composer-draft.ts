@@ -1,5 +1,7 @@
+import { FARMING_CONTROL_RISK_SELECTION_LIMIT } from "@rakazo/contracts";
 import type { ComposerMentionBinding } from "@rakazo/core";
 import { validateComposerMentionBindings } from "@rakazo/core";
+import { upgradeLegacyFarmingRiskDraft } from "./farming-risk-draft";
 
 export const COMPOSER_DRAFT_STORAGE_PREFIX = "rakazo.composerDraft.";
 const COMPOSER_BINDINGS_STORAGE_PREFIX = "rakazo.composerBindings.";
@@ -144,6 +146,101 @@ export function readComposerDraft(
     return storage.getItem(composerDraftStorageKey(threadKey)) ?? "";
   } catch {
     return "";
+  }
+}
+
+/** Upgrade only recognized app-generated Risk draft blocks when a composer is opened. */
+export function prepareComposerDraft(
+  threadKey: string,
+  storage: DraftStorage | null = getLocalStorage(),
+): { text: string; bindings: ComposerMentionBinding[] } {
+  const text = readComposerDraft(threadKey, storage);
+  const bindings = readComposerDraftBindings(threadKey, storage);
+  // Risk card handoffs are private specialist drafts, never group/history messages.
+  if (!/^bot:fc-specialist:.+:risk$/.test(threadKey)) return { text, bindings };
+  const prepared = upgradeLegacyFarmingRiskDraft(text, bindings);
+  const riskTags = new Set(
+    prepared.bindings
+      .filter((binding) => binding.mention.kind === "farming-risk")
+      .map((binding) => binding.mention.id),
+  );
+  if (riskTags.size > FARMING_CONTROL_RISK_SELECTION_LIMIT) return { text, bindings };
+  if (
+    prepared.text !== text &&
+    !writeVerifiedComposerDraft(threadKey, prepared.text, storage, prepared.bindings)
+  )
+    return { text, bindings };
+  return prepared;
+}
+
+/** Verify persisted chip identities and offsets as well as the visible draft. */
+export function composerDraftMatches(
+  threadKey: string,
+  text: string,
+  bindings: readonly ComposerMentionBinding[],
+  storage: DraftStorage | null = getLocalStorage(),
+): boolean {
+  const expected = validateComposerMentionBindings(text, bindings);
+  return (
+    storage !== null &&
+    readComposerDraft(threadKey, storage) === text &&
+    expected.length === bindings.length &&
+    JSON.stringify(readComposerDraftBindings(threadKey, storage)) === JSON.stringify(expected)
+  );
+}
+
+/** Handoffs and migrations require durable text and chip metadata together. */
+export function writeVerifiedComposerDraft(
+  threadKey: string,
+  draft: string,
+  storage: DraftStorage | null = getLocalStorage(),
+  bindings?: readonly ComposerMentionBinding[],
+): boolean {
+  pendingSubmissions.delete(threadKey);
+  if (!storage || !threadKey) return false;
+  const draftKey = composerDraftStorageKey(threadKey);
+  const bindingKey = composerDraftBindingsKey(threadKey);
+  let previousDraft: string | null;
+  let previousBindings: string | null;
+  try {
+    previousDraft = storage.getItem(draftKey);
+    previousBindings = storage.getItem(bindingKey);
+  } catch {
+    return false;
+  }
+  // Unchanged plain-text resubmissions retain their existing identities.
+  const bindingRecord =
+    bindings === undefined && draft && draft === previousDraft
+      ? previousBindings
+      : bindings?.length && draft
+        ? JSON.stringify({ version: 1, text: draft, bindings })
+        : null;
+  if (bindings && validateComposerMentionBindings(draft, bindings).length !== bindings.length)
+    return false;
+  const restore = (key: string, value: string | null) => {
+    try {
+      if (value === null) storage.removeItem(key);
+      else storage.setItem(key, value);
+    } catch {
+      // A denied storage operation must not prevent restoring the other record.
+    }
+  };
+  try {
+    // Metadata first: quota failures must not replace a legacy draft with a bare token.
+    if (bindingRecord === null) storage.removeItem(bindingKey);
+    else storage.setItem(bindingKey, bindingRecord);
+    if (draft.length === 0) storage.removeItem(draftKey);
+    else storage.setItem(draftKey, draft);
+    if (
+      storage.getItem(draftKey) !== (draft || null) ||
+      storage.getItem(bindingKey) !== bindingRecord
+    )
+      throw new Error("Composer draft storage did not retain the complete draft");
+    return true;
+  } catch {
+    restore(draftKey, previousDraft);
+    restore(bindingKey, previousBindings);
+    return false;
   }
 }
 

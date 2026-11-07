@@ -19,7 +19,15 @@ import {
 } from "./farming-control-team-policy.js";
 import type { ToolHandler } from "./run-tool-gate.js";
 
-const riskInput = z.object({ exposureId: z.string().trim().min(1).max(200).optional() }).strict();
+const riskInput = z
+  .object({
+    exposureId: z.string().trim().min(1).max(200).optional(),
+    signalKey: z.string().min(1).max(200).optional(),
+  })
+  .strict()
+  .refine((input) => !input.signalKey || Boolean(input.exposureId), {
+    message: "signalKey requires exposureId",
+  });
 const DENIED = "This capability is not granted to this Farming Control specialist.";
 
 /** Defense in depth: profile edits, hidden calls, and connector aliases cannot expand the grant. */
@@ -60,14 +68,23 @@ export const farmingControlReadTool: ToolHandler = async (ctx, call) => {
   try {
     const actor = await authorizeFarmingControlRun(ctx.deps, ctx.run, ctx.bot);
     if (section === "risk") {
-      const { exposureId } = riskInput.parse(call.args);
+      const { exposureId, signalKey } = riskInput.parse(call.args);
       const result = await ctx.deps.farmingControl.read(actor, section);
       if (!exposureId) return result;
       // Match only against evidence returned by the current authorized, wallet-scoped read.
       const risk = FarmingControlRiskSchema.parse(result);
+      const exposure = risk.exposures.find((card) => card.id === exposureId);
       return {
         exposureId,
-        exposure: risk.exposures.find((card) => card.id === exposureId) ?? null,
+        ...(signalKey ? { signalKey } : {}),
+        exposure: exposure
+          ? {
+              ...exposure,
+              signals: signalKey
+                ? exposure.signals.filter((signal) => signal.key === signalKey)
+                : exposure.signals,
+            }
+          : null,
         exposureScope: risk.exposureScope,
         fetchedAtMs: risk.fetchedAtMs,
         sources: risk.sources,

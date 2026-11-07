@@ -30,6 +30,22 @@ export const FarmingControlPortfolioInputSchema = z
   })
   .strict();
 export type FarmingControlPortfolioInput = z.infer<typeof FarmingControlPortfolioInputSchema>;
+export const FARMING_CONTROL_RISK_SELECTION_LIMIT = 16;
+
+/** Opaque selectors from Risk chips; amounts and labels are always read from FC. */
+export const FarmingControlRiskSelectionSchema = z
+  .object({
+    exposureId: z.string().min(1).max(200),
+    signalKey: z.string().min(1).max(200).optional(),
+  })
+  .strict();
+export type FarmingControlRiskSelection = z.infer<typeof FarmingControlRiskSelectionSchema>;
+export const FarmingControlRiskContextSchema = z
+  .object({
+    selections: z.array(FarmingControlRiskSelectionSchema).min(1).max(FARMING_CONTROL_RISK_SELECTION_LIMIT),
+  })
+  .strict();
+export type FarmingControlRiskContext = z.infer<typeof FarmingControlRiskContextSchema>;
 export const FarmingControlWalletVisibilitySchema = z.object({
   revision: ms,
   active: z.boolean(),

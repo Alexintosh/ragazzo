@@ -10,21 +10,9 @@ export type FarmingControlAskContext = {
   exposureId?: string;
   label?: string;
   positionId?: string;
-  subject?: { kind: string; id: string; address?: string | null };
-  protocol?: string;
-  chainId?: number;
-  positionIds?: string[];
-  observedAtMs?: number | null;
-  collectedAtMs?: number | null;
   signal?: {
     key: string;
     label: string;
-    status: string;
-    coverage: string;
-    value: string | null;
-    format: string;
-    unit: string | null;
-    threshold?: string | null;
   };
 };
 
@@ -43,22 +31,11 @@ export function riskCardContext(
     owner: "risk",
     exposureId: card.id,
     label: card.label,
-    subject: card.subject,
-    protocol: card.protocol,
-    chainId: card.chainId,
-    positionIds: card.positions.map((position) => position.id),
-    observedAtMs: card.observedAtMs,
-    collectedAtMs: card.collectedAtMs,
     ...(signal
       ? {
           signal: {
             key: signal.key,
             label: signal.label,
-            status: signal.status,
-            coverage: signal.coverage,
-            value: signal.value,
-            format: signal.format,
-            unit: signal.unit,
           },
         }
       : {}),

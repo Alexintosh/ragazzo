@@ -1,9 +1,23 @@
-import type { BotAvatarSet, Connection, ConnectionCatalogItem } from "@rakazo/contracts";
+import type {
+  BotAvatarSet,
+  Connection,
+  ConnectionCatalogItem,
+  FarmingControlRiskContext,
+  FarmingControlRiskSelection,
+} from "@rakazo/contracts";
+import { FarmingControlRiskSelectionSchema } from "@rakazo/contracts";
 import type { CronLabels } from "./cron.js";
 import { ENGLISH_CRON_LABELS, formatCron } from "./cron.js";
 import { displayName } from "./display-name.js";
 
-export const COMPOSER_MENTION_KINDS = ["bot", "group", "routine", "connector", "everyone"] as const;
+export const COMPOSER_MENTION_KINDS = [
+  "bot",
+  "group",
+  "routine",
+  "connector",
+  "everyone",
+  "farming-risk",
+] as const;
 
 export type ComposerMentionKind = (typeof COMPOSER_MENTION_KINDS)[number];
 
@@ -24,7 +38,28 @@ export type ComposerMention = {
   /** Connected connection row id when kind is connector + connected. */
   connectionId?: string;
   authStatus?: "connected" | "needs_auth";
+  /** Stable selectors only; current risk data and positions are read on the server. */
+  farmingRisk?: FarmingControlRiskSelection;
 };
+
+/** A display name never determines the identity of a selected exposure or signal. */
+export function createFarmingRiskMention(
+  input: FarmingControlRiskSelection & { name: string; subtitle?: string },
+): ComposerMention {
+  const selection = FarmingControlRiskSelectionSchema.parse({
+    exposureId: input.exposureId,
+    ...(input.signalKey !== undefined ? { signalKey: input.signalKey } : {}),
+  });
+  const name = input.name.trim();
+  if (!name) throw new Error("A risk mention requires a name");
+  return {
+    kind: "farming-risk",
+    id: JSON.stringify([selection.exposureId, selection.signalKey ?? null]),
+    name,
+    farmingRisk: selection,
+    ...(input.subtitle ? { subtitle: input.subtitle } : {}),
+  };
+}
 
 export type MentionPickerBot = {
   id: string;
@@ -222,6 +257,7 @@ export function partitionComposerMentions(mentions: readonly ComposerMention[]) 
   const groups: ComposerMention[] = [];
   const routines: ComposerMention[] = [];
   const connectors: ComposerMention[] = [];
+  const farmingRisks: ComposerMention[] = [];
   let everyone = false;
   for (const mention of mentions) {
     if (mention.kind === "bot") bots.push(mention);
@@ -229,8 +265,9 @@ export function partitionComposerMentions(mentions: readonly ComposerMention[]) 
     else if (mention.kind === "routine") routines.push(mention);
     else if (mention.kind === "connector") connectors.push(mention);
     else if (mention.kind === "everyone") everyone = true;
+    else if (mention.kind === "farming-risk") farmingRisks.push(mention);
   }
-  return { bots, groups, routines, connectors, everyone };
+  return { bots, groups, routines, connectors, farmingRisks, everyone };
 }
 
 /** Payload entries for `threads/send` mentions (legacy bare bot ids still accepted). */
@@ -401,6 +438,7 @@ export function resolveComposerSendPlan(input: {
   rerouteGroupId: string | null;
   rerouteGroupName: string | null;
   mentionPayload: ReturnType<typeof toThreadMentionPayload>;
+  farmingControlRiskContext?: FarmingControlRiskContext;
   shouldSend: boolean;
   shouldOpenGroup: boolean;
   shouldRunRoutines: boolean;
@@ -409,6 +447,13 @@ export function resolveComposerSendPlan(input: {
   const parts = partitionComposerMentions(input.mentions);
   const mentionedGroup = parts.groups[0];
   let trimmed = stripMentionKinds(input.text, input.mentions, ["group", "routine", "connector"]);
+  const riskSelections = new Map<string, FarmingControlRiskSelection>();
+  for (const mention of parts.farmingRisks) {
+    const parsed = FarmingControlRiskSelectionSchema.safeParse(mention.farmingRisk);
+    if (!parsed.success) continue;
+    const key = JSON.stringify([parsed.data.exposureId, parsed.data.signalKey ?? null]);
+    if (mention.id === key) riskSelections.set(key, parsed.data);
+  }
   trimmed = appendConnectorIntent(trimmed, needsAuthConnectorNames(input.mentions));
   if (!trimmed && parts.connectors.length) {
     trimmed = parts.connectors.map((mention) => `@${mention.name}`).join(" ");
@@ -425,6 +470,9 @@ export function resolveComposerSendPlan(input: {
     mentionPayload: toThreadMentionPayload(
       input.mentions.filter((mention) => mention.kind !== "group" && mention.kind !== "routine"),
     ),
+    ...(riskSelections.size
+      ? { farmingControlRiskContext: { selections: [...riskSelections.values()] } }
+      : {}),
     shouldSend,
     shouldOpenGroup,
     shouldRunRoutines,

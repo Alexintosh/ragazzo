@@ -101,6 +101,7 @@ export async function deliverSend(
     imageHandling: attempt.imageHandling ?? "confirm",
     text: plan.trimmed || undefined,
     mentions: plan.mentionPayload.length ? plan.mentionPayload : undefined,
+    farmingControlRiskContext: plan.farmingControlRiskContext,
     artifactIds: artifactIds.length ? artifactIds : undefined,
     replyToMessageId: reroutedToGroup ? undefined : payload.replyTargetId,
     replyQuote: reroutedToGroup ? undefined : (payload.replyQuote ?? undefined),

@@ -1,6 +1,7 @@
 import * as z from "zod";
 import { AgentImportSetupItemSchema } from "./agent-import-setup.js";
 import { botSecretDestinationSchema, LoginFieldLabels } from "./bot-secrets.js";
+import { FarmingControlRiskContextSchema } from "./farming-control.js";
 import { Id, ThinkingLevelSchema } from "./ids.js";
 import { McpTransportSchema } from "./mcp.js";
 
@@ -105,7 +106,11 @@ export const BotSettingsValuesSchema = z.object({
 export type BotSettingsValues = z.infer<typeof BotSettingsValuesSchema>;
 
 export const MessageBlock = z.discriminatedUnion("kind", [
-  z.object({ kind: z.literal("text"), text: z.string() }),
+  z.object({
+    kind: z.literal("text"),
+    text: z.string(),
+    farmingControlRiskContext: FarmingControlRiskContextSchema.optional(),
+  }),
   z.object({
     kind: z.literal("card"),
     lines: z.array(z.object({ k: z.string(), v: z.string() })),

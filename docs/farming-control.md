@@ -30,13 +30,15 @@ The draft carries the selected context. You can edit and send it in the
 Farming Control group. Connect a supported model through the ordinary Ragazzo
 model settings to receive a generated reply.
 
-**Mention to agent** opens the card's designated specialist in a direct chat.
-Each card owns a stable subject reference and a specialist role. Resolve the role
-to the existing member of the user's FC team so a renamed bot still receives the
-right draft. Carry the subject, network, linked position references, selected
-signal, evidence time and source into the editable composer. The specialist
-rereads FC before interpreting the evidence. Opening a card mention preserves
-the existing draft and waits for the operator to send it.
+**Mention to agent** on a Risk card opens the FC Risk direct chat with a tag
+for that exposure. From a signal's detail view the tag also identifies the
+signal. Type your question beside the tag and send it when ready. You can
+remove a tag or add another card to the same draft.
+
+The tag identifies the monitor by its stable exposure ID. FC Risk uses that
+reference to read the current evidence and linked positions within the
+account's visible wallet scope. The card chooses the specialist by role, so
+renaming the specialist preserves the same conversation.
 
 | Specialist | Available financial reads |
 | --- | --- |

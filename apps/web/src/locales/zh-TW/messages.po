@@ -7309,3 +7309,7 @@ msgstr "Watch"
 #: src/components/farming-control/risk-cards.tsx
 msgid "Within limits"
 msgstr "Within limits"
+
+#: src/pages/Shell.tsx
+msgid "You can add up to {limit} risk tags per message."
+msgstr "You can add up to {limit} risk tags per message."

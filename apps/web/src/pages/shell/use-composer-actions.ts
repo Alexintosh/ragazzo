@@ -413,6 +413,7 @@ export function useComposerActions({
           imageHandling: imageHandling ?? "confirm",
           text: trimmed || undefined,
           mentions: plan.mentionPayload.length ? plan.mentionPayload : undefined,
+          farmingControlRiskContext: plan.farmingControlRiskContext,
           artifactIds: artifactIds.length ? artifactIds : undefined,
           replyToMessageId: reroutedToGroup ? undefined : activeReplyTarget?.id,
           replyQuote: reroutedToGroup ? undefined : (activeReplyQuote ?? undefined),

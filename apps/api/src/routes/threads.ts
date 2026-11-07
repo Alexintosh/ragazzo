@@ -7,6 +7,7 @@ import {
   CALL_CLIENT_NONCE_PREFIX,
   callClientNonce,
   expandSkillReferencesInPrompt,
+  farmingControlRole,
   MODEL_REQUIRED_SEND_ERROR,
   QUEUE_HOLDING_RUN_STATUSES,
 } from "@rakazo/core";
@@ -107,6 +108,29 @@ export function threadsRoutes(ctx: RouterContext) {
   ) => {
     const setup = await modelSetup(deps, actor);
     const target = await resolveThreadTarget(deps.prisma, actor, input);
+    if (input.farmingControlRiskContext) {
+      if (
+        target.kind !== "bot" ||
+        farmingControlRole(target.bot) !== "risk" ||
+        target.bot.userId !== actor.userId ||
+        target.bot.spaceId !== actor.spaceId ||
+        !target.bot.thread ||
+        target.bot.thread.userId !== actor.userId ||
+        target.bot.thread.spaceId !== actor.spaceId ||
+        target.bot.thread.groupId ||
+        target.bot.thread.externalConversationId ||
+        !input.text?.trim() ||
+        !deps.farmingControl
+      ) {
+        throw new ORPCError("FORBIDDEN", {
+          message: "Risk context requires the private FC Risk chat.",
+        });
+      }
+      // This is an authorization read only. Sending stays available while FC is offline.
+      await deps.farmingControl.authorize(actor).catch(() => {
+        throw new ORPCError("FORBIDDEN", { message: "Risk context requires the private FC Risk chat." });
+      });
+    }
     // A bot with its own runnable model needs no main model.
     if (
       setup.needsModel &&

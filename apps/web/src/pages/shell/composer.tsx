@@ -31,8 +31,7 @@ import { attachmentPickerAccept } from "../../lib/attachment-picker-accept";
 import { useCallSession } from "../../lib/call-session";
 import {
   beginComposerDraftSubmission,
-  readComposerDraft,
-  readComposerDraftBindings,
+  prepareComposerDraft,
   settleComposerDraftSubmission,
   subscribeComposerDraftAccepted,
   writeComposerDraft,
@@ -128,10 +127,7 @@ export const Composer = memo(function Composer({
   enterToSend: boolean;
 }) {
   const { t } = useLingui();
-  const [composition, setComposition] = useState(() => ({
-    text: readComposerDraft(draftKey),
-    bindings: readComposerDraftBindings(draftKey),
-  }));
+  const [composition, setComposition] = useState(() => prepareComposerDraft(draftKey));
   const draft = composition.text;
   const mentionBindings = composition.bindings;
   const compositionRef = useRef(composition);

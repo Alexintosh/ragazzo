@@ -148,6 +148,7 @@ import {
   FarmingControlHarvestSchema,
   FarmingControlPortfolioInputSchema,
   FarmingControlPortfolioSchema,
+  FarmingControlRiskContextSchema,
   FarmingControlRiskSchema,
   FarmingControlStatusSchema,
   FarmingControlTeamSchema,
@@ -202,6 +203,7 @@ const structuredMentionTarget = z.discriminatedUnion("kind", [
 const threadSendFields = threadTarget.safeExtend({
   imageHandling: z.enum(["confirm", "file"]).optional(),
   text: z.string().optional(),
+  farmingControlRiskContext: FarmingControlRiskContextSchema.optional(),
   artifactIds: z.array(Id).max(ATTACHMENT_COUNT_CEILING).optional(),
   /** Bare bot ids (legacy) or typed mention chips from the composer. */
   mentions: z
@@ -243,6 +245,9 @@ const threadSendOutput = z.object({
 const threadSendWithRoutinesInput = threadSendFields.safeExtend({
   clientNonce: z.string().min(1).max(200),
   routineIds: z.array(Id).min(1).max(64),
+}).refine((input) => !input.farmingControlRiskContext || Boolean(input.text?.trim()), {
+  message: "Risk context requires message text",
+  path: ["text"],
 });
 
 const spaceName = z.string().trim().min(1).max(60);

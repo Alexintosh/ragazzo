@@ -7,7 +7,10 @@ import type {
   ThreadMessage,
   VoiceStatus,
 } from "@rakazo/contracts";
-import { FarmingControlSectionSchema } from "@rakazo/contracts";
+import {
+  FARMING_CONTROL_RISK_SELECTION_LIMIT,
+  FarmingControlSectionSchema,
+} from "@rakazo/contracts";
 import {
   answerableAskMessageIds,
   channelMessageSender,
@@ -53,9 +56,9 @@ import {
 import { readBotsSidebarCollapsed, writeBotsSidebarCollapsed } from "../lib/bots-sidebar-pref";
 import { setCallMinimized, startCall, useCallSession } from "../lib/call-session";
 import {
-  readComposerDraft,
-  readComposerDraftBindings,
-  writeComposerDraft,
+  composerDraftMatches,
+  prepareComposerDraft,
+  writeVerifiedComposerDraft,
 } from "../lib/composer-draft";
 import {
   getComposerEnterToSend,
@@ -975,19 +978,53 @@ function SpaceShell() {
                 ]);
                 if (!stillCurrent()) return;
                 const key = target.botId ? `bot:${target.botId}` : `group:${target.groupId}`;
-                const previous = readComposerDraft(key);
-                const prefix = previous ? `${previous}\n\n` : "";
-                const draft = `${prefix}${text}`;
+                const previous = prepareComposerDraft(key);
+                const riskHandoff =
+                  bindings.length > 0 &&
+                  bindings.every((binding) => binding.mention.kind === "farming-risk");
+                const alreadyMentioned =
+                  riskHandoff &&
+                  bindings.every(
+                    (binding) =>
+                      binding.mention.kind === "farming-risk" &&
+                      previous.bindings.some(
+                        (existing) =>
+                          existing.mention.kind === "farming-risk" &&
+                          existing.mention.id === binding.mention.id,
+                      ),
+                  );
+                const stagedText = alreadyMentioned ? "" : text;
+                const stagedBindings = alreadyMentioned ? [] : bindings;
+                const separator =
+                  previous.text && stagedText
+                    ? riskHandoff
+                      ? /\s$/.test(previous.text)
+                        ? ""
+                        : " "
+                      : "\n\n"
+                    : "";
+                const prefix = `${previous.text}${separator}`;
+                const draft = `${prefix}${stagedText}`;
                 const combinedBindings = [
-                  ...readComposerDraftBindings(key),
-                  ...bindings.map((binding) => ({
+                  ...previous.bindings,
+                  ...stagedBindings.map((binding) => ({
                     ...binding,
                     start: binding.start + prefix.length,
                     end: binding.end + prefix.length,
                   })),
                 ];
-                writeComposerDraft(key, draft, undefined, combinedBindings);
-                if (readComposerDraft(key) !== draft)
+                const riskTags = new Set(
+                  combinedBindings
+                    .filter((binding) => binding.mention.kind === "farming-risk")
+                    .map((binding) => binding.mention.id),
+                );
+                const limit = FARMING_CONTROL_RISK_SELECTION_LIMIT;
+                if (riskTags.size > limit)
+                  throw new Error(t`You can add up to ${limit} risk tags per message.`);
+                if (
+                  !writeVerifiedComposerDraft(key, draft, undefined, combinedBindings) ||
+                  !composerDraftMatches(key, draft, combinedBindings)
+                )
                   throw new Error(
                     t`Could not prepare the message. Allow local draft storage and try again.`,
                   );

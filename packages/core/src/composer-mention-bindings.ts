@@ -1,3 +1,4 @@
+import { FarmingControlRiskSelectionSchema } from "@rakazo/contracts";
 import type {
   ComposerMention,
   ComposerMentionQuery,
@@ -6,6 +7,7 @@ import type {
 import {
   COMPOSER_MENTION_KINDS,
   completeComposerMention,
+  createFarmingRiskMention,
   mentionChipKey,
 } from "./composer-mentions.js";
 
@@ -49,6 +51,13 @@ export function validateComposerMentionBindings(
     )
       continue;
     const mention: ComposerMention = { kind: source.kind, id: source.id, name: source.name };
+    if (mention.kind === "farming-risk") {
+      const parsed = FarmingControlRiskSelectionSchema.safeParse(source.farmingRisk);
+      if (!parsed.success || !mention.name.trim()) continue;
+      const canonical = createFarmingRiskMention({ ...parsed.data, name: mention.name });
+      if (canonical.id !== mention.id) continue;
+      mention.farmingRisk = parsed.data;
+    }
     for (const key of ["subtitle", "color", "botId", "connectionId"] as const)
       if (typeof source[key] === "string") mention[key] = source[key];
     if (source.authStatus === "connected" || source.authStatus === "needs_auth")
