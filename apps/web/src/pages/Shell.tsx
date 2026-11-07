@@ -39,6 +39,7 @@ import { useParams } from "react-router-dom";
 import { ComputerUpdateProgress } from "../components/ComputerUpdateProgress";
 import { CallCard, CallReturnBar } from "../components/call/CallCard";
 import { IncomingCall } from "../components/call/IncomingCall";
+import type { FarmingControlChatDraft } from "../components/farming-control/card-context";
 import { FarmingControlNavigation } from "../components/farming-control/navigation";
 import { PageLoading } from "../components/PageLoading";
 import type { ArtifactTarget } from "../lib/artifact-open";
@@ -51,6 +52,11 @@ import {
 } from "../lib/bots-sidebar-density-pref";
 import { readBotsSidebarCollapsed, writeBotsSidebarCollapsed } from "../lib/bots-sidebar-pref";
 import { setCallMinimized, startCall, useCallSession } from "../lib/call-session";
+import {
+  readComposerDraft,
+  readComposerDraftBindings,
+  writeComposerDraft,
+} from "../lib/composer-draft";
 import {
   getComposerEnterToSend,
   subscribeComposerEnterToSend,
@@ -130,6 +136,8 @@ function SpaceShell() {
   const [rpc] = useState(() => createSpaceRpc(shellSpaceId));
   const session = authClient.useSession();
   const userId = session.data?.user.id;
+  const currentUserId = useRef(userId);
+  currentUserId.current = userId;
   const [createMenuOpen, setCreateMenuOpen] = useCreateMenu();
   // A revisited space, or the shell reopened from another page, starts from what it showed
   // last time while its fresh bootstrap loads.
@@ -155,6 +163,7 @@ function SpaceShell() {
     overlay,
     setOverlay,
   } = useShellNavigation();
+  const renderedNavigationRevision = navigationRevision.current;
   const queries = spaceQueries(userId ?? null, shellSpaceId);
   const roster = useSpaceRoster({
     rpc,
@@ -943,16 +952,47 @@ function SpaceShell() {
             </div>
           ) : farmingStatus.data?.configured ? (
             <FarmingControlPage
-              key={farmingView}
+              key={`${farmingView}:${userId ?? ""}:${shellSpaceId ?? ""}`}
               view={farmingView}
               rpc={rpc}
               queryScope={`${userId ?? ""}:${shellSpaceId ?? ""}`}
               onOpenNavigation={() => setMobileSidebarOpen(true)}
-              openTeam={async (id) => {
-                const startedNavigation = navigationRevision.current;
-                await refreshBots();
-                if (alive.current && startedNavigation === navigationRevision.current)
-                  navigate(`/app/g/${id}`);
+              openChat={async ({ target, text, bindings = [] }: FarmingControlChatDraft) => {
+                const startedNavigation = renderedNavigationRevision;
+                const stillCurrent = () =>
+                  alive.current &&
+                  Boolean(userId) &&
+                  currentUserId.current === userId &&
+                  selectedSpaceId() === shellSpaceId &&
+                  startedNavigation === navigationRevision.current;
+                if (!stillCurrent()) return;
+                // Recheck access through the normal private-chat API before writing any local draft.
+                await Promise.all([
+                  refreshBots(),
+                  target.botId !== undefined
+                    ? rpc.bots.get({ botId: target.botId })
+                    : rpc.groups.get({ groupId: target.groupId }),
+                ]);
+                if (!stillCurrent()) return;
+                const key = target.botId ? `bot:${target.botId}` : `group:${target.groupId}`;
+                const previous = readComposerDraft(key);
+                const prefix = previous ? `${previous}\n\n` : "";
+                const draft = `${prefix}${text}`;
+                const combinedBindings = [
+                  ...readComposerDraftBindings(key),
+                  ...bindings.map((binding) => ({
+                    ...binding,
+                    start: binding.start + prefix.length,
+                    end: binding.end + prefix.length,
+                  })),
+                ];
+                writeComposerDraft(key, draft, undefined, combinedBindings);
+                if (readComposerDraft(key) !== draft)
+                  throw new Error(
+                    t`Could not prepare the message. Allow local draft storage and try again.`,
+                  );
+                setMobileSidebarOpen(false);
+                navigate(target.botId ? `/app/${target.botId}` : `/app/g/${target.groupId}`);
               }}
             />
           ) : (

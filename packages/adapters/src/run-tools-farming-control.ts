@@ -1,6 +1,11 @@
 import type { Actor } from "@rakazo/contracts";
-import { FarmingControlPortfolioInputSchema, MessageBlock } from "@rakazo/contracts";
+import {
+  FarmingControlPortfolioInputSchema,
+  FarmingControlRiskSchema,
+  MessageBlock,
+} from "@rakazo/contracts";
 import { farmingControlOutsideBlocks } from "@rakazo/core";
+import * as z from "zod";
 import type { ExecutorDeps } from "./executor-deps.js";
 import {
   FARMING_CONTROL_GRANTS,
@@ -14,6 +19,7 @@ import {
 } from "./farming-control-team-policy.js";
 import type { ToolHandler } from "./run-tool-gate.js";
 
+const riskInput = z.object({ exposureId: z.string().trim().min(1).max(200).optional() }).strict();
 const DENIED = "This capability is not granted to this Farming Control specialist.";
 
 /** Defense in depth: profile edits, hidden calls, and connector aliases cannot expand the grant. */
@@ -27,13 +33,12 @@ export function farmingControlToolDenied(
   const role = farmingControlRole(bot);
   if (!isFarmingControlSpecialist(bot)) return Boolean(section);
   if (!role) return true;
-  if (section)
-    return (
-      !FARMING_CONTROL_GRANTS[role].includes(section) ||
-      (section === "portfolio"
-        ? !FarmingControlPortfolioInputSchema.safeParse(args).success
-        : Object.keys(args).length !== 0)
-    );
+  if (section) {
+    if (!FARMING_CONTROL_GRANTS[role].includes(section)) return true;
+    if (section === "portfolio") return !FarmingControlPortfolioInputSchema.safeParse(args).success;
+    if (section === "risk") return !riskInput.safeParse(args).success;
+    return Object.keys(args).length !== 0;
+  }
   if (!FARMING_CONTROL_SAFE_TOOLS.has(name)) return true;
   if (name !== "handoff_to_bot") return false;
   const targetGroup = args.group_id ?? groupId;
@@ -54,6 +59,21 @@ export const farmingControlReadTool: ToolHandler = async (ctx, call) => {
   if (!ctx.deps.farmingControl) return { error: "Farming Control is not configured." };
   try {
     const actor = await authorizeFarmingControlRun(ctx.deps, ctx.run, ctx.bot);
+    if (section === "risk") {
+      const { exposureId } = riskInput.parse(call.args);
+      const result = await ctx.deps.farmingControl.read(actor, section);
+      if (!exposureId) return result;
+      // Match only against evidence returned by the current authorized, wallet-scoped read.
+      const risk = FarmingControlRiskSchema.parse(result);
+      return {
+        exposureId,
+        exposure: risk.exposures.find((card) => card.id === exposureId) ?? null,
+        exposureScope: risk.exposureScope,
+        fetchedAtMs: risk.fetchedAtMs,
+        sources: risk.sources,
+        issues: risk.issues,
+      };
+    }
     return section === "portfolio"
       ? await ctx.deps.farmingControl.read(
           actor,

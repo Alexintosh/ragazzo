@@ -24,6 +24,7 @@ import {
 } from "@rakazo/contracts";
 import { isPrivateNetworkHost } from "@rakazo/contracts/network-host";
 import * as z from "zod";
+import { curveRiskSource, morphoRiskSource, projectRiskExposures } from "./farming-control-risk.js";
 
 const ms = z.number().int().nonnegative();
 // Wallet addresses stay inside this adapter; consumers receive only the hidden count.
@@ -64,6 +65,26 @@ const harvestSource = FarmingControlHarvestTotalsSchema.extend({
     .max(2_000),
   rewardComponents: z.array(FarmingControlHarvestContributionSchema).max(10_000),
 });
+const riskPositionSource = z.object({
+  asOfMs: ms,
+  walletVisibility: walletVisibilitySource,
+  walletAttribution: z
+    .object({
+      complete: z.boolean(),
+      partialPositionIds: z.array(z.string()).max(2_000),
+    })
+    .optional(),
+  scope: z.object({ includedPositionIds: z.array(z.string()).max(2_000) }),
+  items: z
+    .array(
+      z.object({
+        id: z.string(),
+        label: z.string().nullable(),
+        state: z.string(),
+      }),
+    )
+    .max(2_000),
+});
 const alertsSource = z.object({
   asOfMs: ms,
   retired: z.boolean().optional(),
@@ -95,6 +116,8 @@ const SOURCES = {
   portfolio: "/positions",
   history: "/portfolio/metrics/projections",
   harvest: "/harvest/outstanding",
+  morpho: "/monitoring/morpho?window=1h",
+  curve: "/monitoring/curve-risk/pools",
   alerts: "/monitoring/alerts?status=open&limit=100",
   assessments: "/monitoring/assessments?limit=100",
   monitors: "/monitoring/hot/monitors/",
@@ -181,7 +204,7 @@ export function createFarmingControlClient(options: {
     const sourceLabel = path.split("?")[0];
     // Match the native frontend's read budgets for saved scope and portfolio summaries.
     const timeoutMs =
-      sourceLabel === SOURCES.walletVisibility
+      sourceLabel === SOURCES.walletVisibility || sourceLabel === SOURCES.morpho.split("?")[0]
         ? 20_000
         : sourceLabel === SOURCES.portfolio
           ? 15_000
@@ -530,14 +553,84 @@ export function createFarmingControlClient(options: {
     };
   }
   async function risk(): Promise<FarmingControlRisk> {
-    const [alerts, assessments, monitors] = await Promise.all([
-      read(SOURCES.alerts, alertsSource),
-      read(SOURCES.assessments, assessmentsSource),
-      read(SOURCES.monitors, monitorsSource),
-    ]);
-    const issues = [alerts.issue, assessments.issue, monitors.issue].filter(
-      (issue): issue is string => issue !== null,
+    const settings = await read(
+      SOURCES.walletVisibility,
+      walletVisibilitySource,
     );
+    const revision = settings.data?.revision ?? null;
+    const query = new URLSearchParams({
+      walletVisibility: "visible",
+      walletVisibilityRevision: String(revision),
+    });
+    const [alerts, assessments, monitors, morpho, curve, scoped] =
+      await Promise.all([
+        read(SOURCES.alerts, alertsSource),
+        read(SOURCES.assessments, assessmentsSource),
+        read(SOURCES.monitors, monitorsSource),
+        read(SOURCES.morpho, morphoRiskSource),
+        read(SOURCES.curve, curveRiskSource),
+        revision === null
+          ? Promise.resolve<ReadResult<z.infer<typeof riskPositionSource>>>({
+              data: null,
+              issue: "Wallet display scope is unavailable.",
+            })
+          : read(
+              `${SOURCES.portfolio}?${query}`,
+              riskPositionSource.refine(
+                (p) => p.walletVisibility.revision === revision,
+              ),
+            ),
+      ]);
+    // Source dashboards are unscoped. Never publish them unless their position joins are fenced by the saved visibility revision.
+    const after = await read(SOURCES.walletVisibility, walletVisibilitySource);
+    const scopeValid =
+      scoped.data !== null &&
+      revision !== null &&
+      after.data?.revision === revision;
+    const active = scopeValid
+      ? scoped.data!.items.filter(
+          (p) =>
+            p.state === "active" &&
+            scoped.data!.scope.includedPositionIds.includes(p.id),
+        )
+      : [];
+    const hidden = settings.data?.hiddenWalletAddresses.length !== 0;
+    const mixed = new Set(
+      scoped.data?.walletAttribution?.partialPositionIds ?? [],
+    );
+    const attributionKnown =
+      !hidden || scoped.data?.walletAttribution !== undefined;
+    const eligible = attributionKnown
+      ? active.filter((p) => !mixed.has(p.id))
+      : [];
+    const projected = projectRiskExposures({
+      morpho: morpho.data,
+      curve: curve.data,
+      positions: eligible,
+      nowMs: now(),
+    });
+    const coveredCount = new Set(
+      projected.exposures.flatMap((card) => card.positions.map((p) => p.id)),
+    ).size;
+    const issues = [
+      alerts.issue,
+      assessments.issue,
+      monitors.issue,
+      morpho.issue,
+      curve.issue,
+      settings.issue,
+      scoped.issue,
+      after.issue,
+    ].filter((issue): issue is string => issue !== null);
+    issues.push(...projected.issues);
+    if (!scopeValid)
+      issues.push(
+        "Risk exposure scope could not be verified; exposure cards are withheld until a fresh read succeeds.",
+      );
+    if (!attributionKnown || mixed.size)
+      issues.push(
+        "Combined or unattributed wallet positions are omitted from risk cards because the source risk reads cannot apply wallet attribution.",
+      );
     issues.push(
       "This bounded Monitoring view is not complete portfolio risk coverage. Empty results do not establish safety. Monitor health describes runtime readiness, not the safety of positions.",
     );
@@ -545,8 +638,13 @@ export function createFarmingControlClient(options: {
       issues.push(
         "The generic alerts or assessments surface is retired; current hot-monitor runtime states are listed separately and do not substitute for alert evidence.",
       );
-    if (alerts.data?.items.length === 100 || assessments.data?.items.length === 100)
-      issues.push("Generic monitoring results may be truncated at 100 records per source.");
+    if (
+      alerts.data?.items.length === 100 ||
+      assessments.data?.items.length === 100
+    )
+      issues.push(
+        "Generic monitoring results may be truncated at 100 records per source.",
+      );
     if (
       monitors.data?.some(
         (item) =>
@@ -576,19 +674,59 @@ export function createFarmingControlClient(options: {
     return {
       ...meta(
         monitorTime ?? alerts.data?.asOfMs ?? assessments.data?.asOfMs ?? null,
-        [SOURCES.alerts, SOURCES.assessments, SOURCES.monitors],
+        [
+          SOURCES.walletVisibility,
+          SOURCES.portfolio,
+          SOURCES.morpho,
+          SOURCES.curve,
+          SOURCES.alerts,
+          SOURCES.assessments,
+          SOURCES.monitors,
+        ],
         issues,
-        alerts.data !== null || assessments.data !== null || monitors.data !== null,
+        morpho.data !== null ||
+          curve.data !== null ||
+          alerts.data !== null ||
+          assessments.data !== null ||
+          monitors.data !== null,
       ),
       complete: false,
+      exposures: projected.exposures,
+      exposureScope: {
+        walletVisibilityRevision: scopeValid ? revision : null,
+        discovery: !scopeValid
+          ? "unavailable"
+          : !morpho.data ||
+              !curve.data ||
+              projected.issues.length ||
+              !attributionKnown ||
+              mixed.size > 0
+            ? "partial"
+            : "complete",
+        activePositionCount: scopeValid ? active.length : null,
+        coveredPositionCount: coveredCount,
+        uncoveredPositionCount: scopeValid
+          ? active.length - coveredCount
+          : null,
+      },
       alerts: alerts.data?.items ?? [],
       assessments: assessments.data?.items ?? [],
       monitors: monitors.data ?? [],
       sourceAvailability: {
+        morpho: {
+          ...availability(morpho.data),
+          truncated: projected.incomplete.morpho,
+        },
+        curve: {
+          ...availability(curve.data),
+          truncated: projected.incomplete.curve,
+        },
         alerts: availability(alerts.data),
         assessments: availability(assessments.data),
         monitors: {
-          state: monitors.data ? ("available" as const) : ("unavailable" as const),
+          state: monitors.data
+            ? ("available" as const)
+            : ("unavailable" as const),
           asOfMs: monitorTime,
           returnedCount: monitors.data?.length ?? null,
           truncated: false,

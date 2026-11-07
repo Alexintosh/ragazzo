@@ -440,6 +440,8 @@ describe("Farming Control read-only host client", () => {
     const result = await client.risk();
     expect(result.monitors).toEqual([monitor]);
     expect(result.sourceAvailability).toEqual({
+      morpho: { state: "unavailable", asOfMs: null, returnedCount: null, truncated: false },
+      curve: { state: "unavailable", asOfMs: null, returnedCount: null, truncated: false },
       alerts: { state: "unavailable", asOfMs: null, returnedCount: null, truncated: false },
       assessments: { state: "retired", asOfMs: now, returnedCount: 0, truncated: false },
       monitors: { state: "available", asOfMs: now, returnedCount: 1, truncated: false },

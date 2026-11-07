@@ -222,12 +222,69 @@ export const FarmingControlSourceAvailabilitySchema = z.object({
   returnedCount: count.nullable(),
   truncated: z.boolean(),
 });
+const riskSeverity = z.enum(["info", "warning", "critical"]);
+export const FarmingControlRiskSignalSchema = z.object({
+  key: text,
+  family: text.optional(),
+  label: text,
+  status: text,
+  severity: riskSeverity.nullable(),
+  sourceSeverity: text.nullable(),
+  coverage: z.enum(["current", "partial", "unknown", "unavailable"]),
+  value: amount,
+  format: z.enum(["fraction", "ratio", "amount", "text"]),
+  unit: text.nullable(),
+  summary: text,
+  metrics: z.array(z.object({ key: text, label: text, value: amount, format: z.enum(["fraction", "ratio", "amount", "text"]), unit: text.nullable() })).max(8).optional(),
+});
+export type FarmingControlRiskSignal = z.infer<
+  typeof FarmingControlRiskSignalSchema
+>;
+export const FarmingControlRiskExposureSchema = z.object({
+  id: text,
+  protocol: z.enum(["Morpho Blue", "Morpho vault", "Curve pool"]),
+  kind: z.enum(["market", "vault", "pool"]),
+  label: text,
+  chainId: z.number().int().positive(),
+  monitorKey: text,
+  subject: z.object({
+    kind: z.enum(["market", "vault", "pool"]),
+    id: text,
+    address: text.nullable(),
+  }),
+  positions: z.array(z.object({ id: text, label: text })).max(64),
+  dataStatus: text,
+  observedAtMs: ms.nullable(),
+  collectedAtMs: ms.nullable(),
+  blockNumber: text.nullable(),
+  blockHash: text.nullable(),
+  signals: z.array(FarmingControlRiskSignalSchema).max(64),
+  // Maximum verified native assessment severity, never an overall safety rating.
+  maxSeverity: riskSeverity.nullable(),
+  coverage: z.enum(["partial", "unknown"]),
+  limitations: z.array(text).max(64),
+});
+export type FarmingControlRiskExposure = z.infer<
+  typeof FarmingControlRiskExposureSchema
+>;
+export type FarmingControlRiskCard = FarmingControlRiskExposure;
+
 export const FarmingControlRiskSchema = z.object({
+  exposures: z.array(FarmingControlRiskExposureSchema).max(64),
+  exposureScope: z.object({
+    discovery: z.enum(["complete", "partial", "unavailable"]),
+    walletVisibilityRevision: ms.nullable(),
+    activePositionCount: count.nullable(),
+    coveredPositionCount: count,
+    uncoveredPositionCount: count.nullable(),
+  }),
   ...meta,
   alerts: z.array(FarmingControlAlertSchema),
   assessments: z.array(FarmingControlAssessmentSchema),
   monitors: z.array(FarmingControlMonitorSchema),
   sourceAvailability: z.object({
+    morpho: FarmingControlSourceAvailabilitySchema,
+    curve: FarmingControlSourceAvailabilitySchema,
     alerts: FarmingControlSourceAvailabilitySchema,
     assessments: FarmingControlSourceAvailabilitySchema,
     monitors: FarmingControlSourceAvailabilitySchema,

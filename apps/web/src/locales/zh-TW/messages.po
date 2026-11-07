@@ -7159,3 +7159,153 @@ msgstr "View position"
 #: src/pages/FarmingControl.tsx
 msgid "Wallet attribution is incomplete. Amounts are known visible subtotals; some positions may be unassigned."
 msgstr "Wallet attribution is incomplete. Amounts are known visible subtotals; some positions may be unassigned."
+
+#: src/components/farming-control/risk-cards.tsx
+msgid "{uncovered, plural, one {# visible active position has no matching risk source.} other {# visible active positions have no matching risk source.}}"
+msgstr "{uncovered, plural, one {# visible active position has no matching risk source.} other {# visible active positions have no matching risk source.}}"
+
+#: src/components/farming-control/risk-cards.tsx
+#: src/components/farming-control/risk-cards.tsx
+#: src/components/farming-control/risk-cards.tsx
+#: src/components/farming-control/risk-cards.tsx
+#: src/components/farming-control/risk-cards.tsx
+msgid "Action required"
+msgstr "Action required"
+
+#: src/components/farming-control/risk-cards.tsx
+msgid "Assessment"
+msgstr "Assessment"
+
+#. placeholder {0}: exposure.chainId
+#. placeholder {0}: item.chainId
+#: src/components/farming-control/risk-cards.tsx
+#: src/components/farming-control/risk-cards.tsx
+msgid "Chain {0}"
+msgstr "Chain {0}"
+
+#: src/pages/FarmingControl.tsx
+msgid "Could not open the Farming Control chat."
+msgstr "Could not open the Farming Control chat."
+
+#: src/pages/Shell.tsx
+msgid "Could not prepare the message. Allow local draft storage and try again."
+msgstr "Could not prepare the message. Allow local draft storage and try again."
+
+#: src/components/farming-control/risk-cards.tsx
+msgid "Coverage unknown"
+msgstr "Coverage unknown"
+
+#: src/components/farming-control/risk-cards.tsx
+msgid "Exposure discovery is incomplete. No matching readings returned."
+msgstr "Exposure discovery is incomplete. No matching readings returned."
+
+#: src/components/farming-control/risk-cards.tsx
+msgid "Exposure discovery is incomplete. Showing returned readings."
+msgstr "Exposure discovery is incomplete. Showing returned readings."
+
+#: src/components/farming-control/risk-cards.tsx
+msgid "Gauges show the highest observed signal. Coverage remains partial; missing or stale readings stay gray."
+msgstr "Gauges show the highest observed signal. Coverage remains partial; missing or stale readings stay gray."
+
+#: src/components/farming-control/risk-cards.tsx
+msgid "Highest observed severity: {label}. {coverage}."
+msgstr "Highest observed severity: {label}. {coverage}."
+
+#: src/components/farming-control/risk-cards.tsx
+#: src/components/farming-control/risk-cards.tsx
+msgid "Linked positions"
+msgstr "Linked positions"
+
+#: src/components/farming-control/risk-cards.tsx
+#: src/components/farming-control/risk-cards.tsx
+msgid "Mention to agent"
+msgstr "Mention to agent"
+
+#: src/components/farming-control/risk-cards.tsx
+msgid "More signals"
+msgstr "More signals"
+
+#: src/components/farming-control/risk-cards.tsx
+msgid "No current observation"
+msgstr "No current observation"
+
+#: src/components/farming-control/risk-cards.tsx
+msgid "No current reading"
+msgstr "No current reading"
+
+#: src/components/farming-control/risk-cards.tsx
+msgid "No matching pools, vaults or markets for visible active positions."
+msgstr "No matching pools, vaults or markets for visible active positions."
+
+#: src/components/farming-control/risk-cards.tsx
+#: src/components/farming-control/risk-cards.tsx
+#: src/components/farming-control/risk-cards.tsx
+msgid "No reading"
+msgstr "No reading"
+
+#: src/components/farming-control/risk-cards.tsx
+msgid "No visible active positions."
+msgstr "No visible active positions."
+
+#: src/components/farming-control/risk-cards.tsx
+msgid "Observation"
+msgstr "Observation"
+
+#: src/components/farming-control/risk-cards.tsx
+#: src/components/farming-control/risk-cards.tsx
+#: src/components/farming-control/risk-cards.tsx
+msgid "Partial evidence"
+msgstr "Partial evidence"
+
+#: src/components/farming-control/risk-cards.tsx
+msgid "Partial risk coverage"
+msgstr "Partial risk coverage"
+
+#: src/components/farming-control/risk-cards.tsx
+msgid "Pools, vaults & markets"
+msgstr "Pools, vaults & markets"
+
+#: src/components/farming-control/risk-cards.tsx
+msgid "Position risk signals"
+msgstr "Position risk signals"
+
+#: src/components/farming-control/risk-cards.tsx
+msgid "Risk exposure discovery is unavailable."
+msgstr "Risk exposure discovery is unavailable."
+
+#: src/components/farming-control/risk-cards.tsx
+msgid "Risk signal legend"
+msgstr "Risk signal legend"
+
+#: src/components/farming-control/risk-cards.tsx
+msgid "Severity"
+msgstr "Severity"
+
+#: src/components/farming-control/risk-cards.tsx
+msgid "Signal coverage"
+msgstr "Signal coverage"
+
+#: src/pages/FarmingControl.tsx
+msgid "The card specialist is unavailable."
+msgstr "The card specialist is unavailable."
+
+#: src/components/farming-control/risk-cards.tsx
+msgid "Unknown coverage"
+msgstr "Unknown coverage"
+
+#. placeholder {0}: signal.label
+#: src/components/farming-control/risk-cards.tsx
+msgid "View evidence: {0}, {value}. {status}."
+msgstr "View evidence: {0}, {value}. {status}."
+
+#: src/pages/FarmingControl.tsx
+msgid "Visible wallets"
+msgstr "Visible wallets"
+
+#: src/components/farming-control/risk-cards.tsx
+msgid "Watch"
+msgstr "Watch"
+
+#: src/components/farming-control/risk-cards.tsx
+msgid "Within limits"
+msgstr "Within limits"

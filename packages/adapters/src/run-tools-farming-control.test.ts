@@ -36,7 +36,9 @@ describe("Farming Control specialist grants", () => {
           properties:
             tool.name === "farming_control_portfolio"
               ? { assetSetKey: { type: ["string", "null"], minLength: 1, maxLength: 200 } }
-              : {},
+              : tool.name === "farming_control_risk"
+                ? { exposureId: { type: "string", minLength: 1, maxLength: 200 } }
+                : {},
           additionalProperties: false,
         });
       }

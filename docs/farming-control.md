@@ -30,6 +30,14 @@ The draft carries the selected context. You can edit and send it in the
 Farming Control group. Connect a supported model through the ordinary Ragazzo
 model settings to receive a generated reply.
 
+**Mention to agent** opens the card's designated specialist in a direct chat.
+Each card owns a stable subject reference and a specialist role. Resolve the role
+to the existing member of the user's FC team so a renamed bot still receives the
+right draft. Carry the subject, network, linked position references, selected
+signal, evidence time and source into the editable composer. The specialist
+rereads FC before interpreting the evidence. Opening a card mention preserves
+the existing draft and waits for the operator to send it.
+
 | Specialist | Available financial reads |
 | --- | --- |
 | Coordinator | Portfolio, Harvest, Accounting, Risk |
@@ -56,6 +64,15 @@ observations in each fetched window. Open the observations to inspect their
 timestamps and values. FC currently supplies this history at portfolio level.
 Selecting an Asset Set shows the set's current metrics and a history
 availability message.
+
+Risk groups monitored exposure by pool, market or vault. The Curve and Morpho
+read models provide the signal statuses, and the saved wallet scope determines
+which active holdings appear as linked positions. The gauge marks the most
+severe observed signal. Its coverage label distinguishes partial evidence, and
+a neutral gauge identifies subjects without a current assessment. A green
+withdrawal or utilization reading applies to that specific check. Selecting a
+signal shows its evidence and prepares its context for FC Risk. The specialists
+can still look up monitor diagnostics through the existing Risk tool.
 
 Harvest distinguishes current and fallback marks. Accounting shows realized
 amounts and costs. Amounts retain FC's decimal strings in transport. Source
