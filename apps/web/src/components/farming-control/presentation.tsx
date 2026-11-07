@@ -1,6 +1,7 @@
 import { Trans, useLingui } from "@lingui/react/macro";
 import { Card, CardContent, CardHeader, CardTitle } from "@rakazo/ui-web";
-import type { ReactNode } from "react";
+import type { PointerEvent, ReactNode } from "react";
+import { useState } from "react";
 
 /** Scale exact source decimal strings, including exponent notation, without floating-point totals. */
 function scaledInteger(value: string, places: number, rounded = false): bigint | null {
@@ -179,17 +180,20 @@ export function ValueHistory({
   points,
   gaps = [],
 }: {
-  points: { at: string; value: string | null }[];
+  points: { snapshotId: string; at: string; value: string | null }[];
   gaps?: { fromMs: number; toMs: number }[];
 }) {
   const { t } = useLingui();
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const ordered = points
     .filter((point) => Number.isFinite(Date.parse(point.at)))
     .sort((a, b) => Date.parse(a.at) - Date.parse(b.at));
   const known = ordered.filter(
-    (point): point is { at: string; value: string } =>
+    (point): point is { snapshotId: string; at: string; value: string } =>
       point.value !== null && scaledInteger(point.value, 6) !== null,
   );
+  const matchingIndex = known.findIndex((point) => point.snapshotId === selectedId);
+  if (selectedId !== null && matchingIndex < 0) setSelectedId(null);
   if (known.length < 2)
     return (
       <Empty>
@@ -202,11 +206,13 @@ export function ValueHistory({
   const range = maximum - minimum || 1n;
   const start = Date.parse(known[0]!.at);
   const duration = Date.parse(known.at(-1)!.at) - start || 1;
+  const xCoordinate = (at: string) => 16 + ((Date.parse(at) - start) / duration) * 968;
   const coordinate = (point: { at: string; value: string }) => ({
-    x: 16 + ((Date.parse(point.at) - start) / duration) * 968,
+    x: xCoordinate(point.at),
     y: 180 - Number(((chartMagnitude(point.value) - minimum) * 150_000n) / range) / 1000,
   });
-  const segments: { at: string; value: string }[][] = [];
+  const coordinates = known.map(coordinate);
+  const segments: { snapshotId: string; at: string; value: string }[][] = [];
   let previousAt: number | null = null;
   for (const point of ordered) {
     const at = Date.parse(point.at);
@@ -219,50 +225,150 @@ export function ValueHistory({
       at - previousAt > 2 * 86_400_000 ||
       gaps.some((gap) => gap.fromMs < at && gap.toMs > previousAt!);
     if (interrupted) segments.push([]);
-    segments.at(-1)!.push({ at: point.at, value: point.value });
+    segments.at(-1)!.push({ snapshotId: point.snapshotId, at: point.at, value: point.value });
     previousAt = at;
   }
   const label = t`Portfolio value history`;
+  const selectedIndex = matchingIndex < 0 ? known.length - 1 : matchingIndex;
+  const selected = known[selectedIndex]!;
+  const selectedCoordinate = coordinates[selectedIndex]!;
+  const selectedDate = new Date(selected.at).toLocaleString(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+  const selectPointer = (event: PointerEvent<SVGSVGElement>) => {
+    const svg = event.currentTarget;
+    const matrix = svg.getScreenCTM();
+    if (!matrix) return;
+    const cursor = svg.createSVGPoint();
+    cursor.x = event.clientX;
+    cursor.y = event.clientY;
+    const { x, y } = cursor.matrixTransform(matrix.inverse());
+    let nearestIndex = 0;
+    for (let index = 1; index < coordinates.length; index++) {
+      const point = coordinates[index]!;
+      const nearest = coordinates[nearestIndex]!;
+      const distance = Math.abs(point.x - x);
+      const nearestDistance = Math.abs(nearest.x - x);
+      if (
+        distance < nearestDistance ||
+        (distance === nearestDistance && Math.abs(point.y - y) < Math.abs(nearest.y - y))
+      ) {
+        nearestIndex = index;
+      }
+    }
+    const inAvailableSpan = segments.some(
+      (segment) => x >= xCoordinate(segment[0]!.at) && x <= xCoordinate(segment.at(-1)!.at),
+    );
+    if (!inAvailableSpan && Math.abs(coordinates[nearestIndex]!.x - x) > 6) {
+      setSelectedId(null);
+      return;
+    }
+    setSelectedId(known[nearestIndex]!.snapshotId);
+  };
   const date = (at: string) =>
     new Date(at).toLocaleDateString(undefined, { month: "short", day: "numeric" });
   return (
     <figure className="m-0">
       <div className="mb-3 flex items-center justify-between text-xs text-muted-foreground tabular-nums">
-        <span>{exactAmount(known[values.indexOf(maximum)]?.value)}</span>
-        <span>{exactAmount(known.at(-1)?.value)}</span>
+        <time dateTime={selected.at}>{selectedDate}</time>
+        <span>{exactAmount(selected.value)}</span>
       </div>
-      <svg
-        viewBox="0 0 1000 210"
-        className="h-48 w-full overflow-visible text-foreground"
-        role="img"
-        aria-label={label}
-      >
-        <line x1="16" y1="180" x2="984" y2="180" className="stroke-border" />
-        <line x1="16" y1="105" x2="984" y2="105" className="stroke-border" strokeDasharray="3 7" />
-        <line x1="16" y1="30" x2="984" y2="30" className="stroke-border" strokeDasharray="3 7" />
-        {segments
-          .filter((segment) => segment.length > 1)
-          .map((segment) => (
-            <polyline
-              key={segment[0]!.at}
-              points={segment
-                .map((point) => {
-                  const { x, y } = coordinate(point);
-                  return `${x},${y}`;
-                })
-                .join(" ")}
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              vectorEffect="non-scaling-stroke"
-              strokeLinejoin="round"
-            />
-          ))}
-        {known.map((point) => {
-          const { x, y } = coordinate(point);
-          return <circle key={point.at} cx={x} cy={y} r="2.5" fill="currentColor" />;
-        })}
-      </svg>
+      <div className="relative rounded-sm focus-within:ring-2 focus-within:ring-ring">
+        <input
+          type="range"
+          min={0}
+          max={known.length - 1}
+          step={1}
+          value={selectedIndex}
+          aria-label={label}
+          aria-valuetext={`${selectedDate}: ${exactAmount(selected.value)}`}
+          className="sr-only"
+          onFocus={() => setSelectedId(selected.snapshotId)}
+          onChange={(event) => setSelectedId(known[Number(event.currentTarget.value)]!.snapshotId)}
+        />
+        <svg
+          viewBox="0 0 1000 210"
+          className="h-48 w-full touch-pan-y overflow-visible text-foreground"
+          aria-hidden="true"
+          onPointerDown={(event) => {
+            if (!event.isPrimary) return;
+            if (event.pointerType !== "mouse")
+              event.currentTarget.setPointerCapture(event.pointerId);
+            selectPointer(event);
+          }}
+          onPointerMove={(event) => {
+            if (event.isPrimary && (event.pointerType === "mouse" || event.buttons > 0)) {
+              selectPointer(event);
+            }
+          }}
+          onPointerLeave={(event) => {
+            if (
+              event.pointerType === "mouse" &&
+              !event.currentTarget.parentElement?.contains(document.activeElement)
+            ) {
+              setSelectedId(null);
+            }
+          }}
+        >
+          <line x1="16" y1="180" x2="984" y2="180" className="stroke-border" />
+          <line
+            x1="16"
+            y1="105"
+            x2="984"
+            y2="105"
+            className="stroke-border"
+            strokeDasharray="3 7"
+          />
+          <line x1="16" y1="30" x2="984" y2="30" className="stroke-border" strokeDasharray="3 7" />
+          {segments
+            .filter((segment) => segment.length > 1)
+            .map((segment) => (
+              <polyline
+                key={segment[0]!.snapshotId}
+                points={segment
+                  .map((point) => {
+                    const { x, y } = coordinate(point);
+                    return `${x},${y}`;
+                  })
+                  .join(" ")}
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                vectorEffect="non-scaling-stroke"
+                strokeLinejoin="round"
+              />
+            ))}
+          {known.map((point, index) => {
+            const { x, y } = coordinates[index]!;
+            return <circle key={point.snapshotId} cx={x} cy={y} r="2.5" fill="currentColor" />;
+          })}
+          {matchingIndex >= 0 ? (
+            <g className="pointer-events-none">
+              <line
+                x1={selectedCoordinate.x}
+                y1="24"
+                x2={selectedCoordinate.x}
+                y2="186"
+                className="stroke-foreground/40"
+                strokeDasharray="3 5"
+                vectorEffect="non-scaling-stroke"
+              />
+              <circle
+                cx={selectedCoordinate.x}
+                cy={selectedCoordinate.y}
+                r="5"
+                className="fill-background stroke-foreground"
+                strokeWidth="2"
+                vectorEffect="non-scaling-stroke"
+              />
+            </g>
+          ) : null}
+        </svg>
+      </div>
       <figcaption className="flex justify-between text-xs text-muted-foreground">
         <span>{date(known[0]!.at)}</span>
         <span>{date(known.at(-1)!.at)}</span>
@@ -272,11 +378,8 @@ export function ValueHistory({
           <Trans>View observations</Trans>
         </summary>
         <div className="mt-2 max-h-40 overflow-y-auto">
-          {known.map((point, index) => (
-            <div
-              key={`${point.at}:${index}`}
-              className="flex justify-between gap-3 py-1 tabular-nums"
-            >
+          {known.map((point) => (
+            <div key={point.snapshotId} className="flex justify-between gap-3 py-1 tabular-nums">
               <time dateTime={point.at}>{new Date(point.at).toLocaleString()}</time>
               <span>{exactAmount(point.value)}</span>
             </div>

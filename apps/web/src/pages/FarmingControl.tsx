@@ -486,6 +486,7 @@ function Portfolio({
   const history = data.history
     .filter((item) => item.sampledAtMs >= cutoff && item.sampledAtMs <= data.historyRange.toMs)
     .map((item) => ({
+      snapshotId: item.snapshotId,
       at: new Date(item.sampledAtMs).toISOString(),
       value: item.coverage.currentPricedValueUsd,
     }));
@@ -568,6 +569,7 @@ function Portfolio({
             >
               {historyAvailable ? (
                 <ValueHistory
+                  key={period}
                   points={history}
                   gaps={historyWindows
                     .filter((window) => window.state !== "available" || window.truncated)
