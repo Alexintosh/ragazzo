@@ -27,11 +27,21 @@ describe("Farming Control specialist grants", () => {
     expect(farmingControlToolsForRole("operations").map((tool) => tool.name)).toEqual([
       "farming_control_portfolio",
       "farming_control_harvest",
+      "farming_control_find",
       "farming_control_entity",
     ]);
     for (const role of FARMING_CONTROL_ROLES) {
       for (const tool of farmingControlToolsForRole(role)) {
         expect(tool.readOnly).toBe(true);
+        if (tool.name === "farming_control_find") {
+          expect(tool.inputSchema).toEqual({
+            type: "object",
+            properties: { query: { type: "string", minLength: 1, maxLength: 500 } },
+            required: ["query"],
+            additionalProperties: false,
+          });
+          continue;
+        }
         if (tool.name === "farming_control_entity") {
           expect(tool.inputSchema).toEqual({
             type: "object",

@@ -57,7 +57,7 @@ export function messageToAgentHistoryText(message: ReplyMessage, fcContext: Farm
     replyContext(message, message.threadId),
     blocksToAgentHistoryText(messageBlocks(message)),
     message.role === "user"
-      ? farmingControlContextForModel(message.blocks, fcContext)
+      ? farmingControlContextForModel(message.blocks, fcContext, "historical")
       : undefined,
   ]
     .filter(Boolean)

@@ -8,7 +8,7 @@ import { auditToolCall, gateToolCall } from "./run-tool-gate.js";
 import { prepareToolRequest, resolveToolRequest } from "./run-tool-request.js";
 import { PAGE_BROWSER_TOOL_NAMES } from "./run-tool-selection.js";
 import { computerTools, pageBrowserTool } from "./run-tools-computer.js";
-import { farmingControlEntityTool, farmingControlReadTool, farmingControlToolDenied } from "./run-tools-farming-control.js";
+import { farmingControlEntityTool, farmingControlFindTool, farmingControlReadTool, farmingControlToolDenied } from "./run-tools-farming-control.js";
 import { fileTools } from "./run-tools-files.js";
 import { fleetTools } from "./run-tools-fleet.js";
 import { cloudAgentTool, connectorTool, integrationTools } from "./run-tools-integrations.js";
@@ -29,6 +29,7 @@ import {
 import { argumentGiven } from "./update-bot-patch.js";
 
 const TOOL_HANDLERS = new Map<string, ToolHandler>([
+  ["farming_control_find", farmingControlFindTool],
   ["farming_control_entity", farmingControlEntityTool],
   ...[...FARMING_CONTROL_TOOL_SECTIONS.keys()].map(
     (name) => [name, farmingControlReadTool] as const,

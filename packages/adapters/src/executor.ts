@@ -89,6 +89,7 @@ import { loadFarmingControlContext } from "./farming-control-risk-context.js";
 import {
   FARMING_CONTROL_SAFE_TOOLS,
   farmingControlRole,
+  farmingControlWorkflow,
   farmingControlToolsForRole,
   isFarmingControlSpecialist,
 } from "./farming-control-team-policy.js";
@@ -1558,7 +1559,10 @@ export function createRunExecutor(executorDeps: ExecutorDeps) {
               // cache-aware context for connections declaring a cache window.
               contextStrategy: deps.contextStrategy,
               instructions: userTurnInstructions({
-                botInstructions: runIdentityInstruction(bot, run.trigger),
+                botInstructions: [
+                  runIdentityInstruction(bot, run.trigger),
+                  fcRole ? farmingControlWorkflow(fcRole) : undefined,
+                ].filter(Boolean).join("\n\n"),
                 groupContext,
                 messagingContext,
                 redactedMemoryContext: memoryContext

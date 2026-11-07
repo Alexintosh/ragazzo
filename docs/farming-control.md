@@ -46,11 +46,18 @@ Position, wallet and protocol tags also work with Operations and Risk. Monitor
 tags use the Risk tool in chats with that grant. From a position's detail view,
 you can also mention the position or one of its linked wallets or protocols.
 
-The specialist rereads the selected subject under the current wallet visibility
-setting. A wallet tag returns linked positions and their status. Balance, APR
-and projected yield for an individual position are available through its position
-tag. The wallet inventory records current links and does not prove which wallet
-owned a historical valuation.
+A selected tag carries the entity kind and stable ID. Typing a name without
+selecting a suggestion leaves it as text. In either case you can ask about a
+position. Specialists with portfolio access search the visible catalog for a
+newly typed name, including a Safe suffix, and read the matching position.
+They can ask you to distinguish similar matches. Earlier tags remain available
+for follow-up questions about the same subject.
+
+A position read includes dated rate observations, the source's rolling 30-day
+earnings breakdown and confirmed realized performance where available. The
+role skills explain which measurements answer questions about earned returns.
+Wallet reads identify linked positions. The wallet inventory records current
+links and does not establish who owned a historical position mark.
 
 | Specialist | Available financial reads |
 | --- | --- |
@@ -60,8 +67,12 @@ owned a historical valuation.
 | Risk | Monitoring and Portfolio |
 | Operations | Portfolio and Harvest |
 
-Each specialist has a persistent instruction set and a built-in skill. Financial
-calls use fixed GET endpoints and enforce the configured account, workspace,
+Each specialist has an editable profile and a deployment-provided role skill.
+The skills adapt the read workflows from Farming Control Operations, Monitoring
+and Cash-out/Tax to each specialist's granted tools. Opening the team updates
+these skills on existing installations. The worker also supplies the applicable
+workflow on each specialist run. Financial calls use fixed GET endpoints and
+enforce the configured account, workspace,
 role and run context on the server. Team handoffs use normal Ragazzo group
 conversations. Wallet approval, accounting writes and tax filing use the
 existing FC workflows.
@@ -102,3 +113,16 @@ If the team was archived or its membership changed, restore its five specialist
 profiles and original group membership to resume the existing conversation.
 Opening the financial pages and refreshing their source data work independently
 of group restoration.
+
+
+## Verify a specialist conversation
+
+Use the pilot Coordinator and two visible positions with similar names. Select
+the first suggestion and ask what it earned. Paste the full name of the second
+position as plain text in a follow-up. Check that the reply identifies the
+second position and its lifecycle. Ask what was attached: the bot should
+distinguish a selected ID from a name it found through search. Then select the
+second chip and compare the bot’s earnings window, proceeds, units and rate
+coverage with the same position in FC. In the run activity, look for
+`farming_control_find` on the plain-text turn and `farming_control_entity` on
+the matched position. A stored chip alone only verifies message transport.

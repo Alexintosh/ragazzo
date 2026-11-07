@@ -20,6 +20,9 @@ import {
 } from "./farming-control-team-policy.js";
 import type { ToolHandler } from "./run-tool-gate.js";
 
+const findInput = z.object({
+  query: z.string().trim().max(500).transform((query) => query.replace(/^@/u, "").trim()).pipe(z.string().min(1)),
+}).strict();
 const riskInput = z
   .object({
     exposureId: z.string().trim().min(1).max(200).optional(),
@@ -38,6 +41,10 @@ export function farmingControlToolDenied(
   args: Record<string, unknown>,
   groupId: string | null,
 ): boolean {
+  if (name === "farming_control_find") {
+    const role = farmingControlRole(bot);
+    return !role || !FARMING_CONTROL_GRANTS[role].includes("portfolio") || !findInput.safeParse(args).success;
+  }
   if (name === "farming_control_entity") {
     const role = farmingControlRole(bot);
     const parsed = FarmingControlEntitySelectionSchema.safeParse(args);
@@ -166,6 +173,31 @@ export function scopedFarmingControlRiskRead(
         : [],
   };
 }
+
+export const farmingControlFindTool: ToolHandler = async (ctx, call) => {
+  const bridge = ctx.deps.farmingControl;
+  if (farmingControlToolDenied(ctx.bot, call.name, call.args, ctx.thread.groupId))
+    return { error: DENIED };
+  if (!bridge?.mentionTargets) return { error: "Farming Control is not configured." };
+  try {
+    const actor = await authorizeFarmingControlRun(ctx.deps, ctx.run, ctx.bot);
+    const { query } = findInput.parse(call.args);
+    const catalog = await bridge.mentionTargets(actor, {
+      query, kinds: ["position", "wallet", "protocol"], limit: 11,
+    });
+    return {
+      state: catalog.state,
+      fetchedAtMs: catalog.fetchedAtMs,
+      issues: catalog.issues,
+      moreMatches: catalog.entities.length > 10,
+      matches: catalog.entities.slice(0, 10).map(({ selection, label, detail }) => ({
+        ...selection, label, detail,
+      })),
+    };
+  } catch {
+    return { error: "Farming Control search is unavailable for this run." };
+  }
+};
 
 export const farmingControlEntityTool: ToolHandler = async (ctx, call) => {
   if (farmingControlToolDenied(ctx.bot, call.name, call.args, ctx.thread.groupId))

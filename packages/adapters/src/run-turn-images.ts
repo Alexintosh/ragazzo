@@ -4,7 +4,7 @@ import { ATTACHMENT_MAX_BYTES, isAttachmentImageMimeType } from "@rakazo/contrac
 import { blocksToAgentHistoryText, farmingControlOutsideBlocks } from "@rakazo/core";
 import type { ExecutorDeps } from "./executor-deps.js";
 import type { FarmingControlContextKinds } from "./farming-control-risk-context.js";
-import { farmingControlContextForModel } from "./farming-control-risk-context.js";
+import { currentFarmingControlContext } from "./farming-control-risk-context.js";
 import { loadReplyContext } from "./reply-context.js";
 import { currentTurnFilesInstruction, listCurrentTurnFiles } from "./thread-artifacts.js";
 
@@ -403,7 +403,7 @@ export async function claimRunSteering(
             await loadReplyContext(deps.prisma, lease.threadId, item.messageId),
             item.text,
             item.origin === "user"
-              ? farmingControlContextForModel(item.blocks, fcContext)
+              ? currentFarmingControlContext(item.blocks, fcContext)
               : undefined,
             filesInstruction,
             unavailableInstruction,

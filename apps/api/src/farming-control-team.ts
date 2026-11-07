@@ -5,6 +5,7 @@ import {
   farmingControlGroupId,
   farmingControlInstructions,
   farmingControlSpawnKey,
+  farmingControlWorkflow,
 } from "@rakazo/adapters";
 import type { Actor } from "@rakazo/contracts";
 import { BUILTIN_TOOL_NAMES } from "@rakazo/contracts";
@@ -31,27 +32,39 @@ export async function ensureFarmingControlTeam(prisma: PrismaClient, actor: Acto
         "The configured FC specialist is unavailable. Restore its existing profile before continuing.",
       );
     }
+    const instructions = farmingControlInstructions(specialist.role, actor.spaceId);
     if (!prior) {
       await repos.createBot(actor, {
         id,
         spawnKey,
         name: specialist.name,
         description: specialist.description,
-        instructions: farmingControlInstructions(specialist.role, actor.spaceId),
+        instructions,
         notifyOnFinish: true,
         fleetManagement: false,
         disabledBuiltinTools: BUILTIN_TOOL_NAMES.filter(
           (name) => !FARMING_CONTROL_SAFE_TOOLS.has(name),
         ),
       });
+    } else if (prior.instructions === farmingControlInstructions(specialist.role, actor.spaceId, "legacy")) {
+      // Upgrade only an untouched generated profile. The predicate also preserves concurrent edits.
+      await prisma.bot.updateMany({
+        where: { id, spaceId: actor.spaceId, userId: actor.userId, spawnKey, archivedAt: null, instructions: prior.instructions },
+        data: { instructions },
+      });
     }
     // Deterministic skill identity makes a failed or concurrent first session repeat-safe.
     // It is deployment-provided and is read-only through the ordinary skill API.
     const skillId = `${id}:skill`;
     const skillName = `farming-control-${specialist.role}`;
+    const content = buildSkillMd({
+      name: skillName,
+      description: specialist.description,
+      body: farmingControlWorkflow(specialist.role),
+    });
     await prisma.agentSkill.upsert({
       where: { id: skillId },
-      update: {},
+      update: { content, description: specialist.description },
       create: {
         id: skillId,
         spaceId: actor.spaceId,
@@ -59,11 +72,7 @@ export async function ensureFarmingControlTeam(prisma: PrismaClient, actor: Acto
         name: skillName,
         description: specialist.description,
         source: "builtin",
-        content: buildSkillMd({
-          name: skillName,
-          description: specialist.description,
-          body: farmingControlInstructions(specialist.role, actor.spaceId),
-        }),
+        content,
       },
     });
     bots.push({ id, role: specialist.role, name: prior?.name ?? specialist.name });

@@ -11,22 +11,26 @@ import type {
   FarmingControlPortfolioInput,
   FarmingControlRisk,
   FarmingControlSection,
+  FarmingControlYieldEvidence,
 } from "@rakazo/contracts";
 import {
-  FarmingControlEntityCatalogInputSchema,
-  FarmingControlEntitySelectionSchema,
   FarmingControlAccountingMonthSchema,
   FarmingControlAccountingTotalsSchema,
   FarmingControlAlertSchema,
+  FarmingControlAprHistoryPointSchema,
   FarmingControlAssessmentSchema,
+  FarmingControlEntityCatalogInputSchema,
+  FarmingControlEntitySelectionSchema,
   FarmingControlHarvestContributionSchema,
   FarmingControlHarvestTotalsSchema,
   FarmingControlHistoryPointSchema,
   FarmingControlMonitorSchema,
+  FarmingControlPeriodEarningsContributionSchema,
   FarmingControlPortfolioInputSchema,
   FarmingControlPortfolioScopeSchema,
   FarmingControlPortfolioTotalsSchema,
   FarmingControlPositionSchema,
+  FarmingControlRealizedPerformanceSchema,
   FarmingControlWalletAttributionSchema,
   FarmingControlWalletVisibilitySchema,
 } from "@rakazo/contracts";
@@ -180,7 +184,37 @@ const SOURCES = {
 } as const;
 type Source = (typeof SOURCES)[keyof typeof SOURCES];
 type HistoryPoint = z.infer<typeof FarmingControlHistoryPointSchema>;
-type ScopedSource = `${typeof SOURCES.portfolio | typeof SOURCES.history}?${string}`;
+type PositionYieldSource =
+  | `/positions/${string}/metrics/apr?${string}`
+  | `/positions/${string}/performance?${string}`;
+type ScopedSource =
+  | `${typeof SOURCES.portfolio | typeof SOURCES.history}?${string}`
+  | `/portfolio/metrics/earned/since?${string}`
+  | PositionYieldSource;
+const aprHistorySource = z.object({
+  positionId: z.string().max(500),
+  asOfMs: ms,
+  walletVisibility: walletVisibilitySource,
+  points: z.array(FarmingControlAprHistoryPointSchema).max(200),
+  page: z.object({ nextCursor: z.string().max(2_000).nullable() }),
+  change24h: z.object({
+    current: FarmingControlAprHistoryPointSchema.nullable(),
+    baseline: FarmingControlAprHistoryPointSchema.nullable(),
+    quality: z.object({ staleCurrent: z.boolean().optional() }),
+  }),
+});
+const periodEarningsSource = z.object({
+  fromMs: ms,
+  toMs: ms,
+  walletVisibility: walletVisibilitySource,
+  methodology: z.literal("per_position_accrual_measure_delta"),
+  byPosition: z.array(FarmingControlPeriodEarningsContributionSchema).max(2_000),
+  excludedPositionIds: z.array(z.string().max(500)).max(2_000),
+});
+const realizedPerformanceSource = FarmingControlRealizedPerformanceSchema.extend({
+  walletVisibility: walletVisibilitySource,
+  walletAttribution: z.object({ complete: z.boolean() }),
+});
 const DAY_MS = 86_400_000;
 const HISTORY_DEADLINE_MS = 12_000;
 const HISTORY_BODY_BUDGET = 8 * 1024 * 1024;
@@ -606,56 +640,41 @@ export function createFarmingControlClient(options: {
     };
   }
   async function risk(): Promise<FarmingControlRisk> {
-    const settings = await read(
-      SOURCES.walletVisibility,
-      walletVisibilitySource,
-    );
+    const settings = await read(SOURCES.walletVisibility, walletVisibilitySource);
     const revision = settings.data?.revision ?? null;
     const query = new URLSearchParams({
       walletVisibility: "visible",
       walletVisibilityRevision: String(revision),
     });
-    const [alerts, assessments, monitors, morpho, curve, scoped] =
-      await Promise.all([
-        read(SOURCES.alerts, alertsSource),
-        read(SOURCES.assessments, assessmentsSource),
-        read(SOURCES.monitors, monitorsSource),
-        read(SOURCES.morpho, morphoRiskSource),
-        read(SOURCES.curve, curveRiskSource),
-        revision === null
-          ? Promise.resolve<ReadResult<z.infer<typeof riskPositionSource>>>({
-              data: null,
-              issue: "Wallet display scope is unavailable.",
-            })
-          : read(
-              `${SOURCES.portfolio}?${query}`,
-              riskPositionSource.refine(
-                (p) => p.walletVisibility.revision === revision,
-              ),
-            ),
-      ]);
+    const [alerts, assessments, monitors, morpho, curve, scoped] = await Promise.all([
+      read(SOURCES.alerts, alertsSource),
+      read(SOURCES.assessments, assessmentsSource),
+      read(SOURCES.monitors, monitorsSource),
+      read(SOURCES.morpho, morphoRiskSource),
+      read(SOURCES.curve, curveRiskSource),
+      revision === null
+        ? Promise.resolve<ReadResult<z.infer<typeof riskPositionSource>>>({
+            data: null,
+            issue: "Wallet display scope is unavailable.",
+          })
+        : read(
+            `${SOURCES.portfolio}?${query}`,
+            riskPositionSource.refine((p) => p.walletVisibility.revision === revision),
+          ),
+    ]);
     // Source dashboards are unscoped. Never publish them unless their position joins are fenced by the saved visibility revision.
     const after = await read(SOURCES.walletVisibility, walletVisibilitySource);
     const scopeValid =
-      scoped.data !== null &&
-      revision !== null &&
-      after.data?.revision === revision;
+      scoped.data !== null && revision !== null && after.data?.revision === revision;
     const active = scopeValid
       ? scoped.data!.items.filter(
-          (p) =>
-            p.state === "active" &&
-            scoped.data!.scope.includedPositionIds.includes(p.id),
+          (p) => p.state === "active" && scoped.data!.scope.includedPositionIds.includes(p.id),
         )
       : [];
     const hidden = settings.data?.hiddenWalletAddresses.length !== 0;
-    const mixed = new Set(
-      scoped.data?.walletAttribution?.partialPositionIds ?? [],
-    );
-    const attributionKnown =
-      !hidden || scoped.data?.walletAttribution !== undefined;
-    const eligible = attributionKnown
-      ? active.filter((p) => !mixed.has(p.id))
-      : [];
+    const mixed = new Set(scoped.data?.walletAttribution?.partialPositionIds ?? []);
+    const attributionKnown = !hidden || scoped.data?.walletAttribution !== undefined;
+    const eligible = attributionKnown ? active.filter((p) => !mixed.has(p.id)) : [];
     const projected = projectRiskExposures({
       morpho: morpho.data,
       curve: curve.data,
@@ -691,13 +710,8 @@ export function createFarmingControlClient(options: {
       issues.push(
         "The generic alerts or assessments surface is retired; current hot-monitor runtime states are listed separately and do not substitute for alert evidence.",
       );
-    if (
-      alerts.data?.items.length === 100 ||
-      assessments.data?.items.length === 100
-    )
-      issues.push(
-        "Generic monitoring results may be truncated at 100 records per source.",
-      );
+    if (alerts.data?.items.length === 100 || assessments.data?.items.length === 100)
+      issues.push("Generic monitoring results may be truncated at 100 records per source.");
     if (
       monitors.data?.some(
         (item) =>
@@ -758,9 +772,7 @@ export function createFarmingControlClient(options: {
             : "complete",
         activePositionCount: scopeValid ? active.length : null,
         coveredPositionCount: coveredCount,
-        uncoveredPositionCount: scopeValid
-          ? active.length - coveredCount
-          : null,
+        uncoveredPositionCount: scopeValid ? active.length - coveredCount : null,
       },
       alerts: alerts.data?.items ?? [],
       assessments: assessments.data?.items ?? [],
@@ -777,9 +789,7 @@ export function createFarmingControlClient(options: {
         alerts: availability(alerts.data),
         assessments: availability(assessments.data),
         monitors: {
-          state: monitors.data
-            ? ("available" as const)
-            : ("unavailable" as const),
+          state: monitors.data ? ("available" as const) : ("unavailable" as const),
           asOfMs: monitorTime,
           returnedCount: monitors.data?.length ?? null,
           truncated: false,
@@ -900,7 +910,6 @@ export function createFarmingControlClient(options: {
       entities,
       rows: visibleRows,
       riskRead,
-
     };
   }
   async function mentionTargets(
@@ -924,17 +933,191 @@ export function createFarmingControlClient(options: {
             ].some((value) => value.toLocaleLowerCase("en-US").includes(term)),
           )),
     );
-    const {
-      rows: _rows,
-      riskRead: _riskRead,
-      entities: _entities,
-      ...metadata
-    } = snapshot;
+    const { rows: _rows, riskRead: _riskRead, entities: _entities, ...metadata } = snapshot;
     const limit = selected.limit ?? 100;
     return {
       ...metadata,
       entities: filtered.slice(0, limit),
       truncated: filtered.length > limit,
+    };
+  }
+  /** Uses canonical FC calculation services; never reconstructs accounting or averages rates. */
+  async function positionYieldEvidence(
+    positionId: string,
+    revision: number,
+    toMs: number,
+  ): Promise<FarmingControlYieldEvidence | null> {
+    const fromMs = Math.max(0, toMs - 30 * DAY_MS);
+    const historyFromMs = Math.max(0, toMs - 90 * DAY_MS);
+    const scope = new URLSearchParams({
+      walletVisibility: "visible",
+      walletVisibilityRevision: String(revision),
+    });
+    const historyQuery = new URLSearchParams(scope);
+    historyQuery.set("fromMs", String(historyFromMs));
+    historyQuery.set("toMs", String(toMs));
+    historyQuery.set("limit", "200");
+    const periodQuery = new URLSearchParams(scope);
+    periodQuery.set("fromMs", String(fromMs));
+    const escapedId = encodeURIComponent(positionId);
+    const deadline = AbortSignal.timeout(HISTORY_DEADLINE_MS);
+    let bytes = 0;
+    const limits = {
+      signal: deadline,
+      onBytes(count: number) {
+        bytes += count;
+        if (bytes > HISTORY_BODY_BUDGET) throw new Error("yield_body_budget");
+      },
+    };
+    const [history, period, realized] = await Promise.all([
+      read(
+        `/positions/${escapedId}/metrics/apr?${historyQuery}`,
+        aprHistorySource.refine(
+          (value) =>
+            value.positionId === positionId &&
+            value.walletVisibility.revision === revision &&
+            value.points.every(
+              (point) => point.observedAtMs >= historyFromMs && point.observedAtMs <= toMs,
+            ),
+        ),
+        limits,
+      ),
+      // FC's per-position period breakdown is provided by this single shared read service.
+      read(
+        `/portfolio/metrics/earned/since?${periodQuery}`,
+        periodEarningsSource.refine(
+          (value) =>
+            value.walletVisibility.revision === revision &&
+            value.fromMs === fromMs &&
+            value.toMs >= fromMs,
+        ),
+        limits,
+      ),
+      read(
+        `/positions/${escapedId}/performance?${scope}`,
+        realizedPerformanceSource.refine((value) => value.walletVisibility.revision === revision),
+        limits,
+      ),
+    ]);
+    const after = await read(SOURCES.walletVisibility, walletVisibilitySource);
+    // A preference change invalidates all historical joins; do not leak an older visible scope.
+    if (after.data?.revision !== revision) return null;
+    const issues = [history.issue, period.issue, realized.issue].filter(
+      (issue): issue is string => issue !== null,
+    );
+    issues.push(
+      "A held-period average APR is unavailable: saved quoted rates are not earned yield or realized ROI, and rate sources or methodology can change.",
+    );
+    const contribution = period.data?.excludedPositionIds.includes(positionId)
+      ? null
+      : (period.data?.byPosition.find((row) => row.positionId === positionId) ?? null);
+    if (!contribution)
+      issues.push(
+        "The rolling 30-day earned contribution is unavailable; absence is not zero. Older confirmed returns may still appear in realized lifetime evidence.",
+      );
+    if (contribution?.measure === "claimable")
+      issues.push(
+        "Claimable earned is the saved claimable mark delta plus recorded disposal proceeds. A negative delta alone does not establish a realized loss or complete claim history.",
+      );
+    if (contribution && ["steth_balance", "base_balance"].includes(contribution.measure))
+      issues.push(
+        "For native balance measures, baselineUsd and currentUsd preserve FC's field names but contain native quantities; earnedUsd is the USD-valued delta.",
+      );
+    const rows = history.data?.points ?? [];
+    const points =
+      rows.length <= 12
+        ? rows
+        : Array.from({ length: 12 }, (_, i) => rows[Math.floor((i * (rows.length - 1)) / 11)]!);
+    if (history.data?.page.nextCursor)
+      issues.push(
+        "APR history exceeded the 200 saved-point read budget; sampled points are partial and must not be used as a held-period average.",
+      );
+    const comparisonPoints = [
+      ...rows,
+      history.data?.change24h.current,
+      history.data?.change24h.baseline,
+    ].filter((point) => point != null);
+    if (
+      new Set(
+        comparisonPoints.map((point) => `${point.rateType}:${point.source}:${point.window ?? ""}`),
+      ).size > 1
+    )
+      issues.push(
+        "Historical APR/APY source or methodology changes make rates incomparable across the whole period.",
+      );
+    const performance = realized.data
+      ? FarmingControlRealizedPerformanceSchema.parse(realized.data)
+      : null;
+    if (performance) {
+      const attributionComplete = realized.data?.walletAttribution.complete === true;
+      const withheld: string[] = [];
+      for (const [assetSet, bucket] of Object.entries(performance.byAssetSet)) {
+        for (const window of ["day", "month", "year", "lifetime"] as const) {
+          const cost = bucket.attributedCosts[window];
+          // Compare exact decimal text without converting financial values to Number.
+          const zeroCost =
+            cost !== null && /^[+-]?(?:0+(?:\.0*)?|\.0+)(?:[eE][+-]?\d+)?$/.test(cost);
+          if (!attributionComplete || !zeroCost) {
+            bucket.attributedCosts[window] = null;
+            bucket.realizedNet[window] = null;
+            bucket.realizedRoiPercent[window] = null;
+            withheld.push(`${assetSet.slice(0, 100)}/${window}`);
+          }
+          if (!attributionComplete) bucket.averageCapitalBasis[window] = null;
+        }
+        if (!attributionComplete) bucket.currentCapitalBasis = null;
+      }
+      issues.push(
+        "Realized gross values are source asset quantities grouped only by asset set; the grouping does not establish one token or a USD denomination. No cross-asset totals are calculated.",
+      );
+      if (!attributionComplete)
+        issues.push(
+          "Realized activity attribution is incomplete; gross quantities are known subtotals only. Costs, net returns, ROI and capital basis are withheld rather than presented as complete performance.",
+        );
+      if (withheld.length)
+        issues.push(
+          `Costs, net returns and ROI are withheld for ${withheld.slice(0, 8).join(", ")}${withheld.length > 8 ? " and additional windows" : ""}: FC can group USD execution fees with destination-asset quantities, so nonzero or unverified costs cannot safely be subtracted. Only exact zero-cost windows with complete activity attribution retain canonical net returns.`,
+        );
+    }
+    return {
+      positionId,
+      asOfMs: Math.max(toMs, period.data?.toMs ?? toMs),
+      walletVisibilityRevision: revision,
+      heldPeriodAverageAprPercent: null,
+      periodEarnings: {
+        window: "rolling_30d",
+        fromMs,
+        toMs: period.data?.toMs ?? null,
+        state: contribution ? "available" : "unavailable",
+        methodology: "per_position_accrual_measure_delta",
+        contribution,
+      },
+      realizedGrossUnit: "source_asset_quantities_grouped_by_asset_set",
+      realized: performance,
+      aprHistory: {
+        fromMs: historyFromMs,
+        toMs,
+        state:
+          !history.data || rows.length === 0
+            ? "unavailable"
+            : history.data.page.nextCursor
+              ? "partial"
+              : "available",
+        latestRate: history.data?.change24h.current ?? null,
+        latestRateFreshness:
+          !history.data?.change24h.current ||
+          history.data.change24h.quality.staleCurrent === undefined
+            ? "unknown"
+            : history.data.change24h.quality.staleCurrent
+              ? "stale"
+              : "current",
+        dayPriorRate: history.data?.change24h.baseline ?? null,
+        observedPointCount: rows.length,
+        sampling: "bounded_saved_points_with_boundaries",
+        points,
+        truncated: history.data === null || history.data.page.nextCursor !== null,
+      },
+      issues,
     };
   }
   async function entity(input: FarmingControlEntitySelection): Promise<FarmingControlEntityRead> {
@@ -998,6 +1181,36 @@ export function createFarmingControlClient(options: {
         "Current wallet links do not establish the account attributed to saved observations; wallet financial amounts, APRs, and yield projections are withheld.",
       ];
     }
+    const yieldEvidence =
+      found && selection.kind === "position" && metadata.walletVisibilityRevision !== null
+        ? await positionYieldEvidence(selection.id, metadata.walletVisibilityRevision, fetchedAtMs)
+        : undefined;
+    if (found && selection.kind === "position" && !yieldEvidence) {
+      return {
+        ...metadata,
+        state: "unavailable",
+        asOfMs: null,
+        walletVisibilityRevision: null,
+        issues: [
+          ...metadata.issues,
+          "The saved wallet scope changed or could not be reverified; position evidence is withheld until a fresh read succeeds.",
+        ],
+        selection,
+        selectionStatus: "discovery_unavailable",
+        entity: null,
+        positions: [],
+        risk: null,
+      };
+    }
+    if (found && selection.kind === "position") {
+      metadata.state = "partial";
+      metadata.issues = [
+        ...metadata.issues,
+        ...(yieldEvidence?.issues ?? [
+          "Historical yield evidence could not be verified against the saved wallet scope.",
+        ]),
+      ];
+    }
     const exposure =
       found && selection.kind === "risk"
         ? (riskRead?.exposures.find((item) => item.id === selection.id) ?? null)
@@ -1013,6 +1226,7 @@ export function createFarmingControlClient(options: {
             ? "discovery_partial"
             : "missing",
       entity: found,
+      ...(yieldEvidence ? { yieldEvidence } : {}),
       positions,
       risk:
         exposure && selection.signalKey
