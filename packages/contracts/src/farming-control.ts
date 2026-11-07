@@ -42,7 +42,10 @@ export const FarmingControlRiskSelectionSchema = z
 export type FarmingControlRiskSelection = z.infer<typeof FarmingControlRiskSelectionSchema>;
 export const FarmingControlRiskContextSchema = z
   .object({
-    selections: z.array(FarmingControlRiskSelectionSchema).min(1).max(FARMING_CONTROL_RISK_SELECTION_LIMIT),
+    selections: z
+      .array(FarmingControlRiskSelectionSchema)
+      .min(1)
+      .max(FARMING_CONTROL_RISK_SELECTION_LIMIT),
   })
   .strict();
 export type FarmingControlRiskContext = z.infer<typeof FarmingControlRiskContextSchema>;
@@ -251,11 +254,58 @@ export const FarmingControlRiskSignalSchema = z.object({
   format: z.enum(["fraction", "ratio", "amount", "text"]),
   unit: text.nullable(),
   summary: text,
-  metrics: z.array(z.object({ key: text, label: text, value: amount, format: z.enum(["fraction", "ratio", "amount", "text"]), unit: text.nullable() })).max(8).optional(),
+  metrics: z
+    .array(
+      z.object({
+        key: text,
+        label: text,
+        value: amount,
+        format: z.enum(["fraction", "ratio", "amount", "text"]),
+        unit: text.nullable(),
+      }),
+    )
+    .max(8)
+    .optional(),
 });
-export type FarmingControlRiskSignal = z.infer<
-  typeof FarmingControlRiskSignalSchema
->;
+export type FarmingControlRiskSignal = z.infer<typeof FarmingControlRiskSignalSchema>;
+/** Dated source evidence; it never establishes a current assessment or execution readiness. */
+export const FarmingControlRiskObservationSchema = z.object({
+  observedAtMs: ms,
+  collectedAtMs: ms,
+  blockNumber: z.string().regex(/^\d+$/).max(128),
+  blockHash: z.string().regex(/^0x[0-9a-fA-F]{64}$/),
+  metrics: z.object({
+    accountAssets: amount.default(null),
+    withdrawableAssets: amount.default(null),
+    liquidityAssets: amount.default(null),
+    withdrawableFraction: amount,
+    exitBufferRatio: amount,
+    utilizationFraction: amount,
+    largestAllocationFraction: amount,
+  }),
+});
+export const FarmingControlRiskMonitorControlSchema = z.object({
+  desiredState: z.enum(["stopped", "running", "unknown"]),
+  actualState: z.enum([
+    "stopped",
+    "starting",
+    "warming_up",
+    "running",
+    "stopping",
+    "degraded",
+    "unavailable",
+    "unknown",
+  ]),
+  controlSync: z.enum(["in_sync", "pending", "unavailable", "unknown"]),
+});
+export const FarmingControlRiskHistorySchema = z.object({
+  status: z.enum(["ready", "disabled", "degraded"]),
+  window: z.enum(["1h", "24h", "7d"]).optional(),
+  requestedFromMs: ms,
+  requestedThroughMs: ms,
+  truncated: z.boolean(),
+  recordsRead: count,
+});
 export const FarmingControlRiskExposureSchema = z.object({
   id: text,
   protocol: z.enum(["Morpho Blue", "Morpho vault", "Curve pool"]),
@@ -270,6 +320,17 @@ export const FarmingControlRiskExposureSchema = z.object({
   }),
   positions: z.array(z.object({ id: text, label: text })).max(64),
   dataStatus: text,
+  assetSymbol: text.optional(),
+  capacityState: z.enum(["verified", "lower_bound", "unavailable", "blocked"]).optional(),
+  capacityMethod: text.nullable().optional(),
+  monitorControl: FarmingControlRiskMonitorControlSchema.nullable().optional(),
+  currentObservation: FarmingControlRiskObservationSchema.nullable().optional(),
+  lastKnownObservation: FarmingControlRiskObservationSchema.extend({
+    source: z.enum(["accepted_finalized_history", "aged_live"]),
+  })
+    .nullable()
+    .optional(),
+  history: FarmingControlRiskHistorySchema.optional(),
   observedAtMs: ms.nullable(),
   collectedAtMs: ms.nullable(),
   blockNumber: text.nullable(),
@@ -280,9 +341,7 @@ export const FarmingControlRiskExposureSchema = z.object({
   coverage: z.enum(["partial", "unknown"]),
   limitations: z.array(text).max(64),
 });
-export type FarmingControlRiskExposure = z.infer<
-  typeof FarmingControlRiskExposureSchema
->;
+export type FarmingControlRiskExposure = z.infer<typeof FarmingControlRiskExposureSchema>;
 export type FarmingControlRiskCard = FarmingControlRiskExposure;
 
 export const FarmingControlRiskSchema = z.object({

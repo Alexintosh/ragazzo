@@ -1,4 +1,4 @@
-import type { Actor } from "@rakazo/contracts";
+import type { Actor, FarmingControlRisk, FarmingControlRiskExposure } from "@rakazo/contracts";
 import {
   FarmingControlPortfolioInputSchema,
   FarmingControlRiskSchema,
@@ -60,6 +60,102 @@ export function farmingControlToolDenied(
   );
 }
 
+/** Format only a previously authorized, wallet-scoped risk read; never fetches data. */
+export function scopedFarmingControlRiskRead(
+  risk: FarmingControlRisk,
+  exposureId: string,
+  signalKey?: string,
+) {
+  const exposure = risk.exposures.find((card) => card.id === exposureId);
+  const matching = exposure?.signals.filter((signal) => signal.key === signalKey) ?? [];
+  // The card selection can outlive a no-reading placeholder. A successful reread
+  // must deliver the new observations rather than an empty, misleading signal list.
+  const placeholderSuperseded =
+    signalKey === "no_current_reading" &&
+    matching.length === 0 &&
+    exposure?.dataStatus === "live" &&
+    exposure.observedAtMs !== null;
+  const signals = exposure
+    ? signalKey && !placeholderSuperseded
+      ? matching
+      : exposure.signals
+    : [];
+  const severityRank = { info: 0, warning: 1, critical: 2 };
+  const maxSeverity = signals.reduce<FarmingControlRiskExposure["maxSeverity"]>(
+    (max, signal) =>
+      signal.severity !== null &&
+      (max === null || severityRank[signal.severity] > severityRank[max])
+        ? signal.severity
+        : max,
+    null,
+  );
+  // Canonical selector namespaces identify only the protocol source to report.
+  // They establish neither a monitor's existence nor any wallet/position binding.
+  const sourceKey = exposure
+    ? exposure.protocol === "Curve pool"
+      ? "curve"
+      : "morpho"
+    : exposureId.startsWith("morpho.market.") || exposureId.startsWith("morpho.vault.")
+      ? "morpho"
+      : exposureId.startsWith("curve.pool.")
+        ? "curve"
+        : null;
+  const source = sourceKey ? risk.sourceAvailability[sourceKey] : null;
+  const discoveryUnavailable =
+    risk.exposureScope.discovery === "unavailable" || source?.state === "unavailable";
+  const discoveryPartial = risk.exposureScope.discovery === "partial" || source?.truncated;
+  const selectionStatus = !exposure
+    ? discoveryUnavailable
+      ? "discovery_unavailable"
+      : discoveryPartial
+        ? "discovery_partial"
+        : "exposure_missing"
+    : placeholderSuperseded
+      ? "placeholder_superseded"
+      : signalKey && matching.length === 0
+        ? "signal_missing"
+        : "matched";
+  return {
+    exposureId,
+    ...(signalKey ? { signalKey } : {}),
+    selectionStatus,
+    exposure: exposure ? { ...exposure, signals, maxSeverity } : null,
+    // Discovery describes lookup completeness, not this subject's safety. Do
+    // not mix portfolio counts or unrelated alert infrastructure into a reply.
+    exposureScope: {
+      discovery: risk.exposureScope.discovery,
+      walletVisibilityRevision: risk.exposureScope.walletVisibilityRevision,
+    },
+    fetchedAtMs: risk.fetchedAtMs,
+    sourceAvailability: source
+      ? {
+          source: sourceKey,
+          state: source.state,
+          asOfMs: source.asOfMs,
+          truncated: source.truncated,
+        }
+      : null,
+    monitors: exposure
+      ? risk.monitors.filter((monitor) => monitor.monitorKey === exposure.monitorKey)
+      : [],
+    issues: !exposure
+      ? [
+          discoveryUnavailable
+            ? source?.state === "unavailable"
+              ? "The selected protocol source is unavailable. This read cannot establish whether the selected exposure or monitor exists or belongs to visible holdings."
+              : "Exposure discovery or its wallet scope could not be verified. This read cannot establish whether the selected exposure or monitor exists."
+            : discoveryPartial
+              ? "The selected exposure was not returned by incomplete discovery. This does not establish that the position closed or its monitor was removed."
+              : "The selected exposure was not returned among visible active holdings. This does not establish that its monitor was removed.",
+        ]
+      : signalKey && matching.length === 0 && !placeholderSuperseded
+        ? [
+            "The exposure was found, but the selected signal was not returned. The exposure and its monitor are not missing on that basis.",
+          ]
+        : [],
+  };
+}
+
 export const farmingControlReadTool: ToolHandler = async (ctx, call) => {
   const section = FARMING_CONTROL_TOOL_SECTIONS.get(call.name);
   if (!section || farmingControlToolDenied(ctx.bot, call.name, call.args, ctx.thread.groupId))
@@ -73,23 +169,7 @@ export const farmingControlReadTool: ToolHandler = async (ctx, call) => {
       if (!exposureId) return result;
       // Match only against evidence returned by the current authorized, wallet-scoped read.
       const risk = FarmingControlRiskSchema.parse(result);
-      const exposure = risk.exposures.find((card) => card.id === exposureId);
-      return {
-        exposureId,
-        ...(signalKey ? { signalKey } : {}),
-        exposure: exposure
-          ? {
-              ...exposure,
-              signals: signalKey
-                ? exposure.signals.filter((signal) => signal.key === signalKey)
-                : exposure.signals,
-            }
-          : null,
-        exposureScope: risk.exposureScope,
-        fetchedAtMs: risk.fetchedAtMs,
-        sources: risk.sources,
-        issues: risk.issues,
-      };
+      return scopedFarmingControlRiskRead(risk, exposureId, signalKey);
     }
     return section === "portfolio"
       ? await ctx.deps.farmingControl.read(

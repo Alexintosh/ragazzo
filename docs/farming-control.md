@@ -76,6 +76,12 @@ withdrawal or utilization reading applies to that specific check. Selecting a
 signal shows its evidence and prepares its context for FC Risk. The specialists
 can still look up monitor diagnostics through the existing Risk tool.
 
+For a Morpho card, FC Risk receives the monitor state, the timestamp and block
+of its accepted observation, and the amounts or ratios the source measured.
+When a current observation is unavailable, the specialist can report the last
+accepted observation returned in the requested history window, with its date.
+Only current assessments determine the gauge.
+
 Harvest distinguishes current and fallback marks. Accounting shows realized
 amounts and costs. Amounts retain FC's decimal strings in transport. Source
 details identify unavailable data, incomplete valuation and observation dates.

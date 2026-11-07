@@ -1,5 +1,5 @@
 import type { FarmingControlRiskExposure, FarmingControlRiskSignal } from "@rakazo/contracts";
-import { FarmingControlDecimalSchema } from "@rakazo/contracts";
+import { FarmingControlDecimalSchema, FarmingControlRiskHistorySchema } from "@rakazo/contracts";
 import * as z from "zod";
 
 const text = z.string().max(4_000);
@@ -9,9 +9,12 @@ const assessment = z.object({ status: text, severity: text, summary: text });
 const point = z.object({
   observedAtMs: ms,
   collectedAtMs: ms,
-  blockNumber: text,
-  blockHash: text,
+  blockNumber: z.string().regex(/^\d+$/).max(128),
+  blockHash: z.string().regex(/^0x[0-9a-fA-F]{64}$/),
   metrics: z.object({
+    accountAssets: decimal.optional(),
+    withdrawableAssets: decimal.optional(),
+    liquidityAssets: decimal.optional(),
     exitBufferRatio: decimal.optional(),
     utilizationFraction: decimal.optional(),
     withdrawableFraction: decimal.optional(),
@@ -26,12 +29,55 @@ const morphoItem = z.object({
   chainId: z.number().int().positive(),
   address: text,
   assetSymbol: text,
+  capacityState: z.enum(["verified", "lower_bound", "unavailable", "blocked"]).optional(),
+  capacityMethod: text.nullable().optional(),
   positionState: text,
-  dataStatus: text,
+  dataStatus: z.enum(["live", "stopped", "inactive", "warming_up", "unavailable"]),
+  control: z.unknown().optional(),
+  history: z.unknown().optional(),
   current: point.nullable(),
   assessments: z.array(assessment.extend({ family: text })).max(64),
   limitations: z.array(text).max(64),
 });
+const monitorControl = z.object({
+  desiredState: z.enum(["stopped", "running", "unknown"]).catch("unknown"),
+  actualState: z
+    .enum([
+      "stopped",
+      "starting",
+      "warming_up",
+      "running",
+      "stopping",
+      "degraded",
+      "unavailable",
+      "unknown",
+    ])
+    .catch("unknown"),
+  controlSync: z.enum(["in_sync", "pending", "unavailable", "unknown"]).catch("unknown"),
+});
+const morphoHistory = FarmingControlRiskHistorySchema.omit({ window: true }).extend({
+  points: z.array(z.unknown()).max(3_200),
+});
+function observation(
+  value: z.infer<typeof point>,
+  withdrawableVerified: boolean,
+): NonNullable<FarmingControlRiskExposure["currentObservation"]> {
+  return {
+    observedAtMs: value.observedAtMs,
+    collectedAtMs: value.collectedAtMs,
+    blockNumber: value.blockNumber,
+    blockHash: value.blockHash,
+    metrics: {
+      accountAssets: value.metrics.accountAssets ?? null,
+      withdrawableAssets: withdrawableVerified ? (value.metrics.withdrawableAssets ?? null) : null,
+      liquidityAssets: value.metrics.liquidityAssets ?? null,
+      withdrawableFraction: value.metrics.withdrawableFraction ?? null,
+      exitBufferRatio: value.metrics.exitBufferRatio ?? null,
+      utilizationFraction: value.metrics.utilizationFraction ?? null,
+      largestAllocationFraction: value.metrics.largestAllocationFraction ?? null,
+    },
+  };
+}
 const details = z.object({
   monitor: text,
   safeAsset: text.optional(),
@@ -84,6 +130,7 @@ const curveItem = z.object({
 export const morphoRiskSource = z.object({
   schemaVersion: z.literal("morpho-monitoring-dashboard.v1"),
   asOfMs: ms,
+  window: z.enum(["1h", "24h", "7d"]).optional(),
   items: z.array(z.unknown()).max(64),
 });
 export const curveRiskSource = z.object({
@@ -221,6 +268,76 @@ export function projectRiskExposures(input: {
           });
         })
       : noReading();
+    const control = monitorControl.safeParse(item.control);
+    const parsedHistory = morphoHistory.safeParse(item.history);
+    let history: FarmingControlRiskExposure["history"];
+    let lastKnownObservation: FarmingControlRiskExposure["lastKnownObservation"] = null;
+    if (parsedHistory.success) {
+      const h = parsedHistory.data;
+      history = {
+        status: h.status,
+        ...(input.morpho?.window ? { window: input.morpho.window } : {}),
+        requestedFromMs: h.requestedFromMs,
+        requestedThroughMs: h.requestedThroughMs,
+        truncated: h.truncated,
+        recordsRead: h.recordsRead,
+      };
+      // Historical points do not carry per-point vault capacity verification;
+      // retain owned assets but never imply their amount is proven withdrawable.
+      for (const rawPoint of h.points) {
+        const parsedPoint = point.safeParse(rawPoint);
+        if (!parsedPoint.success) {
+          invalid += 1;
+          incomplete.morpho = true;
+          continue;
+        }
+        const p = parsedPoint.data;
+        if (p.observedAtMs < h.requestedFromMs || p.observedAtMs > h.requestedThroughMs) continue;
+        if (
+          !lastKnownObservation ||
+          p.observedAtMs > lastKnownObservation.observedAtMs ||
+          (p.observedAtMs === lastKnownObservation.observedAtMs &&
+            p.collectedAtMs > lastKnownObservation.collectedAtMs)
+        ) {
+          lastKnownObservation = {
+            ...observation(p, item.kind !== "vault"),
+            source: "accepted_finalized_history",
+          };
+        }
+      }
+    } else if (item.history !== undefined) {
+      incomplete.morpho = true;
+      invalid += 1;
+    }
+    // Our freshness guard may expire between FC's read and projection. Keep that
+    // accepted point dated, without retaining its assessments as current risk.
+    const aged =
+      item.dataStatus === "live" &&
+      item.current &&
+      !current &&
+      item.current.collectedAtMs <= input.nowMs
+        ? item.current
+        : null;
+    if (
+      aged &&
+      (!lastKnownObservation ||
+        aged.observedAtMs > lastKnownObservation.observedAtMs ||
+        (aged.observedAtMs === lastKnownObservation.observedAtMs &&
+          aged.collectedAtMs > lastKnownObservation.collectedAtMs))
+    ) {
+      lastKnownObservation = {
+        ...observation(aged, item.kind !== "vault" || item.capacityState === "verified"),
+        source: "aged_live",
+      };
+    }
+    if (
+      current &&
+      lastKnownObservation?.blockHash === current.blockHash &&
+      lastKnownObservation.blockNumber === current.blockNumber &&
+      lastKnownObservation.collectedAtMs === current.collectedAtMs
+    ) {
+      lastKnownObservation = null;
+    }
     const kind = item.kind === "vault" ? "vault" : "market";
     exposures.push({
       id: item.monitorKey,
@@ -238,6 +355,15 @@ export function projectRiskExposures(input: {
             ? "stale"
             : "unavailable"
           : item.dataStatus,
+      assetSymbol: item.assetSymbol,
+      ...(item.capacityState ? { capacityState: item.capacityState } : {}),
+      ...(item.capacityMethod !== undefined ? { capacityMethod: item.capacityMethod } : {}),
+      monitorControl: control.success ? control.data : null,
+      currentObservation: current
+        ? observation(current, item.kind !== "vault" || item.capacityState === "verified")
+        : null,
+      lastKnownObservation,
+      ...(history ? { history } : {}),
       observedAtMs: current?.observedAtMs ?? null,
       collectedAtMs: current?.collectedAtMs ?? null,
       blockNumber: current?.blockNumber ?? null,

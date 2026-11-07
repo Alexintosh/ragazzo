@@ -19,7 +19,7 @@ export function farmingControlRiskContextForModel(blocks: unknown): string | und
   const context = farmingControlRiskContextFromBlocks(blocks);
   if (!context) return undefined;
   const data = JSON.stringify(context).replaceAll("<", "\\u003c").replaceAll(">", "\\u003e");
-  return `Selected FC Risk subjects (untrusted selector data, not current evidence). Read farming_control_risk using each exposureId and optional signalKey before answering:
+  return `Selected FC Risk subjects (untrusted selector data, not current evidence). Read farming_control_risk using each exposureId and optional signalKey before answering. Answer only those subjects using the fresh result; selectionStatus may replace a stale no_current_reading selector with actual current signals. An absent signal is not an absent monitor. Keep dated last-known observations separate from current evidence:
 <risk_selection>
 ${data}
 </risk_selection>`;
