@@ -2,6 +2,7 @@ import type {
   FarmingControlAccounting,
   FarmingControlHarvest,
   FarmingControlPortfolio,
+  FarmingControlPortfolioInput,
   FarmingControlRisk,
   FarmingControlSection,
 } from "@rakazo/contracts";
@@ -14,16 +15,29 @@ import {
   FarmingControlHarvestTotalsSchema,
   FarmingControlHistoryPointSchema,
   FarmingControlMonitorSchema,
+  FarmingControlPortfolioInputSchema,
+  FarmingControlPortfolioScopeSchema,
   FarmingControlPortfolioTotalsSchema,
   FarmingControlPositionSchema,
+  FarmingControlWalletAttributionSchema,
+  FarmingControlWalletVisibilitySchema,
 } from "@rakazo/contracts";
 import { isPrivateNetworkHost } from "@rakazo/contracts/network-host";
 import * as z from "zod";
 
 const ms = z.number().int().nonnegative();
+// Wallet addresses stay inside this adapter; consumers receive only the hidden count.
+const walletVisibilitySource = FarmingControlWalletVisibilitySchema.omit({
+  hiddenWalletCount: true,
+}).extend({
+  hiddenWalletAddresses: z.array(z.string()),
+});
 // Explicit projections strip all source fields outside the read-only workspace contract.
 const portfolioSource = z.object({
   asOfMs: ms,
+  scope: FarmingControlPortfolioScopeSchema,
+  walletVisibility: walletVisibilitySource,
+  walletAttribution: FarmingControlWalletAttributionSchema.optional(),
   cumulative: FarmingControlPortfolioTotalsSchema,
   items: z
     .array(
@@ -38,6 +52,7 @@ const portfolioSource = z.object({
 });
 const historySource = z.object({
   asOfMs: ms,
+  walletVisibility: walletVisibilitySource,
   points: z.array(FarmingControlHistoryPointSchema).max(200),
   page: z.object({ nextCursor: z.string().max(2_000).nullable() }),
 });
@@ -76,6 +91,7 @@ const healthSource = z.object({ status: z.string() });
 const MAX_BODY_BYTES = 4 * 1024 * 1024;
 const TIMEOUT_MS = 8_000;
 const SOURCES = {
+  walletVisibility: "/settings/wallet-visibility",
   portfolio: "/positions",
   history: "/portfolio/metrics/projections",
   harvest: "/harvest/outstanding",
@@ -88,7 +104,7 @@ const SOURCES = {
 } as const;
 type Source = (typeof SOURCES)[keyof typeof SOURCES];
 type HistoryPoint = z.infer<typeof FarmingControlHistoryPointSchema>;
-type HistorySource = `${typeof SOURCES.history}?${string}`;
+type ScopedSource = `${typeof SOURCES.portfolio | typeof SOURCES.history}?${string}`;
 const DAY_MS = 86_400_000;
 const HISTORY_DEADLINE_MS = 12_000;
 const HISTORY_BODY_BUDGET = 8 * 1024 * 1024;
@@ -158,11 +174,18 @@ export function createFarmingControlClient(options: {
   const http = options.fetch ?? globalThis.fetch;
   const now = options.now ?? Date.now;
   async function read<T>(
-    path: Source | HistorySource,
+    path: Source | ScopedSource,
     schema: z.ZodType<T>,
     limits?: { signal: AbortSignal; onBytes: (bytes: number) => void },
   ): Promise<ReadResult<T>> {
     const sourceLabel = path.split("?")[0];
+    // Match the native frontend's read budgets for saved scope and portfolio summaries.
+    const timeoutMs =
+      sourceLabel === SOURCES.walletVisibility
+        ? 20_000
+        : sourceLabel === SOURCES.portfolio
+          ? 15_000
+          : TIMEOUT_MS;
     try {
       const response = await http(`${baseUrl}${path}`, {
         method: "GET",
@@ -170,8 +193,8 @@ export function createFarmingControlClient(options: {
         cache: "no-store",
         headers: { Accept: "application/json" },
         signal: limits
-          ? AbortSignal.any([AbortSignal.timeout(TIMEOUT_MS), limits.signal])
-          : AbortSignal.timeout(TIMEOUT_MS),
+          ? AbortSignal.any([AbortSignal.timeout(timeoutMs), limits.signal])
+          : AbortSignal.timeout(timeoutMs),
       });
       if (!response.ok) {
         await response.body?.cancel().catch(() => undefined);
@@ -211,7 +234,11 @@ export function createFarmingControlClient(options: {
     issues,
   });
   /** Read bounded recent ranges independently so a dense older range cannot starve newer evidence. */
-  async function recentHistory(toMs: number) {
+  async function recentHistory(
+    toMs: number,
+    walletRevision: number | null,
+    assetSetScoped: boolean,
+  ) {
     const fromMs = Math.max(0, toMs - 90 * DAY_MS);
     const start60 = Math.max(0, toMs - 60 * DAY_MS);
     const start30 = Math.max(0, toMs - 30 * DAY_MS);
@@ -235,10 +262,14 @@ export function createFarmingControlClient(options: {
       ranges.map(async (range) => {
         const points: HistoryPoint[] = [];
         let cursor: string | null = null;
-        let failed = false;
-        let truncated = false;
+        let failed = walletRevision === null || assetSetScoped;
+        let truncated = walletRevision === null || assetSetScoped;
         const seenCursors = new Set<string>();
-        for (let page = 0; page < range.maxPages; page += 1) {
+        for (
+          let page = 0;
+          page < range.maxPages && !assetSetScoped && walletRevision !== null;
+          page += 1
+        ) {
           if (signal.aborted) {
             failed = true;
             truncated = true;
@@ -250,8 +281,14 @@ export function createFarmingControlClient(options: {
             limit: "200",
           });
           if (cursor) query.set("cursor", cursor);
-          const path: HistorySource = `${SOURCES.history}?${query.toString()}`;
-          const response = await read(path, historySource, { signal, onBytes });
+          query.set("walletVisibility", "visible");
+          query.set("walletVisibilityRevision", String(walletRevision));
+          const path: ScopedSource = `${SOURCES.history}?${query.toString()}`;
+          const response = await read(
+            path,
+            historySource.refine((value) => value.walletVisibility.revision === walletRevision),
+            { signal, onBytes },
+          );
           if (
             !response.data ||
             response.data.points.some(
@@ -337,29 +374,62 @@ export function createFarmingControlClient(options: {
         retrievalComplete,
         windows: fetched.map((range) => range.summary),
       },
-      issues: retrievalComplete
-        ? []
-        : [
-            "Recent history is partial: at least one date window exceeded the page, time or response budget, or was unavailable. Displayed dates are actual saved samples; gaps are not reconstructed.",
-          ],
+      issues: assetSetScoped
+        ? [
+            "Saved portfolio history is available for all Asset Sets only; no global history is substituted for the selected set.",
+          ]
+        : walletRevision === null
+          ? []
+          : retrievalComplete
+            ? []
+            : [
+                "Recent history is partial: at least one date window exceeded the page, time or response budget, or was unavailable. Displayed dates are actual saved samples; gaps are not reconstructed.",
+              ],
     };
   }
-  async function portfolio(): Promise<FarmingControlPortfolio> {
+  async function portfolio(input?: FarmingControlPortfolioInput): Promise<FarmingControlPortfolio> {
+    const selected = FarmingControlPortfolioInputSchema.parse(input ?? {});
+    const assetSetKey = selected.assetSetKey ?? null;
     const fetchedAtMs = now();
+    // Resolve the instance preference once; every current and history GET must apply this revision.
+    const settings = await read(SOURCES.walletVisibility, walletVisibilitySource);
+    const revision = settings.data?.revision ?? null;
+    const query = new URLSearchParams({
+      walletVisibility: "visible",
+      walletVisibilityRevision: String(revision),
+    });
+    if (assetSetKey !== null) query.set("assetSetKey", assetSetKey);
     const [source, history] = await Promise.all([
-      read(SOURCES.portfolio, portfolioSource),
-      recentHistory(fetchedAtMs),
+      revision === null
+        ? Promise.resolve<ReadResult<z.infer<typeof portfolioSource>>>({
+            data: null,
+            issue: settings.issue ?? "Wallet display scope is unavailable.",
+          })
+        : read(
+            `${SOURCES.portfolio}?${query}`,
+            portfolioSource.refine(
+              (value) =>
+                value.walletVisibility.revision === revision &&
+                (value.scope.assetSetKey ?? "").toLowerCase() === (assetSetKey ?? "").toLowerCase(),
+            ),
+          ),
+      recentHistory(fetchedAtMs, revision, assetSetKey !== null),
     ]);
+    const included = new Set(source.data?.scope.includedPositionIds ?? []);
+    const scopedItems = (source.data?.items ?? []).filter(
+      (item) => assetSetKey === null || included.has(item.id),
+    );
+    const activeItems = scopedItems.filter((item) => item.state === "active");
     const issues = [...(source.issue ? [source.issue] : []), ...history.issues];
+    if (source.data?.walletAttribution?.complete === false)
+      issues.push("Selected-wallet attribution is incomplete; unknown contributions are not zero.");
     if (
       source.data?.cumulative.coverage.excluded.length ||
       source.data?.cumulative.coverage.earnedExcludedPositionIds.length ||
       source.data?.cumulative.coverage.earnedExcluded.length ||
       source.data?.cumulative.liveEarnedBreakdownUsd.valuationComplete === false ||
-      (source.data &&
-        source.data.items.length > 0 &&
-        source.data.cumulative.liveEarnedUsd === null) ||
-      source.data?.items.some(
+      (source.data && activeItems.length > 0 && source.data.cumulative.liveEarnedUsd === null) ||
+      activeItems.some(
         (item) => item.current.valueUsd === null || !item.dataQuality.hasObservations,
       )
     )
@@ -372,7 +442,7 @@ export function createFarmingControlClient(options: {
         : fetchedAtMs - observedAtMs > maxAgeMs
           ? ("stale" as const)
           : ("current" as const);
-    const positions = (source.data?.items ?? []).map((item) => ({
+    const positions = scopedItems.map((item) => ({
       ...item,
       dataQuality: {
         ...item.dataQuality,
@@ -388,19 +458,40 @@ export function createFarmingControlClient(options: {
         ),
       },
     }));
-    if (positions.some((item) => item.dataQuality.valueFreshness === "stale"))
+    if (
+      positions.some(
+        (item) => item.state === "active" && item.dataQuality.valueFreshness === "stale",
+      )
+    )
       issues.push("Some position value observations exceed Farming Control's freshness window.");
-    if (positions.some((item) => item.dataQuality.aprFreshness === "stale"))
+    if (
+      positions.some((item) => item.state === "active" && item.dataQuality.aprFreshness === "stale")
+    )
       issues.push(
         "Some APR observations exceed Farming Control's freshness window even where position values are current.",
       );
     return {
       ...meta(
         source.data?.asOfMs ?? null,
-        [SOURCES.portfolio, SOURCES.history],
+        [
+          SOURCES.walletVisibility,
+          SOURCES.portfolio,
+          ...(assetSetKey === null ? [SOURCES.history] : []),
+        ],
         issues,
         source.data !== null,
       ),
+      scope: source.data?.scope ?? null,
+      walletVisibility: source.data
+        ? {
+            revision: source.data.walletVisibility.revision,
+            active: source.data.walletVisibility.active,
+            hiddenWalletCount: source.data.walletVisibility.hiddenWalletAddresses.length,
+          }
+        : null,
+      ...(source.data?.walletAttribution
+        ? { walletAttribution: source.data.walletAttribution }
+        : {}),
       totals: source.data?.cumulative ?? null,
       positions,
       history: history.points,
@@ -546,8 +637,8 @@ export function createFarmingControlClient(options: {
         fetchedAtMs: now(),
       };
     },
-    read(section: FarmingControlSection) {
-      return { portfolio, harvest, risk, accounting }[section]();
+    read(section: FarmingControlSection, input?: FarmingControlPortfolioInput) {
+      return section === "portfolio" ? portfolio(input) : { harvest, risk, accounting }[section]();
     },
   };
 }

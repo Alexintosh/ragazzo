@@ -6541,3 +6541,620 @@ msgstr "У вашего голосового провайдера закончи
 #: src/lib/user-error.ts
 msgid "Your voice provider key was rejected."
 msgstr "Ваш голосовой провайдер отклонил ключ."
+
+#: src/pages/FarmingControl.tsx
+msgid " · Truncated"
+msgstr " · Truncated"
+
+#. placeholder {0}: activePositions.length
+#: src/pages/FarmingControl.tsx
+msgid "{0} active positions"
+msgstr "{0} active positions"
+
+#. placeholder {0}: window.observedPointCount
+#: src/pages/FarmingControl.tsx
+msgid "{0} observations read"
+msgstr "{0} observations read"
+
+#. placeholder {0}: data.historyRange.observedPointCount
+#. placeholder {1}: data.historyRange.returnedPointCount
+#: src/pages/FarmingControl.tsx
+msgid "{0} observations read; {1} samples retained across the requested 90 days."
+msgstr "{0} observations read; {1} samples retained across the requested 90 days."
+
+#. placeholder {0}: history.filter((point) => point.value !== null).length
+#: src/pages/FarmingControl.tsx
+msgid "{0} priced samples shown in this view."
+msgstr "{0} priced samples shown in this view."
+
+#. placeholder {0}: totals.unknownRewardCount
+#. placeholder {1}: totals.unknownEmbeddedCount
+#. placeholder {2}: totals.invalidatedContributionCount
+#: src/pages/FarmingControl.tsx
+msgid "{0} unknown rewards · {1} unknown embedded contributions · {2} invalidated"
+msgstr "{0} unknown rewards · {1} unknown embedded contributions · {2} invalidated"
+
+#. placeholder {0}: activePositions.length
+#: src/pages/FarmingControl.tsx
+msgid "{0} visible active positions"
+msgstr "{0} visible active positions"
+
+#: src/pages/FarmingControl.tsx
+msgid "{item}d"
+msgstr "{item}d"
+
+#: src/pages/FarmingControl.tsx
+msgid "{staleValues} stale valuations included"
+msgstr "{staleValues} stale valuations included"
+
+#: src/pages/FarmingControl.tsx
+msgid "30d yield"
+msgstr "30d yield"
+
+#: src/pages/FarmingControl.tsx
+msgid "Accounting"
+msgstr "Accounting"
+
+#: src/pages/FarmingControl.tsx
+msgid "Accounting data is unavailable."
+msgstr "Accounting data is unavailable."
+
+#: src/pages/FarmingControl.tsx
+msgid "Active capital"
+msgstr "Active capital"
+
+#: src/pages/FarmingControl.tsx
+msgid "Active priced value"
+msgstr "Active priced value"
+
+#: src/pages/FarmingControl.tsx
+msgid "Actual state"
+msgstr "Actual state"
+
+#: src/pages/FarmingControl.tsx
+msgid "Alert episodes"
+msgstr "Alert episodes"
+
+#: src/pages/FarmingControl.tsx
+msgid "Alert episodes returned"
+msgstr "Alert episodes returned"
+
+#: src/pages/FarmingControl.tsx
+msgid "All inventory"
+msgstr "All inventory"
+
+#: src/pages/FarmingControl.tsx
+msgid "All sets"
+msgstr "All sets"
+
+#: src/pages/FarmingControl.tsx
+msgid "All tracked wallets"
+msgstr "All tracked wallets"
+
+#: src/pages/FarmingControl.tsx
+msgid "APR / APY"
+msgstr "APR / APY"
+
+#: src/pages/FarmingControl.tsx
+msgid "APR freshness"
+msgstr "APR freshness"
+
+#: src/pages/FarmingControl.tsx
+msgid "APR freshness is partly unknown"
+msgstr "APR freshness is partly unknown"
+
+#: src/pages/FarmingControl.tsx
+msgid "APR observed"
+msgstr "APR observed"
+
+#: src/pages/FarmingControl.tsx
+msgid "As of"
+msgstr "As of"
+
+#: src/pages/FarmingControl.tsx
+msgid "Ask about position"
+msgstr "Ask about position"
+
+#: src/pages/FarmingControl.tsx
+msgid "Ask team"
+msgstr "Ask team"
+
+#: src/pages/FarmingControl.tsx
+msgid "Assessments"
+msgstr "Assessments"
+
+#: src/pages/FarmingControl.tsx
+msgid "Assessments returned"
+msgstr "Assessments returned"
+
+#: src/pages/FarmingControl.tsx
+msgid "Asset Set"
+msgstr "Asset Set"
+
+#: src/pages/FarmingControl.tsx
+msgid "Based on observed APR"
+msgstr "Based on observed APR"
+
+#: src/pages/FarmingControl.tsx
+msgid "Capital baseline"
+msgstr "Capital baseline"
+
+#: src/pages/FarmingControl.tsx
+msgid "Claimable"
+msgstr "Claimable"
+
+#: src/pages/FarmingControl.tsx
+msgid "Claimable, not realized"
+msgstr "Claimable, not realized"
+
+#: src/pages/FarmingControl.tsx
+msgid "Costs"
+msgstr "Costs"
+
+#: src/pages/FarmingControl.tsx
+msgid "Could not open the Farming Control team."
+msgstr "Could not open the Farming Control team."
+
+#: src/pages/FarmingControl.tsx
+msgid "Could not prepare the team message. Allow local draft storage and try again."
+msgstr "Could not prepare the team message. Allow local draft storage and try again."
+
+#: src/pages/FarmingControl.tsx
+msgid "Could not read Farming Control."
+msgstr "Could not read Farming Control."
+
+#: src/pages/FarmingControl.tsx
+msgid "Current blended APR"
+msgstr "Current blended APR"
+
+#: src/pages/FarmingControl.tsx
+msgid "Current value"
+msgstr "Current value"
+
+#: src/pages/FarmingControl.tsx
+msgid "Desired state"
+msgstr "Desired state"
+
+#: src/pages/FarmingControl.tsx
+msgid "Earlier observations"
+msgstr "Earlier observations"
+
+#: src/pages/FarmingControl.tsx
+msgid "Earned-value exclusions"
+msgstr "Earned-value exclusions"
+
+#: src/pages/FarmingControl.tsx
+msgid "Embedded"
+msgstr "Embedded"
+
+#: src/pages/FarmingControl.tsx
+msgid "Enabled"
+msgstr "Enabled"
+
+#: src/pages/FarmingControl.tsx
+msgid "Exited"
+msgstr "Exited"
+
+#: src/pages/FarmingControl.tsx
+msgid "Expected yield · 30d"
+msgstr "Expected yield · 30d"
+
+#: src/pages/FarmingControl.tsx
+msgid "Fallback value"
+msgstr "Fallback value"
+
+#: src/pages/FarmingControl.tsx
+msgid "Farming Control"
+msgstr "Farming Control"
+
+#: src/pages/FarmingControl.tsx
+msgid "Fetched"
+msgstr "Fetched"
+
+#: src/pages/FarmingControl.tsx
+msgid "Forward projection"
+msgstr "Forward projection"
+
+#: src/pages/FarmingControl.tsx
+msgid "Freshness unknown"
+msgstr "Freshness unknown"
+
+#: src/pages/FarmingControl.tsx
+msgid "Harvest"
+msgstr "Harvest"
+
+#: src/pages/FarmingControl.tsx
+msgid "Harvest pending"
+msgstr "Harvest pending"
+
+#: src/pages/FarmingControl.tsx
+msgid "Health"
+msgstr "Health"
+
+#: src/pages/FarmingControl.tsx
+msgid "History coverage"
+msgstr "History coverage"
+
+#: src/pages/FarmingControl.tsx
+msgid "History retrieval is incomplete. Unavailable spans are not connected."
+msgstr "History retrieval is incomplete. Unavailable spans are not connected."
+
+#: src/pages/FarmingControl.tsx
+msgid "Hot monitors"
+msgstr "Hot monitors"
+
+#: src/pages/FarmingControl.tsx
+msgid "Hot monitors returned"
+msgstr "Hot monitors returned"
+
+#: src/pages/FarmingControl.tsx
+msgid "Included in position value"
+msgstr "Included in position value"
+
+#: src/pages/FarmingControl.tsx
+msgid "Includes samples with partial valuation coverage."
+msgstr "Includes samples with partial valuation coverage."
+
+#: src/pages/FarmingControl.tsx
+msgid "Includes stale APR observations"
+msgstr "Includes stale APR observations"
+
+#: src/pages/FarmingControl.tsx
+msgid "Known visible subtotal"
+msgstr "Known visible subtotal"
+
+#: src/pages/FarmingControl.tsx
+msgid "Largest active positions"
+msgstr "Largest active positions"
+
+#: src/pages/FarmingControl.tsx
+msgid "Last observation"
+msgstr "Last observation"
+
+#: src/pages/FarmingControl.tsx
+msgid "Last saved sample per UTC day, with boundary observations."
+msgstr "Last saved sample per UTC day, with boundary observations."
+
+#: src/pages/FarmingControl.tsx
+msgid "Last seen"
+msgstr "Last seen"
+
+#: src/pages/FarmingControl.tsx
+msgid "Latest observation"
+msgstr "Latest observation"
+
+#: src/pages/FarmingControl.tsx
+msgid "Live earned"
+msgstr "Live earned"
+
+#: src/pages/FarmingControl.tsx
+msgid "Live earned composition"
+msgstr "Live earned composition"
+
+#: src/pages/FarmingControl.tsx
+msgid "Loading Farming Control"
+msgstr "Loading Farming Control"
+
+#: src/pages/FarmingControl.tsx
+msgid "Monitor health does not establish the risk of every position. Unavailable or retired feeds do not mean zero alerts."
+msgstr "Monitor health does not establish the risk of every position. Unavailable or retired feeds do not mean zero alerts."
+
+#: src/pages/FarmingControl.tsx
+msgid "Month"
+msgstr "Month"
+
+#: src/pages/FarmingControl.tsx
+msgid "Monthly realization"
+msgstr "Monthly realization"
+
+#: src/pages/FarmingControl.tsx
+msgid "Net"
+msgstr "Net"
+
+#: src/pages/FarmingControl.tsx
+msgid "Net realized"
+msgstr "Net realized"
+
+#: src/pages/FarmingControl.tsx
+msgid "No alert episodes returned for this source."
+msgstr "No alert episodes returned for this source."
+
+#: src/pages/FarmingControl.tsx
+msgid "No assessments returned for this source."
+msgstr "No assessments returned for this source."
+
+#: src/pages/FarmingControl.tsx
+msgid "No hot monitors returned."
+msgstr "No hot monitors returned."
+
+#: src/pages/FarmingControl.tsx
+msgid "No outstanding rewards returned."
+msgstr "No outstanding rewards returned."
+
+#: src/pages/FarmingControl.tsx
+msgid "No positions in this Asset Set."
+msgstr "No positions in this Asset Set."
+
+#: src/pages/FarmingControl.tsx
+msgid "No positions match these filters."
+msgstr "No positions match these filters."
+
+#: src/pages/FarmingControl.tsx
+msgid "No priced active positions."
+msgstr "No priced active positions."
+
+#: src/pages/FarmingControl.tsx
+msgid "No realizations returned."
+msgstr "No realizations returned."
+
+#: src/pages/FarmingControl.tsx
+msgid "No tracked positions."
+msgstr "No tracked positions."
+
+#: src/pages/FarmingControl.tsx
+msgid "No visible positions returned."
+msgstr "No visible positions returned."
+
+#: src/pages/FarmingControl.tsx
+msgid "No visible positions returned. Wallet attribution is incomplete."
+msgstr "No visible positions returned. Wallet attribution is incomplete."
+
+#: src/pages/FarmingControl.tsx
+msgid "Non-canonical"
+msgstr "Non-canonical"
+
+#: src/components/farming-control/presentation.tsx
+msgid "Not enough history to chart."
+msgstr "Not enough history to chart."
+
+#: src/pages/FarmingControl.tsx
+msgid "Observed"
+msgstr "Observed"
+
+#: src/pages/FarmingControl.tsx
+msgid "Observed marks and unclaimed rewards. This is not realized profit or ROI."
+msgstr "Observed marks and unclaimed rewards. This is not realized profit or ROI."
+
+#: src/pages/FarmingControl.tsx
+msgid "Outstanding"
+msgstr "Outstanding"
+
+#: src/pages/FarmingControl.tsx
+msgid "Partial coverage"
+msgstr "Partial coverage"
+
+#: src/pages/FarmingControl.tsx
+msgid "Partial read"
+msgstr "Partial read"
+
+#: src/pages/FarmingControl.tsx
+msgid "Partial valuation; not realized ROI"
+msgstr "Partial valuation; not realized ROI"
+
+#: src/pages/FarmingControl.tsx
+msgid "Portfolio"
+msgstr "Portfolio"
+
+#: src/components/farming-control/presentation.tsx
+msgid "Portfolio value history"
+msgstr "Portfolio value history"
+
+#: src/pages/FarmingControl.tsx
+msgid "Position"
+msgstr "Position"
+
+#: src/pages/FarmingControl.tsx
+msgid "Position data is unavailable."
+msgstr "Position data is unavailable."
+
+#: src/pages/FarmingControl.tsx
+msgid "Position lifecycle"
+msgstr "Position lifecycle"
+
+#: src/pages/FarmingControl.tsx
+msgid "Positions"
+msgstr "Positions"
+
+#: src/pages/FarmingControl.tsx
+msgid "Price observed"
+msgstr "Price observed"
+
+#: src/pages/FarmingControl.tsx
+msgid "Projected ROI · 30d"
+msgstr "Projected ROI · 30d"
+
+#: src/pages/FarmingControl.tsx
+msgid "Projection exclusions"
+msgstr "Projection exclusions"
+
+#: src/pages/FarmingControl.tsx
+msgid "Projection includes stale APR"
+msgstr "Projection includes stale APR"
+
+#: src/pages/FarmingControl.tsx
+msgid "Projection only"
+msgstr "Projection only"
+
+#: src/pages/FarmingControl.tsx
+msgid "Projection, not realized yield"
+msgstr "Projection, not realized yield"
+
+#: src/pages/FarmingControl.tsx
+msgid "Quantity observed"
+msgstr "Quantity observed"
+
+#: src/pages/FarmingControl.tsx
+msgid "Rate source"
+msgstr "Rate source"
+
+#: src/pages/FarmingControl.tsx
+msgid "Rate window"
+msgstr "Rate window"
+
+#: src/pages/FarmingControl.tsx
+msgid "Reachable"
+msgstr "Reachable"
+
+#: src/pages/FarmingControl.tsx
+msgid "Read complete"
+msgstr "Read complete"
+
+#: src/pages/FarmingControl.tsx
+msgid "Read only"
+msgstr "Read only"
+
+#: src/pages/FarmingControl.tsx
+msgid "Realizations"
+msgstr "Realizations"
+
+#: src/pages/FarmingControl.tsx
+msgid "Realized"
+msgstr "Realized"
+
+#: src/pages/FarmingControl.tsx
+msgid "Refresh Farming Control"
+msgstr "Refresh Farming Control"
+
+#: src/pages/FarmingControl.tsx
+msgid "Reported reward value"
+msgstr "Reported reward value"
+
+#: src/pages/FarmingControl.tsx
+msgid "Reward"
+msgstr "Reward"
+
+#: src/pages/FarmingControl.tsx
+msgid "Reward inventory"
+msgstr "Reward inventory"
+
+#: src/pages/FarmingControl.tsx
+msgid "Reward inventory is unavailable."
+msgstr "Reward inventory is unavailable."
+
+#: src/pages/FarmingControl.tsx
+msgid "Risk"
+msgstr "Risk"
+
+#: src/pages/FarmingControl.tsx
+msgid "Risk coverage is incomplete."
+msgstr "Risk coverage is incomplete."
+
+#: src/pages/FarmingControl.tsx
+msgid "Saved range"
+msgstr "Saved range"
+
+#: src/pages/FarmingControl.tsx
+msgid "Saved value observations"
+msgstr "Saved value observations"
+
+#: src/pages/FarmingControl.tsx
+msgid "Schema"
+msgstr "Schema"
+
+#: src/pages/FarmingControl.tsx
+msgid "Scope unavailable"
+msgstr "Scope unavailable"
+
+#: src/pages/FarmingControl.tsx
+msgid "Search positions"
+msgstr "Search positions"
+
+#: src/pages/FarmingControl.tsx
+msgid "Search positions…"
+msgstr "Search positions…"
+
+#: src/pages/FarmingControl.tsx
+msgid "Selected wallets"
+msgstr "Selected wallets"
+
+#: src/pages/FarmingControl.tsx
+msgid "Showing the last fetched view."
+msgstr "Showing the last fetched view."
+
+#: src/pages/FarmingControl.tsx
+msgid "Some rewards lack a current valuation."
+msgstr "Some rewards lack a current valuation."
+
+#: src/pages/FarmingControl.tsx
+msgid "Source retired"
+msgstr "Source retired"
+
+#: src/pages/FarmingControl.tsx
+msgid "Source unavailable"
+msgstr "Source unavailable"
+
+#: src/pages/FarmingControl.tsx
+msgid "Sources and coverage"
+msgstr "Sources and coverage"
+
+#: src/pages/FarmingControl.tsx
+msgid "Stale"
+msgstr "Stale"
+
+#: src/pages/FarmingControl.tsx
+msgid "Supervisor"
+msgstr "Supervisor"
+
+#: src/pages/FarmingControl.tsx
+msgid "Tax module"
+msgstr "Tax module"
+
+#: src/pages/FarmingControl.tsx
+msgid "Unavailable"
+msgstr "Unavailable"
+
+#: src/pages/FarmingControl.tsx
+msgid "Unclaimed rewards"
+msgstr "Unclaimed rewards"
+
+#: src/pages/FarmingControl.tsx
+msgid "Unknown adapter"
+msgstr "Unknown adapter"
+
+#: src/pages/FarmingControl.tsx
+msgid "Unreachable"
+msgstr "Unreachable"
+
+#: src/pages/FarmingControl.tsx
+msgid "Unrealized + unclaimed; not realized ROI"
+msgstr "Unrealized + unclaimed; not realized ROI"
+
+#: src/pages/FarmingControl.tsx
+msgid "Unrealized earnings"
+msgstr "Unrealized earnings"
+
+#: src/pages/FarmingControl.tsx
+msgid "Unrealized position earnings"
+msgstr "Unrealized position earnings"
+
+#: src/pages/FarmingControl.tsx
+msgid "Valuation is incomplete; exclusions are shown below."
+msgstr "Valuation is incomplete; exclusions are shown below."
+
+#: src/pages/FarmingControl.tsx
+msgid "Value basis"
+msgstr "Value basis"
+
+#: src/pages/FarmingControl.tsx
+msgid "Value freshness"
+msgstr "Value freshness"
+
+#: src/pages/FarmingControl.tsx
+msgid "Value history is unavailable for this scope."
+msgstr "Value history is unavailable for this scope."
+
+#: src/pages/FarmingControl.tsx
+msgid "Value observed"
+msgstr "Value observed"
+
+#: src/components/farming-control/presentation.tsx
+msgid "View observations"
+msgstr "View observations"
+
+#: src/pages/FarmingControl.tsx
+msgid "View position"
+msgstr "View position"
+
+#: src/pages/FarmingControl.tsx
+msgid "Wallet attribution is incomplete. Amounts are known visible subtotals; some positions may be unassigned."
+msgstr "Wallet attribution is incomplete. Amounts are known visible subtotals; some positions may be unassigned."

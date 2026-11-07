@@ -44,10 +44,22 @@ role and run context on the server. Team handoffs use normal Ragazzo group
 conversations. Wallet approval, accounting writes and tax filing use the
 existing FC workflows.
 
-The pages show the canonical all-wallet portfolio scope. Harvest distinguishes
-current and fallback marks. Accounting shows realized amounts and costs.
-Amounts retain FC's decimal strings in transport. The UI identifies unavailable
-sources, incomplete valuation and the dates of observations.
+Portfolio uses the wallet visibility saved in Farming Control. The Asset Set
+selector requests that set's positions and active-capital totals from FC. The
+positions table starts with active positions ordered by value. Select a column
+heading to sort by value, annual rate or projected 30-day yield. APR and APY
+retain their source rate type. The 30-day yield is FC's projection in USD.
+
+The all-sets chart reads saved portfolio valuations for the same wallet scope.
+It plots the latest available observation per UTC day plus the first and last
+observations in each fetched window. Open the observations to inspect their
+timestamps and values. FC currently supplies this history at portfolio level.
+Selecting an Asset Set shows the set's current metrics and a history
+availability message.
+
+Harvest distinguishes current and fallback marks. Accounting shows realized
+amounts and costs. Amounts retain FC's decimal strings in transport. Source
+details identify unavailable data, incomplete valuation and observation dates.
 
 If the team was archived or its membership changed, restore its five specialist
 profiles and original group membership to resume the existing conversation.

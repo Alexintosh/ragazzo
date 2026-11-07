@@ -40,6 +40,41 @@ export function exactPercent(value: string | null | undefined): string {
   return `${scaled < 0n ? "−" : ""}${abs / 100n}.${(abs % 100n).toString().padStart(2, "0")}%`;
 }
 
+/** Compare source decimals without rounding; unavailable values stay last in either direction. */
+export function compareExactAmounts(
+  left: string | null | undefined,
+  right: string | null | undefined,
+  direction: "ascending" | "descending" = "descending",
+): number {
+  const parse = (value: string | null | undefined) => {
+    if (value == null) return null;
+    const match = /^([+-]?)(\d*\.?\d+|\d+\.?)(?:[eE]([+-]?\d+))?$/.exec(value);
+    if (!match) return null;
+    const [whole = "0", fraction = ""] = match[2]!.split(".");
+    const digits = (whole + fraction).replace(/^0+/, "");
+    const exponent = BigInt(match[3] ?? "0") - BigInt(fraction.length);
+    return { digits, exponent, sign: !digits ? 0 : match[1] === "-" ? -1 : 1 };
+  };
+  const a = parse(left);
+  const b = parse(right);
+  if (a === null) return b === null ? 0 : 1;
+  if (b === null) return -1;
+  let comparison = a.sign - b.sign;
+  if (comparison === 0 && a.sign !== 0) {
+    const aOrder = BigInt(a.digits.length) + a.exponent;
+    const bOrder = BigInt(b.digits.length) + b.exponent;
+    if (aOrder !== bOrder) comparison = aOrder > bOrder ? 1 : -1;
+    else {
+      const width = Math.max(a.digits.length, b.digits.length);
+      const aDigits = a.digits.padEnd(width, "0");
+      const bDigits = b.digits.padEnd(width, "0");
+      comparison = aDigits === bDigits ? 0 : aDigits > bDigits ? 1 : -1;
+    }
+    comparison *= a.sign;
+  }
+  return direction === "ascending" ? comparison : -comparison;
+}
+
 function chartMagnitude(value: string): bigint {
   return scaledInteger(value, 6) ?? 0n;
 }
@@ -102,7 +137,7 @@ export function Distribution({
   const ranked = rows
     .map((row) => ({ row, magnitude: chartMagnitude(row.value) }))
     .filter(({ magnitude }) => magnitude > 0n)
-    .sort((a, b) => a.magnitude === b.magnitude ? 0 : a.magnitude > b.magnitude ? -1 : 1);
+    .sort((a, b) => compareExactAmounts(a.row.value, b.row.value));
   const total = ranked.reduce((sum, entry) => sum + entry.magnitude, 0n);
   if (total === 0n) return <Empty>{empty}</Empty>;
   return (
@@ -140,11 +175,21 @@ export function Distribution({
   );
 }
 
-export function ValueHistory({ points }: { points: { at: string; value: string }[] }) {
+export function ValueHistory({
+  points,
+  gaps = [],
+}: {
+  points: { at: string; value: string | null }[];
+  gaps?: { fromMs: number; toMs: number }[];
+}) {
   const { t } = useLingui();
-  const known = points
+  const ordered = points
     .filter((point) => Number.isFinite(Date.parse(point.at)))
     .sort((a, b) => Date.parse(a.at) - Date.parse(b.at));
+  const known = ordered.filter(
+    (point): point is { at: string; value: string } =>
+      point.value !== null && scaledInteger(point.value, 6) !== null,
+  );
   if (known.length < 2)
     return (
       <Empty>
@@ -157,12 +202,26 @@ export function ValueHistory({ points }: { points: { at: string; value: string }
   const range = maximum - minimum || 1n;
   const start = Date.parse(known[0]!.at);
   const duration = Date.parse(known.at(-1)!.at) - start || 1;
-  const coords = known
-    .map(
-      (point, index) =>
-        `${16 + ((Date.parse(point.at) - start) / duration) * 968},${180 - Number((((values[index] ?? 0n) - minimum) * 150_000n) / range) / 1000}`,
-    )
-    .join(" ");
+  const coordinate = (point: { at: string; value: string }) => ({
+    x: 16 + ((Date.parse(point.at) - start) / duration) * 968,
+    y: 180 - Number(((chartMagnitude(point.value) - minimum) * 150_000n) / range) / 1000,
+  });
+  const segments: { at: string; value: string }[][] = [];
+  let previousAt: number | null = null;
+  for (const point of ordered) {
+    const at = Date.parse(point.at);
+    if (point.value === null || scaledInteger(point.value, 6) === null) {
+      previousAt = null;
+      continue;
+    }
+    const interrupted =
+      previousAt === null ||
+      at - previousAt > 2 * 86_400_000 ||
+      gaps.some((gap) => gap.fromMs < at && gap.toMs > previousAt!);
+    if (interrupted) segments.push([]);
+    segments.at(-1)!.push({ at: point.at, value: point.value });
+    previousAt = at;
+  }
   const label = t`Portfolio value history`;
   const date = (at: string) =>
     new Date(at).toLocaleDateString(undefined, { month: "short", day: "numeric" });
@@ -181,14 +240,28 @@ export function ValueHistory({ points }: { points: { at: string; value: string }
         <line x1="16" y1="180" x2="984" y2="180" className="stroke-border" />
         <line x1="16" y1="105" x2="984" y2="105" className="stroke-border" strokeDasharray="3 7" />
         <line x1="16" y1="30" x2="984" y2="30" className="stroke-border" strokeDasharray="3 7" />
-        <polyline
-          points={coords}
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          vectorEffect="non-scaling-stroke"
-          strokeLinejoin="round"
-        />
+        {segments
+          .filter((segment) => segment.length > 1)
+          .map((segment) => (
+            <polyline
+              key={segment[0]!.at}
+              points={segment
+                .map((point) => {
+                  const { x, y } = coordinate(point);
+                  return `${x},${y}`;
+                })
+                .join(" ")}
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              vectorEffect="non-scaling-stroke"
+              strokeLinejoin="round"
+            />
+          ))}
+        {known.map((point) => {
+          const { x, y } = coordinate(point);
+          return <circle key={point.at} cx={x} cy={y} r="2.5" fill="currentColor" />;
+        })}
       </svg>
       <figcaption className="flex justify-between text-xs text-muted-foreground">
         <span>{date(known[0]!.at)}</span>

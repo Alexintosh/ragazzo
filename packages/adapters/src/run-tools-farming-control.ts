@@ -1,5 +1,5 @@
 import type { Actor } from "@rakazo/contracts";
-import { MessageBlock } from "@rakazo/contracts";
+import { FarmingControlPortfolioInputSchema, MessageBlock } from "@rakazo/contracts";
 import { farmingControlOutsideBlocks } from "@rakazo/core";
 import type { ExecutorDeps } from "./executor-deps.js";
 import {
@@ -28,7 +28,12 @@ export function farmingControlToolDenied(
   if (!isFarmingControlSpecialist(bot)) return Boolean(section);
   if (!role) return true;
   if (section)
-    return !FARMING_CONTROL_GRANTS[role].includes(section) || Object.keys(args).length !== 0;
+    return (
+      !FARMING_CONTROL_GRANTS[role].includes(section) ||
+      (section === "portfolio"
+        ? !FarmingControlPortfolioInputSchema.safeParse(args).success
+        : Object.keys(args).length !== 0)
+    );
   if (!FARMING_CONTROL_SAFE_TOOLS.has(name)) return true;
   if (name !== "handoff_to_bot") return false;
   const targetGroup = args.group_id ?? groupId;
@@ -49,7 +54,13 @@ export const farmingControlReadTool: ToolHandler = async (ctx, call) => {
   if (!ctx.deps.farmingControl) return { error: "Farming Control is not configured." };
   try {
     const actor = await authorizeFarmingControlRun(ctx.deps, ctx.run, ctx.bot);
-    return await ctx.deps.farmingControl.read(actor, section);
+    return section === "portfolio"
+      ? await ctx.deps.farmingControl.read(
+          actor,
+          section,
+          FarmingControlPortfolioInputSchema.parse(call.args),
+        )
+      : await ctx.deps.farmingControl.read(actor, section);
   } catch {
     // Source and auth errors must not leak deployment URLs, account identifiers, or credentials.
     return {

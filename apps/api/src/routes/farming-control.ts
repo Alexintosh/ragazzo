@@ -23,8 +23,8 @@ export function farmingControlRoutes({ deps, authed }: RouterContext) {
       status: authed.farmingControl.status.handler(async ({ context }) =>
         api(() => service().status(context.actor)),
       ),
-      portfolio: authed.farmingControl.portfolio.handler(({ context }) =>
-        api(() => service().portfolio(context.actor)),
+      portfolio: authed.farmingControl.portfolio.handler(({ context, input }) =>
+        api(() => service().portfolio(context.actor, input)),
       ),
       harvest: authed.farmingControl.harvest.handler(({ context }) =>
         api(() => service().harvest(context.actor)),

@@ -24,11 +24,29 @@ export const FarmingControlStatusSchema = z.object({
   fetchedAtMs: ms,
 });
 
+export const FarmingControlPortfolioInputSchema = z
+  .object({
+    assetSetKey: z.string().trim().min(1).max(200).nullable().optional(),
+  })
+  .strict();
+export type FarmingControlPortfolioInput = z.infer<typeof FarmingControlPortfolioInputSchema>;
+export const FarmingControlWalletVisibilitySchema = z.object({
+  revision: ms,
+  active: z.boolean(),
+  hiddenWalletCount: count,
+});
+export const FarmingControlPortfolioScopeSchema = z.object({
+  assetSetKey: text.nullable(),
+  label: text,
+  includedPositionIds: z.array(text),
+  availableAssetSets: z.array(z.object({ key: text, label: text })),
+});
 const exclusion = z.object({ positionId: text, reasons: z.array(text) });
 export const FarmingControlPortfolioTotalsSchema = z.object({
   currentPricedValueUsd: amount,
   currentBlendedApr: z.object({ valueDecimal: amount, percentPerYear: amount }).nullable(),
   expectedYield30dUsd: amount,
+  projected30DayRoi: z.object({ percent: amount }).nullable().optional(),
   liveEarnedUsd: amount,
   liveEarnedBreakdownUsd: z.object({
     unrealized: amount,
@@ -50,6 +68,7 @@ export const FarmingControlPositionSchema = z.object({
   label: text.nullable(),
   state: text,
   adapter: z.object({ key: text.nullable() }),
+  assetSetKeys: z.array(text).optional(),
   current: z.object({
     valueUsd: amount,
     capitalBaselineUsd: amount,
@@ -57,8 +76,30 @@ export const FarmingControlPositionSchema = z.object({
     nature: text,
   }),
   apr: z
-    .object({ percentPerYear: amount, observedAtMs: ms.nullable(), projectionOnly: z.boolean() })
+    .object({
+      percentPerYear: amount,
+      observedAtMs: ms.nullable(),
+      projectionOnly: z.boolean(),
+      rateType: z.enum(["apr", "apy"]).optional(),
+      source: text.nullable().optional(),
+      window: text.nullable().optional(),
+    })
     .nullable(),
+  projectedRewards: z
+    .object({
+      status: z.enum(["available", "unavailable"]),
+      rateType: z.enum(["apr", "apy"]).optional(),
+      usd: z
+        .object({
+          day: FarmingControlDecimalSchema,
+          month: FarmingControlDecimalSchema,
+          year: FarmingControlDecimalSchema,
+        })
+        .nullable()
+        .optional(),
+      reasons: z.array(text).optional(),
+    })
+    .optional(),
   dataQuality: z.object({
     hasObservations: z.boolean(),
     lastObservedAtMs: ms.nullable(),
@@ -100,8 +141,14 @@ export const FarmingControlHistoryRangeSchema = z.object({
     )
     .max(4),
 });
+export const FarmingControlWalletAttributionSchema = z.object({
+  complete: z.boolean(),
+});
 export const FarmingControlPortfolioSchema = z.object({
   ...meta,
+  scope: FarmingControlPortfolioScopeSchema.nullable(),
+  walletVisibility: FarmingControlWalletVisibilitySchema.nullable(),
+  walletAttribution: FarmingControlWalletAttributionSchema.optional(),
   totals: FarmingControlPortfolioTotalsSchema.nullable(),
   positions: z.array(FarmingControlPositionSchema),
   history: z.array(FarmingControlHistoryPointSchema),

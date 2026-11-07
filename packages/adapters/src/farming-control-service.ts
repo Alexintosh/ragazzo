@@ -1,4 +1,4 @@
-import type { Actor, FarmingControlSection } from "@rakazo/contracts";
+import type { Actor, FarmingControlPortfolioInput, FarmingControlSection } from "@rakazo/contracts";
 import type { PrismaClient } from "@rakazo/db";
 import { runAsSystem } from "@rakazo/db";
 import { createFarmingControlClient } from "./farming-control.js";
@@ -80,16 +80,16 @@ export function createFarmingControlService(
             fetchedAtMs: Date.now(),
           };
     },
-    async read(actor: Actor, section: FarmingControlSection) {
+    async read(actor: Actor, section: FarmingControlSection, input?: FarmingControlPortfolioInput) {
       await authorize(actor);
       if (!client)
         throw new FarmingControlAccessError("NOT_FOUND", "Farming Control is not configured.");
-      return client.read(section);
+      return client.read(section, input);
     },
-    async portfolio(actor: Actor) {
+    async portfolio(actor: Actor, input?: FarmingControlPortfolioInput) {
       await authorize(actor);
       if (!client) throw new FarmingControlAccessError("NOT_FOUND");
-      return client.portfolio();
+      return client.portfolio(input);
     },
     async harvest(actor: Actor) {
       await authorize(actor);

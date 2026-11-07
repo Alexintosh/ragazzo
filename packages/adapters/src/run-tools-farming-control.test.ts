@@ -33,7 +33,10 @@ describe("Farming Control specialist grants", () => {
         expect(tool.readOnly).toBe(true);
         expect(tool.inputSchema).toEqual({
           type: "object",
-          properties: {},
+          properties:
+            tool.name === "farming_control_portfolio"
+              ? { assetSetKey: { type: ["string", "null"], minLength: 1, maxLength: 200 } }
+              : {},
           additionalProperties: false,
         });
       }

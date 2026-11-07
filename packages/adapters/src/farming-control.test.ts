@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { createFarmingControlClient, farmingControlBaseUrl } from "./farming-control.js";
 
 const now = 1_800_000_000_000;
+const walletVisibility = { revision: 1, active: false, hiddenWalletAddresses: [] };
 const coverage = {
   projectionCoverageRatio: "0.75",
   includedPositionIds: ["position-a"],
@@ -12,6 +13,13 @@ const coverage = {
 };
 const positions = {
   asOfMs: now,
+  walletVisibility,
+  scope: {
+    assetSetKey: null,
+    label: "All sets",
+    includedPositionIds: ["position-a"],
+    availableAssetSets: [],
+  },
   cumulative: {
     currentPricedValueUsd: "9007199254740993.123456789012345678",
     currentBlendedApr: { valueDecimal: "0.054321", percentPerYear: "5.4321" },
@@ -51,6 +59,7 @@ const positions = {
 };
 const history = {
   asOfMs: now,
+  walletVisibility,
   points: [
     {
       snapshotId: "snapshot-a",
@@ -68,6 +77,7 @@ const history = {
 function clientFor(responses: Record<string, unknown>, statuses: Record<string, number> = {}) {
   const transport = vi.fn<typeof fetch>(async (input) => {
     const path = new URL(String(input)).pathname;
+    if (path === "/settings/wallet-visibility") return Response.json(walletVisibility);
     if (!(path in responses)) throw new Error("unexpected source");
     return new Response(JSON.stringify(responses[path]), {
       status: statuses[path] ?? 200,
@@ -263,6 +273,7 @@ describe("Farming Control read-only host client", () => {
     ];
     const transport = vi.fn<typeof fetch>(async (input) => {
       const url = new URL(String(input));
+      if (url.pathname === "/settings/wallet-visibility") return Response.json(walletVisibility);
       if (url.pathname === "/positions") return Response.json(positions);
       expect(url.pathname).toBe("/portfolio/metrics/projections");
       expect(url.searchParams.get("limit")).toBe("200");
@@ -270,6 +281,7 @@ describe("Farming Control read-only host client", () => {
       const to = Number(url.searchParams.get("toMs"));
       return Response.json({
         asOfMs: now,
+        walletVisibility,
         points: points.filter((point) => point.sampledAtMs >= from && point.sampledAtMs <= to),
         page: { nextCursor: null },
       });
@@ -295,7 +307,7 @@ describe("Farming Control read-only host client", () => {
       "newest",
     ]);
     for (const point of result.history) expect(points).toContainEqual(point);
-    expect(transport).toHaveBeenCalledTimes(5);
+    expect(transport).toHaveBeenCalledTimes(6);
   });
 
   it("caps dense older history without starving the independent recent window and copies opaque cursors", async () => {
@@ -304,6 +316,7 @@ describe("Farming Control read-only host client", () => {
     const opaqueCursor = "opaque&not-a-new-parameter=1";
     const transport = vi.fn<typeof fetch>(async (input) => {
       const url = new URL(String(input));
+      if (url.pathname === "/settings/wallet-visibility") return Response.json(walletVisibility);
       if (url.pathname === "/positions") return Response.json(positions);
       const from = Number(url.searchParams.get("fromMs"));
       const to = Number(url.searchParams.get("toMs"));
@@ -313,6 +326,7 @@ describe("Farming Control read-only host client", () => {
         if (index > 0) expect(url.searchParams.get("cursor")).toBe(`${opaqueCursor}:${index}`);
         return Response.json({
           asOfMs: now,
+          walletVisibility,
           points: [
             { ...history.points[0]!, snapshotId: `dense-${index}`, sampledAtMs: from + index + 1 },
           ],
@@ -321,6 +335,7 @@ describe("Farming Control read-only host client", () => {
       }
       return Response.json({
         asOfMs: now,
+        walletVisibility,
         points: [{ ...history.points[0]!, snapshotId: `recent-${from}`, sampledAtMs: to }],
         page: { nextCursor: null },
       });

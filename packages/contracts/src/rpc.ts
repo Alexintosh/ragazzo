@@ -146,6 +146,7 @@ import { ComputerCommandSchema, ProductEventSchema } from "./events.js";
 import {
   FarmingControlAccountingSchema,
   FarmingControlHarvestSchema,
+  FarmingControlPortfolioInputSchema,
   FarmingControlPortfolioSchema,
   FarmingControlRiskSchema,
   FarmingControlStatusSchema,
@@ -249,7 +250,9 @@ const spaceName = z.string().trim().min(1).max(60);
 export const appContract = {
   farmingControl: {
     status: oc.output(FarmingControlStatusSchema),
-    portfolio: oc.output(FarmingControlPortfolioSchema),
+    portfolio: oc
+      .input(FarmingControlPortfolioInputSchema.optional())
+      .output(FarmingControlPortfolioSchema),
     harvest: oc.output(FarmingControlHarvestSchema),
     risk: oc.output(FarmingControlRiskSchema),
     accounting: oc.output(FarmingControlAccountingSchema),
