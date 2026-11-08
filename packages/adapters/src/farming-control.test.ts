@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { createFarmingControlClient, farmingControlBaseUrl } from "./farming-control.js";
+import { scopedFarmingControlRiskRead } from "./run-tools-farming-control.js";
 
 const now = 1_800_000_000_000;
 const walletVisibility = { revision: 1, active: false, hiddenWalletAddresses: [] };
@@ -449,6 +450,94 @@ describe("Farming Control read-only host client", () => {
     expect(JSON.stringify(result)).not.toContain("hidden-runtime-marker");
     expect(result.complete).toBe(false);
     expect(result.state).toBe("partial");
+  });
+
+  function connectedFixture() {
+    const position = {
+      ...positions.items[0]!,
+      current: { ...positions.items[0]!.current, valueUsd: "12345.000000000000000001" },
+      apr: { percentPerYear: "6.123456789", observedAtMs: now - 10, projectionOnly: true },
+      metadata: { nodes: [], relations: [], privateWallet: "private-field-marker" },
+    };
+    const morpho = (positionId: string, monitorKey: string) => ({
+      positionId, monitorKey, label: "Same display name", kind: "direct_market", chainId: 1,
+      address: "0x0000000000000000000000000000000000000002", assetSymbol: "USDC",
+      positionState: "active", dataStatus: "live",
+      current: { observedAtMs: now, collectedAtMs: now, blockNumber: "123",
+        blockHash: `0x${"a".repeat(64)}`, metrics: { withdrawableFraction: "0.99" } },
+      assessments: [
+        { family: "utilization", status: "attention", severity: "warning", summary: "Utilization rose" },
+        { family: "exit_capacity", status: "healthy", severity: "info", summary: "Exit capacity available" },
+      ], limitations: [],
+    });
+    const data = { ...positions,
+      scope: { ...positions.scope, includedPositionIds: [position.id, "position-b"] },
+      items: [position, { ...position, id: "position-b", label: position.label,
+        current: { ...position.current, valueUsd: "999" } }],
+    };
+    const responses = {
+      "/positions": data,
+      "/monitoring/morpho": { schemaVersion: "morpho-monitoring-dashboard.v1", asOfMs: now,
+        items: [morpho(position.id, "morpho.market.example"), morpho("position-b", "morpho.market.other")] },
+      "/monitoring/curve-risk/pools": { schemaVersion: "curve-risk-hot-pools.v2", asOfMs: now,
+        source: "hot_supervisor_ram", items: [] },
+      "/monitoring/alerts": { asOfMs: now, items: [] },
+      "/monitoring/assessments": { asOfMs: now, items: [] },
+      "/monitoring/hot/monitors/": [],
+    };
+    return { position, data, responses };
+  }
+
+  it("joins position and risk evidence by exact ID with one saved-scope portfolio read", async () => {
+    const fixture = connectedFixture();
+    const { client, transport } = clientFor(fixture.responses);
+    const result = await client.entity({ kind: "position", id: fixture.position.id }, { includeRisk: true });
+    expect(result.selectionStatus).toBe("matched");
+    expect(result.state).toBe("available");
+    expect(result.relatedRisks?.map((risk) => risk.id)).toEqual(["morpho.market.example"]);
+    expect(result.risk?.positions).toHaveLength(1);
+    expect(result.risk?.positions[0]?.holding).toMatchObject({
+      state: "active", current: fixture.position.current, apr: fixture.position.apr,
+      dataQuality: { valueFreshness: "current", aprFreshness: "current" },
+    });
+    expect(result.risk?.holdingScope).toEqual({ walletVisibilityRevision: 1, asOfMs: now,
+      valueBasis: "visible_position_mark_not_sized_protocol_exposure" });
+    expect(transport.mock.calls.filter(([url]) => new URL(String(url)).pathname === "/positions")).toHaveLength(1);
+    expect(JSON.stringify(result)).not.toContain("position-b");
+    expect(JSON.stringify(result)).not.toContain("private-field-marker");
+    expect(result).not.toHaveProperty("walletSettings");
+    // Historical yield limitations stay scoped to yieldEvidence, rather than
+    // declaring the complete current position/risk association unavailable.
+    expect(result.yieldEvidence?.issues.length).toBeGreaterThan(0);
+  });
+
+  it("keeps portfolio-only position reads within their existing grant", async () => {
+    const fixture = connectedFixture();
+    const { client, transport } = clientFor(fixture.responses);
+    const result = await client.entity({ kind: "position", id: fixture.position.id });
+    expect(result.risk).toBeNull();
+    expect(result.relatedRisks).toEqual([]);
+    expect(transport.mock.calls.some(([url]) => new URL(String(url)).pathname.startsWith("/monitoring/"))).toBe(false);
+  });
+
+  it("carries same-card competing signals and exact marks into a selected risk read", async () => {
+    const { client } = clientFor(connectedFixture().responses);
+    const selected = scopedFarmingControlRiskRead(await client.risk(), "morpho.market.example", "utilization");
+    expect(selected.exposure?.signals.map((signal) => signal.key)).toEqual(["utilization"]);
+    expect(selected.supportingSignals.map((signal) => signal.key)).toEqual(["exit_capacity"]);
+    expect(selected.exposure?.positions[0]?.holding?.current.valueUsd).toBe("12345.000000000000000001");
+    expect(JSON.stringify(selected)).not.toContain("morpho.market.other");
+  });
+
+  it("withholds connected risk amounts when the visible holding has mixed wallet attribution", async () => {
+    const fixture = connectedFixture();
+    const { client } = clientFor({ ...fixture.responses, "/positions": { ...fixture.data,
+      walletAttribution: { complete: false, partialPositionIds: [fixture.position.id] },
+    } });
+    const result = await client.entity({ kind: "position", id: fixture.position.id }, { includeRisk: true });
+    expect(result.risk).toBeNull();
+    expect(result.relatedRisks).toEqual([]);
+    expect(result.issues.join()).toContain("Connected risk discovery is incomplete");
   });
 
   it.each([

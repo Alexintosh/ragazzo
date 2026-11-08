@@ -7346,3 +7346,19 @@ msgstr "You can add up to {FARMING_CONTROL_RISK_SELECTION_LIMIT} FC tags per mes
 #: src/pages/Shell.tsx
 msgid "You can add up to {limit} FC tags per message."
 msgstr "You can add up to {limit} FC tags per message."
+
+#: src/pages/AccountSettingsOverlay.tsx
+msgid "Farming Control chats"
+msgstr "Farming Control chats"
+
+#: src/pages/AccountSettingsOverlay.tsx
+msgid "Right sidebar"
+msgstr "Right sidebar"
+
+#: src/pages/AccountSettingsOverlay.tsx
+msgid "Main view"
+msgstr "Main view"
+
+#: src/pages/AccountSettingsOverlay.tsx
+msgid "Theme"
+msgstr "Theme"

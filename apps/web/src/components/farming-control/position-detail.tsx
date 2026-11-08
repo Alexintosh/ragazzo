@@ -270,7 +270,7 @@ export function PositionDetail({
       </div>
       <Card className="gap-0 py-0">
         <CardContent className="px-0">
-          <dl className="grid grid-cols-2 divide-x divide-border lg:grid-cols-4">
+          <dl className="grid grid-cols-2 divide-x divide-border @3xl/farming:grid-cols-4">
             <OverviewMetric
               label={t`Position value`}
               value={exactAmount(position.current.valueUsd)}
@@ -352,7 +352,7 @@ export function PositionDetail({
         loading={historyQuery.isPending}
         error={historyError}
       />
-      <div className="grid min-w-0 gap-4 xl:grid-cols-2">
+      <div className="grid min-w-0 gap-4 @3xl/farming:grid-cols-2">
         <Section title={t`Position monitoring`} action={askButton(t`Position monitoring`, "risk")}>
           {riskQuery.isPending ? (
             <Skeleton className="h-20 w-full" />
@@ -468,7 +468,7 @@ export function PositionDetail({
         ask={askButton(t`Position transactions`)}
       />
       <Section title={t`Position details`}>
-        <div className="grid gap-5 md:grid-cols-2">
+        <div className="grid gap-5 @xl/farming:grid-cols-2">
           <dl className="grid grid-cols-[auto_1fr] gap-x-5 gap-y-3 text-xs">
             <dt className="text-muted-foreground">
               <Trans>Capital baseline</Trans>
@@ -771,7 +771,7 @@ function PositionTransactions({
         <>
           <div className="overflow-x-auto">
             <table className="w-full text-start text-xs">
-              <thead className="hidden text-[11px] text-muted-foreground sm:table-header-group">
+              <thead className="hidden text-[11px] text-muted-foreground @xl/farming:table-header-group">
                 <tr>
                   <th className="pb-2 text-start font-normal">
                     <Trans>Date · UTC</Trans>
@@ -791,14 +791,14 @@ function PositionTransactions({
                 {rows.map((row) => (
                   <tr
                     key={row.id}
-                    className="grid grid-cols-[1fr_auto] gap-x-3 gap-y-2 border-t border-border py-3 sm:table-row"
+                    className="grid grid-cols-[1fr_auto] gap-x-3 gap-y-2 border-t border-border py-3 @xl/farming:table-row"
                   >
-                    <td className="col-span-2 text-[11px] text-muted-foreground sm:py-3 sm:pe-4">
+                    <td className="col-span-2 text-[11px] text-muted-foreground @xl/farming:py-3 @xl/farming:pe-4">
                       {row.occurredAtMs === null
                         ? t`Date not recorded`
                         : date(row.occurredAtMs, true)}
                     </td>
-                    <td className="sm:py-3 sm:pe-4">
+                    <td className="@xl/farming:py-3 @xl/farming:pe-4">
                       <div className="font-medium">
                         {row.kind.replaceAll(".", " ").replaceAll("_", " ")}
                       </div>
@@ -811,12 +811,12 @@ function PositionTransactions({
                             : t`Source record`}
                       </div>
                     </td>
-                    <td className="max-w-64 break-all text-end tabular-nums sm:py-3">
+                    <td className="max-w-64 break-all text-end tabular-nums @xl/farming:py-3">
                       {row.amount !== null
                         ? `${row.amount}${row.token ? ` ${short(row.token)}` : ""}`
                         : (disposalAmount(history, row.id, t`proceeds`) ?? t`Amount not recorded`)}
                     </td>
-                    <td className="col-start-2 text-end sm:py-3">
+                    <td className="col-start-2 text-end @xl/farming:py-3">
                       <Explorer
                         href={row.transaction?.explorerUrl}
                         label={t`View transaction in explorer`}

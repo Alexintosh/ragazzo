@@ -25,6 +25,12 @@ alias in its configuration. FC can stay on its own host runtime and database.
 
 ## Using the team
 
+From a Farming Control page, select a bot or group in the roster or use a card’s
+Ask button to open the conversation in the resizable right sidebar. It stays
+open as you browse positions and sections. Choose **Settings → General →
+Appearance → Farming Control chats** to open future conversations in the main
+view instead. The preference is saved in this browser.
+
 Use **Ask team** on a page to prepare a message for the coordinator.
 The draft carries the selected context. You can edit and send it in the
 Farming Control group. Connect a supported model through the ordinary Ragazzo
@@ -99,12 +105,15 @@ positions table starts with active positions ordered by value. Select a column
 heading to sort by value, annual rate or projected 30-day yield. APR and APY
 retain their source rate type. The 30-day yield is FC's projection in USD.
 
-The all-sets chart reads saved portfolio valuations for the same wallet scope.
+The chart reads saved valuations for the selected Asset Set and wallet scope.
 It plots the latest available observation per UTC day plus the first and last
 observations in each fetched window. Move the pointer along the chart or use its
-arrow keys to inspect dates and values. FC currently supplies this history at portfolio level.
-Selecting an Asset Set shows the set's current metrics and a history
-availability message.
+arrow keys to inspect dates and values. Every history page must match the requested
+Asset Set and saved wallet visibility revision. Unsupported or unverified scopes
+show history as unavailable; global portfolio history is never substituted.
+Sparse or incomplete windows retain their gaps. Hover an observed value to see
+when older records use current Asset Set membership; their saved amounts remain
+historical, and the read preserves that provenance for specialists.
 
 Open a position from Portfolio to view its dedicated page at
 `/app/farming/portfolio/:positionId`. The authenticated `positionDetail` read

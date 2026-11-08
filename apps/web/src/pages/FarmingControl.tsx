@@ -23,6 +23,7 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
+import { useFarmingChatSearch } from "../components/farming-control/navigation";
 import { PositionDetail } from "../components/farming-control/position-detail";
 import type { ReactNode } from "react";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
@@ -110,6 +111,7 @@ export function FarmingControlPage({
 }: Props) {
   const { t } = useLingui();
   const queryClient = useQueryClient();
+  const chatSearch = useFarmingChatSearch();
   const detailQueryKey = ["farming-control", queryScope, "position", positionId];
   const detailFetching = useIsFetching({ queryKey: detailQueryKey }) > 0;
   const scrollArea = useRef<HTMLDivElement>(null);
@@ -276,8 +278,8 @@ export function FarmingControlPage({
     }
   }
   return (
-    <div className="flex min-h-0 flex-1 flex-col" data-testid="farming-control-page">
-      <header className="app-drag flex min-h-16 shrink-0 flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3 md:px-7">
+    <div className="@container/farming flex min-h-0 min-w-0 flex-1 flex-col" data-testid="farming-control-page">
+      <header className="app-drag flex min-h-16 shrink-0 flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3 @xl/farming:px-7">
         <div className="flex min-w-0 items-center gap-2.5">
           <Button
             variant="ghost"
@@ -291,7 +293,7 @@ export function FarmingControlPage({
           <div>
             {positionId ? (
               <Link
-                to="/app/farming/portfolio"
+                to={`/app/farming/portfolio${chatSearch}`}
                 className="app-no-drag inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
               >
                 <ChevronLeft size={13} aria-hidden="true" />
@@ -367,7 +369,7 @@ export function FarmingControlPage({
         onScroll={(event) => {
           if (!positionId) portfolioScroll.current = event.currentTarget.scrollTop;
         }}
-        className="rk-scroll min-h-0 flex-1 overflow-y-auto px-4 py-5 md:px-7 md:py-6"
+        className="rk-scroll min-h-0 flex-1 overflow-y-auto px-4 py-5 @xl/farming:px-7 @xl/farming:py-6"
       >
         <div className="mx-auto max-w-7xl space-y-5">
           {askError ? (
@@ -412,7 +414,7 @@ export function FarmingControlPage({
           ) : null}
           {query.isPending ? (
             <div role="status" aria-label={t`Loading Farming Control`} className="space-y-5">
-              <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+              <div className="grid grid-cols-1 gap-3 @xs/farming:grid-cols-2 @3xl/farming:grid-cols-4">
                 {[0, 1, 2, 3].map((key) => (
                   <Skeleton key={key} className="h-28 rounded-xl" />
                 ))}
@@ -515,7 +517,7 @@ function ReadStatus({ data }: { data: ReadMeta }) {
 }
 
 function Grid({ children }: { children: ReactNode }) {
-  return <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">{children}</div>;
+  return <div className="grid grid-cols-1 gap-3 @xs/farming:grid-cols-2 @3xl/farming:grid-cols-4">{children}</div>;
 }
 function Row({ label, value }: { label: string; value: ReactNode }) {
   return (
@@ -535,10 +537,6 @@ function Stamp({ value }: { value: number | null | undefined }) {
   );
 }
 
-function positionPath(id: string) {
-  return `/app/farming/portfolio/${encodeURIComponent(id)}`;
-}
-
 function Portfolio({
   data,
   assetSetKey,
@@ -552,6 +550,8 @@ function Portfolio({
 }) {
   const { t } = useLingui();
   const navigate = useNavigate();
+  const chatSearch = useFarmingChatSearch();
+  const positionPath = (id: string) => `/app/farming/portfolio/${encodeURIComponent(id)}${chatSearch}`;
   const { period, search, lifecycle, sort, direction } = controls;
   const needle = search.trim().toLocaleLowerCase();
   const positions = data.positions
@@ -578,11 +578,13 @@ function Portfolio({
     { key: "apr", label: t`APR / APY` },
     { key: "yield", label: t`30d yield` },
   ] as const;
-  const historyAvailable = data.scope?.assetSetKey === null;
   const totals = data.totals;
   const attributionIncomplete = data.walletAttribution?.complete === false;
   const cutoff = Math.max(data.historyRange.fromMs, data.fetchedAtMs - Number(period) * 86_400_000);
   const historyWindows = data.historyRange.windows.filter((window) => window.toMs >= cutoff);
+  const historyAvailable =
+    data.scope?.assetSetKey === assetSetKey &&
+    historyWindows.some((window) => window.state !== "unavailable");
   const activePositions = data.positions.filter((item) => item.state === "active");
   const staleValues = activePositions.filter(
     (item) => item.dataQuality.valueFreshness === "stale",
@@ -603,11 +605,19 @@ function Portfolio({
       : t`Based on observed APR`;
   const history = data.history
     .filter((item) => item.sampledAtMs >= cutoff && item.sampledAtMs <= data.historyRange.toMs)
-    .map((item) => ({
-      snapshotId: item.snapshotId,
-      at: new Date(item.sampledAtMs).toISOString(),
-      value: item.coverage.currentPricedValueUsd,
-    }));
+    .map((item) => {
+      const notes: string[] = [];
+      if (item.coverage.currentPricedValueUsd !== null && item.qualityMetadata?.unavailablePositionIds?.length)
+        notes.push(t`Subtotal of positions with a known value.`);
+      if (item.membershipBasis === "current_membership_fallback" || item.membershipBasis === "mixed")
+        notes.push(t`Historical value uses current Asset Set membership for older records.`);
+      return {
+        snapshotId: item.snapshotId,
+        at: new Date(item.sampledAtMs).toISOString(),
+        value: item.coverage.currentPricedValueUsd,
+        ...(notes.length ? { title: notes.join(" ") } : {}),
+      };
+    });
   return (
     <>
       {attributionIncomplete ? (
@@ -622,7 +632,7 @@ function Portfolio({
         </div>
       ) : null}
       {totals ? (
-        <div className="grid grid-cols-2 gap-3 xl:grid-cols-5">
+        <div className="grid grid-cols-1 gap-3 @xs/farming:grid-cols-2 @2xl/farming:grid-cols-3 @4xl/farming:grid-cols-5">
           <Metric
             label={attributionIncomplete ? t`Known visible subtotal` : t`Active priced value`}
             value={exactAmount(totals.currentPricedValueUsd)}
@@ -665,8 +675,8 @@ function Portfolio({
         </div>
       ) : null}
       {data.state !== "unavailable" ? (
-        <div className="grid gap-5 xl:grid-cols-3">
-          <div className="xl:col-span-2">
+        <div className="grid gap-5 @3xl/farming:grid-cols-3">
+          <div className="@3xl/farming:col-span-2">
             <Section
               title={t`Saved value observations`}
               action={
@@ -687,7 +697,7 @@ function Portfolio({
             >
               {historyAvailable ? (
                 <ValueHistory
-                  key={period}
+                  key={`${assetSetKey ?? ""}:${period}`}
                   points={history}
                   gaps={historyWindows
                     .filter((window) => window.state !== "available" || window.truncated)
@@ -987,7 +997,7 @@ function Harvest({
                     {item.quality} · {item.readiness}
                   </div>
                 </div>
-                <div className="w-full text-xs text-muted-foreground sm:w-auto">
+                <div className="w-full text-xs text-muted-foreground @xl/farming:w-auto">
                   <Trans>Quantity observed</Trans> <Stamp value={item.quantityObservedAtMs} />
                   <span aria-hidden="true"> · </span>
                   <Trans>Price observed</Trans> <Stamp value={item.priceObservedAtMs} />

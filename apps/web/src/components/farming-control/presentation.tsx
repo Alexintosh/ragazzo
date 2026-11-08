@@ -176,11 +176,18 @@ export function Distribution({
   );
 }
 
+type ValueHistoryPoint = {
+  snapshotId: string;
+  at: string;
+  value: string | null;
+  title?: string;
+};
+
 export function ValueHistory({
   points,
   gaps = [],
 }: {
-  points: { snapshotId: string; at: string; value: string | null }[];
+  points: ValueHistoryPoint[];
   gaps?: { fromMs: number; toMs: number }[];
 }) {
   const { t } = useLingui();
@@ -189,7 +196,7 @@ export function ValueHistory({
     .filter((point) => Number.isFinite(Date.parse(point.at)))
     .sort((a, b) => Date.parse(a.at) - Date.parse(b.at));
   const known = ordered.filter(
-    (point): point is { snapshotId: string; at: string; value: string } =>
+    (point): point is ValueHistoryPoint & { value: string } =>
       point.value !== null && scaledInteger(point.value, 6) !== null,
   );
   const matchingIndex = known.findIndex((point) => point.snapshotId === selectedId);
@@ -275,7 +282,7 @@ export function ValueHistory({
     <figure className="m-0">
       <div className="mb-3 flex items-center justify-between text-xs text-muted-foreground tabular-nums">
         <time dateTime={selected.at}>{selectedDate}</time>
-        <span>{exactAmount(selected.value)}</span>
+        <span title={selected.title}>{exactAmount(selected.value)}</span>
       </div>
       <div className="relative rounded-sm focus-within:ring-2 focus-within:ring-ring">
         <input
@@ -285,7 +292,7 @@ export function ValueHistory({
           step={1}
           value={selectedIndex}
           aria-label={label}
-          aria-valuetext={`${selectedDate}: ${exactAmount(selected.value)}`}
+          aria-valuetext={`${selectedDate}: ${exactAmount(selected.value)}${selected.title ? `. ${selected.title}` : ""}`}
           className="sr-only"
           onFocus={() => setSelectedId(selected.snapshotId)}
           onChange={(event) => setSelectedId(known[Number(event.currentTarget.value)]!.snapshotId)}

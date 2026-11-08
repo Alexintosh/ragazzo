@@ -94,6 +94,9 @@ const entityWalletSource = walletVisibilitySource.extend({
     .optional(),
 });
 const entityPortfolioSource = portfolioSource.extend({
+  walletAttribution: FarmingControlWalletAttributionSchema.extend({
+    partialPositionIds: z.array(z.string()).max(2_000).optional(),
+  }).optional(),
   items: z
     .array(
       portfolioSource.shape.items.element.extend({
@@ -131,6 +134,8 @@ const entityPortfolioSource = portfolioSource.extend({
 });
 const historySource = z.object({
   asOfMs: ms,
+  // Legacy global history may omit the key; selected-set pages must echo it exactly.
+  assetSetKey: z.string().nullable().optional(),
   walletVisibility: walletVisibilitySource,
   points: z.array(FarmingControlHistoryPointSchema).max(200),
   page: z.object({ nextCursor: z.string().max(2_000).nullable() }),
@@ -149,16 +154,14 @@ const riskPositionSource = z.object({
   walletAttribution: z
     .object({
       complete: z.boolean(),
-      partialPositionIds: z.array(z.string()).max(2_000),
+      partialPositionIds: z.array(z.string()).max(2_000).optional(),
     })
     .optional(),
   scope: z.object({ includedPositionIds: z.array(z.string()).max(2_000) }),
   items: z
     .array(
-      z.object({
-        id: z.string(),
-        label: z.string().nullable(),
-        state: z.string(),
+      portfolioSource.shape.items.element.partial().required({
+        id: true, label: true, state: true,
       }),
     )
     .max(2_000),
@@ -383,7 +386,7 @@ export function createFarmingControlClient(options: {
   async function recentHistory(
     toMs: number,
     walletRevision: number | null,
-    assetSetScoped: boolean,
+    assetSetKey: string | null,
   ) {
     const fromMs = Math.max(0, toMs - 90 * DAY_MS);
     const start60 = Math.max(0, toMs - 60 * DAY_MS);
@@ -408,12 +411,12 @@ export function createFarmingControlClient(options: {
       ranges.map(async (range) => {
         const points: HistoryPoint[] = [];
         let cursor: string | null = null;
-        let failed = walletRevision === null || assetSetScoped;
-        let truncated = walletRevision === null || assetSetScoped;
+        let failed = walletRevision === null;
+        let truncated = walletRevision === null;
         const seenCursors = new Set<string>();
         for (
           let page = 0;
-          page < range.maxPages && !assetSetScoped && walletRevision !== null;
+          page < range.maxPages && walletRevision !== null;
           page += 1
         ) {
           if (signal.aborted) {
@@ -427,12 +430,20 @@ export function createFarmingControlClient(options: {
             limit: "200",
           });
           if (cursor) query.set("cursor", cursor);
+          if (assetSetKey !== null) {
+            query.set("assetSetKey", assetSetKey);
+            query.set("sampling", "utc_day_last_with_boundaries");
+          }
           query.set("walletVisibility", "visible");
           query.set("walletVisibilityRevision", String(walletRevision));
           const path: ScopedSource = `${SOURCES.history}?${query.toString()}`;
           const response = await read(
             path,
-            historySource.refine((value) => value.walletVisibility.revision === walletRevision),
+            historySource.refine(
+              (value) =>
+                value.walletVisibility.revision === walletRevision &&
+                (value.assetSetKey ?? null) === assetSetKey,
+            ),
             { signal, onBytes },
           );
           if (
@@ -520,17 +531,11 @@ export function createFarmingControlClient(options: {
         retrievalComplete,
         windows: fetched.map((range) => range.summary),
       },
-      issues: assetSetScoped
-        ? [
-            "Saved portfolio history is available for all Asset Sets only; no global history is substituted for the selected set.",
-          ]
-        : walletRevision === null
-          ? []
-          : retrievalComplete
-            ? []
-            : [
-                "Recent history is partial: at least one date window exceeded the page, time or response budget, or was unavailable. Displayed dates are actual saved samples; gaps are not reconstructed.",
-              ],
+      issues: walletRevision === null || retrievalComplete
+        ? []
+        : [
+            "Recent history is partial: at least one date window could not verify the requested scope, exceeded the page, time or response budget, or was unavailable. Displayed dates are actual saved samples; gaps are not reconstructed.",
+          ],
     };
   }
   async function portfolio(input?: FarmingControlPortfolioInput): Promise<FarmingControlPortfolio> {
@@ -556,10 +561,10 @@ export function createFarmingControlClient(options: {
             portfolioSource.refine(
               (value) =>
                 value.walletVisibility.revision === revision &&
-                (value.scope.assetSetKey ?? "").toLowerCase() === (assetSetKey ?? "").toLowerCase(),
+                value.scope.assetSetKey === assetSetKey,
             ),
           ),
-      recentHistory(fetchedAtMs, revision, assetSetKey !== null),
+      recentHistory(fetchedAtMs, revision, assetSetKey),
     ]);
     const included = new Set(source.data?.scope.includedPositionIds ?? []);
     const scopedItems = (source.data?.items ?? []).filter(
@@ -622,7 +627,7 @@ export function createFarmingControlClient(options: {
         [
           SOURCES.walletVisibility,
           SOURCES.portfolio,
-          ...(assetSetKey === null ? [SOURCES.history] : []),
+          SOURCES.history,
         ],
         issues,
         source.data !== null,
@@ -675,8 +680,12 @@ export function createFarmingControlClient(options: {
         : [],
     };
   }
-  async function risk(): Promise<FarmingControlRisk> {
-    const settings = await read(SOURCES.walletVisibility, walletVisibilitySource);
+  async function risk(snapshot?: {
+    settings: ReadResult<z.infer<typeof walletVisibilitySource>>;
+    scoped: ReadResult<z.infer<typeof riskPositionSource>>;
+    positionId?: string;
+  }): Promise<FarmingControlRisk> {
+    const settings = snapshot?.settings ?? await read(SOURCES.walletVisibility, walletVisibilitySource);
     const revision = settings.data?.revision ?? null;
     const query = new URLSearchParams({
       walletVisibility: "visible",
@@ -688,7 +697,7 @@ export function createFarmingControlClient(options: {
       read(SOURCES.monitors, monitorsSource),
       read(SOURCES.morpho, morphoRiskSource),
       read(SOURCES.curve, curveRiskSource),
-      revision === null
+      snapshot?.scoped ?? (revision === null
         ? Promise.resolve<ReadResult<z.infer<typeof riskPositionSource>>>({
             data: null,
             issue: "Wallet display scope is unavailable.",
@@ -696,7 +705,7 @@ export function createFarmingControlClient(options: {
         : read(
             `${SOURCES.portfolio}?${query}`,
             riskPositionSource.refine((p) => p.walletVisibility.revision === revision),
-          ),
+          )),
     ]);
     // Source dashboards are unscoped. Never publish them unless their position joins are fenced by the saved visibility revision.
     const after = await read(SOURCES.walletVisibility, walletVisibilitySource);
@@ -709,14 +718,46 @@ export function createFarmingControlClient(options: {
       : [];
     const hidden = settings.data?.hiddenWalletAddresses.length !== 0;
     const mixed = new Set(scoped.data?.walletAttribution?.partialPositionIds ?? []);
-    const attributionKnown = !hidden || scoped.data?.walletAttribution !== undefined;
-    const eligible = attributionKnown ? active.filter((p) => !mixed.has(p.id)) : [];
+    const attribution = scoped.data?.walletAttribution;
+    const attributionKnown = !hidden || attribution?.complete === true ||
+      attribution?.partialPositionIds !== undefined;
+    const eligible = attributionKnown ? active.filter((p) =>
+      !mixed.has(p.id) && (!snapshot?.positionId || p.id === snapshot.positionId),
+    ) : [];
     const projected = projectRiskExposures({
       morpho: morpho.data,
       curve: curve.data,
       positions: eligible,
       nowMs: now(),
     });
+    // Join by proven position identity, never by label or token quantity. These
+    // marks come from the same scoped /positions response that admitted the card.
+    const holdings = new Map(eligible.map((position) => [position.id, position]));
+    const fetchedAtMs = now();
+    const freshness = (at: number | null, maxAgeMs: number, known: boolean) =>
+      !known || at === null || at > fetchedAtMs ? "unknown" as const
+        : fetchedAtMs - at > maxAgeMs ? "stale" as const : "current" as const;
+    for (const exposure of projected.exposures) {
+      if (revision !== null && scoped.data)
+        exposure.holdingScope = { walletVisibilityRevision: revision, asOfMs: scoped.data.asOfMs,
+          valueBasis: "visible_position_mark_not_sized_protocol_exposure" };
+      exposure.positions = exposure.positions.map((linked) => {
+        const position = holdings.get(linked.id);
+        if (!position?.current || !position.dataQuality) return linked;
+        return { ...linked, holding: {
+          state: position.state,
+          current: position.current,
+          apr: position.apr ?? null,
+          dataQuality: {
+            ...position.dataQuality,
+            valueFreshness: freshness(position.current.observedAtMs,
+              position.dataQuality.maxObservationAgeMs, position.current.valueUsd !== null),
+            aprFreshness: freshness(position.apr?.observedAtMs ?? position.dataQuality.rateObservedAtMs,
+              position.dataQuality.maxObservationAgeMs, position.apr?.percentPerYear != null),
+          },
+        } };
+      });
+    }
     const coveredCount = new Set(
       projected.exposures.flatMap((card) => card.positions.map((p) => p.id)),
     ).size;
@@ -834,7 +875,7 @@ export function createFarmingControlClient(options: {
     };
   }
   /** One bounded, revision-fenced snapshot is shared by completion and selected-subject reads. */
-  async function entitySnapshot(kinds: readonly FarmingControlEntityKind[]) {
+  async function entitySnapshot(kinds: readonly FarmingControlEntityKind[], positionId?: string) {
     const settings = await read(SOURCES.walletVisibility, entityWalletSource);
     const revision = settings.data?.revision ?? null;
     const query = new URLSearchParams({
@@ -914,13 +955,14 @@ export function createFarmingControlClient(options: {
     }
     let riskRead: FarmingControlRisk | null = null;
     if (kinds.includes("risk") && source.data) {
-      riskRead = await risk();
+      riskRead = await risk({ settings, scoped: source, ...(positionId ? { positionId } : {}) });
       // Both native reads must share the exact saved scope before linking a card.
       if (riskRead.exposureScope.walletVisibilityRevision !== revision) {
         issues.push("Risk discovery did not match the saved wallet scope.");
         riskRead = null;
       } else {
-        issues.push(...riskRead.issues);
+        if (riskRead.exposureScope.discovery !== "complete")
+          issues.push("Connected risk discovery is incomplete; an absent card does not establish that its monitor is missing or the position is safe.");
         for (const exposure of riskRead.exposures) {
           const positionIds = exposure.positions.map((position) => position.id);
           if (!positionIds.length || !positionIds.every((id) => included.has(id))) continue;
@@ -1158,14 +1200,20 @@ export function createFarmingControlClient(options: {
       issues,
     };
   }
-  async function entity(input: FarmingControlEntitySelection): Promise<FarmingControlEntityRead> {
+  async function entity(input: FarmingControlEntitySelection,
+    options: { includeRisk?: boolean } = {},
+  ): Promise<FarmingControlEntityRead> {
     const selection = FarmingControlEntitySelectionSchema.parse(input);
-    const snapshot = await entitySnapshot([selection.kind]);
+    const snapshot = await entitySnapshot(
+      selection.kind === "position" && options.includeRisk ? ["position", "risk"] : [selection.kind],
+      selection.kind === "position" ? selection.id : undefined,
+    );
     const found =
       snapshot.entities.find(
         (item) => item.selection.kind === selection.kind && item.selection.id === selection.id,
       ) ?? null;
-    const { entities: _entities, rows, riskRead, ...metadata } = snapshot;
+    const { entities: _entities, rows, riskRead,
+      walletSettings: _walletSettings, attributionComplete: _attributionComplete, ...metadata } = snapshot;
     const positionIds = new Set(found?.positionIds ?? []);
     const fetchedAtMs = metadata.fetchedAtMs;
     const freshness = (observedAtMs: number | null, maxAgeMs: number, known: boolean) =>
@@ -1240,19 +1288,11 @@ export function createFarmingControlClient(options: {
         risk: null,
       };
     }
-    if (found && selection.kind === "position") {
-      metadata.state = "partial";
-      metadata.issues = [
-        ...metadata.issues,
-        ...(yieldEvidence?.issues ?? [
-          "Historical yield evidence could not be verified against the saved wallet scope.",
-        ]),
-      ];
-    }
-    const exposure =
-      found && selection.kind === "risk"
-        ? (riskRead?.exposures.find((item) => item.id === selection.id) ?? null)
-        : null;
+    const relatedRisks = found ? (riskRead?.exposures ?? []).filter((item) =>
+      selection.kind === "risk" ? item.id === selection.id
+        : selection.kind === "position" && item.positions.some((p) => p.id === selection.id),
+    ) : [];
+    const exposure = relatedRisks.length === 1 ? relatedRisks[0] ?? null : null;
     return {
       ...metadata,
       selection,
@@ -1266,6 +1306,7 @@ export function createFarmingControlClient(options: {
       entity: found,
       ...(yieldEvidence ? { yieldEvidence } : {}),
       positions,
+      relatedRisks,
       risk:
         exposure && selection.signalKey
           ? {

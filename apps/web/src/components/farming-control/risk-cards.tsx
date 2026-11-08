@@ -285,7 +285,7 @@ export function RiskCards({ data, onMention, mentionBusy = false, mentionError =
       {data.exposures.length ? (
         <section
           aria-label={t`Position risk signals`}
-          className="grid grid-cols-1 gap-4 lg:grid-cols-2"
+          className="grid grid-cols-1 gap-4 @3xl/farming:grid-cols-2"
         >
           {triagedExposures(data.exposures).map((item) => {
             const signals = prioritizedSignals(item);
@@ -296,11 +296,11 @@ export function RiskCards({ data, onMention, mentionBusy = false, mentionError =
                 className={cn(
                   "min-w-0 gap-0 py-0",
                   compact &&
-                    "bg-muted/35 lg:col-span-2 lg:grid lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)_auto] lg:items-center",
+                    "bg-muted/35 @3xl/farming:col-span-2 @3xl/farming:grid @3xl/farming:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)_auto] @3xl/farming:items-center",
                 )}
                 data-testid="farming-control-risk-card"
               >
-                <div className={cn("flex items-start gap-3 px-5 pt-5 pb-4", compact && "lg:py-4")}>
+                <div className={cn("flex items-start gap-3 px-5 pt-5 pb-4", compact && "@3xl/farming:py-4")}>
                   <div
                     aria-hidden="true"
                     className="mt-1 flex size-8 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground"
@@ -327,7 +327,7 @@ export function RiskCards({ data, onMention, mentionBusy = false, mentionError =
                   <RiskGauge exposure={item} />
                 </div>
                 <CardContent
-                  className={cn("px-5", compact && "lg:border-s lg:border-border lg:py-2")}
+                  className={cn("px-5", compact && "@3xl/farming:border-s @3xl/farming:border-border @3xl/farming:py-2")}
                 >
                   {signals.length ? (
                     signals
@@ -367,7 +367,7 @@ export function RiskCards({ data, onMention, mentionBusy = false, mentionError =
                   <div
                     className={cn(
                       "flex items-center gap-1.5 pt-3 pb-4 text-[10px] text-muted-foreground",
-                      compact && "lg:hidden",
+                      compact && "@3xl/farming:hidden",
                     )}
                   >
                     <Clock3 aria-hidden="true" size={11} />
@@ -377,10 +377,10 @@ export function RiskCards({ data, onMention, mentionBusy = false, mentionError =
                 <CardFooter
                   className={cn(
                     "mt-auto justify-between gap-3 px-5 py-2",
-                    compact && "lg:mt-0 lg:border-t-0 lg:bg-transparent",
+                    compact && "@3xl/farming:mt-0 @3xl/farming:border-t-0 @3xl/farming:bg-transparent",
                   )}
                 >
-                  <span className={cn("text-[10px] text-muted-foreground", compact && "lg:hidden")}>
+                  <span className={cn("text-[10px] text-muted-foreground", compact && "@3xl/farming:hidden")}>
                     {item.coverage === "unknown" ? t`Coverage unknown` : t`Partial risk coverage`}
                   </span>
                   <Button

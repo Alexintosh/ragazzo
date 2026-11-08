@@ -122,7 +122,12 @@ describe("Monitoring-wide risk review", () => {
       active: true,
       hiddenWalletAddresses: ["0x0000000000000000000000000000000000000001"],
     };
-    const position = { id: "visible-position", label: "Visible holding", state: "active" };
+    const position = {
+      id: "visible-position", label: "Visible holding", state: "active",
+      current: { valueUsd: "1100.25", capitalBaselineUsd: "1000", observedAtMs: now, nature: "mark_to_market" },
+      apr: null,
+      dataQuality: { hasObservations: true, lastObservedAtMs: now, rateObservedAtMs: null, maxObservationAgeMs: 7200000 },
+    };
     const morpho = (monitorKey: string, positionId: string) => ({
       monitorKey,
       positionId,
@@ -190,9 +195,13 @@ describe("Monitoring-wide risk review", () => {
     });
     const selected = await client.riskReview({ monitorKey: item.monitorKey });
     expect(selected.exposureAssociationStatus).toBe("matched_visible_holding");
-    expect(selected.linkedExposure?.positions).toEqual([
-      { id: position.id, label: position.label },
-    ]);
+    expect(selected.linkedExposure?.positions).toHaveLength(1);
+    expect(compactFarmingControlRiskReview(selected).linkedExposure?.positions[0]).toMatchObject({
+      id: position.id, association: "active_exposure", holding: {
+        current: { valueUsd: "1100.25", observedAtMs: now },
+        dataQuality: { valueFreshness: "current" },
+      },
+    });
     expect(selected.linkedExposure?.currentObservation?.metrics.accountAssets).toBe(
       "9007199254740993.123456789",
     );

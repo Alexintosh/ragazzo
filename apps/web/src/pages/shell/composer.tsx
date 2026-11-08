@@ -90,6 +90,7 @@ export const Composer = memo(function Composer({
   onSlashOpen,
   onSlashAction,
   draftKey,
+  draftRevision = 0,
   enterToSend,
 }: {
   activeName?: string;
@@ -133,6 +134,7 @@ export const Composer = memo(function Composer({
   onSlashOpen?: () => void;
   onSlashAction?: (action: SlashActionId) => void;
   draftKey: string;
+  draftRevision?: number;
   enterToSend: boolean;
 }) {
   const { t } = useLingui();
@@ -229,6 +231,20 @@ export const Composer = memo(function Composer({
   } = useComposerLayout(draft, selectedSkill !== null);
   const pendingCaret = useRef<ComposerMentionRange | null>(null);
   const completedSelection = useRef<number | null>(null);
+  // A card can add a verified mention while this editor is already open.
+  const lastDraftRevision = useRef(draftRevision);
+  useLayoutEffect(() => {
+    if (lastDraftRevision.current === draftRevision) return;
+    lastDraftRevision.current = draftRevision;
+    const updated = prepareComposerDraft(draftKey);
+    markEdited();
+    commitComposition(updated, false);
+    setMentionQuery(null);
+    setMentionHighlightKey(null);
+    setSlashQuery(null);
+    pendingCaret.current = { start: updated.text.length, end: updated.text.length };
+  }, [draftKey, draftRevision]);
+
   useLayoutEffect(() => {
     if (pendingCaret.current === null) return;
     const selection = pendingCaret.current;

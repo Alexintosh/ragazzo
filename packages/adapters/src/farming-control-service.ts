@@ -101,10 +101,12 @@ export function createFarmingControlService(
       if (!client) throw new FarmingControlAccessError("NOT_FOUND");
       return client.positionHistory(input);
     },
-    async entity(actor: Actor, selection: FarmingControlEntitySelection) {
+    async entity(actor: Actor, selection: FarmingControlEntitySelection,
+      options?: { includeRisk?: boolean },
+    ) {
       await authorize(actor);
       if (!client) throw new FarmingControlAccessError("NOT_FOUND");
-      return client.entity(selection);
+      return client.entity(selection, options);
     },
     async portfolio(actor: Actor, input?: FarmingControlPortfolioInput) {
       await authorize(actor);

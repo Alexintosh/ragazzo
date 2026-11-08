@@ -1,7 +1,17 @@
 import { useLingui } from "@lingui/react/macro";
 import type { FarmingControlSection } from "@rakazo/contracts";
 import { ChartNoAxesCombined, Coins, Receipt, ShieldAlert } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
+
+/** Carry the open conversation between FC pages without carrying a settings overlay or a message jump. */
+export function useFarmingChatSearch() {
+  const [params] = useSearchParams();
+  const group = params.get("chatGroup");
+  const bot = params.get("chatBot");
+  if (group) return `?${new URLSearchParams({ chatGroup: group })}`;
+  if (bot) return `?${new URLSearchParams({ chatBot: bot })}`;
+  return "";
+}
 
 export function FarmingControlNavigation({
   active,
@@ -13,6 +23,7 @@ export function FarmingControlNavigation({
   onNavigate: () => void;
 }) {
   const { t } = useLingui();
+  const chatSearch = useFarmingChatSearch();
   const pages = [
     { id: "portfolio", title: t`Portfolio`, Icon: ChartNoAxesCombined },
     { id: "harvest", title: t`Harvest`, Icon: Coins },
@@ -27,7 +38,7 @@ export function FarmingControlNavigation({
       {pages.map(({ id, title, Icon }) => (
         <Link
           key={id}
-          to={`/app/farming/${id}`}
+          to={`/app/farming/${id}${active ? chatSearch : ""}`}
           onClick={onNavigate}
           aria-label={mini ? title : undefined}
           aria-current={active === id ? "page" : undefined}

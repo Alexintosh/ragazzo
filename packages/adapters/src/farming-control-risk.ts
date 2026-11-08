@@ -1,6 +1,7 @@
 import type { FarmingControlRiskExposure, FarmingControlRiskSignal } from "@rakazo/contracts";
 import { FarmingControlDecimalSchema, FarmingControlRiskHistorySchema } from "@rakazo/contracts";
 import * as z from "zod";
+import { exactSum } from "./farming-control-exact-decimal.js";
 
 const text = z.string().max(4_000);
 const ms = z.number().int().nonnegative();
@@ -78,8 +79,25 @@ function observation(
     },
   };
 }
+const rawQuantity = z.string().regex(/^\d+$/).max(100);
+const referenceFlow = z.object({
+  role: z.literal("reference"), asset: text, decimals: z.number().int().min(0).max(255),
+  grossInflowRaw: rawQuantity, grossOutflowRaw: rawQuantity,
+});
+const exitQuote = z.object({
+  positionId: text, quoteValidForCurrentSize: z.literal(true),
+  quotedLpAmount: FarmingControlDecimalSchema.max(512),
+  preferredExitAsset: text, preferredExitAmount: FarmingControlDecimalSchema.max(512),
+  haircut: FarmingControlDecimalSchema.max(512),
+});
 const details = z.object({
   monitor: text,
+  response: text.optional(),
+  availability: text.optional(),
+  quoteMode: z.enum(["dynamic_position_size", "same_block_dynamic_receipt_quote"]).optional().catch(undefined),
+  quotes: z.array(z.unknown()).max(64).optional().catch(undefined),
+  assetFlows: z.array(z.unknown()).max(8).optional().catch(undefined),
+  safeAssetGrossOutflowRaw: rawQuantity.optional().catch(undefined),
   safeAsset: text.optional(),
   preferredExitAsset: text.optional(),
   safeAssetGrossOutflowFraction: decimal.optional(),
@@ -347,7 +365,7 @@ export function projectRiskExposures(input: {
       chainId: item.chainId,
       monitorKey: item.monitorKey,
       subject: { kind, id: item.monitorKey, address: item.address },
-      positions: [position],
+      positions: [{ ...position, association: "active_exposure" }],
       dataStatus: current
         ? "live"
         : item.dataStatus === "live"
@@ -385,9 +403,15 @@ export function projectRiskExposures(input: {
     const links = item.profile.positionLinks.filter(
       (p) => p.mode === "active_exposure" || p.mode === "exposure_unknown",
     );
-    const linked = links.flatMap((p) =>
-      positions.get(p.positionId) ? [positions.get(p.positionId)!] : [],
-    );
+    const associations = new Map<string, "active_exposure" | "exposure_unknown">();
+    for (const link of links) {
+      const uncertain = link.mode === "exposure_unknown" || associations.get(link.positionId) === "exposure_unknown";
+      associations.set(link.positionId, uncertain ? "exposure_unknown" : "active_exposure");
+    }
+    const linked = [...associations].flatMap(([id, association]) => {
+      const position = positions.get(id);
+      return position ? [{ ...position, association }] : [];
+    });
     if (!linked.length) continue;
     const linkedIds = new Set(linked.map((p) => p.id));
     const snapshot = item.data.status === "live" ? item.data.snapshot : null;
@@ -420,9 +444,40 @@ export function projectRiskExposures(input: {
             summary: a.summary,
             value: value ?? null,
             format: value == null ? "text" : "fraction",
-            unit: d.safeAsset ?? d.preferredExitAsset ?? null,
+            // Haircut, peg deviation and gross outflow share are all dimensionless.
+            unit: null,
             partial: d.monitor === "curve_flows_24h" && d.completeWindowCoverageProven !== true,
           });
+          if (d.response) row.policyResponse = d.response;
+          if (d.monitor === "curve_flows_24h") {
+            const flows = (d.assetFlows ?? []).map(flow => referenceFlow.safeParse(flow))
+              .flatMap(result => result.success && result.data.asset === d.safeAsset ? [result.data] : []);
+            const flow = flows.length === 1 ? flows[0] : undefined;
+            if (flow && flow.grossOutflowRaw === d.safeAssetGrossOutflowRaw) {
+              const grossInflow = exactSum([`${flow.grossInflowRaw}e-${flow.decimals}`]);
+              const grossOutflow = exactSum([`${flow.grossOutflowRaw}e-${flow.decimals}`]);
+              row.referenceFlow24h = {
+                asset: flow.asset, grossInflow, grossOutflow,
+                netIntoPool: exactSum([grossInflow, `-${grossOutflow}`]),
+                windowCoverage: d.completeWindowCoverageProven === true ? "complete" : "partial",
+                grossOutflowFractionBasis: "gross_outflow_divided_by_current_reserve_plus_gross_outflow",
+              };
+            }
+          }
+          if (d.monitor === "executable_exit" && d.availability === "available" && d.quoteMode && current?.anchor) {
+            const matches = (d.quotes ?? []).map(quote => exitQuote.safeParse(quote)).flatMap(result =>
+              result.success && a.subjectKey === `position:${result.data.positionId}` &&
+              associations.get(result.data.positionId) === "active_exposure" &&
+              linkedIds.has(result.data.positionId) && result.data.preferredExitAsset === d.preferredExitAsset
+                ? [result.data] : []);
+            const quote = matches.length === 1 ? matches[0] : undefined;
+            if (quote) row.positionExitQuote = {
+              positionId: quote.positionId, mode: d.quoteMode, quotedLpAmount: quote.quotedLpAmount,
+              preferredExitAsset: quote.preferredExitAsset, preferredExitAmount: quote.preferredExitAmount,
+              haircutFraction: quote.haircut, observedAtMs: current.anchor.blockTimestampMs,
+              blockNumber: current.anchor.blockNumber, executionEligible: false,
+            };
+          }
           const metrics =
             d.monitor === "pool_run"
               ? ([

@@ -130,6 +130,14 @@ export const FarmingControlPositionSchema = z.object({
 });
 export const FarmingControlHistoryPointSchema = z.object({
   snapshotId: text,
+  membershipBasis: z.enum(["snapshot_pinned", "current_membership_fallback", "mixed"]).optional(),
+  qualityMetadata: z.object({
+    unavailablePositionIds: z.array(text).optional(),
+    assetSetMembership: z.object({
+      pinnedPositionCount: count,
+      legacyPositionCount: count,
+    }).optional(),
+  }).optional(),
   sampledAtMs: ms,
   recordedAtMs: ms,
   quality: z.enum(["complete", "partial"]),
@@ -254,6 +262,26 @@ export const FarmingControlRiskSignalSchema = z.object({
   format: z.enum(["fraction", "ratio", "amount", "text"]),
   unit: text.nullable(),
   summary: text,
+  policyResponse: text.optional(),
+  referenceFlow24h: z.object({
+    asset: text,
+    grossInflow: FarmingControlDecimalSchema,
+    grossOutflow: FarmingControlDecimalSchema,
+    netIntoPool: FarmingControlDecimalSchema,
+    windowCoverage: z.enum(["complete", "partial"]),
+    grossOutflowFractionBasis: z.literal("gross_outflow_divided_by_current_reserve_plus_gross_outflow"),
+  }).optional(),
+  positionExitQuote: z.object({
+    positionId: text,
+    mode: z.enum(["dynamic_position_size", "same_block_dynamic_receipt_quote"]),
+    quotedLpAmount: FarmingControlDecimalSchema,
+    preferredExitAsset: text,
+    preferredExitAmount: FarmingControlDecimalSchema,
+    haircutFraction: FarmingControlDecimalSchema,
+    observedAtMs: ms,
+    blockNumber: text,
+    executionEligible: z.literal(false),
+  }).optional(),
   metrics: z
     .array(
       z.object({
@@ -318,7 +346,20 @@ export const FarmingControlRiskExposureSchema = z.object({
     id: text,
     address: text.nullable(),
   }),
-  positions: z.array(z.object({ id: text, label: text })).max(64),
+  positions: z.array(z.object({
+    id: text,
+    label: text,
+    association: z.enum(["active_exposure", "exposure_unknown"]).optional(),
+    // Exact saved visible-scope mark and quoted APR, independent of monitor metrics.
+    holding: FarmingControlPositionSchema.pick({
+      state: true, current: true, apr: true, dataQuality: true,
+    }).optional(),
+  })).max(64),
+  holdingScope: z.object({
+    walletVisibilityRevision: ms,
+    asOfMs: ms,
+    valueBasis: z.literal("visible_position_mark_not_sized_protocol_exposure"),
+  }).optional(),
   dataStatus: text,
   assetSymbol: text.optional(),
   capacityState: z.enum(["verified", "lower_bound", "unavailable", "blocked"]).optional(),

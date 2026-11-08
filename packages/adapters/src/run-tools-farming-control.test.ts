@@ -9,7 +9,7 @@ import {
 } from "./farming-control-team-policy.js";
 import type { RunContext } from "./run-context.js";
 import type { ToolCall } from "./run-tool-gate.js";
-import { farmingControlReadTool, farmingControlToolDenied } from "./run-tools-farming-control.js";
+import { farmingControlEntityTool, farmingControlReadTool, farmingControlToolDenied } from "./run-tools-farming-control.js";
 import { claimRunSteering } from "./run-turn-images.js";
 
 const botFor = (role: (typeof FARMING_CONTROL_ROLES)[number]) => ({
@@ -166,8 +166,8 @@ describe("Farming Control specialist grants", () => {
   });
 });
 
-function runFixture() {
-  const bot = botFor("tax");
+function runFixture(role: (typeof FARMING_CONTROL_ROLES)[number] = "tax") {
+  const bot = botFor(role);
   const authorize = vi.fn(async () => undefined);
   const read = vi.fn(async () => ({ amount: "123.000000000000000001", coverage: "partial" }));
   const liveRun = {
@@ -206,6 +206,20 @@ function runFixture() {
 }
 
 describe("Farming Control read execution", () => {
+  it.each(["risk", "operations"] as const)("derives connected risk access from the persisted %s grant", async (role) => {
+    const f = runFixture(role);
+    const entity = vi.fn(async () => ({ selectionStatus: "matched" }) as never);
+    f.ctx.deps.farmingControl!.entity = entity;
+    const args = { kind: "position", id: "position-example" };
+    await farmingControlEntityTool(f.ctx, { name: "farming_control_entity", args } as unknown as ToolCall);
+    expect(entity).toHaveBeenCalledWith(expect.objectContaining({ userId: "owner" }), args,
+      { includeRisk: role === "risk" });
+    expect(farmingControlToolDenied(f.ctx.bot, "farming_control_entity",
+      { ...args, includeRisk: true }, null)).toBe(true);
+    expect(farmingControlToolDenied(f.ctx.bot, "farming_control_entity",
+      { kind: "risk", id: "monitor-example" }, null)).toBe(role !== "risk");
+  });
+
   it("checks live persisted bot/run/user and authorization on every read", async () => {
     const f = runFixture();
     await expect(farmingControlReadTool(f.ctx, f.call)).resolves.toEqual({

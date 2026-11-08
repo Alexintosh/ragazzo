@@ -148,5 +148,7 @@ export const FarmingControlEntityReadSchema = z.object({
   yieldEvidence: FarmingControlYieldEvidenceSchema.optional(),
   positions: z.array(FarmingControlPositionSchema).max(2_000),
   risk: FarmingControlRiskExposureSchema.nullable(),
+  // All connected cards for a selected position; risk is populated only when unambiguous.
+  relatedRisks: z.array(FarmingControlRiskExposureSchema).max(64).optional(),
 });
 export type FarmingControlEntityRead = z.infer<typeof FarmingControlEntityReadSchema>;

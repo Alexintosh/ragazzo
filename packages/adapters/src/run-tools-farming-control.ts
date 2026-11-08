@@ -93,8 +93,7 @@ export function farmingControlToolDenied(
     return (
       !role ||
       !parsed.success ||
-      parsed.data.kind === "risk" ||
-      !FARMING_CONTROL_GRANTS[role].includes("portfolio")
+      !FARMING_CONTROL_GRANTS[role].includes(parsed.data.kind === "risk" ? "risk" : "portfolio")
     );
   }
   const section = FARMING_CONTROL_TOOL_SECTIONS.get(name);
@@ -180,6 +179,9 @@ export function scopedFarmingControlRiskRead(
     ...(signalKey ? { signalKey } : {}),
     selectionStatus,
     exposure: exposure ? { ...exposure, signals, maxSeverity } : null,
+    // Preserve corroborating or competing assessments for this exact exposure.
+    supportingSignals: exposure && signalKey && !placeholderSuperseded
+      ? exposure.signals.filter((signal) => signal.key !== signalKey) : [],
     // Discovery describes lookup completeness, not this subject's safety. Do
     // not mix portfolio counts or unrelated alert infrastructure into a reply.
     exposureScope: {
@@ -277,7 +279,10 @@ export const farmingControlFindTool: ToolHandler = async (ctx, call) => {
     const { query } = findInput.parse(call.args);
     const catalog = await bridge.mentionTargets(actor, {
       query,
-      kinds: ["position", "wallet", "protocol"],
+      kinds: ["position", "wallet", "protocol",
+        ...(FARMING_CONTROL_GRANTS[farmingControlRole(ctx.bot)!].includes("risk")
+          ? ["risk" as const] : []),
+      ],
       limit: 11,
     });
     return {
@@ -322,6 +327,7 @@ export const farmingControlEntityTool: ToolHandler = async (ctx, call) => {
     return await ctx.deps.farmingControl.entity(
       actor,
       FarmingControlEntitySelectionSchema.parse(call.args),
+      { includeRisk: FARMING_CONTROL_GRANTS[farmingControlRole(ctx.bot)!].includes("risk") },
     );
   } catch {
     return {

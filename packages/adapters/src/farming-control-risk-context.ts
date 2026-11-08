@@ -19,7 +19,7 @@ export type FarmingControlContextTurn = "current" | "historical";
 
 function selectorTurnInstruction(turn: FarmingControlContextTurn): string {
   return turn === "historical"
-    ? "Historical FC selectors from this earlier user message only. They do not select subjects for the current turn. Current attached selectors take precedence. If the current user names a different subject without a completed tag, resolve that new reference before reusing any earlier selector; do not treat a matching name prefix as the same identity."
+    ? "Historical FC selectors from this earlier user message only. They do not select subjects for the current turn. Current attached selectors take precedence. For a clear follow-up about the same holding or monitor, reuse the previously resolved ID to read fresh evidence; ask for clarification only if multiple prior subjects fit. If the current user names a different subject without a completed tag, resolve that new reference before reusing any earlier selector; do not treat a matching name prefix as the same identity."
     : "Current-turn FC selectors. Use these exact selectors in preference to selectors on earlier messages. A different name mentioned in text is not a selected identity; resolve it separately before using an earlier subject.";
 }
 

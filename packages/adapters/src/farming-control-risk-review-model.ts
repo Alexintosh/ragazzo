@@ -166,10 +166,21 @@ export function compactFarmingControlRiskReview(
           protocol: linked.protocol,
           chainId: linked.chainId,
           assetSymbol: linked.assetSymbol ?? null,
+          holdingScope: linked.holdingScope ?? null,
           positions: linked.positions
             .slice(0, 8)
-            .map((position) => ({ id: position.id, label: short(position.label) })),
+            .map((position) => ({ id: position.id, label: short(position.label),
+              ...(position.association ? { association: position.association } : {}),
+              ...(position.holding ? { holding: position.holding } : {}),
+            })),
           omittedPositionCount: Math.max(0, linked.positions.length - 8),
+          signals: [...linked.signals].sort((a, b) =>
+            (b.positionExitQuote ? 4 : b.referenceFlow24h ? 3 : b.policyResponse ? 2 : 0) -
+            (a.positionExitQuote ? 4 : a.referenceFlow24h ? 3 : a.policyResponse ? 2 : 0),
+          ).slice(0, 16).map(({ label, summary, ...signal }) => ({
+            ...signal, label: short(label), summary: short(summary),
+          })),
+          omittedSignalCount: Math.max(0, linked.signals.length - 16),
           capacityState: linked.capacityState ?? null,
           currentObservation: linked.currentObservation ?? null,
           limitations: linked.limitations.slice(0, 8).map((value) => short(value)),
@@ -208,6 +219,11 @@ export function compactFarmingControlRiskReview(
     if (last.current.assessments.length) {
       last.current.assessments.pop();
       last.omitted.currentAssessments++;
+      continue;
+    }
+    if (output.linkedExposure && output.linkedExposure.signals.length > 2) {
+      output.linkedExposure.signals.pop();
+      output.linkedExposure.omittedSignalCount++;
       continue;
     }
     if (output.linkedExposure?.positions.length) {

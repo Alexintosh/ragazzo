@@ -7,7 +7,7 @@ import type {
   ThreadSnapshot,
 } from "@rakazo/contracts";
 import { Button } from "@rakazo/ui-web";
-import { X } from "lucide-react";
+import { ArrowLeft, Maximize2, X } from "lucide-react";
 import type { ComponentProps, Dispatch, ReactNode, SetStateAction } from "react";
 import { ComputerMaintenanceActions } from "../../components/ComputerMaintenanceActions";
 import type { Panel } from "../../lib/right-panel-state";
@@ -50,6 +50,7 @@ export function ShellSidePanel({
   memoryProviderConfigured,
   setAgentSkills,
   onClearBot,
+  chat,
 }: {
   rpc: ReturnType<typeof createSpaceRpc>;
   panel: Panel;
@@ -77,9 +78,16 @@ export function ShellSidePanel({
   memoryProviderConfigured: boolean;
   setAgentSkills: (skills: AgentSkillCatalogEntry[]) => void;
   onClearBot: (bot: Bot) => void;
+  chat?: {
+    content: ReactNode;
+    onClose: () => void;
+    onOpenMain?: () => void;
+    label?: string;
+  };
 }) {
   const { t } = useLingui();
-  const open = Boolean(panel && (active || activeGroup || panel === "import-agent"));
+  const inspectorOpen = Boolean(panel && (active || activeGroup || panel === "import-agent"));
+  const open = inspectorOpen || Boolean(chat);
   const botTab =
     panel === "computer" || panel === "routines" || panel === "settings" ? panel : null;
 
@@ -94,9 +102,53 @@ export function ShellSidePanel({
   }
 
   return (
-    <ResizableSidePanel open={open} panel={panel ?? "closed"}>
-      {open ? (
+    <ResizableSidePanel
+      open={open}
+      panel={inspectorOpen ? (panel ?? "closed") : chat ? "chat" : "closed"}
+      label={inspectorOpen ? t`Details` : (chat?.label ?? t`Chat`)}
+      onClose={() => {
+        if (inspectorOpen) setPanel(null);
+        else chat?.onClose();
+      }}
+      fullWidthOnMobile={Boolean(chat) && !inspectorOpen}
+    >
+      {chat ? (
+        <div
+          className={inspectorOpen ? "hidden" : "flex min-h-0 flex-1 flex-col"}
+          aria-hidden={inspectorOpen || undefined}
+          inert={inspectorOpen}
+        >
+          <div className="flex shrink-0 items-center justify-end gap-1 px-3 pt-2">
+            {chat.onOpenMain ? (
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                aria-label={t`Open in main view`}
+                onClick={chat.onOpenMain}
+              >
+                <Maximize2 size={16} strokeWidth={1.8} />
+              </Button>
+            ) : null}
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              aria-label={t`Close chat`}
+              onClick={chat.onClose}
+            >
+              <X size={16} strokeWidth={1.8} />
+            </Button>
+          </div>
+          {chat.content}
+        </div>
+      ) : null}
+      {inspectorOpen ? (
         <div className="rk-scroll h-full w-full overflow-y-auto px-5 py-[17px]">
+          {chat ? (
+            <Button variant="ghost" size="sm" className="mb-3" onClick={() => setPanel(null)}>
+              <ArrowLeft size={16} strokeWidth={1.8} />
+              <Trans>Back to chat</Trans>
+            </Button>
+          ) : null}
           {panel !== "routine" &&
           panel !== "create-group" &&
           panel !== "group-settings" &&

@@ -17,6 +17,7 @@ export function useChatRead({
   activeGroup,
   setBots,
   setGroups,
+  visible = true,
 }: {
   rpc: ReturnType<typeof createSpaceRpc>;
   active: Bot | undefined;
@@ -24,7 +25,11 @@ export function useChatRead({
   activeGroup: Group | undefined;
   setBots: Dispatch<SetStateAction<Bot[]>>;
   setGroups: Dispatch<SetStateAction<Group[]>>;
+  /** False while a docked transcript is covered by its inspector or navigation. */
+  visible?: boolean;
 }) {
+  const visibleRef = useRef(visible);
+  visibleRef.current = visible;
   const manuallyUnread = useRef(new Set<string>());
   const [markedUnread, setMarkedUnread] = useState<{ visit: number; messageId: string } | null>(
     null,
@@ -98,13 +103,20 @@ export function useChatRead({
   // otherwise the auto-read below would undo the action on the next window focus.
   const markBotReadIfVisible = useCallback(
     (id: string) => {
-      if (manuallyUnread.current.has(id)) return;
+      if (
+        !visibleRef.current ||
+        readVisit.current.chat !== `bot:${id}` ||
+        manuallyUnread.current.has(id)
+      )
+        return;
       if (document.visibilityState === "visible" && document.hasFocus()) {
         const visit = readVisit.current.visit;
         void markBotRead(
           id,
           () =>
-            !manuallyUnread.current.has(id) && autoReadStillWanted(readVisit.current.visit, visit),
+            visibleRef.current &&
+            !manuallyUnread.current.has(id) &&
+            autoReadStillWanted(readVisit.current.visit, visit),
         )
           .then((seq) => {
             if (seq !== undefined) captureReadBoundary(visit, seq);
@@ -117,6 +129,8 @@ export function useChatRead({
   const markGroupReadIfVisible = useCallback(
     (groupId: string) => {
       if (
+        !visibleRef.current ||
+        readVisit.current.chat !== `group:${groupId}` ||
         document.visibilityState !== "visible" ||
         !document.hasFocus() ||
         readVisibleGroups.current.has(groupId) ||
@@ -127,7 +141,9 @@ export function useChatRead({
       readVisibleGroups.current.add(groupId);
       const visit = readVisit.current.visit;
       void readInOrder(`group:${groupId}`, () =>
-        !manuallyUnread.current.has(groupId) && autoReadStillWanted(readVisit.current.visit, visit)
+        visibleRef.current &&
+        !manuallyUnread.current.has(groupId) &&
+        autoReadStillWanted(readVisit.current.visit, visit)
           ? rpc.threads.markRead({ groupId })
           : Promise.resolve(null),
       )
@@ -189,6 +205,17 @@ export function useChatRead({
       document.removeEventListener("visibilitychange", markVisibleGroupRead);
     };
   }, [activeGroup?.id, groupId, markGroupReadIfVisible]);
+
+  // A hidden dock keeps its live subscription. Catch up when its transcript is shown again,
+  // preserving any explicit Mark as Unread hold made during this visit.
+  const previousVisible = useRef(visible);
+  useEffect(() => {
+    const revealed = visible && !previousVisible.current;
+    previousVisible.current = visible;
+    if (!revealed) return;
+    if (groupId && activeGroup) markGroupReadIfVisible(groupId);
+    else if (active) markBotReadIfVisible(active.id);
+  }, [visible, active?.id, groupId, activeGroup?.id, markBotReadIfVisible, markGroupReadIfVisible]);
 
   /** Mark as Unread from a group message: the next open starts the New divider there. */
   function markGroupUnreadFrom(groupId: string, messageId: string) {

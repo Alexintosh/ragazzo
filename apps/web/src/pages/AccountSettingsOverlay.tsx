@@ -51,6 +51,12 @@ import {
   setComposerEnterToSend,
   subscribeComposerEnterToSend,
 } from "../lib/composer-enter-to-send-pref";
+import type { FarmingControlChatPlacement } from "../lib/farming-control-chat-pref";
+import {
+  getFarmingControlChatPlacement,
+  setFarmingControlChatPlacement,
+  subscribeFarmingControlChatPlacement,
+} from "../lib/farming-control-chat-pref";
 import { getActiveUiLocale, setUiLocale } from "../lib/i18n";
 import { localTimezone, sameTimeZone, timezoneOptions } from "../lib/local-timezone";
 import { usePasskeysSupported } from "../lib/passkeys";
@@ -144,6 +150,12 @@ export function GeneralSettingsPanels({
     () => "comfortable",
   );
   const sidebarDensityLabelId = useId();
+  const farmingControlChatPlacement = useSyncExternalStore(
+    subscribeFarmingControlChatPlacement,
+    getFarmingControlChatPlacement,
+    () => "sidebar",
+  );
+  const farmingControlChatPlacementLabelId = useId();
   const [streamReplies, setStreamReplies] = useState(
     () => getResponseStreamingPreference() === "on",
   );
@@ -275,9 +287,9 @@ export function GeneralSettingsPanels({
         )}
       </SettingsGroup>
 
-      <SettingsGroup title={<Trans>Preferences</Trans>}>
+      <SettingsGroup title={<Trans>Appearance</Trans>}>
         <SettingsRow
-          label={<Trans>Appearance</Trans>}
+          label={<Trans>Theme</Trans>}
           control={
             <AppearancePicker
               value={appearance}
@@ -288,6 +300,43 @@ export function GeneralSettingsPanels({
             />
           }
         />
+        <SettingsRow
+          label={
+            <span id={farmingControlChatPlacementLabelId}>
+              <Trans>Farming Control chats</Trans>
+            </span>
+          }
+          control={
+            <ToggleGroup
+              aria-labelledby={farmingControlChatPlacementLabelId}
+              data-testid="farming-control-chat-placement-select"
+              value={[farmingControlChatPlacement]}
+              onValueChange={([next]) => {
+                if (next) setFarmingControlChatPlacement(next as FarmingControlChatPlacement);
+              }}
+              spacing={1}
+              className="grid min-w-0 grid-cols-2 rounded-lg bg-muted p-1"
+            >
+              <ToggleGroupItem
+                value="sidebar"
+                data-testid="farming-control-chat-placement-sidebar"
+                className="text-[13px] aria-pressed:bg-background aria-pressed:shadow-sm"
+              >
+                <Trans>Right sidebar</Trans>
+              </ToggleGroupItem>
+              <ToggleGroupItem
+                value="main"
+                data-testid="farming-control-chat-placement-main"
+                className="text-[13px] aria-pressed:bg-background aria-pressed:shadow-sm"
+              >
+                <Trans>Main view</Trans>
+              </ToggleGroupItem>
+            </ToggleGroup>
+          }
+        />
+      </SettingsGroup>
+
+      <SettingsGroup title={<Trans>Preferences</Trans>}>
         <SettingsRow
           label={
             <span id={sidebarDensityLabelId}>

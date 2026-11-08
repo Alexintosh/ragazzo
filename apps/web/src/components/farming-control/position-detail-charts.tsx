@@ -321,7 +321,7 @@ export function PositionHistoryCharts({
   );
   const fallback = loading ? t`Loading history…` : (error ?? t`History unavailable.`);
   return (
-    <div className="grid min-w-0 gap-4 xl:grid-cols-2">
+    <div className="grid min-w-0 gap-4 @3xl/farming:grid-cols-2">
       <Section title={t`APR history`} action={control}>
         <p className="mb-3 text-xs text-muted-foreground">
           {nativePoints?.length
