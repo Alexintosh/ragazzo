@@ -60,6 +60,7 @@ export { callMarkerClientNonce } from "./routes/threads.js";
 
 export interface RouterDeps {
   farmingControl?: FarmingControlService;
+  farmingControlRiskAutomationEnabled?: boolean;
   pushTokens: PushTokenStore;
   analytics?: ProductAnalytics;
   cloudAgent?: CloudAgentConnection | null;

@@ -260,6 +260,8 @@ async function main() {
   });
   const executor = createRunExecutor({
     farmingControl,
+    farmingControlRiskAutomationEnabled:
+      (process.env.FARMING_CONTROL_RISK_EVENT_TOKEN?.trim().length ?? 0) >= 32,
     maxUploadSizeBytes: uploadSizeFromEnv(process.env),
     prisma,
     runtime,
@@ -284,6 +286,7 @@ async function main() {
       });
     },
     secrets: [
+      process.env.FARMING_CONTROL_RISK_EVENT_TOKEN ?? "",
       deploymentModelKey ?? "",
       process.env.COMPOSIO_API_KEY ?? "",
       process.env.CURSOR_API_KEY ?? "",

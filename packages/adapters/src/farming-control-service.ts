@@ -1,4 +1,4 @@
-import type { Actor, FarmingControlPositionHistoryInput, FarmingControlEntityCatalogInput, FarmingControlEntitySelection, FarmingControlPortfolioInput, FarmingControlSection } from "@rakazo/contracts";
+import type { Actor, FarmingControlPositionDetailInput, FarmingControlPositionHistoryInput, FarmingControlRiskReviewInput, FarmingControlEntityCatalogInput, FarmingControlEntitySelection, FarmingControlPortfolioInput, FarmingControlSection } from "@rakazo/contracts";
 import type { PrismaClient } from "@rakazo/db";
 import { runAsSystem } from "@rakazo/db";
 import { createFarmingControlClient } from "./farming-control.js";
@@ -91,6 +91,11 @@ export function createFarmingControlService(
       if (!client) throw new FarmingControlAccessError("NOT_FOUND");
       return client.mentionTargets(input);
     },
+    async positionDetail(actor: Actor, input: FarmingControlPositionDetailInput) {
+      await authorize(actor);
+      if (!client) throw new FarmingControlAccessError("NOT_FOUND");
+      return client.positionDetail(input);
+    },
     async positionHistory(actor: Actor, input: FarmingControlPositionHistoryInput) {
       await authorize(actor);
       if (!client) throw new FarmingControlAccessError("NOT_FOUND");
@@ -110,6 +115,16 @@ export function createFarmingControlService(
       await authorize(actor);
       if (!client) throw new FarmingControlAccessError("NOT_FOUND");
       return client.harvest();
+    },
+    async riskResearch(actor: Actor) {
+      await authorize(actor);
+      if (!client) throw new FarmingControlAccessError("NOT_FOUND");
+      return client.riskResearch();
+    },
+    async riskReview(actor: Actor, input?: FarmingControlRiskReviewInput) {
+      await authorize(actor);
+      if (!client) throw new FarmingControlAccessError("NOT_FOUND");
+      return client.riskReview(input);
     },
     async risk(actor: Actor) {
       await authorize(actor);

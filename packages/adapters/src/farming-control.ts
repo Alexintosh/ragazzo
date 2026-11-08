@@ -10,8 +10,13 @@ import type {
   FarmingControlPortfolio,
   FarmingControlPortfolioInput,
   FarmingControlPositionHistory,
+  FarmingControlPositionDetail,
+  FarmingControlPositionDetailInput,
   FarmingControlPositionHistoryInput,
   FarmingControlRisk,
+  FarmingControlRiskReview,
+  FarmingControlRiskResearch,
+  FarmingControlRiskReviewInput,
   FarmingControlSection,
   FarmingControlYieldEvidence,
 } from "@rakazo/contracts";
@@ -32,7 +37,10 @@ import {
   FarmingControlPortfolioScopeSchema,
   FarmingControlPortfolioTotalsSchema,
   FarmingControlPositionSchema,
+  FarmingControlPositionDetailInputSchema,
   FarmingControlRealizedPerformanceSchema,
+  FarmingControlRiskReviewInputSchema,
+  FarmingControlMonitoringEvidenceSchema,
   FarmingControlWalletAttributionSchema,
   FarmingControlWalletVisibilitySchema,
 } from "@rakazo/contracts";
@@ -42,6 +50,9 @@ import { readFarmingControlPositionTrend } from "./farming-control-position-tren
 import type { FarmingControlPositionEarningsPath } from "./farming-control-position-earnings.js";
 import { readFarmingControlPositionEarnings } from "./farming-control-position-earnings.js";
 import { curveRiskSource, morphoRiskSource, projectRiskExposures } from "./farming-control-risk.js";
+
+import { detailActivitiesSource, detailActivity, detailEntrySource, detailInventorySource, detailTransaction } from "./farming-control-position-detail.js";
+import type { PositionDetailPath } from "./farming-control-position-detail.js";
 
 const ms = z.number().int().nonnegative();
 // Wallet addresses stay inside this adapter; consumers receive only the hidden count.
@@ -89,6 +100,7 @@ const entityPortfolioSource = portfolioSource.extend({
         addedAtMs: ms.nullable().optional(),
         entryTransactions: z.array(z.object({
           activityKind: z.string(), status: z.string(), occurredAtMs: ms.nullable(),
+          activityId: z.string().optional(), sourceId: z.string().optional(), namespace: z.string().optional(), chainId: z.string().nullable().optional(), hash: z.string().optional(),
         })).optional(),
         metadata: z
           .object({
@@ -197,7 +209,7 @@ type PositionYieldSource =
   | `/positions/${string}/metrics/apr?${string}`
   | `/positions/${string}/performance?${string}`;
 type PositionHistoryPath = PositionYieldSource | FarmingControlPositionEarningsPath;
-type ScopedSource = PositionHistoryPath | `${typeof SOURCES.portfolio | typeof SOURCES.history}?${string}`;
+type ScopedSource = PositionDetailPath | `/monitoring/hot/evidence?${string}` | PositionHistoryPath | `${typeof SOURCES.portfolio | typeof SOURCES.history}?${string}`;
 const aprHistorySource = z.object({
   positionId: z.string().max(500),
   asOfMs: ms,
@@ -290,15 +302,17 @@ export function createFarmingControlClient(options: {
   const baseUrl = farmingControlBaseUrl(options.baseUrl);
   const http = options.fetch ?? globalThis.fetch;
   const now = options.now ?? Date.now;
-  async function read<T>(
+  const pendingPositionReads = new Map<string, Promise<ReadResult<unknown>>>();
+  async function readBody(
     path: Source | ScopedSource,
-    schema: z.ZodType<T>,
     limits?: { signal: AbortSignal; onBytes: (bytes: number) => void },
-  ): Promise<ReadResult<T>> {
+  ): Promise<ReadResult<unknown>> {
     const sourceLabel = path.split("?")[0];
     // Match the native frontend's read budgets for saved scope and portfolio summaries.
     const timeoutMs =
-      sourceLabel === SOURCES.walletVisibility || sourceLabel === SOURCES.morpho.split("?")[0]
+      sourceLabel === "/monitoring/hot/evidence"
+        ? 30_000
+        : sourceLabel === SOURCES.walletVisibility || sourceLabel === SOURCES.morpho.split("?")[0]
         ? 20_000
         : sourceLabel === SOURCES.portfolio
           ? 15_000
@@ -320,19 +334,34 @@ export function createFarmingControlClient(options: {
           issue: `${sourceLabel}: source unavailable (HTTP ${response.status}).`,
         };
       }
-      const parsed = schema.safeParse(await boundedJson(response, limits?.onBytes));
-      if (!parsed.success)
-        return {
-          data: null,
-          issue: `${sourceLabel}: source response does not match the supported schema.`,
-        };
-      return { data: parsed.data, issue: null };
+      return { data: await boundedJson(response, limits?.onBytes), issue: null };
     } catch {
       return {
         data: null,
         issue: `${sourceLabel}: source unavailable, timed out, or exceeded the response limit.`,
       };
     }
+  }
+  async function read<T>(
+    path: Source | ScopedSource,
+    schema: z.ZodType<T>,
+    limits?: { signal: AbortSignal; onBytes: (bytes: number) => void },
+  ): Promise<ReadResult<T>> {
+    // The detail, risk and historical projections request the identical scoped position
+    // list on entry. Share only the in-flight body for that exact URL and revision.
+    let pending: Promise<ReadResult<unknown>>;
+    if (!limits && path.startsWith(SOURCES.portfolio + "?")) {
+      pending = pendingPositionReads.get(path) ?? readBody(path).finally(() => pendingPositionReads.delete(path));
+      pendingPositionReads.set(path, pending);
+    } else {
+      pending = readBody(path, limits);
+    }
+    const result = await pending;
+    if (result.issue !== null) return { data: null, issue: result.issue };
+    const parsed = schema.safeParse(result.data);
+    return parsed.success
+      ? { data: parsed.data, issue: null }
+      : { data: null, issue: `${path.split("?")[0]}: source response does not match the supported schema.` };
   }
   const meta = (
     asOfMs: number | null,
@@ -917,6 +946,8 @@ export function createFarmingControlClient(options: {
       entities,
       rows: visibleRows,
       riskRead,
+      walletSettings: settings.data,
+      attributionComplete: source.data?.walletAttribution?.complete ?? null,
     };
   }
   async function mentionTargets(
@@ -1244,6 +1275,175 @@ export function createFarmingControlClient(options: {
           : exposure,
     };
   }
+  async function positionDetail(
+    input: FarmingControlPositionDetailInput,
+  ): Promise<FarmingControlPositionDetail> {
+    const selected = FarmingControlPositionDetailInputSchema.parse(input);
+    const snapshot = await entitySnapshot(["position", "wallet"]);
+    const row = snapshot.rows.find((item) => item.id === selected.positionId);
+    const revision = snapshot.walletVisibilityRevision;
+    if (!row || revision === null || !snapshot.walletSettings)
+      return {
+        status: "unavailable",
+        reason: "Position could not be verified in the saved wallet scope.",
+      };
+    const hidden = snapshot.walletSettings.hiddenWalletAddresses.length > 0;
+    const wallets = snapshot.entities
+      .filter((entity) => entity.selection.kind === "wallet" && entity.positionIds.includes(row.id))
+      .map((entity) => ({ address: entity.selection.id, label: entity.label }));
+    const visibleAccounts = new Set(wallets.map((wallet) => wallet.address.toLowerCase()));
+    const query = new URLSearchParams({
+      walletVisibility: "visible",
+      walletVisibilityRevision: String(revision),
+    });
+    const activityPath: PositionDetailPath = `/positions/${encodeURIComponent(row.id)}/activities?limit=101`;
+    const inventoryPath: PositionDetailPath = `/harvest/inventory?${query}`;
+    const [ledger, inventory] = await Promise.all([
+      read(activityPath, detailActivitiesSource),
+      read(
+        inventoryPath,
+        detailInventorySource.refine((value) => value.walletVisibility.revision === revision),
+      ),
+    ]);
+    const issues = [...snapshot.issues, ledger.issue, inventory.issue].filter(
+      (issue): issue is string => issue !== null,
+    );
+    const rawActivities =
+      ledger.data?.items.filter((activity) => activity.positionId === row.id) ?? [];
+    const projectedActivities = rawActivities.flatMap((activity) => {
+      const projected = detailActivity(activity, hidden, visibleAccounts);
+      return projected ? [projected] : [];
+    });
+    const omittedActivities = projectedActivities.length !== rawActivities.length;
+    const activitiesTruncated = (ledger.data?.items.length ?? 0) > 100;
+    if (omittedActivities)
+      issues.push("Some activities lack exact visible-wallet attribution and are withheld.");
+    if (activitiesTruncated) issues.push("Only a bounded recent activity window was read.");
+    // Source entry references already passed FC's historical scopedActivity projection.
+    const entries = (row.entryTransactions ?? [])
+      .flatMap((entry) => {
+        const parsed = detailEntrySource.safeParse(entry);
+        return parsed.success &&
+          parsed.data.status === "confirmed" &&
+          parsed.data.activityKind === "position.open" &&
+          parsed.data.occurredAtMs !== null &&
+          parsed.data.occurredAtMs <= now()
+          ? [parsed.data]
+          : [];
+      })
+      .sort((a, b) => a.occurredAtMs! - b.occurredAtMs!);
+    const entry = entries[0];
+    const opening = entry
+      ? {
+          id: entry.activityId,
+          kind: entry.activityKind,
+          status: entry.status,
+          occurredAtMs: entry.occurredAtMs,
+          recordedAtMs: null,
+          sourceId: entry.sourceId,
+          evidenceId: null,
+          transaction: detailTransaction({
+            ...(entry.namespace ? { namespace: entry.namespace } : {}),
+            ...(entry.chainId ? { chainId: entry.chainId } : {}),
+            hash: entry.hash,
+          }),
+          amount: null,
+          token: null,
+        }
+      : null;
+    const positionRewards =
+      inventory.data?.items.filter((item) => item.positionId === row.id) ?? [];
+    const scopedRewards = positionRewards.filter(
+      (item) =>
+        !hidden || (item.account !== null && visibleAccounts.has(item.account.toLowerCase())),
+    );
+    const rewardsTruncated = scopedRewards.length > 100;
+    const rewardsComplete =
+      inventory.data !== null &&
+      scopedRewards.length > 0 &&
+      inventory.data.walletVisibilityCoverage?.complete !== false &&
+      scopedRewards.length === positionRewards.length &&
+      !rewardsTruncated &&
+      scopedRewards.every(
+        (item) =>
+          item.retrievalComplete === true &&
+          item.informational?.quality !== "unknown" &&
+          item.informational?.quality !== "invalidated",
+      );
+    if (!rewardsComplete) issues.push("Claimable reward coverage is incomplete or unavailable.");
+    const manual = scopedRewards.some(
+      (item) => BigInt(item.reward.amountRaw) > 0n && item.informational?.quality !== "invalidated",
+    );
+    // These exact registered adapters declare automatic compounding in their
+    // canonical protocol calculation methodology. Embedded yield alone does not.
+    const auto =
+      row.adapter.key === "beefy-cow-clm-vault" || row.adapter.key === "mellow-earn-vault";
+    const harvestingEvidence = [
+      ...(auto
+        ? ["The registered position adapter declares automatic compounding into vault shares."]
+        : []),
+      ...(manual
+        ? [
+            "Saved inventory contains a separate positive claimable reward balance; execution readiness is independent.",
+          ]
+        : []),
+    ];
+    if (auto && !rewardsComplete)
+      issues.push(
+        "Automatic compounding is established, but incomplete reward coverage cannot rule out separate claimable rewards.",
+      );
+    const after = await read(SOURCES.walletVisibility, walletVisibilitySource);
+    if (after.data?.revision !== revision)
+      return {
+        status: "unavailable",
+        reason: "Wallet visibility changed during the read. Reread the position.",
+      };
+    return {
+      status: "matched",
+      positionId: row.id,
+      label: row.label ?? row.id,
+      lifecycle: row.state,
+      fetchedAtMs: now(),
+      asOfMs: snapshot.asOfMs,
+      walletVisibilityRevision: revision,
+      wallets,
+      walletsComplete: snapshot.walletSettings.wallets !== undefined,
+      opening,
+      activities: {
+        state: !ledger.data
+          ? "unavailable"
+          : omittedActivities || activitiesTruncated
+            ? "partial"
+            : "available",
+        items: projectedActivities.slice(0, 100),
+        complete: ledger.data !== null && !omittedActivities && !activitiesTruncated,
+        truncated: activitiesTruncated,
+      },
+      rewards: {
+        state: !inventory.data ? "unavailable" : rewardsComplete ? "available" : "partial",
+        complete: rewardsComplete,
+        truncated: rewardsTruncated,
+        items: scopedRewards
+          .slice(0, 100)
+          .map((item) => ({
+            id: item.id,
+            symbol: item.reward.symbol,
+            token: item.reward.token,
+            amount: item.reward.amount,
+            observedAtMs: item.informational?.quantityObservedAtMs ?? item.observedAtMs,
+            sourceObservationId: item.sourceObservationId,
+            quality: item.informational?.quality ?? "unknown",
+            readiness: item.informational?.readiness ?? "unknown",
+          })),
+      },
+      harvesting: {
+        mode: auto ? (manual ? "mixed" : "auto") : manual ? "manual" : "unknown",
+        evidence: harvestingEvidence,
+      },
+      sources: [...snapshot.sources, activityPath.split("?")[0]!, "/harvest/inventory"],
+      issues: [...new Set(issues)].slice(0, 100),
+    };
+  }
   async function positionHistory(input: FarmingControlPositionHistoryInput): Promise<FarmingControlPositionHistory> {
     const snapshot = await entitySnapshot(["position"]);
     const row = snapshot.rows.find((item) => item.id === input.positionId);
@@ -1290,6 +1490,46 @@ export function createFarmingControlClient(options: {
     return { status: "matched", positionId: row.id, label: row.label ?? row.id, lifecycle: row.state, period, startEvidence,
       walletVisibilityRevision: revision, requestedThroughMs: toMs, trend, earnings };
   }
+  async function riskReview(input?: FarmingControlRiskReviewInput): Promise<FarmingControlRiskReview> {
+    const selection = FarmingControlRiskReviewInputSchema.parse(input ?? {});
+    const window = selection.window ?? "7d";
+    const query = new URLSearchParams({ window });
+    if (selection.monitorKey) query.set("monitorKey", selection.monitorKey);
+    const path = `/monitoring/hot/evidence?${query}` as const;
+    const result = await read(path, FarmingControlMonitoringEvidenceSchema.refine((value) => value.window === window));
+    if (!result.data) return {
+      ...meta(null, [path], [result.issue], false),
+      selectionStatus: "unavailable",
+      exposureAssociationStatus: "not_requested",
+      linkedExposure: null,
+      evidence: null,
+    };
+    const items = selection.monitorKey
+      ? result.data.items.filter((item) => item.monitorKey === selection.monitorKey)
+      : result.data.items;
+    const issues: string[] = [];
+    let exposureAssociationStatus: FarmingControlRiskReview["exposureAssociationStatus"] = "not_requested";
+    let linkedExposure: FarmingControlRiskReview["linkedExposure"] = null;
+    if (selection.monitorKey && items.length) {
+      const holdings = await risk();
+      linkedExposure = holdings.exposures.find((item) => item.monitorKey === selection.monitorKey) ?? null;
+      exposureAssociationStatus = linkedExposure?.positions.length ? "matched_visible_holding"
+        : holdings.exposureScope.discovery === "unavailable" ? "unavailable" : "unproven";
+      if (!linkedExposure) issues.push("Visible holding impact is not established for this monitor. An absent wallet-scoped card does not prove zero exposure or a watch-only subject.");
+    }
+    if (selection.monitorKey && !items.length)
+      issues.push("The selected monitor is absent from the desired-running Monitoring universe; this does not establish safety or prove that the monitor does not exist.");
+    return {
+      ...meta(result.data.asOfMs, [path], issues, true),
+      state: issues.length || items.some((item) =>
+        item.current.status !== "live" || item.history.status !== "ready" || item.history.truncated
+      ) ? "partial" : "available",
+      selectionStatus: selection.monitorKey ? items.length ? "matched" : "absent_subject" : "all_subjects",
+      evidence: { ...result.data, items },
+      exposureAssociationStatus,
+      linkedExposure,
+    };
+  }
   async function accounting(): Promise<FarmingControlAccounting> {
     const [source, tax] = await Promise.all([
       read(SOURCES.accounting, accountingSource),
@@ -1320,10 +1560,16 @@ export function createFarmingControlClient(options: {
   return {
     mentionTargets,
     positionHistory,
+    positionDetail,
     entity,
     portfolio,
     harvest,
     risk,
+    riskReview,
+    async riskResearch(): Promise<FarmingControlRiskResearch> {
+      const { readFarmingControlRiskResearch } = await import("./farming-control-risk-research.js");
+      return readFarmingControlRiskResearch();
+    },
     accounting,
     async status() {
       const source = await read(SOURCES.health, healthSource);

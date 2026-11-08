@@ -23,6 +23,7 @@ export * from "./farming-control-entities.js";
 export * from "./farming-control-position-trend.js";
 export * from "./farming-control-position-earnings.js";
 export * from "./farming-control-position-history.js";
+export * from "./farming-control-risk-review.js";
 export * from "./history.js";
 export * from "./ids.js";
 export * from "./integration-settings.js";
@@ -48,3 +49,5 @@ export * from "./settings-scope.js";
 export * from "./terminal.js";
 export * from "./user-devices.js";
 export * from "./voice-errors.js";
+
+export * from "./farming-control-position-detail.js";

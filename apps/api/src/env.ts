@@ -30,6 +30,7 @@ export { resolveCloudAgentProvider, resolveSandboxProvider } from "@rakazo/adapt
 export interface AppEnv {
   farmingControlApiUrl?: string;
   farmingControlOwnerUserId?: string;
+  farmingControlRiskEventToken?: string;
   passwordAuth?: boolean;
   /** Opt-in Have I Been Pwned check for new passwords. Default off: it calls an outside service. */
   breachedPasswordCheck?: boolean;
@@ -245,6 +246,7 @@ export function loadEnv(source: NodeJS.ProcessEnv = process.env): AppEnv {
     navLinks: parseNavLinks(source.RAKAZO_NAV_LINKS),
     farmingControlApiUrl: source.FARMING_CONTROL_API_URL?.trim() || undefined,
     farmingControlOwnerUserId: source.FARMING_CONTROL_OWNER_USER_ID?.trim() || undefined,
+    farmingControlRiskEventToken: source.FARMING_CONTROL_RISK_EVENT_TOKEN?.trim() || undefined,
     adminEmails: list(source.RAKAZO_ADMIN_EMAILS).map((email) => email.toLowerCase()),
     ...phoneCallSettings(source),
     maxUploadSizeBytes: uploadSizeFromEnv(source),

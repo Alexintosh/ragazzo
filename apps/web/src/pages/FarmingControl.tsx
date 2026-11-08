@@ -8,32 +8,24 @@ import type {
   FarmingControlSection,
 } from "@rakazo/contracts";
 import { createFarmingControlEntityMention } from "@rakazo/core";
-import {
-  Badge,
-  Button,
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  Input,
-  NativeSelect,
-  NativeSelectOption,
-  Skeleton,
-} from "@rakazo/ui-web";
-import { useQuery } from "@tanstack/react-query";
+import { Badge, Button, Input, NativeSelect, NativeSelectOption, Skeleton } from "@rakazo/ui-web";
+import { useIsFetching, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowDown,
   ArrowUp,
   ArrowUpRight,
+  ChevronLeft,
   ChevronRight,
+  EyeOff,
   LockKeyhole,
   Menu,
   MessageSquare,
   RefreshCw,
 } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
+import { PositionDetail } from "../components/farming-control/position-detail";
 import type { ReactNode } from "react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type {
   FarmingControlAskContext,
   FarmingControlChatDraft,
@@ -49,6 +41,7 @@ import {
   Section,
   ValueHistory,
 } from "../components/farming-control/presentation";
+import { presentPortfolioAmounts } from "../components/farming-control/portfolio-demo";
 import { RiskCards } from "../components/farming-control/risk-cards";
 import { farmingRiskDraft } from "../lib/farming-risk-draft";
 import { formatRelativeTime } from "../lib/relative-time";
@@ -67,6 +60,8 @@ type ReadMeta = {
 
 type Props = {
   view: FarmingControlSection;
+  positionId?: string;
+  portfolioDemo: { seed: string | null; toggle: () => void };
   rpc: RpcClient;
   queryScope: string;
   onOpenNavigation: () => void;
@@ -105,6 +100,8 @@ function initialPortfolioState(queryScope: string): PortfolioPageState {
 /** Native shell consumer. Reads and team setup go through the authenticated RPC boundary. */
 export function FarmingControlPage({
   view,
+  positionId,
+  portfolioDemo,
   rpc,
   queryScope,
   onOpenNavigation,
@@ -112,6 +109,14 @@ export function FarmingControlPage({
   coordinatorId,
 }: Props) {
   const { t } = useLingui();
+  const queryClient = useQueryClient();
+  const detailQueryKey = ["farming-control", queryScope, "position", positionId];
+  const detailFetching = useIsFetching({ queryKey: detailQueryKey }) > 0;
+  const scrollArea = useRef<HTMLDivElement>(null);
+  const portfolioScroll = useRef(0);
+  useLayoutEffect(() => {
+    if (scrollArea.current) scrollArea.current.scrollTop = positionId ? 0 : portfolioScroll.current;
+  }, [positionId]);
   const titles = {
     portfolio: t`Portfolio`,
     harvest: t`Harvest`,
@@ -145,6 +150,13 @@ export function FarmingControlPage({
   const askRequest = useRef<symbol | null>(null);
   const [asking, setAsking] = useState(false);
   const [askError, setAskError] = useState<string | null>(null);
+  useEffect(() => {
+    setAskError(null);
+    setAsking(false);
+    return () => {
+      askRequest.current = null;
+    };
+  }, [positionId]);
   const query = useQuery<FarmingControlRead>({
     queryKey: ["farming-control", queryScope, view, view === "portfolio" ? assetSetKey : null],
     queryFn: async ({ signal }) =>
@@ -156,7 +168,19 @@ export function FarmingControlPage({
     refetchIntervalInBackground: false,
     retry: false,
   });
-  const data = query.data;
+  const demoSeed = view === "portfolio" ? portfolioDemo.seed : null;
+  const data = useMemo(() => {
+    if (demoSeed !== null && query.data) {
+      return presentPortfolioAmounts(query.data as FarmingControlPortfolio, demoSeed);
+    }
+    return query.data;
+  }, [query.data, demoSeed]);
+  const portfolio =
+    view === "portfolio" ? (data as FarmingControlPortfolio | undefined) : undefined;
+  const position = positionId
+    ? portfolio?.positions.find((item) => item.id === positionId)
+    : undefined;
+  const walletVisibilityRevision = portfolio?.walletVisibility?.revision ?? null;
   const portfolioScope =
     view === "portfolio" ? (data as FarmingControlPortfolio | undefined)?.scope : null;
   const availableAssetSets =
@@ -178,7 +202,7 @@ export function FarmingControlPage({
     setAskError(null);
     try {
       const team = await rpc.farmingControl.ensureTeam();
-      if (!mounted.current) return;
+      if (!mounted.current || askRequest.current !== request) return;
       const entityKind =
         context.entityType === "position" ||
         context.entityType === "wallet" ||
@@ -242,7 +266,7 @@ export function FarmingControlPage({
         });
       }
     } catch (error) {
-      if (mounted.current)
+      if (mounted.current && askRequest.current === request)
         setAskError(errorText(error, t`Could not open the Farming Control chat.`));
     } finally {
       if (askRequest.current === request) {
@@ -265,7 +289,18 @@ export function FarmingControlPage({
             <Menu size={18} />
           </Button>
           <div>
-            <h1 className="text-lg font-semibold tracking-tight">{titles[view]}</h1>
+            {positionId ? (
+              <Link
+                to="/app/farming/portfolio"
+                className="app-no-drag inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+              >
+                <ChevronLeft size={13} aria-hidden="true" />
+                <Trans>Portfolio</Trans>
+              </Link>
+            ) : null}
+            <h1 className="text-lg font-semibold tracking-tight">
+              {positionId ? (position?.label ?? t`Position`) : titles[view]}
+            </h1>
             <div className="mt-0.5 text-xs text-muted-foreground">
               <Trans>Farming Control</Trans>
               <span aria-hidden="true"> · </span>
@@ -279,26 +314,65 @@ export function FarmingControlPage({
           </div>
         </div>
         <div className="app-no-drag flex items-center gap-2">
+          {view === "portfolio" ? (
+            <Button
+              variant={demoSeed === null ? "outline" : "default"}
+              size="sm"
+              aria-pressed={demoSeed !== null}
+              title={t`Show fictional portfolio amounts`}
+              onClick={portfolioDemo.toggle}
+            >
+              <EyeOff size={15} />
+              <Trans>Demo amounts</Trans>
+            </Button>
+          ) : null}
           <Button
             variant="ghost"
             size="icon-sm"
-            disabled={query.isFetching}
-            onClick={() => void query.refetch()}
+            disabled={query.isFetching || detailFetching}
+            onClick={() => {
+              void query.refetch();
+              if (positionId) void queryClient.invalidateQueries({ queryKey: detailQueryKey });
+            }}
             aria-label={t`Refresh Farming Control`}
           >
-            <RefreshCw size={15} className={query.isFetching ? "animate-spin" : ""} />
+            <RefreshCw
+              size={15}
+              className={query.isFetching || detailFetching ? "animate-spin" : ""}
+            />
           </Button>
-          <Button variant="outline" size="sm" disabled={asking} onClick={() => void ask()}>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={asking || Boolean(positionId && !position)}
+            onClick={() =>
+              void ask(
+                position
+                  ? {
+                      entityType: "position",
+                      entityId: position.id,
+                      label: position.label ?? position.id,
+                    }
+                  : {},
+              )
+            }
+          >
             <MessageSquare size={15} />
-            <Trans>Ask team</Trans>
+            {positionId ? t`Ask about position` : t`Ask team`}
           </Button>
         </div>
       </header>
-      <div className="rk-scroll min-h-0 flex-1 overflow-y-auto px-4 py-5 md:px-7 md:py-6">
+      <div
+        ref={scrollArea}
+        onScroll={(event) => {
+          if (!positionId) portfolioScroll.current = event.currentTarget.scrollTop;
+        }}
+        className="rk-scroll min-h-0 flex-1 overflow-y-auto px-4 py-5 md:px-7 md:py-6"
+      >
         <div className="mx-auto max-w-7xl space-y-5">
           {askError ? (
             <div role="alert" className="text-sm text-destructive">
-              {askError}
+              {demoSeed === null ? askError : t`Could not open the Farming Control chat.`}
             </div>
           ) : null}
           {query.isError ? (
@@ -306,15 +380,17 @@ export function FarmingControlPage({
               role="alert"
               className="rounded-xl border border-destructive/30 p-4 text-sm text-destructive"
             >
-              {errorText(query.error, t`Could not read Farming Control.`)}
-              {data ? (
+              {demoSeed === null
+                ? errorText(query.error, t`Could not read Farming Control.`)
+                : t`Could not read Farming Control.`}
+              {data && !positionId ? (
                 <span className="ms-1">
                   <Trans>Showing the last fetched view.</Trans>
                 </span>
               ) : null}
             </div>
           ) : null}
-          {view === "portfolio" ? (
+          {view === "portfolio" && !positionId ? (
             <div className="flex flex-wrap items-center justify-between gap-3">
               <h2 className="text-sm font-medium">{t`Active capital`}</h2>
               <NativeSelect
@@ -343,16 +419,27 @@ export function FarmingControlPage({
               </div>
               <Skeleton className="h-72 rounded-xl" />
             </div>
+          ) : positionId ? (
+            position && !query.isError && walletVisibilityRevision !== null ? (
+              <PositionDetail
+                key={position.id}
+                position={position}
+                rpc={rpc}
+                coordinatorId={coordinatorId}
+                demoSeed={demoSeed}
+                queryScope={queryScope}
+                walletVisibilityRevision={walletVisibilityRevision}
+                ask={ask}
+              />
+            ) : (
+              <Empty>{t`This position is unavailable in the current wallet scope.`}</Empty>
+            )
           ) : data ? (
             <>
               {view !== "portfolio" && view !== "risk" ? <ReadStatus data={data} /> : null}
               {view === "portfolio" ? (
                 <Portfolio
                   data={data as FarmingControlPortfolio}
-                  rpc={rpc}
-                  queryScope={queryScope}
-                  coordinatorId={coordinatorId}
-                  ask={ask}
                   assetSetKey={assetSetKey}
                   controls={scopedPortfolioState.controls}
                   onControlsChange={updatePortfolioControls}
@@ -448,53 +535,23 @@ function Stamp({ value }: { value: number | null | undefined }) {
   );
 }
 
-function Freshness({ state }: { state: "current" | "stale" | "unknown" }) {
-  const { t } = useLingui();
-  return (
-    <span className={state === "stale" ? "text-warning" : "text-muted-foreground"}>
-      {state === "current" ? t`Current` : state === "stale" ? t`Stale` : t`Freshness unknown`}
-    </span>
-  );
+function positionPath(id: string) {
+  return `/app/farming/portfolio/${encodeURIComponent(id)}`;
 }
 
 function Portfolio({
   data,
-  rpc,
-  queryScope,
-  coordinatorId,
-  ask,
   assetSetKey,
   controls,
   onControlsChange,
 }: {
   data: FarmingControlPortfolio;
-  rpc: RpcClient;
-  queryScope: string;
-  coordinatorId?: string;
-  ask: (context?: FarmingControlAskContext) => Promise<void>;
   assetSetKey: string | null;
   controls: PortfolioControls;
   onControlsChange: (patch: Partial<PortfolioControls>) => void;
 }) {
   const { t } = useLingui();
-  const [selected, setSelected] = useState<string | null>(null);
-  const relatedEntities = useQuery({
-    queryKey: [
-      "farming-control",
-      queryScope,
-      coordinatorId,
-      "mentionTargets",
-      { positionId: selected },
-    ],
-    queryFn: ({ signal }) =>
-      rpc.farmingControl.mentionTargets(
-        { botId: coordinatorId!, positionId: selected!, kinds: ["wallet", "protocol"], limit: 100 },
-        { signal },
-      ),
-    enabled: Boolean(selected && coordinatorId),
-    staleTime: 30_000,
-    retry: false,
-  });
+  const navigate = useNavigate();
   const { period, search, lifecycle, sort, direction } = controls;
   const needle = search.trim().toLocaleLowerCase();
   const positions = data.positions
@@ -524,7 +581,6 @@ function Portfolio({
   const historyAvailable = data.scope?.assetSetKey === null;
   const totals = data.totals;
   const attributionIncomplete = data.walletAttribution?.complete === false;
-  const position = data.positions.find((item) => item.id === selected);
   const cutoff = Math.max(data.historyRange.fromMs, data.fetchedAtMs - Number(period) * 86_400_000);
   const historyWindows = data.historyRange.windows.filter((window) => window.toMs >= cutoff);
   const activePositions = data.positions.filter((item) => item.state === "active");
@@ -640,78 +696,6 @@ function Portfolio({
               ) : (
                 <Empty>{t`Value history is unavailable for this scope.`}</Empty>
               )}
-              {historyAvailable ? (
-                <>
-                  <p className="mt-3 text-xs text-muted-foreground">
-                    <Trans>Last saved sample per UTC day, with boundary observations.</Trans>
-                  </p>
-                  {data.historyTruncated || !data.historyRange.retrievalComplete ? (
-                    <p className="mt-2 text-xs text-warning">
-                      <Trans>
-                        History retrieval is incomplete. Unavailable spans are not connected.
-                      </Trans>
-                    </p>
-                  ) : null}
-                  {data.history.some(
-                    (point) => point.sampledAtMs >= cutoff && point.quality === "partial",
-                  ) ? (
-                    <p className="mt-2 text-xs text-muted-foreground">
-                      <Trans>Includes samples with partial valuation coverage.</Trans>
-                    </p>
-                  ) : null}
-                  <details className="mt-3 text-xs text-muted-foreground">
-                    <summary className="cursor-pointer">
-                      <Trans>History coverage</Trans>
-                    </summary>
-                    <div className="mt-3 space-y-3">
-                      <p>
-                        <Trans>
-                          {history.filter((point) => point.value !== null).length} priced samples
-                          shown in this view.
-                        </Trans>
-                      </p>
-                      <p>
-                        <Trans>
-                          {data.historyRange.observedPointCount} observations read;{" "}
-                          {data.historyRange.returnedPointCount} samples retained across the
-                          requested 90 days.
-                        </Trans>
-                      </p>
-                      {historyWindows.map((window) => (
-                        <div
-                          key={`${window.fromMs}:${window.toMs}`}
-                          className="rounded-lg border border-border px-3 py-2"
-                        >
-                          <div className="flex flex-wrap justify-between gap-2">
-                            <span>
-                              {new Date(window.fromMs).toLocaleDateString()} –{" "}
-                              {new Date(window.toMs).toLocaleDateString()}
-                            </span>
-                            <span>
-                              {window.state === "available"
-                                ? t`Read complete`
-                                : window.state === "partial"
-                                  ? t`Partial read`
-                                  : t`Unavailable`}
-                              {window.truncated ? t` · Truncated` : ""}
-                            </span>
-                          </div>
-                          <p className="mt-1">
-                            <Trans>{window.observedPointCount} observations read</Trans>
-                          </p>
-                          {window.firstSampleAtMs !== null && window.lastSampleAtMs !== null ? (
-                            <p className="mt-1">
-                              <Trans>Saved range</Trans>:{" "}
-                              {new Date(window.firstSampleAtMs).toLocaleString()} –{" "}
-                              {new Date(window.lastSampleAtMs).toLocaleString()}
-                            </p>
-                          ) : null}
-                        </div>
-                      ))}
-                    </div>
-                  </details>
-                </>
-              ) : null}
             </Section>
           </div>
           <Section title={t`Largest active positions`}>
@@ -722,7 +706,7 @@ function Portfolio({
                   id: item.id,
                   label: item.label ?? item.id,
                   value: item.current.valueUsd!,
-                  onSelect: () => setSelected(item.id),
+                  onSelect: () => navigate(positionPath(item.id)),
                 }))}
               limit={5}
               empty={t`No priced active positions.`}
@@ -819,13 +803,12 @@ function Portfolio({
                 {positions.map((item) => (
                   <tr key={item.id} className="border-b border-border last:border-b-0">
                     <td className="py-3">
-                      <button
-                        type="button"
-                        onClick={() => setSelected(item.id)}
+                      <Link
+                        to={positionPath(item.id)}
                         className="text-start font-medium outline-none hover:underline focus-visible:underline"
                       >
                         {item.label ?? item.id}
-                      </button>
+                      </Link>
                       <div className="mt-0.5 text-xs text-muted-foreground">
                         {item.adapter.key ?? t`Unknown adapter`} · {item.state}
                       </div>
@@ -854,7 +837,7 @@ function Portfolio({
                         variant="ghost"
                         size="icon-xs"
                         aria-label={t`View position`}
-                        onClick={() => setSelected(item.id)}
+                        onClick={() => navigate(positionPath(item.id))}
                       >
                         <ChevronRight size={14} />
                       </Button>
@@ -911,109 +894,6 @@ function Portfolio({
           </div>
         </Section>
       ) : null}
-      <Dialog
-        open={Boolean(position)}
-        onOpenChange={(open) => {
-          if (!open) setSelected(null);
-        }}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{position?.label ?? position?.id}</DialogTitle>
-            <DialogDescription>
-              {position?.adapter.key} · {position?.state}
-            </DialogDescription>
-          </DialogHeader>
-          {position ? (
-            <>
-              <dl className="text-sm">
-                <Row label={t`Current value`} value={exactAmount(position.current.valueUsd)} />
-                <Row
-                  label={t`Value observed`}
-                  value={<Stamp value={position.current.observedAtMs} />}
-                />
-                <Row
-                  label={t`Expected yield · 30d`}
-                  value={exactAmount(position.projectedRewards?.usd?.month)}
-                />
-                <Row
-                  label={t`Capital baseline`}
-                  value={exactAmount(position.current.capitalBaselineUsd)}
-                />
-                <Row
-                  label={t`Value freshness`}
-                  value={<Freshness state={position.dataQuality.valueFreshness} />}
-                />
-                <Row
-                  label={position.apr?.rateType?.toUpperCase() ?? t`APR / APY`}
-                  value={exactPercent(position.apr?.percentPerYear)}
-                />
-                {position.apr?.source ? (
-                  <Row label={t`Rate source`} value={position.apr.source} />
-                ) : null}
-                {position.apr?.window ? (
-                  <Row label={t`Rate window`} value={position.apr.window} />
-                ) : null}
-                <Row
-                  label={t`APR freshness`}
-                  value={<Freshness state={position.dataQuality.aprFreshness} />}
-                />
-                <Row
-                  label={t`APR observed`}
-                  value={<Stamp value={position.dataQuality.rateObservedAtMs} />}
-                />
-                <Row label={t`Value basis`} value={position.current.nature} />
-                <Row
-                  label={t`Last observation`}
-                  value={<Stamp value={position.dataQuality.lastObservedAtMs} />}
-                />
-              </dl>
-              <div className="flex flex-wrap justify-end gap-2">
-                {(relatedEntities.data?.entities ?? [])
-                  .filter(
-                    (entity) =>
-                      entity.selection.kind === "wallet" || entity.selection.kind === "protocol",
-                  )
-                  .map((entity) => (
-                    <Button
-                      key={`${entity.selection.kind}:${entity.selection.id}`}
-                      variant="outline"
-                      title={entity.detail ?? undefined}
-                      aria-label={
-                        entity.selection.kind === "wallet"
-                          ? t`Ask about wallet ${entity.label}`
-                          : t`Ask about protocol ${entity.label}`
-                      }
-                      onClick={() =>
-                        void ask({
-                          entityType: entity.selection.kind,
-                          entityId: entity.selection.id,
-                          label: entity.label,
-                        })
-                      }
-                    >
-                      <MessageSquare size={15} />
-                      {entity.label}
-                    </Button>
-                  ))}
-                <Button
-                  variant="outline"
-                  onClick={() =>
-                    void ask({
-                      entityType: "position",
-                      entityId: position.id,
-                      label: position.label ?? position.id,
-                    })
-                  }
-                >
-                  <MessageSquare size={15} />
-                  <Trans>Ask about position</Trans>
-                </Button>
-              </div>
-            </>
-          ) : null}
-        </DialogContent>
-      </Dialog>
     </>
   );
 }

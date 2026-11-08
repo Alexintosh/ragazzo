@@ -15,6 +15,11 @@ import {
 import { getLogger } from "@rakazo/logging";
 import { sanitizedError } from "@rakazo/logging/monitoring";
 import { protectedComputerLifecycleRefusal } from "./desktop-command-guard.js";
+import { appendEventInTransaction } from "@rakazo/db";
+import {
+  FarmingControlRiskTriggerSchema,
+  wakeFarmingControlRiskRoutine,
+} from "./farming-control-risk-automation.js";
 import type { ExecutorDeps } from "./executor-deps.js";
 import { routineRunModelPin } from "./model-selection.js";
 import { findPendingRoutineTick, routineTimerNonce } from "./routine-coalescing.js";
@@ -120,6 +125,7 @@ export async function wakeRoutine(deps: ExecutorDeps, routineId: string, schedul
   });
   if (!routine?.active || routine.nextRunAt?.getTime() !== scheduledAt.getTime()) return;
   if (await deferFutureRoutine(deps.jobs, routineId, scheduledAt)) return;
+  if (await wakeFarmingControlRiskRoutine(deps, routine, scheduledAt)) return;
   const bot = await deps.prisma.bot.findUnique({
     where: { id: routine.botId },
     include: { thread: true },
@@ -424,7 +430,7 @@ export async function retryRoutineRun(deps: ExecutorDeps, runId: string) {
           status: "queued",
         },
       });
-      return tx.run.create({
+      const retryRun = await tx.run.create({
         data: {
           spaceId: failed.spaceId,
           botId: failed.botId,
@@ -445,6 +451,43 @@ export async function retryRoutineRun(deps: ExecutorDeps, runId: string) {
             : {}),
         },
       });
+      if (
+        failed.clientNonce?.startsWith("fc-risk:v1:") &&
+        deps.farmingControlRiskAutomationEnabled
+      ) {
+        const source = await tx.event.findFirst({
+          where: {
+            runId: failed.id,
+            spaceId: failed.spaceId,
+            threadId: failed.threadId,
+            botId: failed.botId,
+            type: "routine.fired",
+          },
+          select: { payload: true },
+        });
+        const proof = FarmingControlRiskTriggerSchema.safeParse(
+          (source?.payload as { farmingControlRiskTrigger?: unknown } | null)
+            ?.farmingControlRiskTrigger,
+        );
+        if (
+          proof.success &&
+          failed.clientNonce === `fc-risk:v1:${proof.data.kind}:${proof.data.eventId}`
+        ) {
+          await tx.run.update({
+            where: { id: retryRun.id },
+            data: { clientNonce: `${failed.clientNonce}:retry:${failed.id}` },
+          });
+          await appendEventInTransaction(tx, {
+            spaceId: failed.spaceId,
+            threadId: failed.threadId,
+            botId: failed.botId,
+            runId: retryRun.id,
+            type: "routine.fired",
+            payload: { routineId: failed.routineId, farmingControlRiskTrigger: proof.data },
+          });
+        }
+      }
+      return retryRun;
     });
   } catch (error) {
     // retryOfRunId is unique: another delivery of this job already queued the retry.

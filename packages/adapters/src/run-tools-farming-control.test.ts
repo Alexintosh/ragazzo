@@ -28,6 +28,7 @@ describe("Farming Control specialist grants", () => {
       "farming_control_portfolio",
       "farming_control_harvest",
       "farming_control_find",
+      "farming_control_position_history",
       "farming_control_entity",
     ]);
     for (const role of FARMING_CONTROL_ROLES) {
@@ -50,6 +51,30 @@ describe("Farming Control specialist grants", () => {
               id: { type: "string", minLength: 1, maxLength: 500 },
             },
             required: ["kind", "id"],
+            additionalProperties: false,
+          });
+          continue;
+        }
+        if (tool.name === "farming_control_risk_review") {
+          expect(tool.inputSchema).toEqual({
+            type: "object",
+            properties: {
+              window: { type: "string", enum: ["24h", "7d"] },
+              inventoryOffset: { type: "integer", minimum: 0, maximum: 1_000 },
+              monitorKey: { type: "string", minLength: 1, maxLength: 500 },
+            },
+            additionalProperties: false,
+          });
+          continue;
+        }
+        if (tool.name === "farming_control_position_history") {
+          expect(tool.inputSchema).toEqual({
+            type: "object",
+            properties: {
+              positionId: { type: "string", minLength: 1, maxLength: 500 },
+              period: { type: "string", enum: ["since_opening", "7d", "30d", "90d"] },
+            },
+            required: ["positionId"],
             additionalProperties: false,
           });
           continue;

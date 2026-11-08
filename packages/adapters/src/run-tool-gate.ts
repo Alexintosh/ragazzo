@@ -146,7 +146,13 @@ export async function gateToolCall(
   let { args, effectRequest } = request;
   // Scoped no-argument FC reads use the builtin gate after dispatch enforces their role.
   // This does not trust arbitrary connector routes or relax their approval requirements.
-  const fixedFarmingControlRead = FARMING_CONTROL_TOOL_SECTIONS.has(name) || name === "farming_control_entity" || name === "farming_control_find" || name === "farming_control_position_history";
+  const fixedFarmingControlRead =
+    FARMING_CONTROL_TOOL_SECTIONS.has(name) ||
+    name === "farming_control_entity" ||
+    name === "farming_control_find" ||
+    name === "farming_control_position_history" ||
+    name === "farming_control_risk_review" ||
+    name === "farming_control_risk_research";
   const viaConnector = !BUILTIN_AGENT_TOOL_NAMES.has(name) && !fixedFarmingControlRead;
   // Declared effect of the operation this call dispatches (installed API method and
   // flag). Install config is immutable per route resource, so it cannot drift before

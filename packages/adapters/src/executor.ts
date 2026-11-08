@@ -85,6 +85,8 @@ import {
 import { formatCurrentTimeInstruction } from "./current-time.js";
 import { resolveDeploymentModel } from "./deployment-model.js";
 import type { ExecutorDeps } from "./executor-deps.js";
+import type { FarmingControlRiskTrigger } from "./farming-control-risk-automation.js";
+import { farmingControlAutomaticToolDenied } from "./farming-control-risk-automation.js";
 import { loadFarmingControlContext } from "./farming-control-risk-context.js";
 import {
   FARMING_CONTROL_SAFE_TOOLS,
@@ -519,7 +521,14 @@ export function createRunExecutor(executorDeps: ExecutorDeps) {
           loadRunLoginRedactions(deps.prisma, deps.secretStore, run, run.id),
         ]);
         // Do not expose private history or model context to an externally started specialist run.
-        if (isFarmingControlSpecialist(bot)) await authorizeFarmingControlRun(deps, run, bot);
+        let riskAutomation: FarmingControlRiskTrigger | undefined;
+        if (isFarmingControlSpecialist(bot))
+          await authorizeFarmingControlRun(deps, run, bot, {
+            allowRiskAutomation: true,
+            onRiskAutomation: (proof) => {
+              riskAutomation = proof;
+            },
+          });
         const historySearchBeforeSeq =
           contextStrategy !== "current" && run.sourceMessageId
             ? (messages.find((message) => message.id === run.sourceMessageId)?.seq ??
@@ -1137,8 +1146,21 @@ export function createRunExecutor(executorDeps: ExecutorDeps) {
           run.trigger !== "created"
             ? agentConnectionTools.filter((tool) => !disabledBuiltinTools.has(tool.name))
             : []),
-        ].filter((tool) => !fcSpecialist || FARMING_CONTROL_SAFE_TOOLS.has(tool.name));
-        const fcTools = fcRole && deps.farmingControl ? farmingControlToolsForRole(fcRole) : [];
+        ].filter(
+          (tool) =>
+            (!fcSpecialist || FARMING_CONTROL_SAFE_TOOLS.has(tool.name)) &&
+            (!riskAutomation || !farmingControlAutomaticToolDenied(bot, run.trigger, tool.name)),
+        );
+        const fcTools =
+          fcRole && deps.farmingControl
+            ? farmingControlToolsForRole(fcRole).filter(
+                (tool) =>
+                  !riskAutomation ||
+                  (!farmingControlAutomaticToolDenied(bot, run.trigger, tool.name) &&
+                    (tool.name !== "farming_control_risk_research" ||
+                      riskAutomation.kind === "weekly_review")),
+              )
+            : [];
         const exposedConnectorTools = [...fcTools, ...(fcSpecialist ? [] : discovered)].filter(
           (tool) => !builtinAgentTools.some((builtin) => builtin.name === tool.name),
         );
@@ -1406,7 +1428,12 @@ export function createRunExecutor(executorDeps: ExecutorDeps) {
           }
         }
         const riskContext = fcContextKinds.length
-          ? await loadFarmingControlContext(deps.prisma, thread.id, run.sourceMessageId, fcContextKinds)
+          ? await loadFarmingControlContext(
+              deps.prisma,
+              thread.id,
+              run.sourceMessageId,
+              fcContextKinds,
+            )
           : undefined;
         const prompt = [
           replyContext,
@@ -1562,7 +1589,9 @@ export function createRunExecutor(executorDeps: ExecutorDeps) {
                 botInstructions: [
                   runIdentityInstruction(bot, run.trigger),
                   fcRole ? farmingControlWorkflow(fcRole) : undefined,
-                ].filter(Boolean).join("\n\n"),
+                ]
+                  .filter(Boolean)
+                  .join("\n\n"),
                 groupContext,
                 messagingContext,
                 redactedMemoryContext: memoryContext

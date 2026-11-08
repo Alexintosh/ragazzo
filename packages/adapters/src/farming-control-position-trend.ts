@@ -110,6 +110,12 @@ export async function readFarmingControlPositionTrend(options: {
   let minimumRate: FarmingControlPositionTrendPoint | null = null;
   let maximumRate: FarmingControlPositionTrendPoint | null = null;
   const savedRates: string[] = [];
+  const lastPointByDay = new Map<number, FarmingControlPositionTrendPoint>();
+  function saveChartPoint(point: FarmingControlPositionTrendPoint) {
+    const day = Math.floor(point.observedAtMs / 86_400_000);
+    const previous = lastPointByDay.get(day);
+    if (!previous || earlier(previous, point)) lastPointByDay.set(day, point);
+  }
   let latestRateFreshness: FarmingControlPositionTrend["latestRateFreshness"] = "unknown";
   let discoveryComplete = false;
   let discoveryCursor: string | undefined;
@@ -231,6 +237,7 @@ export async function readFarmingControlPositionTrend(options: {
           if (seen.has(point.observationId)) continue;
           seen.add(point.observationId);
           savedRates.push(point.percentPerYear);
+          saveChartPoint(point);
           // Use every unique canonical observation, including interior monthly points.
           // Tied extrema retain the earliest native observation deterministically.
           const minimumComparison = minimumRate
@@ -371,9 +378,20 @@ export async function readFarmingControlPositionTrend(options: {
     issues.add(
       "The quoted-rate mean gives each unique saved annual-rate observation equal weight; realized return is measured separately.",
     );
+  if (earliestRate) saveChartPoint(earliestRate);
+  if (latestRate) saveChartPoint(latestRate);
+  const daily = [...lastPointByDay.values()].sort((a, b) => a.observedAtMs - b.observedAtMs);
+  if (earliestRate && daily[0]?.observationId !== earliestRate.observationId)
+    daily.unshift(earliestRate);
+  // For multi-year holdings, retain native readings across the whole available range.
+  const chartPoints =
+    daily.length <= 366
+      ? daily
+      : Array.from({ length: 366 }, (_, i) => daily[Math.round((i * (daily.length - 1)) / 365)]!);
   return {
     positionId,
     walletVisibilityRevision,
+    chartPoints,
     fromMs,
     toMs,
     state: !earliestRate ? "unavailable" : retrievalComplete ? "available" : "partial",

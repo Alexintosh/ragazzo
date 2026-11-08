@@ -265,7 +265,7 @@ function SessionApp() {
                 <Route path="/onboarding/:step?" element={<OnboardingPage />} />
                 <Route path="/app" element={<ShellPage />} />
                 <Route path="/app/g/:groupId" element={<ShellPage />} />
-                <Route path="/app/farming/:fcView" element={<ShellPage />} />
+                <Route path="/app/farming/:fcView/:positionId?" element={<ShellPage />} />
                 <Route path="/app/artifacts" element={<ArtifactsPage />} />
                 <Route path="/app/artifacts/:artifactId" element={<ArtifactsPage />} />
                 {ticketBoardEnabled ? <Route path="/app/board" element={<BoardPage />} /> : null}

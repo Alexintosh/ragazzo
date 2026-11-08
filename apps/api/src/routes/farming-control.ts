@@ -1,6 +1,7 @@
 import { ORPCError } from "@orpc/server";
 import { farmingControlMentionKinds } from "@rakazo/core";
 import { FarmingControlAccessError } from "@rakazo/adapters";
+import { ensureFarmingControlRiskAutomation } from "../farming-control-risk-events.js";
 import { ensureFarmingControlTeam } from "../farming-control-team.js";
 import type { RouterContext } from "./context.js";
 
@@ -23,6 +24,9 @@ export function farmingControlRoutes({ deps, authed }: RouterContext) {
     farmingControl: {
       status: authed.farmingControl.status.handler(async ({ context }) =>
         api(() => service().status(context.actor)),
+      ),
+      positionDetail: authed.farmingControl.positionDetail.handler(({ context, input }) =>
+        api(() => service().positionDetail(context.actor, input)),
       ),
       positionHistory: authed.farmingControl.positionHistory.handler(({ context, input }) =>
         api(() => service().positionHistory(context.actor, input)),
@@ -53,6 +57,12 @@ export function farmingControlRoutes({ deps, authed }: RouterContext) {
       harvest: authed.farmingControl.harvest.handler(({ context }) =>
         api(() => service().harvest(context.actor)),
       ),
+      riskResearch: authed.farmingControl.riskResearch.handler(({ context }) =>
+        api(() => service().riskResearch(context.actor)),
+      ),
+      riskReview: authed.farmingControl.riskReview.handler(({ context, input }) =>
+        api(() => service().riskReview(context.actor, input)),
+      ),
       risk: authed.farmingControl.risk.handler(({ context }) =>
         api(() => service().risk(context.actor)),
       ),
@@ -63,7 +73,10 @@ export function farmingControlRoutes({ deps, authed }: RouterContext) {
         api(async () => {
           await service().authorize(context.actor);
           if (!service().configured) throw new ORPCError("NOT_FOUND");
-          return ensureFarmingControlTeam(deps.prisma, context.actor);
+          const team = await ensureFarmingControlTeam(deps.prisma, context.actor);
+          if (deps.farmingControlRiskAutomationEnabled)
+            await ensureFarmingControlRiskAutomation(deps, context.actor);
+          return team;
         }),
       ),
     },

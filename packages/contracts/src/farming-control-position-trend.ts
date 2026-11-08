@@ -53,6 +53,8 @@ export const FarmingControlPositionTrendSchema = z.object({
   windowMeaning: z.literal("provider_rate_window_not_holding_period"),
   adapterVersions: z.array(z.string().max(500)),
   months: z.array(FarmingControlPositionTrendMonthSchema).max(240),
+  /** Native observations sampled for display, chronologically, including the range boundaries. */
+  chartPoints: z.array(FarmingControlPositionTrendPointSchema).max(366).optional(),
   methodologyComparable: z.boolean(),
   methodologyCount: count,
   issues: z.array(issue),

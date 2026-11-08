@@ -4,10 +4,12 @@ import {
   FarmingControlPortfolioInputSchema,
   FarmingControlPositionHistoryInputSchema,
   FarmingControlRiskSchema,
+  FarmingControlRiskReviewInputSchema,
   MessageBlock,
 } from "@rakazo/contracts";
 import { farmingControlOutsideBlocks } from "@rakazo/core";
 import * as z from "zod";
+import { compactFarmingControlRiskReview, compactFarmingControlRiskResearch } from "./farming-control-risk-review-model.js";
 import { positionHistoryForModel } from "./farming-control-position-history-model.js";
 import type { ExecutorDeps } from "./executor-deps.js";
 import {
@@ -20,11 +22,20 @@ import {
   farmingControlRole,
   isFarmingControlSpecialist,
 } from "./farming-control-team-policy.js";
+import type { FarmingControlRiskTrigger } from "./farming-control-risk-automation.js";
+import { FarmingControlRiskTriggerSchema } from "./farming-control-risk-automation.js";
 import type { ToolHandler } from "./run-tool-gate.js";
 
-const findInput = z.object({
-  query: z.string().trim().max(500).transform((query) => query.replace(/^@/u, "").trim()).pipe(z.string().min(1)),
-}).strict();
+const findInput = z
+  .object({
+    query: z
+      .string()
+      .trim()
+      .max(500)
+      .transform((query) => query.replace(/^@/u, "").trim())
+      .pipe(z.string().min(1)),
+  })
+  .strict();
 const riskInput = z
   .object({
     exposureId: z.string().trim().min(1).max(200).optional(),
@@ -34,6 +45,9 @@ const riskInput = z
   .refine((input) => !input.signalKey || Boolean(input.exposureId), {
     message: "signalKey requires exposureId",
   });
+const riskReviewToolInput = FarmingControlRiskReviewInputSchema.extend({
+  inventoryOffset: z.number().int().min(0).max(1_000).optional(),
+});
 const DENIED = "This capability is not granted to this Farming Control specialist.";
 
 /** Defense in depth: profile edits, hidden calls, and connector aliases cannot expand the grant. */
@@ -43,13 +57,35 @@ export function farmingControlToolDenied(
   args: Record<string, unknown>,
   groupId: string | null,
 ): boolean {
+  if (name === "farming_control_risk_research") {
+    const role = farmingControlRole(bot);
+    return (
+      !role || !FARMING_CONTROL_GRANTS[role].includes("risk") || Object.keys(args).length !== 0
+    );
+  }
+  if (name === "farming_control_risk_review") {
+    const role = farmingControlRole(bot);
+    return (
+      !role ||
+      !FARMING_CONTROL_GRANTS[role].includes("risk") ||
+      !riskReviewToolInput.safeParse(args).success
+    );
+  }
   if (name === "farming_control_position_history") {
     const role = farmingControlRole(bot);
-    return !role || !FARMING_CONTROL_GRANTS[role].includes("portfolio") || !FarmingControlPositionHistoryInputSchema.safeParse(args).success;
+    return (
+      !role ||
+      !FARMING_CONTROL_GRANTS[role].includes("portfolio") ||
+      !FarmingControlPositionHistoryInputSchema.safeParse(args).success
+    );
   }
   if (name === "farming_control_find") {
     const role = farmingControlRole(bot);
-    return !role || !FARMING_CONTROL_GRANTS[role].includes("portfolio") || !findInput.safeParse(args).success;
+    return (
+      !role ||
+      !FARMING_CONTROL_GRANTS[role].includes("portfolio") ||
+      !findInput.safeParse(args).success
+    );
   }
   if (name === "farming_control_entity") {
     const role = farmingControlRole(bot);
@@ -180,6 +216,57 @@ export function scopedFarmingControlRiskRead(
   };
 }
 
+export const farmingControlRiskResearchTool: ToolHandler = async (ctx, call) => {
+  if (farmingControlToolDenied(ctx.bot, call.name, call.args, ctx.thread.groupId))
+    return { error: DENIED };
+  if (!ctx.deps.farmingControl?.riskResearch) return { error: "Risk research is not configured." };
+  try {
+    const actor = await authorizeFarmingControlRun(ctx.deps, ctx.run, ctx.bot, {
+      allowRiskAutomation: true,
+      automationKind: "weekly_review",
+    });
+    return compactFarmingControlRiskResearch(await ctx.deps.farmingControl.riskResearch(actor));
+  } catch {
+    return { error: "Official-source research is unavailable or this run is not authorized." };
+  }
+};
+
+export const farmingControlRiskReviewTool: ToolHandler = async (ctx, call) => {
+  if (farmingControlToolDenied(ctx.bot, call.name, call.args, ctx.thread.groupId))
+    return { error: DENIED };
+  if (!ctx.deps.farmingControl?.riskReview) return { error: "Farming Control is not configured." };
+  try {
+    let automation: FarmingControlRiskTrigger | undefined;
+    const actor = await authorizeFarmingControlRun(ctx.deps, ctx.run, ctx.bot, {
+      allowRiskAutomation: true,
+      onRiskAutomation: (proof) => {
+        automation = proof;
+      },
+    });
+    const { inventoryOffset, ...input } = riskReviewToolInput.parse(call.args);
+    if (automation?.kind === "emergency") {
+      if (
+        !automation.monitorKey ||
+        (input.monitorKey && input.monitorKey !== automation.monitorKey)
+      )
+        return { error: DENIED };
+      input.monitorKey = automation.monitorKey;
+    }
+    if (automation?.kind === "material_trend") {
+      const keys = automation.subjects?.map((subject) => subject.monitorKey) ?? [];
+      if (!input.monitorKey && keys.length === 1) input.monitorKey = keys[0];
+      if (!input.monitorKey || !keys.includes(input.monitorKey)) return { error: DENIED };
+    }
+    return compactFarmingControlRiskReview(await ctx.deps.farmingControl.riskReview(actor, input),
+      inventoryOffset === undefined ? {} : { inventoryOffset });
+  } catch {
+    return {
+      error:
+        "Monitoring review evidence is unavailable or this run is no longer authorized. No fresh evidence was returned.",
+    };
+  }
+};
+
 export const farmingControlFindTool: ToolHandler = async (ctx, call) => {
   const bridge = ctx.deps.farmingControl;
   if (farmingControlToolDenied(ctx.bot, call.name, call.args, ctx.thread.groupId))
@@ -189,7 +276,9 @@ export const farmingControlFindTool: ToolHandler = async (ctx, call) => {
     const actor = await authorizeFarmingControlRun(ctx.deps, ctx.run, ctx.bot);
     const { query } = findInput.parse(call.args);
     const catalog = await bridge.mentionTargets(actor, {
-      query, kinds: ["position", "wallet", "protocol"], limit: 11,
+      query,
+      kinds: ["position", "wallet", "protocol"],
+      limit: 11,
     });
     return {
       state: catalog.state,
@@ -197,7 +286,9 @@ export const farmingControlFindTool: ToolHandler = async (ctx, call) => {
       issues: catalog.issues,
       moreMatches: catalog.entities.length > 10,
       matches: catalog.entities.slice(0, 10).map(({ selection, label, detail }) => ({
-        ...selection, label, detail,
+        ...selection,
+        label,
+        detail,
       })),
     };
   } catch {
@@ -206,12 +297,16 @@ export const farmingControlFindTool: ToolHandler = async (ctx, call) => {
 };
 
 export const farmingControlPositionHistoryTool: ToolHandler = async (ctx, call) => {
-  if (farmingControlToolDenied(ctx.bot, call.name, call.args, ctx.thread.groupId)) return { error: DENIED };
+  if (farmingControlToolDenied(ctx.bot, call.name, call.args, ctx.thread.groupId))
+    return { error: DENIED };
   const bridge = ctx.deps.farmingControl;
   if (!bridge?.positionHistory) return { error: "Farming Control is not configured." };
   try {
     const actor = await authorizeFarmingControlRun(ctx.deps, ctx.run, ctx.bot);
-    const evidence = await bridge.positionHistory(actor, FarmingControlPositionHistoryInputSchema.parse(call.args));
+    const evidence = await bridge.positionHistory(
+      actor,
+      FarmingControlPositionHistoryInputSchema.parse(call.args),
+    );
     return positionHistoryForModel(evidence);
   } catch {
     return { error: "Historical position evidence could not be read for this run." };
@@ -273,9 +368,14 @@ export const farmingControlReadTool: ToolHandler = async (ctx, call) => {
  * a bot-owned run's userId as evidence of who requested the work.
  */
 export async function authorizeFarmingControlRun(
-  deps: Pick<ExecutorDeps, "prisma" | "farmingControl">,
+  deps: Pick<ExecutorDeps, "prisma" | "farmingControl" | "farmingControlRiskAutomationEnabled">,
   run: { id: string; botId: string; userId: string; spaceId: string; threadId: string },
   expectedBot?: { id: string; spaceId: string; userId: string; spawnKey?: string | null },
+  options: {
+    allowRiskAutomation?: boolean;
+    automationKind?: FarmingControlRiskTrigger["kind"];
+    onRiskAutomation?: (proof: FarmingControlRiskTrigger) => void;
+  } = {},
 ): Promise<Actor> {
   if (!deps.farmingControl) throw new Error(DENIED);
   let nextRunId = run.id;
@@ -297,6 +397,8 @@ export async function authorizeFarmingControlRun(
       select: {
         id: true,
         trigger: true,
+        clientNonce: true,
+        retryOfRunId: true,
         bot: {
           select: { id: true, spaceId: true, userId: true, spawnKey: true, archivedAt: true },
         },
@@ -327,7 +429,16 @@ export async function authorizeFarmingControlRun(
       (current.thread.groupId
         ? current.thread.groupId !== farmingControlGroupId(run.spaceId)
         : current.thread.botId !== current.bot.id) ||
-      (current.trigger !== "user" && current.trigger !== "follow_up")
+      (current.trigger !== "user" &&
+        current.trigger !== "follow_up" &&
+        !(
+          depth === 0 &&
+          options.allowRiskAutomation &&
+          deps.farmingControlRiskAutomationEnabled &&
+          current.trigger === "routine" &&
+          farmingControlRole(current.bot) === "risk" &&
+          !current.thread.groupId
+        ))
     )
       throw new Error(DENIED);
     if (
@@ -351,6 +462,47 @@ export async function authorizeFarmingControlRun(
       select: { id: true },
     });
     if (outsideSteering) throw new Error(DENIED);
+    if (current.trigger === "routine") {
+      if (current.sourceMessage) throw new Error(DENIED);
+      const steering = await deps.prisma.steeringMessage.findFirst({
+        where: { runId: current.id },
+        select: { id: true },
+      });
+      if (steering) throw new Error(DENIED);
+      const event = await deps.prisma.event.findFirst({
+        where: {
+          runId: current.id,
+          spaceId: run.spaceId,
+          threadId: current.thread.id,
+          botId: current.bot.id,
+          type: "routine.fired",
+          payload: {
+            path: ["farmingControlRiskTrigger", "schemaVersion"],
+            equals: "fc-risk-trigger.v1",
+          },
+        },
+        select: { payload: true },
+      });
+      const proof = FarmingControlRiskTriggerSchema.safeParse(
+        (event?.payload as { farmingControlRiskTrigger?: unknown } | null)
+          ?.farmingControlRiskTrigger,
+      );
+      if (
+        !proof.success ||
+        current.clientNonce !==
+          `fc-risk:v1:${proof.data.kind}:${proof.data.eventId}${current.retryOfRunId ? `:retry:${current.retryOfRunId}` : ""}` ||
+        (proof.data.kind === "emergency" &&
+          (!proof.data.event ||
+            proof.data.event.monitorKey !== proof.data.monitorKey ||
+            proof.data.event.eventId !== proof.data.eventId))
+      )
+        throw new Error(DENIED);
+      if (options.automationKind && options.automationKind !== proof.data.kind)
+        throw new Error(DENIED);
+      options.onRiskAutomation?.(proof.data);
+      ownerTurn = true;
+      break;
+    }
     const source = current.sourceMessage;
     if (
       !source ||

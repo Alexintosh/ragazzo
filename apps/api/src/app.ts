@@ -162,6 +162,7 @@ import { mountDiagramScript } from "./diagram-script.js";
 import { configuredEmailProvider } from "./email.js";
 import type { AppEnv } from "./env.js";
 import { loadEnv } from "./env.js";
+import { mountFarmingControlRiskEvents } from "./farming-control-risk-events.js";
 import { createFarmingControlService } from "./farming-control.js";
 import { healthRoutes } from "./health.js";
 import { mountLocalComputerHost } from "./local-settings.js";
@@ -617,6 +618,7 @@ async function buildApp(overrides: CreateAppOverrides): Promise<AppHandles> {
   const farmingControl = createFarmingControlService(prisma, env);
   const executor = createRunExecutor({
     farmingControl,
+    farmingControlRiskAutomationEnabled: (env.farmingControlRiskEventToken?.length ?? 0) >= 32,
     billingEnabled: modelCreditsEnabled,
     maxUploadSizeBytes: env.maxUploadSizeBytes,
     contextStrategy,
@@ -645,6 +647,7 @@ async function buildApp(overrides: CreateAppOverrides): Promise<AppHandles> {
       env.deploymentModelKey ?? "",
       env.composioApiKey ?? "",
       env.cursorApiKey ?? "",
+      env.farmingControlRiskEventToken ?? "",
       process.env.TYPESAFE_API_KEY ?? "",
     ].filter(Boolean),
     secretStore: secrets,
@@ -732,6 +735,7 @@ async function buildApp(overrides: CreateAppOverrides): Promise<AppHandles> {
 
   const router = createRouter({
     farmingControl,
+    farmingControlRiskAutomationEnabled: (env.farmingControlRiskEventToken?.length ?? 0) >= 32,
     speechSummary:
       env.voiceSummaryMinChars === undefined
         ? undefined
@@ -896,6 +900,7 @@ async function buildApp(overrides: CreateAppOverrides): Promise<AppHandles> {
   for (const [path, reason] of [
     ["/api/auth/*", "authentication"],
     ["/api/v1/bots/*", "bot webhook"],
+    ["/api/v1/farming-control/risk-events", "trusted FC risk event"],
     ["/api/v1/messaging/*", "messaging webhook"],
     ["/api/v1/phone/*", "messaging webhook"],
   ] as const) {
@@ -999,6 +1004,14 @@ async function buildApp(overrides: CreateAppOverrides): Promise<AppHandles> {
     sessionActor,
   );
   mountWebhookHttpRoutes(app, { prisma, secrets, events, jobs });
+  mountFarmingControlRiskEvents(app, {
+    prisma,
+    events,
+    jobs,
+    farmingControl,
+    ownerId: env.farmingControlOwnerUserId,
+    token: env.farmingControlRiskEventToken,
+  });
   if (billing && billingProvider) {
     mountBillingRoutes(app, {
       billing,

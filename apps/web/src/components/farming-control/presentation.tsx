@@ -373,19 +373,6 @@ export function ValueHistory({
         <span>{date(known[0]!.at)}</span>
         <span>{date(known.at(-1)!.at)}</span>
       </figcaption>
-      <details className="mt-3 text-xs text-muted-foreground">
-        <summary className="cursor-pointer">
-          <Trans>View observations</Trans>
-        </summary>
-        <div className="mt-2 max-h-40 overflow-y-auto">
-          {known.map((point) => (
-            <div key={point.snapshotId} className="flex justify-between gap-3 py-1 tabular-nums">
-              <time dateTime={point.at}>{new Date(point.at).toLocaleString()}</time>
-              <span>{exactAmount(point.value)}</span>
-            </div>
-          ))}
-        </div>
-      </details>
     </figure>
   );
 }

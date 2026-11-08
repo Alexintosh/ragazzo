@@ -44,6 +44,7 @@ import { ComputerUpdateProgress } from "../components/ComputerUpdateProgress";
 import { CallCard, CallReturnBar } from "../components/call/CallCard";
 import { IncomingCall } from "../components/call/IncomingCall";
 import type { FarmingControlChatDraft } from "../components/farming-control/card-context";
+import { usePortfolioDemo } from "../components/farming-control/use-portfolio-demo";
 import { FarmingControlNavigation } from "../components/farming-control/navigation";
 import { PageLoading } from "../components/PageLoading";
 import type { ArtifactTarget } from "../lib/artifact-open";
@@ -131,8 +132,9 @@ export function ShellPage() {
 
 function SpaceShell() {
   const { t } = useLingui();
-  const { botId, groupId, fcView } = useParams();
+  const { botId, groupId, fcView, positionId } = useParams();
   const parsedFarmingView = FarmingControlSectionSchema.safeParse(fcView);
+  const portfolioDemo = usePortfolioDemo();
   const farmingView: FarmingControlSection | null = parsedFarmingView.success
     ? parsedFarmingView.data
     : null;
@@ -909,7 +911,7 @@ function SpaceShell() {
             inGroup={inGroup}
             active={active}
             activeGroup={activeGroup}
-            botsSidebarDensity={botsSidebarDensity}
+            botsSidebarDensity={farmingView === "portfolio" && portfolioDemo.seed !== null ? "compact" : botsSidebarDensity}
             dismissedRunErrorIds={composer.dismissedRunErrorIds}
             displayedRunError={composer.displayedRunError}
             draggedBotId={rosterDrop.draggedBotId}
@@ -959,7 +961,7 @@ function SpaceShell() {
         {fcView ? (
           farmingStatus.isPending ? (
             <PageLoading />
-          ) : !farmingView ? (
+          ) : !farmingView || (positionId && farmingView !== "portfolio") ? (
             <div className="grid flex-1 place-items-center text-sm text-muted-foreground">
               <Trans>Page not found.</Trans>
             </div>
@@ -967,6 +969,8 @@ function SpaceShell() {
             <FarmingControlPage
               key={`${farmingView}:${userId ?? ""}:${shellSpaceId ?? ""}`}
               view={farmingView}
+              positionId={positionId}
+              portfolioDemo={portfolioDemo}
               rpc={rpc}
               queryScope={`${userId ?? ""}:${shellSpaceId ?? ""}`}
               coordinatorId={farmingTeam.data?.coordinatorId}
