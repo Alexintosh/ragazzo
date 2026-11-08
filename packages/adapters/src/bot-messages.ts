@@ -6,6 +6,8 @@ import {
   botMessageHopExhausted,
   buildBotMessageWakePrompt,
   clampBotMessage,
+  farmingControlBotId,
+  farmingControlRole,
   isFarmingControlSpecialist,
   nextBotMessageHop,
   resolveBotAddress,
@@ -18,6 +20,11 @@ import {
 } from "@rakazo/db";
 import { getLogger } from "@rakazo/logging";
 import type { ExecutorDeps } from "./executor-deps.js";
+import {
+  FarmingControlPrivateConsultationDenied,
+  verifyFarmingControlPrivateConsultation,
+  verifyFarmingControlPrivateRequest,
+} from "./farming-control-consultation.js";
 import { runLeaseFor } from "./run-messages.js";
 
 /**
@@ -106,7 +113,23 @@ export async function messageBot(
     name: input.confirm_name,
   });
   if (!target) return { ok: false as const, error: "no bot found with that id or name" };
-  if (isFarmingControlSpecialist({ id: target.id, spaceId: run.spaceId })) {
+  const privateConsultation =
+    isFarmingControlSpecialist({ id: target.id, spaceId: run.spaceId }) ||
+    isFarmingControlSpecialist({ id: run.botId, spaceId: run.spaceId });
+  const consultationRequest =
+    run.botId === farmingControlBotId(run.spaceId, "coordinator") &&
+    target.id === farmingControlBotId(run.spaceId, "opportunities") &&
+    (intent === "request" || intent === "question") &&
+    !options?.allowTerminalSource;
+  const consultationReturn =
+    run.botId === farmingControlBotId(run.spaceId, "opportunities") &&
+    target.id === farmingControlBotId(run.spaceId, "coordinator") &&
+    (intent === "result" || intent === "status") &&
+    options?.allowTerminalSource === true;
+  if (
+    privateConsultation &&
+    ((!consultationRequest && !consultationReturn) || sender.id !== run.botId)
+  ) {
     return {
       ok: false as const,
       error: "Farming Control specialists accept requests only in their private owner app chats.",
@@ -210,10 +233,60 @@ export async function messageBot(
             userId: run.userId,
             archivedAt: null,
           },
-          select: { id: true },
+          select: {
+            id: true,
+            spaceId: true,
+            userId: true,
+            spawnKey: true,
+            thread: {
+              select: {
+                id: true,
+                userId: true,
+                spaceId: true,
+                botId: true,
+                groupId: true,
+                externalConversationId: true,
+              },
+            },
+          },
         });
         if (!stillAddressable)
           return { ok: false as const, error: `${target.name} is no longer available` };
+
+        if (privateConsultation) {
+          const thread = stillAddressable.thread;
+          if (
+            farmingControlRole(stillAddressable) !==
+              (consultationRequest ? "opportunities" : "coordinator") ||
+            !thread ||
+            thread.id !== targetThreadId ||
+            thread.userId !== run.userId ||
+            thread.spaceId !== run.spaceId ||
+            thread.botId !== target.id ||
+            thread.groupId ||
+            thread.externalConversationId
+          )
+            return {
+              ok: false as const,
+              error: "The private consultation target is no longer available.",
+            };
+          try {
+            if (consultationRequest) await verifyFarmingControlPrivateRequest(tx, run);
+            else {
+              const proof = await verifyFarmingControlPrivateConsultation(tx, run, {
+                allowTerminalSource: true,
+              });
+              if (proof.intent !== "request" && proof.intent !== "question")
+                throw new FarmingControlPrivateConsultationDenied();
+            }
+          } catch (error) {
+            if (!(error instanceof FarmingControlPrivateConsultationDenied)) throw error;
+            return {
+              ok: false as const,
+              error: "This run is not authorized for a private Farming Control consultation.",
+            };
+          }
+        }
 
         // Echo into the sender's chat in the same transaction so a failed notify
         // cannot leave one side delivered and the other blank.
@@ -357,6 +430,23 @@ export async function returnBotMessageOutcome(
   if (sourceIntent !== "request" && sourceIntent !== "question") {
     await markBotOutcomeReturned(deps.prisma, run.id);
     return true;
+  }
+  if (
+    isFarmingControlSpecialist({ id: run.botId, spaceId: run.spaceId }) ||
+    isFarmingControlSpecialist({ id: source.fromBotId, spaceId: run.spaceId })
+  ) {
+    try {
+      const proof = await verifyFarmingControlPrivateConsultation(deps.prisma, run, {
+        allowTerminalSource: true,
+      });
+      if (proof.intent !== "request" && proof.intent !== "question")
+        throw new FarmingControlPrivateConsultationDenied();
+    } catch (error) {
+      if (!(error instanceof FarmingControlPrivateConsultationDenied)) throw error;
+      // Revoked or forged chains are permanent denials, not scheduler retry work.
+      await markBotOutcomeReturned(deps.prisma, run.id);
+      return true;
+    }
   }
   const sent = await deps.prisma.message.findMany({
     where: { threadId: run.threadId, runId: run.id },

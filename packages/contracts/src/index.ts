@@ -51,3 +51,5 @@ export * from "./user-devices.js";
 export * from "./voice-errors.js";
 
 export * from "./farming-control-position-detail.js";
+
+export * from "./farming-control-intelligence.js";

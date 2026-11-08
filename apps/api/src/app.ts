@@ -619,6 +619,8 @@ async function buildApp(overrides: CreateAppOverrides): Promise<AppHandles> {
   const executor = createRunExecutor({
     farmingControl,
     farmingControlRiskAutomationEnabled: (env.farmingControlRiskEventToken?.length ?? 0) >= 32,
+    farmingControlOpportunitiesEnabled: env.farmingControlOpportunitiesEnabled,
+    farmingControlOpportunityRefreshEnabled: env.farmingControlOpportunityRefreshEnabled,
     billingEnabled: modelCreditsEnabled,
     maxUploadSizeBytes: env.maxUploadSizeBytes,
     contextStrategy,
@@ -736,6 +738,8 @@ async function buildApp(overrides: CreateAppOverrides): Promise<AppHandles> {
   const router = createRouter({
     farmingControl,
     farmingControlRiskAutomationEnabled: (env.farmingControlRiskEventToken?.length ?? 0) >= 32,
+    farmingControlOpportunitiesEnabled: env.farmingControlOpportunitiesEnabled,
+    farmingControlOpportunityRefreshEnabled: env.farmingControlOpportunityRefreshEnabled,
     speechSummary:
       env.voiceSummaryMinChars === undefined
         ? undefined

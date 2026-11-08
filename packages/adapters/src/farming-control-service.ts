@@ -1,7 +1,20 @@
-import type { Actor, FarmingControlPositionDetailInput, FarmingControlPositionHistoryInput, FarmingControlRiskReviewInput, FarmingControlEntityCatalogInput, FarmingControlEntitySelection, FarmingControlPortfolioInput, FarmingControlSection } from "@rakazo/contracts";
+import type {
+  Actor,
+  FarmingControlEntityCatalogInput,
+  FarmingControlEntitySelection,
+  FarmingControlIntelligenceInput,
+  FarmingControlPortfolioInput,
+  FarmingControlPositionDetailInput,
+  FarmingControlPositionHistoryInput,
+  FarmingControlRecommendationFeedbackInput,
+  FarmingControlRiskReviewInput,
+  FarmingControlSection,
+  FarmingControlSourceRefreshInput,
+} from "@rakazo/contracts";
 import type { PrismaClient } from "@rakazo/db";
 import { runAsSystem } from "@rakazo/db";
 import { createFarmingControlClient } from "./farming-control.js";
+import { createFarmingControlIntelligence } from "./farming-control-intelligence.js";
 
 export class FarmingControlAccessError extends Error {
   constructor(
@@ -27,6 +40,9 @@ export function createFarmingControlService(
   const ownerId = config.farmingControlOwnerUserId?.trim();
   const client = config.farmingControlApiUrl
     ? createFarmingControlClient({ baseUrl: config.farmingControlApiUrl, fetch: transport })
+    : null;
+  const intelligence = config.farmingControlApiUrl
+    ? createFarmingControlIntelligence({ baseUrl: config.farmingControlApiUrl, fetch: transport })
     : null;
   async function authorize(actor: Actor): Promise<void> {
     if (!ownerId) throw new FarmingControlAccessError("NOT_FOUND");
@@ -80,10 +96,40 @@ export function createFarmingControlService(
             fetchedAtMs: Date.now(),
           };
     },
+    async intelligence(actor: Actor, input: FarmingControlIntelligenceInput) {
+      await authorize(actor);
+      if (!intelligence) throw new FarmingControlAccessError("NOT_FOUND");
+      return intelligence.read(input);
+    },
+    async refreshSources(actor: Actor, input: FarmingControlSourceRefreshInput) {
+      await authorize(actor);
+      if (!intelligence) throw new FarmingControlAccessError("NOT_FOUND");
+      return intelligence.refreshSources(input);
+    },
+    async recommendationFeedback(
+      actor: Actor,
+      input: FarmingControlRecommendationFeedbackInput,
+      requestKey: string,
+    ) {
+      await authorize(actor);
+      if (!intelligence) throw new FarmingControlAccessError("NOT_FOUND");
+      return intelligence.feedback(input, requestKey);
+    },
+    async refreshOpportunitySources(actor: Actor, scheduledAtMs: number) {
+      await authorize(actor);
+      if (!intelligence) throw new FarmingControlAccessError("NOT_FOUND");
+      return intelligence.refresh(scheduledAtMs);
+    },
+    async opportunityPublish(actor: Actor, input: unknown) {
+      await authorize(actor);
+      if (!intelligence) throw new FarmingControlAccessError("NOT_FOUND");
+      return intelligence.publish(input);
+    },
     async read(actor: Actor, section: FarmingControlSection, input?: FarmingControlPortfolioInput) {
       await authorize(actor);
       if (!client)
         throw new FarmingControlAccessError("NOT_FOUND", "Farming Control is not configured.");
+      if (section === "intelligence") return intelligence!.read({ action: "sources" });
       return client.read(section, input);
     },
     async mentionTargets(actor: Actor, input?: FarmingControlEntityCatalogInput) {
@@ -101,7 +147,9 @@ export function createFarmingControlService(
       if (!client) throw new FarmingControlAccessError("NOT_FOUND");
       return client.positionHistory(input);
     },
-    async entity(actor: Actor, selection: FarmingControlEntitySelection,
+    async entity(
+      actor: Actor,
+      selection: FarmingControlEntitySelection,
       options?: { includeRisk?: boolean },
     ) {
       await authorize(actor);

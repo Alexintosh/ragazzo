@@ -62,7 +62,20 @@ export function farmingControlAutomaticToolDenied(
   trigger: string,
   name: string,
 ): boolean {
-  return farmingControlRole(bot) === "risk" && trigger === "routine" && !AUTOMATIC_TOOLS.has(name);
+  if (trigger !== "routine") return false;
+  if (farmingControlRole(bot) === "opportunities")
+    return !new Set([
+      "farming_control_intelligence",
+      "farming_control_opportunity_publish",
+      "farming_control_portfolio",
+      "farming_control_risk",
+      "farming_control_risk_review",
+      "farming_control_entity",
+      "farming_control_find",
+      "farming_control_position_history",
+      "skill_read",
+    ]).has(name);
+  return farmingControlRole(bot) === "risk" && !AUTOMATIC_TOOLS.has(name);
 }
 export const FC_RISK_AUTOMATIONS = [
   { kind: "material_trend", name: "Risk trend review", crons: ["*/30 * * * *"] },
@@ -95,9 +108,17 @@ export function farmingControlRiskAutomaticPrompt(
     "For a weekly review, research the saved evidence across the week and give a concise decision brief with supported changes and questions requiring investigation. For an emergency or material change, lead with the changed subject and current evidence. Deliver the complete brief as your normal final reply in this private Risk chat. The brief is informational: no transactions, execution tools, outbound messages, handoffs, or financial-response automation. Do not request execution through another specialist.",
   ].join("\n\n");
 }
-function currentTrendFamilies(item: NonNullable<FarmingControlRiskReview["evidence"]>["items"][number]) {
-  return item.history.truncated ? [] : item.trend.families.filter(family =>
-    family.currentLineage ?? (item.current.observedAtMs !== null && family.last.observedAtMs === item.current.observedAtMs));
+function currentTrendFamilies(
+  item: NonNullable<FarmingControlRiskReview["evidence"]>["items"][number],
+) {
+  return item.history.truncated
+    ? []
+    : item.trend.families.filter(
+        (family) =>
+          family.currentLineage ??
+          (item.current.observedAtMs !== null &&
+            family.last.observedAtMs === item.current.observedAtMs),
+      );
 }
 
 export function riskTrendFingerprint(review: FarmingControlRiskReview): {

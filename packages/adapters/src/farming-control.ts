@@ -1621,7 +1621,7 @@ export function createFarmingControlClient(options: {
         fetchedAtMs: now(),
       };
     },
-    read(section: FarmingControlSection, input?: FarmingControlPortfolioInput) {
+    read(section: Exclude<FarmingControlSection, "intelligence">, input?: FarmingControlPortfolioInput) {
       return section === "portfolio" ? portfolio(input) : { harvest, risk, accounting }[section]();
     },
   };

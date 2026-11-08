@@ -89,7 +89,7 @@ import type { FarmingControlRiskTrigger } from "./farming-control-risk-automatio
 import { farmingControlAutomaticToolDenied } from "./farming-control-risk-automation.js";
 import { loadFarmingControlContext } from "./farming-control-risk-context.js";
 import {
-  FARMING_CONTROL_SAFE_TOOLS,
+  farmingControlSafeToolsForRole,
   farmingControlRole,
   farmingControlWorkflow,
   farmingControlToolsForRole,
@@ -522,9 +522,15 @@ export function createRunExecutor(executorDeps: ExecutorDeps) {
         ]);
         // Do not expose private history or model context to an externally started specialist run.
         let riskAutomation: FarmingControlRiskTrigger | undefined;
+        let consultationRootMessageId: string | undefined;
         if (isFarmingControlSpecialist(bot))
           await authorizeFarmingControlRun(deps, run, bot, {
             allowRiskAutomation: true,
+            allowOpportunityAutomation: true,
+            allowPrivateConsultation: true,
+            onPrivateConsultation: (proof) => {
+              consultationRootMessageId = proof.rootSourceMessageId;
+            },
             onRiskAutomation: (proof) => {
               riskAutomation = proof;
             },
@@ -622,9 +628,14 @@ export function createRunExecutor(executorDeps: ExecutorDeps) {
           !fcSpecialist && deps.connector
             ? deps.connector.discoverTools(context)
             : Promise.resolve([]);
-        const safeMessages = fcSpecialist
-          ? messages.filter((message) => !farmingControlOutsideBlocks(message.blocks))
-          : messages;
+        const safeMessages = messages.filter((message) => {
+          if (consultationRootMessageId !== undefined) {
+            // Only the verified inbound message and, on return to the Coordinator,
+            // the owner's original question belong to this consultation.
+            return message.id === run.sourceMessageId || message.id === consultationRootMessageId;
+          }
+          return !fcSpecialist || !farmingControlOutsideBlocks(message.blocks);
+        });
         const threadContext = threadContextForRun(
           run.trigger,
           {
@@ -708,6 +719,7 @@ export function createRunExecutor(executorDeps: ExecutorDeps) {
             : DELEGATED_EMPTY_NOTICE
           : undefined;
         const recallPromise =
+          consultationRootMessageId === undefined &&
           threadContext.includeSemanticRecall &&
           semanticMemory &&
           memoryScope &&
@@ -733,16 +745,16 @@ export function createRunExecutor(executorDeps: ExecutorDeps) {
         ] = await Promise.all([
           discoveredPromise,
           loadCurrentTurnImages(deps, turnBlocks, context),
-          messagingChannelRun
+          messagingChannelRun || consultationRootMessageId !== undefined
             ? Promise.resolve("")
             : loadAgentMemoryContext(deps.memory, bot.id, context),
-          messagingChannelRun
+          messagingChannelRun || consultationRootMessageId !== undefined
             ? Promise.resolve("")
             : loadAgentScratchpadContext(deps, {
                 spaceId: run.spaceId,
                 botId: bot.id,
               }),
-          messagingChannelRun || !deps.ticketBoardEnabled
+          messagingChannelRun || consultationRootMessageId !== undefined || !deps.ticketBoardEnabled
             ? Promise.resolve(undefined)
             : loadAgentTicketContext(deps, {
                 spaceId: run.spaceId,
@@ -1148,17 +1160,23 @@ export function createRunExecutor(executorDeps: ExecutorDeps) {
             : []),
         ].filter(
           (tool) =>
-            (!fcSpecialist || FARMING_CONTROL_SAFE_TOOLS.has(tool.name)) &&
-            (!riskAutomation || !farmingControlAutomaticToolDenied(bot, run.trigger, tool.name)),
+            (!fcSpecialist || (fcRole && farmingControlSafeToolsForRole(fcRole).has(tool.name))) &&
+            (consultationRootMessageId === undefined || tool.name === "skill_read") &&
+            (tool.name !== "message_bot" ||
+              !fcSpecialist ||
+              (ownerStartedRun && !thread.groupId)) &&
+            !farmingControlAutomaticToolDenied(bot, run.trigger, tool.name),
         );
         const fcTools =
           fcRole && deps.farmingControl
             ? farmingControlToolsForRole(fcRole).filter(
                 (tool) =>
-                  !riskAutomation ||
-                  (!farmingControlAutomaticToolDenied(bot, run.trigger, tool.name) &&
-                    (tool.name !== "farming_control_risk_research" ||
-                      riskAutomation.kind === "weekly_review")),
+                  (consultationRootMessageId === undefined ||
+                    (fcRole === "opportunities" && tool.readOnly === true)) &&
+                  !farmingControlAutomaticToolDenied(bot, run.trigger, tool.name) &&
+                  (!riskAutomation ||
+                    tool.name !== "farming_control_risk_research" ||
+                    riskAutomation.kind === "weekly_review"),
               )
             : [];
         const exposedConnectorTools = [...fcTools, ...(fcSpecialist ? [] : discovered)].filter(

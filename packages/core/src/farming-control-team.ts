@@ -7,6 +7,7 @@ export const FARMING_CONTROL_ROLES = [
   "tax",
   "risk",
   "operations",
+  "opportunities",
 ] as const;
 export type FarmingControlRole = (typeof FARMING_CONTROL_ROLES)[number];
 export function farmingControlBotId(spaceId: string, role: FarmingControlRole): string {
@@ -48,13 +49,15 @@ export function farmingControlOutsideBlocks(blocks: unknown): boolean {
 }
 
 /** The same grants drive specialist tools, selector admission, and composer availability. */
-export const FARMING_CONTROL_GRANTS: Record<FarmingControlRole, readonly FarmingControlSection[]> = {
-  coordinator: ["portfolio", "harvest", "risk", "accounting"],
-  accounting: ["accounting", "harvest"],
-  tax: ["accounting"],
-  risk: ["risk", "portfolio"],
-  operations: ["portfolio", "harvest"],
-};
+export const FARMING_CONTROL_GRANTS: Record<FarmingControlRole, readonly FarmingControlSection[]> =
+  {
+    coordinator: ["portfolio", "harvest", "risk", "accounting", "intelligence"],
+    accounting: ["accounting", "harvest"],
+    tax: ["accounting"],
+    risk: ["risk", "portfolio"],
+    operations: ["portfolio", "harvest"],
+    opportunities: ["portfolio", "risk", "intelligence"],
+  };
 export function farmingControlMentionKinds(
   bot: BotIdentity | null | undefined,
   thread?: { groupId?: string | null; externalConversationId?: string | null } | null,
@@ -64,7 +67,7 @@ export function farmingControlMentionKinds(
   if (!role) return [];
   const grants = FARMING_CONTROL_GRANTS[role];
   return [
-    ...(grants.includes("portfolio") ? ["position", "wallet", "protocol"] as const : []),
-    ...(grants.includes("risk") ? ["risk"] as const : []),
+    ...(grants.includes("portfolio") ? (["position", "wallet", "protocol"] as const) : []),
+    ...(grants.includes("risk") ? (["risk"] as const) : []),
   ];
 }

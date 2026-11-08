@@ -1,6 +1,6 @@
-import { farmingControlAutomaticToolDenied } from "./farming-control-risk-automation.js";
 import type { AgentToolExecutionObserver } from "@rakazo/adapter-kit";
 import { toolResultTaintsRun } from "@rakazo/core";
+import { farmingControlAutomaticToolDenied } from "./farming-control-risk-automation.js";
 import { FARMING_CONTROL_TOOL_SECTIONS } from "./farming-control-team-policy.js";
 import { IMAGE_RETURNING_COMPUTER_TOOLS, MODEL_CANNOT_SEE_MESSAGE } from "./model-vision.js";
 import type { RunContext } from "./run-context.js";
@@ -10,12 +10,16 @@ import { prepareToolRequest, resolveToolRequest } from "./run-tool-request.js";
 import { PAGE_BROWSER_TOOL_NAMES } from "./run-tool-selection.js";
 import { computerTools, pageBrowserTool } from "./run-tools-computer.js";
 import {
-  farmingControlRiskReviewTool,
-  farmingControlRiskResearchTool,
   farmingControlEntityTool,
   farmingControlFindTool,
+  farmingControlIntelligenceTool,
+  farmingControlOpportunityPublishTool,
   farmingControlPositionHistoryTool,
   farmingControlReadTool,
+  farmingControlRecommendationFeedbackTool,
+  farmingControlRiskResearchTool,
+  farmingControlRiskReviewTool,
+  farmingControlSourceRefreshTool,
   farmingControlToolDenied,
 } from "./run-tools-farming-control.js";
 import { fileTools } from "./run-tools-files.js";
@@ -38,6 +42,10 @@ import {
 import { argumentGiven } from "./update-bot-patch.js";
 
 const TOOL_HANDLERS = new Map<string, ToolHandler>([
+  ["farming_control_intelligence", farmingControlIntelligenceTool],
+  ["farming_control_source_refresh", farmingControlSourceRefreshTool],
+  ["farming_control_opportunity_publish", farmingControlOpportunityPublishTool],
+  ["farming_control_recommendation_feedback", farmingControlRecommendationFeedbackTool],
   ["farming_control_risk_review", farmingControlRiskReviewTool],
   ["farming_control_risk_research", farmingControlRiskResearchTool],
   ["farming_control_position_history", farmingControlPositionHistoryTool],

@@ -15,7 +15,7 @@ const meta = {
   issues: z.array(text),
   sources: z.array(z.string()),
 };
-export const FarmingControlSectionSchema = z.enum(["portfolio", "harvest", "risk", "accounting"]);
+export const FarmingControlSectionSchema = z.enum(["portfolio", "harvest", "risk", "accounting", "intelligence"]);
 export type FarmingControlSection = z.infer<typeof FarmingControlSectionSchema>;
 export const FarmingControlStatusSchema = z.object({
   configured: z.boolean(),

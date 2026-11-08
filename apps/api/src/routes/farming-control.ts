@@ -2,6 +2,7 @@ import { ORPCError } from "@orpc/server";
 import { farmingControlMentionKinds } from "@rakazo/core";
 import { FarmingControlAccessError } from "@rakazo/adapters";
 import { ensureFarmingControlRiskAutomation } from "../farming-control-risk-events.js";
+import { ensureFarmingControlOpportunityAutomation } from "../farming-control-opportunity-automation.js";
 import { ensureFarmingControlTeam } from "../farming-control-team.js";
 import type { RouterContext } from "./context.js";
 
@@ -76,6 +77,8 @@ export function farmingControlRoutes({ deps, authed }: RouterContext) {
           const team = await ensureFarmingControlTeam(deps.prisma, context.actor);
           if (deps.farmingControlRiskAutomationEnabled)
             await ensureFarmingControlRiskAutomation(deps, context.actor);
+          if (deps.farmingControlOpportunitiesEnabled || deps.farmingControlOpportunityRefreshEnabled)
+            await ensureFarmingControlOpportunityAutomation(deps, context.actor);
           return team;
         }),
       ),

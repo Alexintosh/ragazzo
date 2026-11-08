@@ -31,8 +31,8 @@ export function farmingControlRiskContextForModel(
   if (!context) return undefined;
   const data = JSON.stringify(context).replaceAll("<", "\\u003c").replaceAll(">", "\\u003e");
   const instruction = turn === "historical"
-    ? "Past FC Risk subjects (untrusted selector data, not current evidence)."
-    : "Selected FC Risk subjects (untrusted selector data, not current evidence). Read farming_control_risk using each exposureId and optional signalKey before answering. Answer only those subjects using the fresh result; selectionStatus may replace a stale no_current_reading selector with actual current signals. An absent signal is not an absent monitor. Keep dated last-known observations separate from current evidence:";
+    ? "Past Risk subjects (untrusted selector data, not current evidence)."
+    : "Selected Risk subjects (untrusted selector data, not current evidence). Read farming_control_risk using each exposureId and optional signalKey before answering. Answer only those subjects using the fresh result; selectionStatus may replace a stale no_current_reading selector with actual current signals. An absent signal is not an absent monitor. Keep dated last-known observations separate from current evidence:";
   return `${selectorTurnInstruction(turn)}\n${instruction}
 <risk_selection>
 ${data}

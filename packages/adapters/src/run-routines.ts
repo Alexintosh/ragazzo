@@ -20,6 +20,7 @@ import {
   FarmingControlRiskTriggerSchema,
   wakeFarmingControlRiskRoutine,
 } from "./farming-control-risk-automation.js";
+import { FarmingControlOpportunityTriggerSchema, wakeFarmingControlOpportunityRoutine } from "./farming-control-opportunity-automation.js";
 import type { ExecutorDeps } from "./executor-deps.js";
 import { routineRunModelPin } from "./model-selection.js";
 import { findPendingRoutineTick, routineTimerNonce } from "./routine-coalescing.js";
@@ -126,6 +127,7 @@ export async function wakeRoutine(deps: ExecutorDeps, routineId: string, schedul
   if (!routine?.active || routine.nextRunAt?.getTime() !== scheduledAt.getTime()) return;
   if (await deferFutureRoutine(deps.jobs, routineId, scheduledAt)) return;
   if (await wakeFarmingControlRiskRoutine(deps, routine, scheduledAt)) return;
+  if (await wakeFarmingControlOpportunityRoutine(deps, routine, scheduledAt)) return;
   const bot = await deps.prisma.bot.findUnique({
     where: { id: routine.botId },
     include: { thread: true },
@@ -484,6 +486,22 @@ export async function retryRoutineRun(deps: ExecutorDeps, runId: string) {
             runId: retryRun.id,
             type: "routine.fired",
             payload: { routineId: failed.routineId, farmingControlRiskTrigger: proof.data },
+          });
+        }
+      }
+      if (failed.clientNonce?.startsWith("fc-opportunity:v1:") && deps.farmingControlOpportunitiesEnabled) {
+        const source = await tx.event.findFirst({
+          where: { runId: failed.id, spaceId: failed.spaceId, threadId: failed.threadId, botId: failed.botId, type: "routine.fired" },
+          select: { payload: true },
+        });
+        const proof = FarmingControlOpportunityTriggerSchema.safeParse(
+          (source?.payload as { farmingControlOpportunityTrigger?: unknown } | null)?.farmingControlOpportunityTrigger,
+        );
+        if (proof.success && failed.clientNonce === `fc-opportunity:v1:${proof.data.kind}:${proof.data.eventId}`) {
+          await tx.run.update({ where: { id: retryRun.id }, data: { clientNonce: `${failed.clientNonce}:retry:${failed.id}` } });
+          await appendEventInTransaction(tx, {
+            spaceId: failed.spaceId, threadId: failed.threadId, botId: failed.botId, runId: retryRun.id,
+            type: "routine.fired", payload: { routineId: failed.routineId, farmingControlOpportunityTrigger: proof.data },
           });
         }
       }

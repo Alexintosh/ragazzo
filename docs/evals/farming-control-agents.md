@@ -1,6 +1,6 @@
 # Farming Control agent benchmark
 
-Design proposal for the Ragazzo testkit. The first suite evaluates FC Risk. The same runner should later support yield questions for the coordinator, harvest reconciliation for Accounting, and fiscal-evidence questions for Tax.
+Design proposal for the Ragazzo testkit. The first suite evaluates Risk. The same runner should later support yield questions for the coordinator, harvest reconciliation for Accounting, and fiscal-evidence questions for Tax.
 
 ## What one trial measures
 
@@ -19,6 +19,8 @@ Consider two Safe positions with the same pool label. The operator tags the seco
 | Existing judge, reporting and budget support | Supply FC-specific rubrics, reviewed calibration examples and per-axis grades. Measure inference and grading separately. |
 
 Create the synthetic owner before constructing the owner-bound FC service, then reopen the app on the same disposable database for the trial. Specify the fixture owner and API endpoint explicitly. Disable background routines and delivery. A research capability needs its own fixture transport or an unavailable result because it can read official external sites independently of the FC API. A scripted offline run in CI verifies transport, tags, grants and joins. A scored agent run lets a real model select tools against those same fixtures. A replay supplied with correctly joined evidence is a diagnostic control for a failed scored run.
+
+The companion design specifies how to research incidents, generate protocol state, and expose evidence by turn. [Synthetic risk scenarios](./farming-control-synthetic-data.md)
 
 ## Initial case bank
 

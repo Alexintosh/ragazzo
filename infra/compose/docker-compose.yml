@@ -6,6 +6,8 @@ x-app-environment: &app-environment
   FARMING_CONTROL_API_URL:
   FARMING_CONTROL_OWNER_USER_ID:
   FARMING_CONTROL_RISK_EVENT_TOKEN:
+  FARMING_CONTROL_OPPORTUNITIES_ENABLED:
+  FARMING_CONTROL_OPPORTUNITY_REFRESH_ENABLED:
   # Runtime
   NODE_ENV: ${NODE_ENV:-production}
   # The app's own login, subject to row-level security (docs/self-host-configuration.md#database-roles).

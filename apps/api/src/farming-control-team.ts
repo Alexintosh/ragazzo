@@ -4,6 +4,7 @@ import {
   farmingControlBotId,
   farmingControlGroupId,
   farmingControlInstructions,
+  farmingControlSafeToolsForRole,
   farmingControlSpawnKey,
   farmingControlWorkflow,
 } from "@rakazo/adapters";
@@ -33,6 +34,29 @@ export async function ensureFarmingControlTeam(prisma: PrismaClient, actor: Acto
       );
     }
     const instructions = farmingControlInstructions(specialist.role, actor.spaceId);
+    const disabledBuiltinTools = BUILTIN_TOOL_NAMES.filter(
+      (name) => !farmingControlSafeToolsForRole(specialist.role).has(name),
+    );
+    const generatedInstructions = (["current", "legacy", "pre-risk"] as const).flatMap(
+      (precision) =>
+        (["current", "legacy"] as const).flatMap((team) =>
+          (["current", "legacy"] as const).flatMap((consultation) =>
+            (["current", "legacy"] as const).flatMap((names) =>
+              (["current", "legacy"] as const).map((refresh) =>
+                farmingControlInstructions(
+                  specialist.role,
+                  actor.spaceId,
+                  precision,
+                  team,
+                  consultation,
+                  names,
+                  refresh,
+                ),
+              ),
+            ),
+          ),
+        ),
+    );
     if (!prior) {
       await repos.createBot(actor, {
         id,
@@ -42,17 +66,56 @@ export async function ensureFarmingControlTeam(prisma: PrismaClient, actor: Acto
         instructions,
         notifyOnFinish: true,
         fleetManagement: false,
-        disabledBuiltinTools: BUILTIN_TOOL_NAMES.filter(
-          (name) => !FARMING_CONTROL_SAFE_TOOLS.has(name),
-        ),
+        disabledBuiltinTools,
       });
-    } else if (prior.instructions === farmingControlInstructions(specialist.role, actor.spaceId, "legacy")) {
-      // Upgrade only an untouched generated profile. The predicate also preserves concurrent edits.
-      await prisma.bot.updateMany({
-        where: { id, spaceId: actor.spaceId, userId: actor.userId, spawnKey, archivedAt: null, instructions: prior.instructions },
-        data: { instructions },
-      });
+    } else if (generatedInstructions.includes(prior.instructions)) {
+      const legacyDisabled = BUILTIN_TOOL_NAMES.filter(
+        (name) => !FARMING_CONTROL_SAFE_TOOLS.has(name),
+      );
+      const generatedToolPolicy =
+        prior.disabledBuiltinTools.length === legacyDisabled.length &&
+        legacyDisabled.every((name) => prior.disabledBuiltinTools.includes(name));
+      // Upgrade only generated profiles and exact generated tool restrictions.
+      // CAS preserves concurrent instruction and tool edits independently.
+      if (prior.instructions !== instructions)
+        await prisma.bot.updateMany({
+          where: {
+            id,
+            spaceId: actor.spaceId,
+            userId: actor.userId,
+            spawnKey,
+            archivedAt: null,
+            instructions: prior.instructions,
+          },
+          data: { instructions },
+        });
+      if (specialist.role === "coordinator" && generatedToolPolicy)
+        await prisma.bot.updateMany({
+          where: {
+            id,
+            spaceId: actor.spaceId,
+            userId: actor.userId,
+            spawnKey,
+            archivedAt: null,
+            instructions,
+            disabledBuiltinTools: { equals: prior.disabledBuiltinTools },
+          },
+          data: { disabledBuiltinTools },
+        });
     }
+    // Rename only the old generated default; preserve personalized profiles and concurrent edits.
+    if (prior?.name === `FC ${specialist.name}`)
+      await prisma.bot.updateMany({
+        where: {
+          id,
+          spaceId: actor.spaceId,
+          userId: actor.userId,
+          spawnKey,
+          archivedAt: null,
+          name: prior.name,
+        },
+        data: { name: specialist.name },
+      });
     // Deterministic skill identity makes a failed or concurrent first session repeat-safe.
     // It is deployment-provided and is read-only through the ordinary skill API.
     const skillId = `${id}:skill`;
@@ -75,12 +138,42 @@ export async function ensureFarmingControlTeam(prisma: PrismaClient, actor: Acto
         content,
       },
     });
-    bots.push({ id, role: specialist.role, name: prior?.name ?? specialist.name });
+    const profile = await prisma.bot.findUnique({ where: { id }, select: { name: true } });
+    bots.push({ id, role: specialist.role, name: profile?.name ?? specialist.name });
   }
-  const group = await createGroupRepos(prisma).createGroup(actor, {
+  const groupId = farmingControlGroupId(actor.spaceId);
+  const groups = createGroupRepos(prisma);
+  const existing = await prisma.chatGroup.findUnique({
+    where: { id: groupId },
+    select: { userId: true, spaceId: true, archivedAt: true, members: { select: { botId: true } } },
+  });
+  const botIds = bots.map((bot) => bot.id);
+  const legacyIds = botIds.filter(
+    (id) => id !== farmingControlBotId(actor.spaceId, "opportunities"),
+  );
+  if (existing) {
+    if (
+      existing.userId !== actor.userId ||
+      existing.spaceId !== actor.spaceId ||
+      existing.archivedAt
+    )
+      throw new IsolationError("The configured FC group is unavailable.");
+    const current = existing.members.map((member) => member.botId);
+    if (current.length === legacyIds.length && current.every((id) => legacyIds.includes(id))) {
+      // Only the exact generated five-member team can be upgraded. CAS preserves concurrent edits.
+      try {
+        await groups.updateGroup(actor, { groupId, botIds, expectedBotIds: legacyIds });
+      } catch (error) {
+        // A concurrent provisioning may have completed the same upgrade. The strict
+        // createGroup reread below accepts only the exact current generated membership.
+        if (!(error instanceof IsolationError)) throw error;
+      }
+    }
+  }
+  const group = await groups.createGroup(actor, {
     id: farmingControlGroupId(actor.spaceId),
     name: "Farming Control",
-    botIds: bots.map((bot) => bot.id),
+    botIds,
   });
   return { groupId: group.id, coordinatorId: bots[0]!.id, bots };
 }

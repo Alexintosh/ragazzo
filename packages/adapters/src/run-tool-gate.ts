@@ -15,6 +15,7 @@ import {
   connectorToolRequiresApproval,
   decisiveActionApprovalRules,
   displayName,
+  farmingControlRole,
   humanizeToolName,
   newSiteOutcome,
   outboundSiteGate,
@@ -144,7 +145,7 @@ export async function gateToolCall(
     request;
   const { replayEffectToolName } = request;
   let { args, effectRequest } = request;
-  // Scoped no-argument FC reads use the builtin gate after dispatch enforces their role.
+  // Fixed internal FC reads use the builtin gate. Dispatch checks role, origin and arguments.
   // This does not trust arbitrary connector routes or relax their approval requirements.
   const fixedFarmingControlRead =
     FARMING_CONTROL_TOOL_SECTIONS.has(name) ||
@@ -152,7 +153,11 @@ export async function gateToolCall(
     name === "farming_control_find" ||
     name === "farming_control_position_history" ||
     name === "farming_control_risk_review" ||
-    name === "farming_control_risk_research";
+    name === "farming_control_risk_research" ||
+    (name === "farming_control_intelligence" &&
+      Boolean(deps.farmingControl) &&
+      (farmingControlRole(ctx.bot) === "coordinator" ||
+        farmingControlRole(ctx.bot) === "opportunities"));
   const viaConnector = !BUILTIN_AGENT_TOOL_NAMES.has(name) && !fixedFarmingControlRead;
   // Declared effect of the operation this call dispatches (installed API method and
   // flag). Install config is immutable per route resource, so it cannot drift before

@@ -29,6 +29,8 @@ export interface ExecutorDeps {
   /** Optional fixed read-only FC bridge; authorization is rechecked for every specialist read. */
   farmingControl?: FarmingControlReadService;
   farmingControlRiskAutomationEnabled?: boolean;
+  farmingControlOpportunitiesEnabled?: boolean;
+  farmingControlOpportunityRefreshEnabled?: boolean;
   maxUploadSizeBytes?: number;
   contextStrategy?: AgentContextStrategy;
   prisma: PrismaClient;

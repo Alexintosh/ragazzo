@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { messageBot } from "./bot-messages.js";
+import { farmingControlAutomaticToolDenied } from "./farming-control-risk-automation.js";
 import {
   FARMING_CONTROL_ROLES,
   farmingControlBotId,
@@ -9,7 +10,14 @@ import {
 } from "./farming-control-team-policy.js";
 import type { RunContext } from "./run-context.js";
 import type { ToolCall } from "./run-tool-gate.js";
-import { farmingControlEntityTool, farmingControlReadTool, farmingControlToolDenied } from "./run-tools-farming-control.js";
+import {
+  farmingControlEntityTool,
+  farmingControlIntelligenceTool,
+  farmingControlOpportunityPublishTool,
+  farmingControlReadTool,
+  farmingControlRecommendationFeedbackTool,
+  farmingControlToolDenied,
+} from "./run-tools-farming-control.js";
 import { claimRunSteering } from "./run-turn-images.js";
 
 const botFor = (role: (typeof FARMING_CONTROL_ROLES)[number]) => ({
@@ -33,7 +41,25 @@ describe("Farming Control specialist grants", () => {
     ]);
     for (const role of FARMING_CONTROL_ROLES) {
       for (const tool of farmingControlToolsForRole(role)) {
+        if (
+          tool.name === "farming_control_recommendation_feedback" ||
+          tool.name === "farming_control_opportunity_publish"
+        ) {
+          expect(role).toBe("opportunities");
+          expect(tool.readOnly).toBe(false);
+          expect(tool.inputSchema).toMatchObject({ additionalProperties: false });
+          continue;
+        }
         expect(tool.readOnly).toBe(true);
+        if (tool.name === "farming_control_intelligence") {
+          expect(["coordinator", "opportunities"]).toContain(role);
+          expect(tool.inputSchema).toMatchObject({
+            type: "object",
+            required: ["action"],
+            additionalProperties: false,
+          });
+          continue;
+        }
         if (tool.name === "farming_control_find") {
           expect(tool.inputSchema).toEqual({
             type: "object",
@@ -139,6 +165,26 @@ describe("Farming Control specialist grants", () => {
     }
   });
 
+  it("allows only private Coordinator requests addressed to the fixed Opportunities bot", () => {
+    const bot = botFor("coordinator");
+    const args = {
+      bot_id: botFor("opportunities").id,
+      message: "Compare opportunities",
+      intent: "request",
+    };
+    expect(farmingControlToolDenied(bot, "message_bot", args, null)).toBe(false);
+    expect(
+      farmingControlToolDenied(bot, "message_bot", args, farmingControlGroupId(bot.spaceId)),
+    ).toBe(true);
+    expect(farmingControlToolDenied(bot, "message_bot", { ...args, intent: "result" }, null)).toBe(
+      true,
+    );
+    expect(
+      farmingControlToolDenied(bot, "message_bot", { ...args, bot_id: botFor("risk").id }, null),
+    ).toBe(true);
+    expect(farmingControlToolDenied(botFor("opportunities"), "message_bot", args, null)).toBe(true);
+  });
+
   it("rejects undeclared inputs, changed identities, and generic bots even if they know the tool name", () => {
     expect(farmingControlToolDenied(botFor("tax"), "farming_control_risk", {}, null)).toBe(true);
     expect(
@@ -206,19 +252,38 @@ function runFixture(role: (typeof FARMING_CONTROL_ROLES)[number] = "tax") {
 }
 
 describe("Farming Control read execution", () => {
-  it.each(["risk", "operations"] as const)("derives connected risk access from the persisted %s grant", async (role) => {
-    const f = runFixture(role);
-    const entity = vi.fn(async () => ({ selectionStatus: "matched" }) as never);
-    f.ctx.deps.farmingControl!.entity = entity;
-    const args = { kind: "position", id: "position-example" };
-    await farmingControlEntityTool(f.ctx, { name: "farming_control_entity", args } as unknown as ToolCall);
-    expect(entity).toHaveBeenCalledWith(expect.objectContaining({ userId: "owner" }), args,
-      { includeRisk: role === "risk" });
-    expect(farmingControlToolDenied(f.ctx.bot, "farming_control_entity",
-      { ...args, includeRisk: true }, null)).toBe(true);
-    expect(farmingControlToolDenied(f.ctx.bot, "farming_control_entity",
-      { kind: "risk", id: "monitor-example" }, null)).toBe(role !== "risk");
-  });
+  it.each(["risk", "operations"] as const)(
+    "derives connected risk access from the persisted %s grant",
+    async (role) => {
+      const f = runFixture(role);
+      const entity = vi.fn(async () => ({ selectionStatus: "matched" }) as never);
+      f.ctx.deps.farmingControl!.entity = entity;
+      const args = { kind: "position", id: "position-example" };
+      await farmingControlEntityTool(f.ctx, {
+        name: "farming_control_entity",
+        args,
+      } as unknown as ToolCall);
+      expect(entity).toHaveBeenCalledWith(expect.objectContaining({ userId: "owner" }), args, {
+        includeRisk: role === "risk",
+      });
+      expect(
+        farmingControlToolDenied(
+          f.ctx.bot,
+          "farming_control_entity",
+          { ...args, includeRisk: true },
+          null,
+        ),
+      ).toBe(true);
+      expect(
+        farmingControlToolDenied(
+          f.ctx.bot,
+          "farming_control_entity",
+          { kind: "risk", id: "monitor-example" },
+          null,
+        ),
+      ).toBe(role !== "risk");
+    },
+  );
 
   it("checks live persisted bot/run/user and authorization on every read", async () => {
     const f = runFixture();
@@ -438,4 +503,167 @@ it("refuses bot-to-bot delivery to private FC profiles before storing a message"
     error: expect.stringContaining("private owner app chats"),
   });
   expect(transaction).not.toHaveBeenCalled();
+});
+
+describe("Opportunities private tools and write boundaries", () => {
+  const feedbackArgs = {
+    recommendationId: "rec-exact",
+    operatorQuote: "I like the vault, but the evidence is weak.",
+    direction: "down",
+    reasons: [{ category: "evidence", reasonCode: "weak_evidence" }],
+    note: "Positive candidate judgment is preserved; this signal concerns evidence.",
+  };
+  it("grants Coordinator read-only Intelligence while keeping Opportunities write grants private", async () => {
+    for (const role of FARMING_CONTROL_ROLES) {
+      expect(
+        farmingControlToolDenied(
+          botFor(role),
+          "farming_control_intelligence",
+          { action: "sources" },
+          null,
+        ),
+      ).toBe(role !== "opportunities" && role !== "coordinator");
+      expect(
+        farmingControlToolDenied(
+          botFor(role),
+          "farming_control_recommendation_feedback",
+          feedbackArgs,
+          null,
+        ),
+      ).toBe(role !== "opportunities");
+      expect(
+        farmingControlToolDenied(
+          botFor(role),
+          "farming_control_intelligence",
+          { action: "sources", path: "/settings/api-credentials" },
+          null,
+        ),
+      ).toBe(true);
+    }
+  });
+  it("authorizes fresh direct owner evidence and feedback after checking the actual surviving quote", async () => {
+    const f = runFixture("opportunities");
+    const intelligence = vi.fn().mockResolvedValue({ state: "available" });
+    const feedback = vi.fn().mockResolvedValue({ state: "recorded", feedback: { id: "f-exact" } });
+    f.ctx.deps.farmingControl!.intelligence = intelligence;
+    f.ctx.deps.farmingControl!.recommendationFeedback = feedback;
+    f.liveRun.sourceMessage.blocks = [{ kind: "text", text: feedbackArgs.operatorQuote }];
+    expect(
+      await farmingControlIntelligenceTool(f.ctx, {
+        name: "farming_control_intelligence",
+        args: { action: "sources" },
+      } as unknown as ToolCall),
+    ).toMatchObject({ state: "available" });
+    expect(
+      await farmingControlRecommendationFeedbackTool(f.ctx, {
+        name: "farming_control_recommendation_feedback",
+        args: feedbackArgs,
+      } as unknown as ToolCall),
+    ).toMatchObject({ state: "recorded" });
+    expect(feedback).toHaveBeenCalledWith(
+      expect.objectContaining({ userId: "owner" }),
+      feedbackArgs,
+      "run",
+    );
+    f.liveRun.sourceMessage.blocks = [
+      { kind: "text", text: "A source said this, not the owner judgment." },
+    ];
+    expect(
+      await farmingControlRecommendationFeedbackTool(f.ctx, {
+        name: "farming_control_recommendation_feedback",
+        args: feedbackArgs,
+      } as unknown as ToolCall),
+    ).toHaveProperty("error");
+    expect(feedback).toHaveBeenCalledOnce();
+  });
+  it("refuses feedback in a group, with bot-authored evidence, external steering or routine triggers", async () => {
+    for (const scenario of ["group", "bot", "steering", "routine", "external"] as const) {
+      const f = runFixture("opportunities");
+      const feedback = vi.fn().mockResolvedValue({ state: "recorded" });
+      f.ctx.deps.farmingControl!.recommendationFeedback = feedback;
+      f.liveRun.sourceMessage.blocks = [{ kind: "text", text: feedbackArgs.operatorQuote }];
+      if (scenario === "group") f.liveRun.thread.groupId = farmingControlGroupId("personal");
+      if (scenario === "bot") f.liveRun.sourceMessage.role = "bot";
+      if (scenario === "steering")
+        f.prisma.steeringMessage.findFirst.mockResolvedValueOnce({ id: "outside" });
+      if (scenario === "routine") f.liveRun.trigger = "routine";
+      if (scenario === "external") f.liveRun.thread.externalConversationId = "external";
+      expect(
+        await farmingControlRecommendationFeedbackTool(f.ctx, {
+          name: "farming_control_recommendation_feedback",
+          args: feedbackArgs,
+        } as unknown as ToolCall),
+      ).toHaveProperty("error");
+      expect(feedback).not.toHaveBeenCalled();
+    }
+  });
+  it("permits only read/publication capabilities on verified Opportunities routines", async () => {
+    const f = runFixture("opportunities");
+    f.ctx.deps.farmingControlOpportunitiesEnabled = true;
+    const intelligence = vi.fn().mockResolvedValue({ state: "available" });
+    const publish = vi.fn().mockResolvedValue({ status: "published", recommendationId: "rec" });
+    f.ctx.deps.farmingControl!.intelligence = intelligence;
+    f.ctx.deps.farmingControl!.opportunityPublish = publish;
+    Object.assign(f.liveRun, {
+      trigger: "routine",
+      sourceMessage: null,
+      clientNonce: "fc-opportunity:v1:daily_scan:fixed-event",
+      retryOfRunId: null,
+    });
+    const event = {
+      payload: {
+        farmingControlOpportunityTrigger: {
+          schemaVersion: "fc-opportunity-trigger.v1",
+          kind: "daily_scan",
+          eventId: "fixed-event",
+        },
+      },
+    };
+    Object.assign(f.prisma, { event: { findFirst: vi.fn(async () => event) } });
+    expect(
+      await farmingControlIntelligenceTool(f.ctx, {
+        name: "farming_control_intelligence",
+        args: { action: "sources" },
+      } as unknown as ToolCall),
+    ).toMatchObject({ state: "available" });
+    expect(
+      await farmingControlOpportunityPublishTool(f.ctx, {
+        name: "farming_control_opportunity_publish",
+        args: {
+          assetSetKey: "USD",
+          assetSetVersionId: "v",
+          opportunityId: "o",
+          metricSignalIds: ["m"],
+          summary: "Lead",
+          risk: "Unknown withdrawal",
+          counterargument: "May not improve net return",
+          invalidation: "Changed yield",
+        },
+      } as unknown as ToolCall),
+    ).toMatchObject({ status: "published" });
+    for (const name of [
+      "farming_control_intelligence",
+      "farming_control_opportunity_publish",
+      "farming_control_portfolio",
+      "farming_control_risk",
+      "skill_read",
+    ])
+      expect(farmingControlAutomaticToolDenied(f.ctx.bot, "routine", name)).toBe(false);
+    for (const name of [
+      "farming_control_recommendation_feedback",
+      "message_user",
+      "ask_user",
+      "handoff_to_bot",
+      "shell",
+    ])
+      expect(farmingControlAutomaticToolDenied(f.ctx.bot, "routine", name)).toBe(true);
+    Object.assign(f.liveRun, { clientNonce: "forged" });
+    expect(
+      await farmingControlIntelligenceTool(f.ctx, {
+        name: "farming_control_intelligence",
+        args: { action: "sources" },
+      } as unknown as ToolCall),
+    ).toHaveProperty("error");
+    expect(intelligence).toHaveBeenCalledOnce();
+  });
 });

@@ -1,8 +1,7 @@
 # Farming Control
 
 Connect this branch to a running Farming Control instance to open Portfolio, Harvest,
-Risk and Accounting inside the Ragazzo workspace. Both the pages and the five
-specialists use the same read-only FC client. The integration also works in the
+Risk and Accounting inside the Ragazzo workspace. The pages and six specialists use the configured FC integration. The integration also works in the
 web shell hosted by Electron.
 
 ## Connect a personal workspace
@@ -25,6 +24,11 @@ alias in its configuration. FC can stay on its own host runtime and database.
 
 ## Using the team
 
+The specialists are Coordinator, Accounting, Tax, Risk, Operations and Opportunities.
+Reopening Farming after an update removes the old FC prefix from generated
+profile names. Personalized names and instructions are preserved, and existing
+bots, conversations and group membership keep their identities.
+
 From a Farming Control page, select a bot or group in the roster or use a card’s
 Ask button to open the conversation in the resizable right sidebar. It stays
 open as you browse positions and sections. Choose **Settings → General →
@@ -36,17 +40,17 @@ The draft carries the selected context. You can edit and send it in the
 Farming Control group. Connect a supported model through the ordinary Ragazzo
 model settings to receive a generated reply.
 
-**Mention to agent** on a Risk card opens the FC Risk direct chat with a tag
+**Mention to agent** on a Risk card opens the Risk direct chat with a tag
 for that exposure. From a signal's detail view the tag also identifies the
 signal. Type your question beside the tag and send it when ready. You can
 remove a tag or add another card to the same draft.
 
-The tag identifies the monitor by its stable exposure ID. FC Risk uses that
+The tag identifies the monitor by its stable exposure ID. Risk uses that
 reference to read the current evidence and linked positions within the
 account's visible wallet scope. The card chooses the specialist by role, so
 renaming the specialist preserves the same conversation.
 
-Type `@` in the FC Coordinator chat to search visible positions, wallets,
+Type `@` in the Coordinator chat to search visible positions, wallets,
 protocols and monitored exposures. Pick a suggestion and add your question.
 Position, wallet and protocol tags also work with Operations and Risk. Monitor
 tags use the Risk tool in chats with that grant. From a position's detail view,
@@ -83,17 +87,18 @@ links and does not establish who owned a historical position mark.
 
 | Specialist | Available financial reads |
 | --- | --- |
-| Coordinator | Portfolio, Harvest, Accounting, Risk |
+| Coordinator | Portfolio, Harvest, Accounting, Risk and Intelligence |
 | Accounting | Accounting and Harvest |
 | Tax | Accounting and optional tax module capabilities |
 | Risk | Monitoring and Portfolio |
 | Operations | Portfolio and Harvest |
+| Opportunities | Intelligence, portfolio and risk |
 
 Each specialist has an editable profile and a deployment-provided role skill.
 The skills adapt the read workflows from Farming Control Operations, Monitoring
 and Cash-out/Tax to each specialist's granted tools. Opening the team updates
 these skills on existing installations. The worker also supplies the applicable
-workflow on each specialist run. Financial calls use fixed GET endpoints and
+workflow on each specialist run. Financial reads use fixed GET endpoints and
 enforce the configured account, workspace,
 role and run context on the server. Team handoffs use normal Ragazzo group
 conversations. Wallet approval, accounting writes and tax filing use the
@@ -130,10 +135,10 @@ which active holdings appear as linked positions. The gauge marks the most
 severe observed signal. Its coverage label distinguishes partial evidence, and
 a neutral gauge identifies subjects without a current assessment. A green
 withdrawal or utilization reading applies to that specific check. Selecting a
-signal shows its evidence and prepares its context for FC Risk. The specialists
+signal shows its evidence and prepares its context for Risk. The specialists
 can still look up monitor diagnostics through the existing Risk tool.
 
-For a Morpho card, FC Risk receives the monitor state, the timestamp and block
+For a Morpho card, Risk receives the monitor state, the timestamp and block
 of its accepted observation, and the amounts or ratios the source measured.
 When a current observation is unavailable, the specialist can report the last
 accepted observation returned in the requested history window, with its date.
@@ -202,7 +207,7 @@ Harvest distinguishes current and fallback marks. Accounting shows realized
 amounts and costs. Amounts retain FC's decimal strings in transport. Source
 details identify unavailable data, incomplete valuation and observation dates.
 
-If the team was archived or its membership changed, restore its five specialist
+If the team was archived or its membership changed, restore its six specialist
 profiles and original group membership to resume the existing conversation.
 Opening the financial pages and refreshing their source data work independently
 of group restoration.
@@ -228,7 +233,7 @@ worker and on the FC Monitoring Supervisor. Generate at least 32 random bytes
 Set `FARMING_CONTROL_RISK_EVENT_ORIGIN` on the Supervisor to the Ragazzo API
 origin. The existing owner and private FC API settings still apply. Reopen the
 Farming workspace, or invoke its authenticated `farmingControl.ensureTeam`
-operation, to provision the two repeatable routines for FC Risk.
+operation, to provision the two repeatable routines for Risk.
 
 * **Emergency.** The dedicated POST ingress authenticates the Supervisor and
   binds each critical transition to one owner's Risk specialist. The Risk DM
@@ -248,3 +253,20 @@ shared integration token and reloading the participating processes disables
 automatic Risk access. Model-generated interpretations and proposed rules
 live in the private conversation. Changes to evaluators go through normal FC
 review and replay. These workflows have no financial write or execution tools.
+
+
+## Opportunity research
+
+In a private chat with **Coordinator**, ask it to consult **Opportunities** about current alternatives or source health. The Coordinator sends the specialist a focused question. The specialist reads the current evidence and its final answer returns to the same Coordinator chat. Delivery is asynchronous. The Coordinator can also read Intelligence directly. Private consultations permit research reads. Publishing a recommendation and recording feedback belong to the specialist’s separate workflows.
+
+Open **Opportunities** in the Farming roster. Ask it to compare a strategy with a tagged holding, screen an enabled Asset Set, or explain why a higher quoted yield may be unsuitable. It uses the Intelligence catalogue, eligible candidates, observations, explicit preferences and existing research. It can compare a prospective move against the visible portfolio and the supported monitoring evidence. Its answer should identify compatible yield measures, costs, capacity, withdrawal constraints, risk evidence and the condition that changes the conclusion. Estimates of net return or allocation size require supporting inputs.
+
+The specialist can publish a candidate-specific investigative lead in FC and return the opportunity and recommendation IDs. Publication checks the active set version, candidate, cited signals, source items and latest source sync. At least one cited observation must fall within the last seven days. Updated evidence can supersede this specialist's own review for the same candidate and set. Other authors' reviews retain their identities. Holding-specific comparisons stay in private chat. Explicit operator feedback on a recommendation is recorded through the FC feedback endpoint. A complaint about missing costs can target the quality of the analysis while preserving the operator's interest in the opportunity. A saved feedback record and the preference profile version are reported separately.
+
+Set `FARMING_CONTROL_OPPORTUNITIES_ENABLED=true` on both API and worker to enable the daily research scan at 09:00 UTC and the weekly portfolio comparison on Monday at 09:30 UTC. To use the same deployment for daily source collection, also set `FARMING_CONTROL_OPPORTUNITY_REFRESH_ENABLED=true` on both processes. At 08:00 UTC a fixed routine requests FC's durable refresh for eligible pull sources. FC handles provider credentials, source jobs and retries. Use one scheduler for collection when the native FC source scheduler is already enabled. The owner can pause individual routines. Open the Farming workspace after reloading the deployment to provision or reconcile the team and its routines.
+
+To collect new data on demand, ask **Coordinator** or **Opportunities** in its private chat to refresh a named source, or all enabled pull sources. For example, “Refresh DefiLlama and check whether the ETH candidates have new APY observations.” The agent uses `farming_control_source_refresh` and checks each returned job with the `refresh_status` action on `farming_control_intelligence`. A completed queue job can contain a failed provider sync. Check the selected candidate's own observation time before quoting its yield. When a consultation needs new data, Coordinator can request an owner-authorized refresh before asking Opportunities to compare the results.
+
+A source can be configured and available while its last job or provider sync failed. Look at both outcomes and at the observation date when interpreting a lead. A current recommendation can also cite old data. The specialist records research and recommendation feedback. Funds, holdings and provider settings remain under their respective Farming Control workflows. Protocol due diligence can later contribute evidence through a separate specialist.
+
+Review collection ownership at the end of the pilot. Compare time from scheduled request to usable evidence, provider and queue failures, research leads attributable to each source, and where operator intervention was needed. Use those observations to weigh direct collection in Ragazzo against the existing FC queue, including the cost of moving credential handling, provenance and retry ownership.

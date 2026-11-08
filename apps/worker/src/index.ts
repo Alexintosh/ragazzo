@@ -260,6 +260,8 @@ async function main() {
   });
   const executor = createRunExecutor({
     farmingControl,
+    farmingControlOpportunitiesEnabled: process.env.FARMING_CONTROL_OPPORTUNITIES_ENABLED === "true",
+    farmingControlOpportunityRefreshEnabled: process.env.FARMING_CONTROL_OPPORTUNITY_REFRESH_ENABLED === "true",
     farmingControlRiskAutomationEnabled:
       (process.env.FARMING_CONTROL_RISK_EVENT_TOKEN?.trim().length ?? 0) >= 32,
     maxUploadSizeBytes: uploadSizeFromEnv(process.env),

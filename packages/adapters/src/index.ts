@@ -194,3 +194,5 @@ export * from "./web-ssrf.js";
 export * from "./web-tools.js";
 
 export * from "./farming-control-risk-automation.js";
+
+export * from "./farming-control-opportunity-automation.js";

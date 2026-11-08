@@ -1,17 +1,29 @@
 import type { Actor, FarmingControlRisk, FarmingControlRiskExposure } from "@rakazo/contracts";
 import {
   FarmingControlEntitySelectionSchema,
+  FarmingControlIntelligenceInputSchema,
   FarmingControlPortfolioInputSchema,
   FarmingControlPositionHistoryInputSchema,
-  FarmingControlRiskSchema,
+  FarmingControlRecommendationFeedbackInputSchema,
   FarmingControlRiskReviewInputSchema,
+  FarmingControlRiskSchema,
+  FarmingControlSourceRefreshInputSchema,
   MessageBlock,
 } from "@rakazo/contracts";
 import { farmingControlOutsideBlocks } from "@rakazo/core";
 import * as z from "zod";
-import { compactFarmingControlRiskReview, compactFarmingControlRiskResearch } from "./farming-control-risk-review-model.js";
-import { positionHistoryForModel } from "./farming-control-position-history-model.js";
 import type { ExecutorDeps } from "./executor-deps.js";
+import type { FarmingControlPrivateConsultation } from "./farming-control-consultation.js";
+import { verifyFarmingControlPrivateConsultation } from "./farming-control-consultation.js";
+import { FarmingControlOpportunityTriggerSchema } from "./farming-control-opportunity-automation.js";
+import { opportunityPublicationInput } from "./farming-control-opportunity-publication.js";
+import { positionHistoryForModel } from "./farming-control-position-history-model.js";
+import type { FarmingControlRiskTrigger } from "./farming-control-risk-automation.js";
+import { FarmingControlRiskTriggerSchema } from "./farming-control-risk-automation.js";
+import {
+  compactFarmingControlRiskResearch,
+  compactFarmingControlRiskReview,
+} from "./farming-control-risk-review-model.js";
 import {
   FARMING_CONTROL_GRANTS,
   FARMING_CONTROL_ROLES,
@@ -22,8 +34,6 @@ import {
   farmingControlRole,
   isFarmingControlSpecialist,
 } from "./farming-control-team-policy.js";
-import type { FarmingControlRiskTrigger } from "./farming-control-risk-automation.js";
-import { FarmingControlRiskTriggerSchema } from "./farming-control-risk-automation.js";
 import type { ToolHandler } from "./run-tool-gate.js";
 
 const findInput = z
@@ -57,6 +67,33 @@ export function farmingControlToolDenied(
   args: Record<string, unknown>,
   groupId: string | null,
 ): boolean {
+  if (name === "farming_control_source_refresh") {
+    const role = farmingControlRole(bot);
+    return (
+      groupId !== null ||
+      (role !== "coordinator" && role !== "opportunities") ||
+      !FarmingControlSourceRefreshInputSchema.safeParse(args).success
+    );
+  }
+  if (
+    name === "farming_control_intelligence" ||
+    name === "farming_control_recommendation_feedback" ||
+    name === "farming_control_opportunity_publish"
+  ) {
+    const role = farmingControlRole(bot);
+    if (
+      role !== "opportunities" &&
+      !(role === "coordinator" && name === "farming_control_intelligence")
+    )
+      return true;
+    return !(
+      name === "farming_control_intelligence"
+        ? FarmingControlIntelligenceInputSchema
+        : name === "farming_control_recommendation_feedback"
+          ? FarmingControlRecommendationFeedbackInputSchema
+          : opportunityPublicationInput
+    ).safeParse(args).success;
+  }
   if (name === "farming_control_risk_research") {
     const role = farmingControlRole(bot);
     return (
@@ -105,6 +142,19 @@ export function farmingControlToolDenied(
     if (section === "portfolio") return !FarmingControlPortfolioInputSchema.safeParse(args).success;
     if (section === "risk") return !riskInput.safeParse(args).success;
     return Object.keys(args).length !== 0;
+  }
+  if (name === "message_bot") {
+    return (
+      role !== "coordinator" ||
+      groupId !== null ||
+      args.bot_id !== farmingControlBotId(bot.spaceId, "opportunities") ||
+      typeof args.message !== "string" ||
+      !args.message.trim() ||
+      (args.intent !== undefined && args.intent !== "request" && args.intent !== "question") ||
+      Object.keys(args).some(
+        (key) => !["bot_id", "confirm_name", "message", "intent"].includes(key),
+      )
+    );
   }
   if (!FARMING_CONTROL_SAFE_TOOLS.has(name)) return true;
   if (name !== "handoff_to_bot") return false;
@@ -180,8 +230,10 @@ export function scopedFarmingControlRiskRead(
     selectionStatus,
     exposure: exposure ? { ...exposure, signals, maxSeverity } : null,
     // Preserve corroborating or competing assessments for this exact exposure.
-    supportingSignals: exposure && signalKey && !placeholderSuperseded
-      ? exposure.signals.filter((signal) => signal.key !== signalKey) : [],
+    supportingSignals:
+      exposure && signalKey && !placeholderSuperseded
+        ? exposure.signals.filter((signal) => signal.key !== signalKey)
+        : [],
     // Discovery describes lookup completeness, not this subject's safety. Do
     // not mix portfolio counts or unrelated alert infrastructure into a reply.
     exposureScope: {
@@ -218,12 +270,119 @@ export function scopedFarmingControlRiskRead(
   };
 }
 
+export const farmingControlIntelligenceTool: ToolHandler = async (ctx, call) => {
+  if (farmingControlToolDenied(ctx.bot, call.name, call.args, ctx.thread.groupId))
+    return { error: DENIED };
+  if (!ctx.deps.farmingControl?.intelligence) return { error: "Intelligence is not configured." };
+  try {
+    const actor = await authorizeFarmingControlRun(ctx.deps, ctx.run, ctx.bot, {
+      allowPrivateConsultation: true,
+      requireConsultationRequest: true,
+      allowOpportunityAutomation: true,
+    });
+    return await ctx.deps.farmingControl.intelligence(
+      actor,
+      FarmingControlIntelligenceInputSchema.parse(call.args),
+    );
+  } catch {
+    return { error: "Intelligence evidence is unavailable or this run is not authorized." };
+  }
+};
+export const farmingControlSourceRefreshTool: ToolHandler = async (ctx, call) => {
+  if (farmingControlToolDenied(ctx.bot, call.name, call.args, ctx.thread.groupId))
+    return { error: DENIED };
+  if (!ctx.deps.farmingControl?.refreshSources)
+    return call.finish({ error: "Source refresh is not configured." });
+  try {
+    const input = FarmingControlSourceRefreshInputSchema.parse(call.args);
+    let ownerText = "";
+    const actor = await authorizeFarmingControlRun(ctx.deps, ctx.run, ctx.bot, {
+      requireDirectOwnerTurn: true,
+      onOwnerMessage: (blocks) => {
+        ownerText = MessageBlock.array()
+          .parse(blocks)
+          .filter((block) => block.kind === "text")
+          .map((block) => block.text)
+          .join("\n");
+      },
+    });
+    if (ownerText.trim() !== input.operatorQuote)
+      return call.finish({
+        error:
+          "Refresh requires the entire current owner message as operatorQuote, preserving its requested scope and exclusions.",
+      });
+    return call.finish(await ctx.deps.farmingControl.refreshSources(actor, input));
+  } catch {
+    return call.finish({
+      error:
+        "Source refresh is unavailable or not authorized. No successful refresh is confirmed; reread sources and refresh_status before any new request.",
+    });
+  }
+};
+
+export const farmingControlOpportunityPublishTool: ToolHandler = async (ctx, call) => {
+  if (farmingControlToolDenied(ctx.bot, call.name, call.args, ctx.thread.groupId))
+    return { error: DENIED };
+  if (!ctx.deps.farmingControl?.opportunityPublish)
+    return { error: "Research publication is not configured." };
+  try {
+    const actor = await authorizeFarmingControlRun(ctx.deps, ctx.run, ctx.bot, {
+      allowOpportunityAutomation: true,
+    });
+    return await ctx.deps.farmingControl.opportunityPublish(
+      actor,
+      opportunityPublicationInput.parse(call.args),
+    );
+  } catch {
+    return {
+      error:
+        "The research lead could not be published or this run is not authorized. Read the exact opportunity before retrying.",
+    };
+  }
+};
+export const farmingControlRecommendationFeedbackTool: ToolHandler = async (ctx, call) => {
+  if (farmingControlToolDenied(ctx.bot, call.name, call.args, ctx.thread.groupId))
+    return { error: DENIED };
+  if (!ctx.deps.farmingControl?.recommendationFeedback)
+    return { error: "Recommendation feedback is not configured." };
+  try {
+    const input = FarmingControlRecommendationFeedbackInputSchema.parse(call.args);
+    let ownerText = "";
+    const actor = await authorizeFarmingControlRun(ctx.deps, ctx.run, ctx.bot, {
+      requireDirectOwnerTurn: true,
+      onOwnerMessage: (blocks) => {
+        const parsed = MessageBlock.array().parse(blocks);
+        ownerText = parsed
+          .filter((block) => block.kind === "text")
+          .map((block) => block.text)
+          .join("\n");
+      },
+    });
+    if (!ownerText.includes(input.operatorQuote))
+      return {
+        error: "Feedback requires an exact quote from the current operator's explicit judgment.",
+      };
+    return await ctx.deps.farmingControl.recommendationFeedback(
+      actor,
+      input,
+      ctx.run.sourceMessageId ?? ctx.run.retryOfRunId ?? ctx.run.id,
+    );
+  } catch {
+    return {
+      error:
+        "Feedback was not confirmed. Read the exact recommendation before retrying; only an explicit operator judgment can authorize feedback.",
+    };
+  }
+};
+
 export const farmingControlRiskResearchTool: ToolHandler = async (ctx, call) => {
   if (farmingControlToolDenied(ctx.bot, call.name, call.args, ctx.thread.groupId))
     return { error: DENIED };
   if (!ctx.deps.farmingControl?.riskResearch) return { error: "Risk research is not configured." };
   try {
     const actor = await authorizeFarmingControlRun(ctx.deps, ctx.run, ctx.bot, {
+      allowPrivateConsultation: true,
+      requireConsultationRequest: true,
       allowRiskAutomation: true,
       automationKind: "weekly_review",
     });
@@ -240,7 +399,10 @@ export const farmingControlRiskReviewTool: ToolHandler = async (ctx, call) => {
   try {
     let automation: FarmingControlRiskTrigger | undefined;
     const actor = await authorizeFarmingControlRun(ctx.deps, ctx.run, ctx.bot, {
+      allowPrivateConsultation: true,
+      requireConsultationRequest: true,
       allowRiskAutomation: true,
+      allowOpportunityAutomation: true,
       onRiskAutomation: (proof) => {
         automation = proof;
       },
@@ -259,8 +421,10 @@ export const farmingControlRiskReviewTool: ToolHandler = async (ctx, call) => {
       if (!input.monitorKey && keys.length === 1) input.monitorKey = keys[0];
       if (!input.monitorKey || !keys.includes(input.monitorKey)) return { error: DENIED };
     }
-    return compactFarmingControlRiskReview(await ctx.deps.farmingControl.riskReview(actor, input),
-      inventoryOffset === undefined ? {} : { inventoryOffset });
+    return compactFarmingControlRiskReview(
+      await ctx.deps.farmingControl.riskReview(actor, input),
+      inventoryOffset === undefined ? {} : { inventoryOffset },
+    );
   } catch {
     return {
       error:
@@ -275,13 +439,21 @@ export const farmingControlFindTool: ToolHandler = async (ctx, call) => {
     return { error: DENIED };
   if (!bridge?.mentionTargets) return { error: "Farming Control is not configured." };
   try {
-    const actor = await authorizeFarmingControlRun(ctx.deps, ctx.run, ctx.bot);
+    const actor = await authorizeFarmingControlRun(ctx.deps, ctx.run, ctx.bot, {
+      allowPrivateConsultation: true,
+      requireConsultationRequest: true,
+      allowOpportunityAutomation: true,
+    });
     const { query } = findInput.parse(call.args);
     const catalog = await bridge.mentionTargets(actor, {
       query,
-      kinds: ["position", "wallet", "protocol",
+      kinds: [
+        "position",
+        "wallet",
+        "protocol",
         ...(FARMING_CONTROL_GRANTS[farmingControlRole(ctx.bot)!].includes("risk")
-          ? ["risk" as const] : []),
+          ? ["risk" as const]
+          : []),
       ],
       limit: 11,
     });
@@ -307,7 +479,11 @@ export const farmingControlPositionHistoryTool: ToolHandler = async (ctx, call) 
   const bridge = ctx.deps.farmingControl;
   if (!bridge?.positionHistory) return { error: "Farming Control is not configured." };
   try {
-    const actor = await authorizeFarmingControlRun(ctx.deps, ctx.run, ctx.bot);
+    const actor = await authorizeFarmingControlRun(ctx.deps, ctx.run, ctx.bot, {
+      allowPrivateConsultation: true,
+      requireConsultationRequest: true,
+      allowOpportunityAutomation: true,
+    });
     const evidence = await bridge.positionHistory(
       actor,
       FarmingControlPositionHistoryInputSchema.parse(call.args),
@@ -323,7 +499,11 @@ export const farmingControlEntityTool: ToolHandler = async (ctx, call) => {
     return { error: DENIED };
   if (!ctx.deps.farmingControl?.entity) return { error: "Farming Control is not configured." };
   try {
-    const actor = await authorizeFarmingControlRun(ctx.deps, ctx.run, ctx.bot);
+    const actor = await authorizeFarmingControlRun(ctx.deps, ctx.run, ctx.bot, {
+      allowPrivateConsultation: true,
+      requireConsultationRequest: true,
+      allowOpportunityAutomation: true,
+    });
     return await ctx.deps.farmingControl.entity(
       actor,
       FarmingControlEntitySelectionSchema.parse(call.args),
@@ -343,7 +523,11 @@ export const farmingControlReadTool: ToolHandler = async (ctx, call) => {
     return { error: DENIED };
   if (!ctx.deps.farmingControl) return { error: "Farming Control is not configured." };
   try {
-    const actor = await authorizeFarmingControlRun(ctx.deps, ctx.run, ctx.bot);
+    const actor = await authorizeFarmingControlRun(ctx.deps, ctx.run, ctx.bot, {
+      allowPrivateConsultation: true,
+      requireConsultationRequest: true,
+      allowOpportunityAutomation: true,
+    });
     if (section === "risk") {
       const { exposureId, signalKey } = riskInput.parse(call.args);
       const result = await ctx.deps.farmingControl.read(actor, section);
@@ -374,11 +558,23 @@ export const farmingControlReadTool: ToolHandler = async (ctx, call) => {
  * a bot-owned run's userId as evidence of who requested the work.
  */
 export async function authorizeFarmingControlRun(
-  deps: Pick<ExecutorDeps, "prisma" | "farmingControl" | "farmingControlRiskAutomationEnabled">,
+  deps: Pick<
+    ExecutorDeps,
+    | "prisma"
+    | "farmingControl"
+    | "farmingControlRiskAutomationEnabled"
+    | "farmingControlOpportunitiesEnabled"
+  >,
   run: { id: string; botId: string; userId: string; spaceId: string; threadId: string },
   expectedBot?: { id: string; spaceId: string; userId: string; spawnKey?: string | null },
   options: {
+    allowPrivateConsultation?: boolean;
+    requireConsultationRequest?: boolean;
+    onPrivateConsultation?: (proof: FarmingControlPrivateConsultation) => void;
     allowRiskAutomation?: boolean;
+    allowOpportunityAutomation?: boolean;
+    requireDirectOwnerTurn?: boolean;
+    onOwnerMessage?: (blocks: unknown) => void;
     automationKind?: FarmingControlRiskTrigger["kind"];
     onRiskAutomation?: (proof: FarmingControlRiskTrigger) => void;
   } = {},
@@ -424,6 +620,31 @@ export async function authorizeFarmingControlRun(
       },
     });
     if (
+      depth === 0 &&
+      current?.trigger === "bot_message" &&
+      options.allowPrivateConsultation &&
+      !options.requireDirectOwnerTurn
+    ) {
+      const proof = await verifyFarmingControlPrivateConsultation(deps.prisma, run);
+      if (
+        options.requireConsultationRequest &&
+        proof.intent !== "request" &&
+        proof.intent !== "question"
+      )
+        throw new Error(DENIED);
+      if (
+        expectedBot &&
+        (expectedBot.id !== current.bot.id ||
+          expectedBot.userId !== current.bot.userId ||
+          expectedBot.spaceId !== current.bot.spaceId ||
+          farmingControlRole(expectedBot) !== farmingControlRole(current.bot))
+      )
+        throw new Error(DENIED);
+      options.onPrivateConsultation?.(proof);
+      ownerTurn = true;
+      break;
+    }
+    if (
       !current ||
       current.bot.archivedAt ||
       !farmingControlRole(current.bot) ||
@@ -439,10 +660,13 @@ export async function authorizeFarmingControlRun(
         current.trigger !== "follow_up" &&
         !(
           depth === 0 &&
-          options.allowRiskAutomation &&
-          deps.farmingControlRiskAutomationEnabled &&
           current.trigger === "routine" &&
-          farmingControlRole(current.bot) === "risk" &&
+          ((options.allowRiskAutomation &&
+            deps.farmingControlRiskAutomationEnabled &&
+            farmingControlRole(current.bot) === "risk") ||
+            (options.allowOpportunityAutomation &&
+              deps.farmingControlOpportunitiesEnabled &&
+              farmingControlRole(current.bot) === "opportunities")) &&
           !current.thread.groupId
         ))
     )
@@ -475,6 +699,34 @@ export async function authorizeFarmingControlRun(
         select: { id: true },
       });
       if (steering) throw new Error(DENIED);
+      if (farmingControlRole(current.bot) === "opportunities") {
+        const event = await deps.prisma.event.findFirst({
+          where: {
+            runId: current.id,
+            spaceId: run.spaceId,
+            threadId: current.thread.id,
+            botId: current.bot.id,
+            type: "routine.fired",
+            payload: {
+              path: ["farmingControlOpportunityTrigger", "schemaVersion"],
+              equals: "fc-opportunity-trigger.v1",
+            },
+          },
+          select: { payload: true },
+        });
+        const proof = FarmingControlOpportunityTriggerSchema.safeParse(
+          (event?.payload as { farmingControlOpportunityTrigger?: unknown } | null)
+            ?.farmingControlOpportunityTrigger,
+        );
+        if (
+          !proof.success ||
+          current.clientNonce !==
+            `fc-opportunity:v1:${proof.data.kind}:${proof.data.eventId}${current.retryOfRunId ? `:retry:${current.retryOfRunId}` : ""}`
+        )
+          throw new Error(DENIED);
+        ownerTurn = true;
+        break;
+      }
       const event = await deps.prisma.event.findFirst({
         where: {
           runId: current.id,
@@ -517,6 +769,9 @@ export async function authorizeFarmingControlRun(
     )
       throw new Error(DENIED);
     if (source.role === "user") {
+      if (options.requireDirectOwnerTurn && (depth !== 0 || current.thread.groupId !== null))
+        throw new Error(DENIED);
+      options.onOwnerMessage?.(source.blocks);
       ownerTurn = true;
       break;
     }
