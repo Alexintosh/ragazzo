@@ -53,9 +53,19 @@ newly typed name, including a Safe suffix, and read the matching position.
 They can ask you to distinguish similar matches. Earlier tags remain available
 for follow-up questions about the same subject.
 
-A position read includes dated rate observations, the source's rolling 30-day
-earnings breakdown and confirmed realized performance where available. The
-role skills explain which measurements answer questions about earned returns.
+For a question about how yield changed, the Coordinator, Operations and Risk
+can call `farming_control_position_history` with the selected position ID.
+It defaults to the period since opening. A confirmed opening, an earlier
+deposit reference and the start of tracking are labelled separately. The
+history shows dated rates, monthly first and last observations, comparable
+extremes and coverage. A seven-day lookback on a provider quote describes
+that single quote even when the series spans months.
+
+The same read reports earned contributions and confirmed Harvest in separate
+fields. When the full-period accrual has no baseline, supported calendar
+months remain visible alongside the gaps. Clients can use the authenticated
+`farmingControl.positionHistory` RPC for the detailed series.
+
 Wallet reads identify linked positions. The wallet inventory records current
 links and does not establish who owned a historical position mark.
 

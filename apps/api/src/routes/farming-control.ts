@@ -24,6 +24,9 @@ export function farmingControlRoutes({ deps, authed }: RouterContext) {
       status: authed.farmingControl.status.handler(async ({ context }) =>
         api(() => service().status(context.actor)),
       ),
+      positionHistory: authed.farmingControl.positionHistory.handler(({ context, input }) =>
+        api(() => service().positionHistory(context.actor, input)),
+      ),
       mentionTargets: authed.farmingControl.mentionTargets.handler(({ context, input }) =>
         api(async () => {
           await service().authorize(context.actor);

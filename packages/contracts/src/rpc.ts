@@ -1,3 +1,4 @@
+import { FarmingControlPositionHistoryInputSchema, FarmingControlPositionHistorySchema } from "./farming-control-position-history.js";
 import { FarmingControlEntityContextSchema } from "./farming-control-entities.js";
 import type {
   AnyContractProcedure,
@@ -265,6 +266,7 @@ const spaceName = z.string().trim().min(1).max(60);
 
 export const appContract = {
   farmingControl: {
+    positionHistory: oc.input(FarmingControlPositionHistoryInputSchema).output(FarmingControlPositionHistorySchema),
     mentionTargets: oc.input(FarmingControlMentionTargetsInputSchema).output(FarmingControlEntityCatalogSchema),
     status: oc.output(FarmingControlStatusSchema),
     portfolio: oc

@@ -2,11 +2,13 @@ import type { Actor, FarmingControlRisk, FarmingControlRiskExposure } from "@rak
 import {
   FarmingControlEntitySelectionSchema,
   FarmingControlPortfolioInputSchema,
+  FarmingControlPositionHistoryInputSchema,
   FarmingControlRiskSchema,
   MessageBlock,
 } from "@rakazo/contracts";
 import { farmingControlOutsideBlocks } from "@rakazo/core";
 import * as z from "zod";
+import { positionHistoryForModel } from "./farming-control-position-history-model.js";
 import type { ExecutorDeps } from "./executor-deps.js";
 import {
   FARMING_CONTROL_GRANTS,
@@ -41,6 +43,10 @@ export function farmingControlToolDenied(
   args: Record<string, unknown>,
   groupId: string | null,
 ): boolean {
+  if (name === "farming_control_position_history") {
+    const role = farmingControlRole(bot);
+    return !role || !FARMING_CONTROL_GRANTS[role].includes("portfolio") || !FarmingControlPositionHistoryInputSchema.safeParse(args).success;
+  }
   if (name === "farming_control_find") {
     const role = farmingControlRole(bot);
     return !role || !FARMING_CONTROL_GRANTS[role].includes("portfolio") || !findInput.safeParse(args).success;
@@ -196,6 +202,19 @@ export const farmingControlFindTool: ToolHandler = async (ctx, call) => {
     };
   } catch {
     return { error: "Farming Control search is unavailable for this run." };
+  }
+};
+
+export const farmingControlPositionHistoryTool: ToolHandler = async (ctx, call) => {
+  if (farmingControlToolDenied(ctx.bot, call.name, call.args, ctx.thread.groupId)) return { error: DENIED };
+  const bridge = ctx.deps.farmingControl;
+  if (!bridge?.positionHistory) return { error: "Farming Control is not configured." };
+  try {
+    const actor = await authorizeFarmingControlRun(ctx.deps, ctx.run, ctx.bot);
+    const evidence = await bridge.positionHistory(actor, FarmingControlPositionHistoryInputSchema.parse(call.args));
+    return positionHistoryForModel(evidence);
+  } catch {
+    return { error: "Historical position evidence could not be read for this run." };
   }
 };
 

@@ -9,6 +9,8 @@ import type {
   FarmingControlHarvest,
   FarmingControlPortfolio,
   FarmingControlPortfolioInput,
+  FarmingControlPositionHistory,
+  FarmingControlPositionHistoryInput,
   FarmingControlRisk,
   FarmingControlSection,
   FarmingControlYieldEvidence,
@@ -36,6 +38,8 @@ import {
 } from "@rakazo/contracts";
 import { isPrivateNetworkHost } from "@rakazo/contracts/network-host";
 import * as z from "zod";
+import { readFarmingControlPositionTrend } from "./farming-control-position-trend.js";
+import { readFarmingControlPositionEarnings } from "./farming-control-position-earnings.js";
 import { curveRiskSource, morphoRiskSource, projectRiskExposures } from "./farming-control-risk.js";
 
 const ms = z.number().int().nonnegative();
@@ -81,6 +85,10 @@ const entityPortfolioSource = portfolioSource.extend({
   items: z
     .array(
       portfolioSource.shape.items.element.extend({
+        addedAtMs: ms.nullable().optional(),
+        entryTransactions: z.array(z.object({
+          activityKind: z.string(), status: z.string(), occurredAtMs: ms.nullable(),
+        })).optional(),
         metadata: z
           .object({
             nodes: z
@@ -187,10 +195,11 @@ type HistoryPoint = z.infer<typeof FarmingControlHistoryPointSchema>;
 type PositionYieldSource =
   | `/positions/${string}/metrics/apr?${string}`
   | `/positions/${string}/performance?${string}`;
-type ScopedSource =
-  | `${typeof SOURCES.portfolio | typeof SOURCES.history}?${string}`
+type PositionHistoryPath = PositionYieldSource
   | `/portfolio/metrics/earned/since?${string}`
-  | PositionYieldSource;
+  | `/portfolio/metrics/earned/monthly?${string}`
+  | `/harvest/accounting?${string}`;
+type ScopedSource = PositionHistoryPath | `${typeof SOURCES.portfolio | typeof SOURCES.history}?${string}`;
 const aprHistorySource = z.object({
   positionId: z.string().max(500),
   asOfMs: ms,
@@ -1139,7 +1148,7 @@ export function createFarmingControlClient(options: {
     let withheld = false;
     const positions = rows
       .filter((item) => positionIds.has(item.id))
-      .map(({ metadata: _metadata, ...item }) => {
+      .map(({ metadata: _metadata, addedAtMs: _addedAt, entryTransactions: _entries, ...item }) => {
         // Current configuration links do not prove the account attributed to a saved observation.
         const attributed = selection.kind !== "wallet";
         if (!attributed) withheld = true;
@@ -1237,6 +1246,52 @@ export function createFarmingControlClient(options: {
           : exposure,
     };
   }
+  async function positionHistory(input: FarmingControlPositionHistoryInput): Promise<FarmingControlPositionHistory> {
+    const snapshot = await entitySnapshot(["position"]);
+    const row = snapshot.rows.find((item) => item.id === input.positionId);
+    const revision = snapshot.walletVisibilityRevision;
+    if (!row || revision === null) return { status: "unavailable", reason: "Position could not be verified in the saved wallet scope." };
+    const toMs = now();
+    const entries = (row.entryTransactions ?? []).filter(
+      (entry) => entry.status === "confirmed" && entry.occurredAtMs !== null && entry.occurredAtMs <= toMs,
+    ).sort((a, b) => a.occurredAtMs! - b.occurredAtMs!);
+    const open = entries.find((entry) => entry.activityKind === "position.open");
+    const deposit = entries.find((entry) => entry.activityKind === "deposit" || entry.activityKind === "position.deposit_reference");
+    const tracked = row.addedAtMs != null && row.addedAtMs <= toMs ? row.addedAtMs : null;
+    const startEvidence: Extract<FarmingControlPositionHistory, { status: "matched" }>["startEvidence"] =
+      open ? { kind: "confirmed_open", atMs: open.occurredAtMs }
+      : deposit && (tracked === null || deposit.occurredAtMs! < tracked)
+        ? { kind: "confirmed_deposit", atMs: deposit.occurredAtMs }
+        : tracked !== null ? { kind: "tracking_started", atMs: tracked }
+        : { kind: "unknown", atMs: null };
+    const period = input.period ?? "since_opening";
+    const windowStart = period === "since_opening" ? 0 : Math.max(0, toMs - { "7d": 7, "30d": 30, "90d": 90 }[period] * DAY_MS);
+    const fromMs = Math.max(windowStart, startEvidence.atMs ?? 0);
+    const deadline = AbortSignal.timeout(40_000);
+    let bytes = 0;
+    const boundedRead = <T>(path: PositionHistoryPath, schema: z.ZodType<T>) => read(path, schema, {
+      signal: deadline,
+      onBytes(size) {
+        bytes += size;
+        if (bytes > 24 * 1024 * 1024) throw new Error("Position history response budget exceeded.");
+      },
+    });
+    const args = { read: boundedRead, positionId: row.id, walletVisibilityRevision: revision, fromMs, toMs };
+    const [trend, initialEarnings] = await Promise.all([
+      readFarmingControlPositionTrend(args),
+      fromMs ? readFarmingControlPositionEarnings(args) : Promise.resolve(null),
+    ]);
+    if (startEvidence.kind === "unknown" && trend.earliestRate && period === "since_opening") {
+      startEvidence.kind = "first_saved_rate";
+      startEvidence.atMs = trend.earliestRate.observedAtMs;
+    }
+    const earnings = initialEarnings ?? (startEvidence.atMs && !fromMs
+      ? await readFarmingControlPositionEarnings({ ...args, fromMs: startEvidence.atMs }) : null);
+    const after = await read(SOURCES.walletVisibility, walletVisibilitySource);
+    if (after.data?.revision !== revision) return { status: "unavailable", reason: "Wallet visibility changed during the read. Reread the position." };
+    return { status: "matched", positionId: row.id, label: row.label ?? row.id, lifecycle: row.state, period, startEvidence,
+      walletVisibilityRevision: revision, requestedThroughMs: toMs, trend, earnings };
+  }
   async function accounting(): Promise<FarmingControlAccounting> {
     const [source, tax] = await Promise.all([
       read(SOURCES.accounting, accountingSource),
@@ -1266,6 +1321,7 @@ export function createFarmingControlClient(options: {
   }
   return {
     mentionTargets,
+    positionHistory,
     entity,
     portfolio,
     harvest,
