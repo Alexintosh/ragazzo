@@ -28,6 +28,45 @@ function milestones<T>(items: T[], limit: number) {
   );
 }
 
+function positionSummary({ trend, earnings }: MatchedHistory) {
+  const money = earnings?.economicScorecard;
+  const monthly = money?.monthlyAverage;
+  const fallbackMarks = money?.outstandingContributions.filter((row) => row.quality === "fallback") ?? [];
+  const fallbackTimes = fallbackMarks.flatMap((row) =>
+    [row.quantityObservedAtMs, row.priceObservedAtMs].filter((time): time is number => time !== null),
+  );
+  return {
+    observedRates: {
+      start: compactQuote(trend.earliestRate),
+      latest: compactQuote(trend.latestRate),
+      minimum: compactQuote(trend.minimumRate),
+      maximum: compactQuote(trend.maximumRate),
+      meanPercentPerYear: trend.meanQuotedRatePercentPerYear,
+      weighting: trend.meanWeighting,
+      savedObservationCount: trend.observedPointCount,
+    },
+    averagePerCoveredFullMonth: monthly && {
+      usd: monthly.averageUsd,
+      coveredMonths: monthly.includedMonths,
+      missingFullMonths: monthly.missingFullMonthCount,
+      excludedPartialMonths: monthly.excludedPartialMonthCount,
+    },
+    accountedToDate: money && {
+      asOf: iso(money.asOfMs),
+      netTotalUsd: money.knownAccountedNetUsd,
+      netHarvestedUsd: money.harvestedNetUsd,
+      outstandingMarkUsd: money.outstandingUsd,
+      scope: money.scope,
+      totalUnavailableReason: money.totalUnavailableReason,
+      harvestAttributionComplete: money.coverage.harvestAttributionComplete,
+      coversCompleteLifetimeEarnings: money.lifetimeEarningsComplete,
+      markIncludesFallback: money.coverage.fallbackContributionCount > 0,
+      oldestFallbackEvidenceAt: fallbackTimes.length ? iso(Math.min(...fallbackTimes)) : null,
+      markComplete: money.coverage.outstandingComplete,
+    },
+  };
+}
+
 function richProjection(evidence: FarmingControlPositionHistory) {
   if (evidence.status !== "matched") return evidence;
   const { trend, earnings } = evidence;
@@ -43,6 +82,7 @@ function richProjection(evidence: FarmingControlPositionHistory) {
     period: evidence.period,
     startEvidence: { kind: evidence.startEvidence.kind, at: iso(evidence.startEvidence.atMs) },
     through: iso(evidence.requestedThroughMs),
+    positionSummary: positionSummary(evidence),
     rateHistory: {
       first: quote(trend.earliestRate),
       latest: quote(trend.latestRate),
@@ -132,7 +172,7 @@ function fitCore(core: Projection): void {
     }
   }
   // Only these nested records contain financial/rate decimals. Never remove subject IDs.
-  for (const key of ["rateHistory", "accrualAndHarvest"]) {
+  for (const key of ["positionSummary", "rateHistory", "accrualAndHarvest"]) {
     const value = core[key];
     if (value && typeof value === "object") visit(value as Projection, key);
   }
@@ -191,11 +231,12 @@ function compactProjection(evidence: MatchedHistory): Projection {
     period: evidence.period,
     startEvidence: { kind: evidence.startEvidence.kind, at: iso(evidence.startEvidence.atMs) },
     through: iso(evidence.requestedThroughMs),
+    positionSummary: positionSummary(evidence),
     rateHistory,
     accrualAndHarvest,
     compactedForModelBudget: true,
     caveats: [
-      "Rates are dated annual quotes, not earned return or a holding-period average. Source/lookback detail and source issues are omitted to fit the tool budget; methodologyComparable still applies.",
+      "The reported mean describes the observed annual quotes. A change of rate methodology can make comparisons unavailable.",
       "Only fullyRead monthly rate rows establish saved monthly extrema. Missing rates or earnings are unknown, not zero.",
       "Harvest is recorded disposal USD proceeds and costs. Incomplete coverage means known subtotals. Do not add Harvest to accrual, which can already include it.",
       "Monthly accrual rows cover only their dated windows; sampled or unavailable months cannot establish lifetime earnings. Exact numbers listed in withheldExactNumbers could not fit and were omitted whole, never rounded.",

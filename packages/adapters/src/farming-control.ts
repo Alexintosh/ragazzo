@@ -39,6 +39,7 @@ import {
 import { isPrivateNetworkHost } from "@rakazo/contracts/network-host";
 import * as z from "zod";
 import { readFarmingControlPositionTrend } from "./farming-control-position-trend.js";
+import type { FarmingControlPositionEarningsPath } from "./farming-control-position-earnings.js";
 import { readFarmingControlPositionEarnings } from "./farming-control-position-earnings.js";
 import { curveRiskSource, morphoRiskSource, projectRiskExposures } from "./farming-control-risk.js";
 
@@ -195,10 +196,7 @@ type HistoryPoint = z.infer<typeof FarmingControlHistoryPointSchema>;
 type PositionYieldSource =
   | `/positions/${string}/metrics/apr?${string}`
   | `/positions/${string}/performance?${string}`;
-type PositionHistoryPath = PositionYieldSource
-  | `/portfolio/metrics/earned/since?${string}`
-  | `/portfolio/metrics/earned/monthly?${string}`
-  | `/harvest/accounting?${string}`;
+type PositionHistoryPath = PositionYieldSource | FarmingControlPositionEarningsPath;
 type ScopedSource = PositionHistoryPath | `${typeof SOURCES.portfolio | typeof SOURCES.history}?${string}`;
 const aprHistorySource = z.object({
   positionId: z.string().max(500),

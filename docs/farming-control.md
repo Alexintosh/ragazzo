@@ -61,6 +61,12 @@ history shows dated rates, monthly first and last observations, comparable
 extremes and coverage. A seven-day lookback on a provider quote describes
 that single quote even when the series spans months.
 
+In a position overview the specialists lead with the change, the observed
+minimum, maximum and mean quote. Each comparable saved rate has equal weight.
+The monthly USD average uses covered full UTC calendar months. A separate
+total pairs recorded net Harvest proceeds with the compatible outstanding
+yield mark, with the wallet scope and reporting dates carried through the read.
+
 The same read reports earned contributions and confirmed Harvest in separate
 fields. When the full-period accrual has no baseline, supported calendar
 months remain visible alongside the gaps. Clients can use the authenticated

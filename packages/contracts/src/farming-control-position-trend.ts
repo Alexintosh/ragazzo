@@ -1,4 +1,5 @@
 import * as z from "zod";
+import { FarmingControlDecimalSchema } from "./farming-control.js";
 import { FarmingControlAprHistoryPointSchema } from "./farming-control-entities.js";
 
 const ms = z.number().int().nonnegative();
@@ -36,6 +37,13 @@ export const FarmingControlPositionTrendSchema = z.object({
   state: z.enum(["available", "partial", "unavailable"]),
   earliestRate: FarmingControlPositionTrendPointSchema.nullable(),
   latestRate: FarmingControlPositionTrendPointSchema.nullable(),
+  // Entire retrieved range, withheld for incomplete retrieval or mixed rate methodologies.
+  minimumRate: FarmingControlPositionTrendPointSchema.nullable(),
+  maximumRate: FarmingControlPositionTrendPointSchema.nullable(),
+  meanQuotedRatePercentPerYear: FarmingControlDecimalSchema.nullable(),
+  meanWeighting: z.literal("equal_weight_per_saved_observation"),
+  meanMaximumFractionDigits: z.literal(18),
+  meanRounding: z.literal("toward_zero"),
   latestRateFreshness: z.enum(["current", "stale", "unknown"]),
   observedPointCount: count,
   pagesRead: count,

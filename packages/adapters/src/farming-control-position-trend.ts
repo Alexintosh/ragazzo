@@ -4,6 +4,7 @@ import type {
 } from "@rakazo/contracts";
 import { FarmingControlPositionTrendPointSchema } from "@rakazo/contracts";
 import * as z from "zod";
+import { exactMean } from "./farming-control-exact-decimal.js";
 
 const ms = z.number().int().nonnegative();
 const pageSchema = z.object({
@@ -106,6 +107,9 @@ export async function readFarmingControlPositionTrend(options: {
   let pagesRead = 0;
   let earliestRate: FarmingControlPositionTrendPoint | null = null;
   let latestRate: FarmingControlPositionTrendPoint | null = null;
+  let minimumRate: FarmingControlPositionTrendPoint | null = null;
+  let maximumRate: FarmingControlPositionTrendPoint | null = null;
+  const savedRates: string[] = [];
   let latestRateFreshness: FarmingControlPositionTrend["latestRateFreshness"] = "unknown";
   let discoveryComplete = false;
   let discoveryCursor: string | undefined;
@@ -226,6 +230,27 @@ export async function readFarmingControlPositionTrend(options: {
           }
           if (seen.has(point.observationId)) continue;
           seen.add(point.observationId);
+          savedRates.push(point.percentPerYear);
+          // Use every unique canonical observation, including interior monthly points.
+          // Tied extrema retain the earliest native observation deterministically.
+          const minimumComparison = minimumRate
+            ? compareDecimal(point.percentPerYear, minimumRate.percentPerYear)
+            : -1;
+          if (
+            !minimumRate ||
+            minimumComparison < 0 ||
+            (minimumComparison === 0 && earlier(point, minimumRate))
+          )
+            minimumRate = point;
+          const maximumComparison = maximumRate
+            ? compareDecimal(point.percentPerYear, maximumRate.percentPerYear)
+            : 1;
+          if (
+            !maximumRate ||
+            maximumComparison > 0 ||
+            (maximumComparison === 0 && earlier(point, maximumRate))
+          )
+            maximumRate = point;
           methods.add(methodology(point));
           versions.add(point.adapterVersion);
           windows.add(point.window);
@@ -305,6 +330,20 @@ export async function readFarmingControlPositionTrend(options: {
   );
   const retrievalComplete =
     discoveryComplete && !omittedMonths && months.every((m) => m.retrievalComplete);
+  const methodologyComparable = retrievalComplete && methods.size === 1;
+  let meanQuotedRatePercentPerYear: string | null = null;
+  if (methodologyComparable && savedRates.length) {
+    try {
+      meanQuotedRatePercentPerYear = exactMean(savedRates, 18);
+    } catch {
+      issues.add(
+        "The quoted-rate observation mean exceeds the exact-decimal calculation budget and is withheld.",
+      );
+    }
+  } else {
+    minimumRate = null;
+    maximumRate = null;
+  }
   if (!retrievalComplete)
     issues.add(
       "Saved-rate coverage is partial; scanned counts do not establish total history size.",
@@ -328,9 +367,10 @@ export async function readFarmingControlPositionTrend(options: {
     );
   if (!earliestRate)
     issues.add("No saved quoted rate was found; absence is not a zero rate or zero return.");
-  issues.add(
-    "Saved quoted APR/APY observations do not establish earned yield, realized ROI or a held-period average.",
-  );
+  if (meanQuotedRatePercentPerYear !== null)
+    issues.add(
+      "The quoted-rate mean gives each unique saved annual-rate observation equal weight; realized return is measured separately.",
+    );
   return {
     positionId,
     walletVisibilityRevision,
@@ -339,6 +379,12 @@ export async function readFarmingControlPositionTrend(options: {
     state: !earliestRate ? "unavailable" : retrievalComplete ? "available" : "partial",
     earliestRate,
     latestRate,
+    minimumRate,
+    maximumRate,
+    meanQuotedRatePercentPerYear,
+    meanWeighting: "equal_weight_per_saved_observation",
+    meanMaximumFractionDigits: 18,
+    meanRounding: "toward_zero",
     latestRateFreshness,
     observedPointCount: seen.size,
     pagesRead,
@@ -348,7 +394,7 @@ export async function readFarmingControlPositionTrend(options: {
     windowMeaning: "provider_rate_window_not_holding_period",
     adapterVersions: [...versions],
     months,
-    methodologyComparable: retrievalComplete && methods.size === 1,
+    methodologyComparable,
     methodologyCount: methods.size,
     issues: [...issues],
   };
