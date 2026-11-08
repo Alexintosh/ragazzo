@@ -162,27 +162,29 @@ export default function BotProfile() {
           }
           onPress={() => router.push({ pathname: "/artifacts", params: { botId } })}
         />
-        <SettingsRow
-          key="computer"
-          accessibilityRole="button"
-          chevron="right"
-          title={t("Computer")}
-          leading={
-            <NativeSymbol
-              ios="desktopcomputer"
-              android="desktop-outline"
-              color={tokens.mutedForeground}
-            />
-          }
-          value={
-            computer?.state === "running"
-              ? t("Running")
-              : computer?.state === "suspended"
-                ? t("Asleep")
-                : undefined
-          }
-          onPress={() => router.push({ pathname: "/computer", params: { botId, name } })}
-        />
+        {bot?.botKind !== "roleplay" ? (
+          <SettingsRow
+            key="computer"
+            accessibilityRole="button"
+            chevron="right"
+            title={t("Computer")}
+            leading={
+              <NativeSymbol
+                ios="desktopcomputer"
+                android="desktop-outline"
+                color={tokens.mutedForeground}
+              />
+            }
+            value={
+              computer?.state === "running"
+                ? t("Running")
+                : computer?.state === "suspended"
+                  ? t("Asleep")
+                  : undefined
+            }
+            onPress={() => router.push({ pathname: "/computer", params: { botId, name } })}
+          />
+        ) : null}
       </SettingsGroup>
       {bot ? (
         <SettingsGroup footer={t("Get notified when this Bot finishes or needs input")}>

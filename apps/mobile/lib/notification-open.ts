@@ -1,5 +1,9 @@
 export type NotificationRoute =
   | {
+      pathname: "/task-conversation";
+      params: { taskId: string; threadId?: string; spaceId?: string; name?: string };
+    }
+  | {
       pathname: "/thread";
       params: { botId: string; threadId?: string; spaceId?: string; name?: string };
     }
@@ -49,6 +53,8 @@ export function notificationOpenTarget(data: unknown): NotificationRoute | null 
     ...(spaceId ? { spaceId } : {}),
     ...(name ? { name } : {}),
   };
+  const taskId = notificationField(record, "taskId");
+  if (taskId) return { pathname: "/task-conversation", params: { taskId, ...shared } };
   const groupId = notificationField(record, "groupId");
   if (groupId) return { pathname: "/group-thread", params: { groupId, ...shared } };
   const botId = notificationField(record, "botId");
@@ -69,8 +75,13 @@ export function notificationOpenTargetFromLink(url: string): NotificationRoute |
   for (const [key, value] of parsed.searchParams) data[key] = value;
   if (screen === "thread") {
     delete data.groupId;
+    delete data.taskId;
   } else if (screen === "group-thread") {
     delete data.botId;
+    delete data.taskId;
+  } else if (screen === "task-conversation") {
+    delete data.botId;
+    delete data.groupId;
   } else {
     return null;
   }

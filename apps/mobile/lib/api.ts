@@ -1090,6 +1090,10 @@ export type MobileBot = Pick<
   | "archivedAt"
   | "unread"
   | "updatedAt"
+  | "runtimeKind"
+  | "executionTarget"
+  | "runtimePermission"
+  | "projectPath"
   | "computerMode"
   | "modelProvider"
   | "modelId"
@@ -1098,7 +1102,7 @@ export type MobileBot = Pick<
   | "fleetManagement"
   | "crossSpaceCommunication"
 > &
-  Partial<Pick<Bot, "parentBotId" | "spaceId" | "spawnKey" | "instructions">>;
+  Partial<Pick<Bot, "parentBotId" | "spaceId" | "spawnKey" | "instructions" | "botKind" | "roleplayCharacter">>;
 
 export type MobileBotSection = BotSection;
 
@@ -1115,6 +1119,7 @@ export type MobileMe = Pick<
   | "needsModel"
   | "isDeploymentOwner"
   | "needsSignupSurvey"
+  | "roleplayEnabled"
   | "billingEnabled"
   | "paymentWalletProvider"
 >;
@@ -1312,7 +1317,7 @@ function httpError(message: string, res: Response, code?: string): Error {
 }
 
 export async function subscribeThread(
-  target: { botId: string } | { groupId: string },
+  target: { botId: string } | { groupId: string } | { taskId: string },
   cursor: number,
   onEvent: (event: ThreadEvent) => void,
   signal: AbortSignal,

@@ -28,12 +28,14 @@ import type {
   PluginRepoFetcher,
   PluginTextReader,
   RemoteConnectorDependencies,
+  RoleplayRuntime,
   UserDeviceGateway,
 } from "@rakazo/adapters";
 import {
   applyMessagingOutboundStatus,
   auditLogConfig,
   ChatSdkMessagingSurface,
+  CodexAgentRuntime,
   CodexCatalogCache,
   ComposioConnector,
   contentKeyProviderFromEnv,
@@ -43,12 +45,16 @@ import {
   createBackgroundJobHandlers,
   createCloudAgentConnection,
   createConnectorStack,
+  createHostComputerTransport,
+  createHostDirectoriesTransport,
+  createHostProjectDirectoryTransport,
   createIdleComputerSweeper,
   createJobReconciler,
   createMessagingContextLoader,
   createMessagingTeamChatHistory,
   createMessagingTeamChatSender,
   createModelCreditReconciler,
+  createNativeSetupTransport,
   createPaymentWalletProvider,
   createProductAnalytics,
   createRunExecutor,
@@ -68,10 +74,12 @@ import {
   installedMessaging,
   isComposioEnabled,
   isMessagingSurfaceEnabled,
+  isNativeCodexCleanupFailedError,
   isPipedreamEnabled,
   McpConnector,
   McpOAuthBroker,
   messagingPlatformsFromEnv,
+  NATIVE_CODEX_CLEANUP_FAILED_MESSAGE,
   PiAgentRuntime,
   PiOAuthLogins,
   PipedreamConnector,
@@ -86,6 +94,7 @@ import {
   reconcilePurchases,
   removePiUserSessions,
   resolveDeploymentModel,
+  revokeNativeSetupScopes,
   ScriptedAgentRuntime,
   SpaceMemoryProviderResolver,
   StripeBillingProvider,
@@ -253,6 +262,7 @@ type CreateAppOverrides = Partial<AppEnv> & {
   modelConnectionFetch?: typeof fetch;
   logger?: Logger;
   runtime?: AgentRuntime;
+  roleplayRuntime?: RoleplayRuntime;
   contextStrategy?: AgentContextStrategy;
   /** Test-only stand-in for desktops connected to this server. */
   userDevices?: UserDeviceGateway;
@@ -276,6 +286,7 @@ async function buildApp(overrides: CreateAppOverrides): Promise<AppHandles> {
     pluginMarketplaceRead,
     logger: loggerOverride,
     runtime: runtimeOverride,
+    roleplayRuntime,
     contextStrategy,
     userDevices: userDevicesOverride,
     ...envOverrides
@@ -382,10 +393,16 @@ async function buildApp(overrides: CreateAppOverrides): Promise<AppHandles> {
     prisma,
     ticketBoardEnabled,
   });
+  const hostOptions = sandboxProviderOptionsFromEnv();
+  const nativeTransport = createHostComputerTransport({ prisma, secrets, ...hostOptions });
+  const nativeRuntime = new CodexAgentRuntime(nativeTransport);
+  const claudeRuntime = new CodexAgentRuntime(nativeTransport, "claude");
+  const acpRuntime = new CodexAgentRuntime(nativeTransport, "acp");
   const sandbox: SandboxProvider =
     sandboxOverride ??
     (await createRunSandbox(env.sandboxProvider, {
-      ...sandboxProviderOptionsFromEnv(),
+      ...hostOptions,
+      secrets,
       supervisorUrl: env.sandboxSupervisorUrl,
       supervisorToken: env.sandboxSupervisorToken,
       e2bApiKey: env.e2bApiKey,
@@ -517,6 +534,10 @@ async function buildApp(overrides: CreateAppOverrides): Promise<AppHandles> {
       jobs,
       accessToken: env.expoAccessToken,
     });
+  const nativeSetupCleanup = (owners: Array<{ spaceId: string; userId: string }>) =>
+    runAsSystem("authorized native setup teardown", () =>
+      revokeNativeSetupScopes({ prisma, secrets, ...hostOptions }, owners),
+    );
   const auth = createAuth(prisma, {
     analytics,
     passwordAuth: env.passwordAuth,
@@ -565,6 +586,7 @@ async function buildApp(overrides: CreateAppOverrides): Promise<AppHandles> {
           artifacts,
           dataDir: env.dataDir,
           messagingInstallations,
+          nativeSetupCleanup,
         },
         userId,
       );
@@ -621,6 +643,8 @@ async function buildApp(overrides: CreateAppOverrides): Promise<AppHandles> {
     farmingControlRiskAutomationEnabled: (env.farmingControlRiskEventToken?.length ?? 0) >= 32,
     farmingControlOpportunitiesEnabled: env.farmingControlOpportunitiesEnabled,
     farmingControlOpportunityRefreshEnabled: env.farmingControlOpportunityRefreshEnabled,
+    roleplayRuntime,
+    runtimes: { codex: nativeRuntime, claude: claudeRuntime, acp: acpRuntime },
     billingEnabled: modelCreditsEnabled,
     maxUploadSizeBytes: env.maxUploadSizeBytes,
     contextStrategy,
@@ -740,6 +764,41 @@ async function buildApp(overrides: CreateAppOverrides): Promise<AppHandles> {
     farmingControlRiskAutomationEnabled: (env.farmingControlRiskEventToken?.length ?? 0) >= 32,
     farmingControlOpportunitiesEnabled: env.farmingControlOpportunitiesEnabled,
     farmingControlOpportunityRefreshEnabled: env.farmingControlOpportunityRefreshEnabled,
+    hostDirectories: createHostDirectoriesTransport({ prisma, secrets, ...hostOptions }),
+    hostProjectDirectory: createHostProjectDirectoryTransport({ prisma, secrets, ...hostOptions }),
+    nativeSetup: createNativeSetupTransport({ prisma, secrets, ...hostOptions }),
+    nativeSetupCleanup,
+    nativeRuntimeStatus: nativeRuntime
+      ? async (botId, threadId, context) => {
+          const bot = await prisma.bot.findFirst({
+            where: { id: botId, spaceId: context.spaceId, userId: context.userId },
+            select: { runtimeKind: true },
+          });
+          const selected =
+            bot?.runtimeKind === "claude"
+              ? claudeRuntime
+              : bot?.runtimeKind === "acp"
+                ? acpRuntime
+                : nativeRuntime;
+          return selected.status(botId, threadId, context.operationId, context);
+        }
+      : undefined,
+    nativeRuntimeModels: nativeRuntime
+      ? async (botId, threadId, context) => {
+          const bot = await prisma.bot.findFirst({
+            where: {
+              id: botId,
+              spaceId: context.spaceId,
+              userId: context.userId,
+              archivedAt: null,
+            },
+            select: { runtimeKind: true, projectPath: true },
+          });
+          if (bot?.runtimeKind !== "codex" || !bot.projectPath)
+            throw new Error("Native model settings are unavailable");
+          return nativeRuntime.models(botId, threadId, bot.projectPath, context);
+        }
+      : undefined,
     speechSummary:
       env.voiceSummaryMinChars === undefined
         ? undefined
@@ -818,6 +877,7 @@ async function buildApp(overrides: CreateAppOverrides): Promise<AppHandles> {
       integrationsCatalogUrl: env.integrationsCatalogUrl,
       mcpAllowPrivateEndpoint: env.mcpAllowPrivateEndpoint,
       desktopHostChoiceEnabled: Boolean(env.desktopStackToken),
+      nativeHostConfigured: Boolean(hostOptions.hostComputerUrl && hostOptions.hostComputerToken),
       mcpStdioEnabled: env.mcpStdioEnabled,
       mcpStdioAllowedCommands: env.mcpStdioAllowedCommands,
     },
@@ -1542,6 +1602,12 @@ export function handleRpcError(
   path: readonly string[],
   signal?: AbortSignal,
 ): void {
+  if (isNativeCodexCleanupFailedError(error)) {
+    throw new ORPCError("CONFLICT", {
+      message: NATIVE_CODEX_CLEANUP_FAILED_MESSAGE,
+      cause: error,
+    });
+  }
   // A missing or foreign resource is the caller's mistake (a stale client, a deleted bot),
   // not a server failure, so it is a warning rather than an error report.
   if (error instanceof IsolationError) {

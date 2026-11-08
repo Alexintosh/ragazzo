@@ -24,11 +24,13 @@ postgres("history retrieval (PostgreSQL)", () => {
     prisma = new PrismaClient({ adapter: new PrismaPg(pool, { schema: "pg_temp" }) });
     await pool.query(`
       CREATE TEMP TABLE bots (id text PRIMARY KEY, "spaceId" text, "userId" text, "archivedAt" timestamptz);
-      CREATE TEMP TABLE threads (id text PRIMARY KEY, "spaceId" text, "userId" text, "botId" text, "groupId" text);
+      CREATE TEMP TABLE threads (id text PRIMARY KEY, "spaceId" text, "userId" text, "botId" text, "groupId" text, "taskBotId" text);
       CREATE TEMP TABLE chat_groups (id text PRIMARY KEY, "spaceId" text, "userId" text, "archivedAt" timestamptz);
       CREATE TEMP TABLE chat_group_members ("groupId" text, "botId" text);
       CREATE TEMP TABLE messages (id text PRIMARY KEY, "threadId" text, seq integer, role text, "runId" text,
         "replyToMessageId" text, "createdAt" timestamptz, blocks jsonb);
+      CREATE TEMP TABLE steering_messages ("messageId" text, "botId" text,
+        "claimedAt" timestamptz, "cancelledAt" timestamptz);
       CREATE TEMP TABLE runs (id text PRIMARY KEY, "spaceId" text, "userId" text, "threadId" text, "botId" text,
         "sourceMessageId" text, status text, "createdAt" timestamptz, "completedAt" timestamptz);
       CREATE TEMP TABLE artifacts (id text PRIMARY KEY, "spaceId" text, "userId" text, "botId" text, "groupId" text,
@@ -50,6 +52,73 @@ postgres("history retrieval (PostgreSQL)", () => {
   afterAll(async () => {
     await prisma?.$disconnect();
     await pool?.end();
+  });
+  it("reads and searches only the task owner's separate conversation", async () => {
+    await pool.query(`INSERT INTO threads (id,"spaceId","userId","taskBotId")
+      VALUES ('synthetic-task-thread','synthetic-space','synthetic-user','synthetic-bot');
+      INSERT INTO messages VALUES ('task-source','synthetic-task-thread',0,'user',NULL,NULL,now(),
+        '[{"kind":"text","text":"task provenance canary"}]');`);
+    const taskScope = { ...scope, threadId: "synthetic-task-thread" };
+    expect(
+      (await searchHistory(prisma, taskScope, { query: "provenance canary" })).messages.map(
+        (m) => m.messageId,
+      ),
+    ).toEqual(["task-source"]);
+    expect(
+      (await readHistory(prisma, taskScope, { messageId: "task-source" })).messages[0]?.messageId,
+    ).toBe("task-source");
+    expect((await readHistory(prisma, scope, { messageId: "task-source" })).messages).toEqual([]);
+    expect(
+      (
+        await readHistory(
+          prisma,
+          { ...taskScope, botId: "other-bot" },
+          { messageId: "task-source" },
+        )
+      ).messages,
+    ).toEqual([]);
+    expect(
+      (
+        await searchHistory(
+          prisma,
+          { ...taskScope, userId: "other-user" },
+          { query: "provenance canary" },
+        )
+      ).messages,
+    ).toEqual([]);
+  });
+  it("hides pending and cancelled queue instructions from search and direct reads per bot", async () => {
+    await pool.query(`
+      INSERT INTO messages SELECT 'queue-' || state, 'synthetic-thread', 20000 + n, 'user', NULL, NULL,
+        now(), jsonb_build_array(jsonb_build_object('kind','text','text','queuecanary ' || state))
+        FROM (VALUES (1,'pending'),(2,'cancelled'),(3,'consumed'),(4,'peer')) states(n,state);
+      INSERT INTO steering_messages VALUES
+        ('queue-pending','synthetic-bot',NULL,NULL),
+        ('queue-cancelled','synthetic-bot',NULL,now()),
+        ('queue-consumed','synthetic-bot',now(),NULL),
+        ('queue-peer','another-bot',NULL,NULL);
+    `);
+    try {
+      const found = await searchHistory(prisma, scope, { query: "queuecanary" });
+      expect(found.messages.map((message) => message.messageId)).toEqual([
+        "queue-peer",
+        "queue-consumed",
+      ]);
+      for (const messageId of ["queue-pending", "queue-cancelled"]) {
+        expect((await readHistory(prisma, scope, { messageId })).messages).toEqual([]);
+      }
+      await pool.query(
+        `UPDATE steering_messages SET "claimedAt" = now() WHERE "messageId" = 'queue-pending'`,
+      );
+      expect(
+        (await readHistory(prisma, scope, { messageId: "queue-pending", limit: 1 })).messages[0]
+          ?.messageId,
+      ).toBe("queue-pending");
+    } finally {
+      await pool.query(
+        `DELETE FROM steering_messages; DELETE FROM messages WHERE id LIKE 'queue-%'`,
+      );
+    }
   });
   it.each([
     { text: String.raw`back\slash`, query: String.raw`back\slash`, matches: true },

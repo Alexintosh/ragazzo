@@ -28,6 +28,20 @@ describe("host-aware sandbox", () => {
 
   afterEach(() => vi.restoreAllMocks());
 
+  it("uses only the authenticated bridge for a standalone desktop deployment", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    try {
+      const sandbox = await createRunSandbox("desktop", {
+        hostComputerUrl: "http://127.0.0.1:7099",
+        hostComputerToken: "a".repeat(64),
+      });
+      expect(sandbox).toBeInstanceOf(HostComputerSandbox);
+      await expect(createRunSandbox("desktop", {})).rejects.toThrow("limited to local development");
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
   it("never falls back to backend execution when the native connection is missing", async () => {
     const provision = vi.spyOn(DesktopSandboxProvider.prototype, "provision");
     const sandbox = await createRunSandbox("docker", {
@@ -36,16 +50,19 @@ describe("host-aware sandbox", () => {
       } as unknown as PrismaClient,
     });
     await expect(sandbox.provision({ botId: "host", homePath: "/unused" }, ctx)).rejects.toThrow(
-      "requires the desktop app",
+      "Host access is not configured",
     );
     expect(provision).not.toHaveBeenCalled();
   });
 
-  it("refuses an old host reference once the deployment switches back to Docker", async () => {
+  it("keeps host routing independent of the default preference and leaves consent to the host", async () => {
     const host = new DesktopSandboxProvider();
-    const execute = vi.spyOn(host, "execute");
+    const execute = vi.spyOn(host, "execute").mockImplementation(async function* () {
+      yield { type: "exit", code: 0 };
+    });
     const sandbox = new HostAwareSandbox(new FakeSandboxProvider(), host, async () => false);
     const computer: ComputerRef = {
+      executionTarget: "host",
       id: "old-host",
       botId: "host",
       kind: "desktop",
@@ -55,8 +72,56 @@ describe("host-aware sandbox", () => {
       for await (const _event of sandbox.execute(computer, { argv: ["echo", "no"] }, ctx)) {
       }
     };
-    await expect(attempt()).rejects.toThrow("disabled");
-    expect(execute).not.toHaveBeenCalled();
+    await expect(attempt()).resolves.toBeUndefined();
+    expect(execute).toHaveBeenCalledOnce();
+  });
+
+  it("preserves explicit placement on a freshly provisioned registered host", async () => {
+    const host = new DesktopSandboxProvider();
+    vi.spyOn(host, "provision").mockResolvedValue({
+      id: "host",
+      botId: "key",
+      kind: "desktop",
+      providerRef: "host",
+    });
+    const execute = vi.spyOn(host, "execute").mockImplementation(async function* () {
+      yield { type: "exit", code: 0 };
+    });
+    const sandbox = new HostAwareSandbox(new FakeSandboxProvider(), host, async () => false);
+    const computer = await sandbox.provision(
+      {
+        botId: "key",
+        homePath: "/unused",
+        executionTarget: "host",
+        registeredHostId: "registered",
+      },
+      ctx,
+    );
+    expect(computer).toMatchObject({ executionTarget: "host", registeredHostId: "registered" });
+    for await (const _ of sandbox.execute(computer, { argv: ["echo", "ok"] }, ctx)) {
+      /* drain */
+    }
+    expect(execute).toHaveBeenCalledOnce();
+  });
+
+  it("keeps legacy default computers following the deployment preference", async () => {
+    const isolated = new FakeSandboxProvider();
+    const host = new DesktopSandboxProvider();
+    const provision = vi.spyOn(host, "provision");
+    const sandbox = new HostAwareSandbox(isolated, host, async () => true);
+    expect(await sandbox.provisionKind({ executionTarget: "default" })).toBe("desktop");
+    const computer = await sandbox.provision(
+      {
+        botId: "legacy",
+        homePath: "/tmp/legacy",
+        providerKind: "fake",
+        executionTarget: "default",
+      },
+      ctx,
+    );
+    expect(computer.kind).toBe("desktop");
+    expect(provision).toHaveBeenCalledOnce();
+    await sandbox.destroy(computer, ctx);
   });
 
   it("exposes and routes page commands through the production Docker wrapper", async () => {
@@ -152,6 +217,23 @@ describe("host-aware sandbox", () => {
     expect(code).toBe(1);
     expect(stderr).toMatch(/outside this computer's home/i);
     await desktop.destroy(computer, ctx);
+  });
+
+  it("keeps the stored Docker placement when the default selects host", async () => {
+    const isolated = new FakeSandboxProvider();
+    const provision = vi.spyOn(isolated, "provision");
+    const host = new DesktopSandboxProvider();
+    const hostProvision = vi.spyOn(host, "provision");
+    const sandbox = new HostAwareSandbox(isolated, host, async () => true);
+    expect(await sandbox.provisionKind({ executionTarget: "docker" })).toBe("fake");
+    const computer = await sandbox.provision(
+      { botId: "pinned", homePath: "/unused", providerKind: "fake", executionTarget: "docker" },
+      ctx,
+    );
+    expect(computer.kind).toBe("fake");
+    expect(provision).toHaveBeenCalledOnce();
+    expect(hostProvision).not.toHaveBeenCalled();
+    await sandbox.destroy(computer, ctx);
   });
 
   it("provisions on the host provider when enabled", async () => {

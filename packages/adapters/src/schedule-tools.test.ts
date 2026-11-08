@@ -18,6 +18,90 @@ import {
 const noRoutines = async () => [];
 const impossibleOffsetDates = ["2030-02-30T10:00Z", "2030-04-31T10:00+05:30"];
 
+describe("scheduling cancellation boundaries", () => {
+  it.each(["update", "cancel"] as const)(
+    "checks cancellation after the %s lookup and before its mutation",
+    async (operation) => {
+      const controller = new AbortController();
+      const updateMany = vi.fn();
+      const deleteMany = vi.fn();
+      const jobs = { enqueue: vi.fn(), cancel: vi.fn() };
+      const deps = {
+        signal: controller.signal,
+        prisma: {
+          routine: {
+            findFirst: vi.fn(async () => {
+              controller.abort();
+              return {
+                id: "routine-1",
+                active: true,
+                crons: [ONCE_ROUTINE_CRON],
+                timezone: "UTC",
+                nextRunAt: new Date(Date.now() + 60_000),
+              };
+            }),
+            updateMany,
+            deleteMany,
+          },
+        },
+        jobs,
+      } as unknown as Parameters<typeof updateScheduleFromTool>[0];
+      const scope = {
+        spaceId: "space-1",
+        botId: "bot-1",
+        userId: "user-1",
+        threadId: "thread-1",
+        routineId: "routine-1",
+      };
+      const pending =
+        operation === "update"
+          ? updateScheduleFromTool(deps, {
+              ...scope,
+              active: false,
+              schedule: {},
+            })
+          : cancelScheduleFromTool(deps, scope);
+      await expect(pending).rejects.toThrow();
+      expect(updateMany).not.toHaveBeenCalled();
+      expect(deleteMany).not.toHaveBeenCalled();
+      expect(jobs.enqueue).not.toHaveBeenCalled();
+      expect(jobs.cancel).not.toHaveBeenCalled();
+    },
+  );
+
+  it("finishes enqueueing a committed timer when cancellation arrives during the write", async () => {
+    const controller = new AbortController();
+    const enqueue = vi.fn();
+    const deps = {
+      signal: controller.signal,
+      prisma: {
+        routine: {
+          findMany: vi.fn(async () => []),
+          create: vi.fn(async ({ data }: { data: Record<string, unknown> }) => {
+            controller.abort();
+            return { id: "routine-1", ...data };
+          }),
+        },
+      },
+      jobs: { enqueue },
+      events: { append: vi.fn() },
+    } as unknown as Parameters<typeof createScheduleFromTool>[0];
+    expect(
+      await createScheduleFromTool(deps, {
+        spaceId: "space-1",
+        botId: "bot-1",
+        userId: "user-1",
+        threadId: "thread-1",
+        name: "Later",
+        prompt: "Say hello.",
+        timezone: "UTC",
+        schedule: { delayMinutes: 45 },
+      }),
+    ).toMatchObject({ ok: true });
+    expect(enqueue).toHaveBeenCalledOnce();
+  });
+});
+
 describe("resolveScheduleTiming", () => {
   beforeEach(() => vi.useFakeTimers({ now: new Date("2026-10-20T00:11:59.999Z") }));
   afterEach(() => vi.useRealTimers());

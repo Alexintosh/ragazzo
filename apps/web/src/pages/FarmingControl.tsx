@@ -60,7 +60,7 @@ type ReadMeta = {
 };
 
 type Props = {
-  view: FarmingControlSection;
+  view: Exclude<FarmingControlSection, "intelligence">;
   positionId?: string;
   portfolioDemo: { seed: string | null; toggle: () => void };
   rpc: RpcClient;

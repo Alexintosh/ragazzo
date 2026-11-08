@@ -59,7 +59,12 @@ function computer(state: ComputerStatus["state"]): ComputerStatus {
   };
 }
 
-async function render(state: ComputerStatus["state"], onStart = vi.fn()) {
+async function render(
+  state: ComputerStatus["state"],
+  onStart = vi.fn(),
+  onClose = vi.fn(),
+  overrides: Partial<ComponentProps<typeof ComputerOverlay>> = {},
+) {
   await act(async () => {
     root.render(
       <ComputerOverlay
@@ -84,7 +89,8 @@ async function render(state: ComputerStatus["state"], onStart = vi.fn()) {
         onStart={onStart}
         onRefreshTeaching={async () => undefined}
         onRefreshComputer={async () => undefined}
-        onClose={() => undefined}
+        onClose={onClose}
+        {...overrides}
       />,
     );
   });
@@ -121,4 +127,30 @@ it("offers Start for an asleep computer", async () => {
   await render("suspended");
   expect(container.textContent).toContain("Computer is asleep");
   expect(startButton()).toBeDefined();
+});
+
+it("returns to the conversation using the existing close action", async () => {
+  const onClose = vi.fn();
+  await render("running", vi.fn(), onClose);
+  const conversation = [...container.querySelectorAll("button")].find(
+    (button) => button.textContent === "Conversation",
+  );
+  await act(async () => conversation?.click());
+  expect(onClose).toHaveBeenCalledOnce();
+});
+
+it("shows the host browser in the same sandboxed computer view and gates input on takeover", async () => {
+  const status = { ...computer("running"), kind: "desktop" as const, screenAvailable: true };
+  const url = "/novnc/session/view/1.fake/browser-screen/session/embed.html";
+  await render("running", undefined, undefined, { computer: status, embeddedScreenUrl: url });
+  const frame = container.querySelector("iframe");
+  expect(frame?.getAttribute("src")).toBe(url);
+  expect(frame?.getAttribute("sandbox")).toBe("allow-scripts allow-pointer-lock");
+  expect(frame?.style.pointerEvents).toBe("none");
+  await render("running", undefined, undefined, {
+    computer: status,
+    embeddedScreenUrl: url,
+    hasControl: true,
+  });
+  expect(container.querySelector("iframe")?.style.pointerEvents).toBe("auto");
 });

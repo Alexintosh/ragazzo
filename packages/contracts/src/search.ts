@@ -8,6 +8,7 @@ export const SearchHitSchema = z
   .object({
     kind: SearchHitKindSchema,
     botId: Id.optional(),
+    taskId: Id.optional(),
     botName: z.string().optional(),
     groupId: Id.optional(),
     groupName: z.string().optional(),

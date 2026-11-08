@@ -4,6 +4,7 @@ import { blocksToAgentHistoryText, messageReaction } from "@rakazo/core";
 import type { PrismaClient } from "@rakazo/db";
 import type { FarmingControlContextKinds } from "./farming-control-risk-context.js";
 import { farmingControlContextForModel } from "./farming-control-risk-context.js";
+import { undeliveredSteeringFilter } from "@rakazo/db";
 
 type QuotedMessage = {
   id: string;
@@ -69,17 +70,45 @@ export async function loadReplyContext(
   prisma: PrismaClient,
   threadId: string,
   sourceMessageId: string | null | undefined,
+  botId?: string,
 ): Promise<string | undefined> {
   if (!sourceMessageId) return undefined;
   const selection = { id: true, threadId: true, role: true, botId: true, blocks: true } as const;
   const source = await prisma.message.findFirst({
-    where: { id: sourceMessageId, threadId },
+    where: {
+      id: sourceMessageId,
+      threadId,
+      ...(botId
+        ? {
+            NOT: {
+              steeringMessages: {
+                some: undeliveredSteeringFilter(botId),
+              },
+            },
+          }
+        : {}),
+    },
     select: {
       ...selection,
       replyToMessageId: true,
       replyQuote: true,
-      replyTo: { select: selection },
+      replyTo: {
+        select: {
+          ...selection,
+          steeringMessages: {
+            where: undeliveredSteeringFilter(botId),
+            select: { id: true },
+            take: 1,
+          },
+        },
+      },
     },
   });
-  return source ? replyContext(source, threadId) : undefined;
+  if (!source) return undefined;
+  return replyContext(
+    source.replyTo?.steeringMessages?.length
+      ? { ...source, replyTo: null, replyQuote: null }
+      : source,
+    threadId,
+  );
 }

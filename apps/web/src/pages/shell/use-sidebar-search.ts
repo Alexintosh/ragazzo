@@ -74,7 +74,11 @@ export function useSidebarSearch({
     if (hit.messageId) params.set("m", hit.messageId);
     if (hit.routineId) params.set("routine", hit.routineId);
     navigate({
-      pathname: hit.groupId ? `/app/g/${hit.groupId}` : `/app/${hit.botId}`,
+      pathname: hit.taskId
+        ? `/app/${hit.botId}/tasks/${hit.taskId}`
+        : hit.groupId
+          ? `/app/g/${hit.groupId}`
+          : `/app/${hit.botId}`,
       search: params.toString() ? `?${params.toString()}` : undefined,
     });
   }

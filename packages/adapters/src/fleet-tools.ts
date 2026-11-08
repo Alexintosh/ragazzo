@@ -259,6 +259,8 @@ async function prepareChildModel(
 
   const child = await resolveBot(deps.prisma, run, args);
   if ("error" in child) return child;
+  if (child.runtimeKind && child.runtimeKind !== "pi")
+    return refuse("Choose this bot's model in its runtime settings.");
   const previous = {
     provider: child.modelProvider,
     model: child.modelId,
@@ -928,6 +930,8 @@ export async function setChildBotModel(
 > {
   const child = await resolveBot(deps.prisma, run, { bot_id: canonical.botId });
   if ("error" in child) return { error: child.error };
+  if (child.runtimeKind && child.runtimeKind !== "pi")
+    return { error: "Choose this bot's model in its runtime settings." };
   if (!child.thread) return { error: NOT_FOUND };
   const previous = record(canonical.previous);
   if (
@@ -962,6 +966,7 @@ export async function setChildBotModel(
         modelId: child.modelId,
         thinkingLevel: child.thinkingLevel ?? null,
       },
+      expectedRuntimeKind: child.runtimeKind ?? "pi",
       data: {
         modelProvider: validated.provider,
         modelId: validated.model,
@@ -1083,6 +1088,7 @@ async function appendGroupEvent(
 const botSelect = {
   id: true,
   name: true,
+  runtimeKind: true,
   modelProvider: true,
   modelId: true,
   thinkingLevel: true,

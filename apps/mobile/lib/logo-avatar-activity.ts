@@ -54,11 +54,16 @@ export function rememberMobileAvatarSnapshot(
   if (snapshots.size > 100) snapshots.delete(snapshots.keys().next().value!);
 }
 export function beginMobileAvatarFeed(
-  target: { botId: string } | { groupId: string },
+  target: { botId: string } | { groupId: string } | { taskId: string },
   cursor: number,
 ) {
   const source = `mobile-avatar-${++serial}`;
-  const key = "groupId" in target ? `group:${target.groupId}` : `bot:${target.botId}`;
+  const key =
+    "taskId" in target
+      ? `task:${target.taskId}`
+      : "groupId" in target
+        ? `group:${target.groupId}`
+        : `bot:${target.botId}`;
   const snapshot = snapshots.get(key)?.value;
   // A snapshot older than the feed cursor misses runs started since, so it can't vouch for idle.
   if (snapshot && snapshot.cursor >= cursor) projection.hydrate(source, snapshot);

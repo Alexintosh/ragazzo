@@ -221,7 +221,10 @@ beforeEach(() => {
   providerState.delay.mockReset().mockResolvedValue(undefined);
 });
 
-afterEach(() => vi.useRealTimers());
+afterEach(() => {
+  vi.useRealTimers();
+  vi.unstubAllEnvs();
+});
 
 describe("Pi runtime transient model retries", () => {
   it("recovers one empty idle stream after the header retry budget expires", async () => {
@@ -241,6 +244,47 @@ describe("Pi runtime transient model retries", () => {
     expect(providerState.stream).toHaveBeenCalledTimes(2);
     expect(providerState.delay.mock.calls.map(([delay]) => delay)).toEqual([2_000]);
     expect(providerState.stream.mock.calls[1]?.[2].timeoutMs).toBe(MODEL_STREAM_TIMEOUT_MS - 2_000);
+  });
+
+  it("uses a slow connection's header limit for same-model retries", async () => {
+    vi.useFakeTimers();
+    const input = request();
+    input.model.streamTimeoutMs = 900_000;
+    providerState.delay.mockImplementation(async (delay) => {
+      vi.setSystemTime(Date.now() + delay);
+    });
+    providerState.stream
+      .mockImplementationOnce(() => {
+        vi.setSystemTime(Date.now() + 500_000);
+        return stream(primary, message(primary, [], "error", "Request timed out."));
+      })
+      .mockImplementation(() =>
+        stream(primary, message(primary, [{ type: "text", text: "Ready" }], "stop")),
+      );
+    expect(await run(input)).toContainEqual({ type: "text", text: "Ready" });
+    expect(providerState.stream.mock.calls.map(([, , options]) => options.timeoutMs)).toEqual([
+      900_000, 398_000,
+    ]);
+  });
+
+  it("uses the environment header limit when the connection has no override", async () => {
+    vi.useFakeTimers();
+    vi.stubEnv("MODEL_STREAM_TIMEOUT_MS", "900000");
+    providerState.delay.mockImplementation(async (delay) => {
+      vi.setSystemTime(Date.now() + delay);
+    });
+    providerState.stream
+      .mockImplementationOnce(() => {
+        vi.setSystemTime(Date.now() + 500_000);
+        return stream(primary, message(primary, [], "error", "Request timed out."));
+      })
+      .mockImplementation(() =>
+        stream(primary, message(primary, [{ type: "text", text: "Ready" }], "stop")),
+      );
+    await run(request());
+    expect(providerState.stream.mock.calls.map(([, , options]) => options.timeoutMs)).toEqual([
+      900_000, 398_000,
+    ]);
   });
 
   it("caps idle recovery at one retry even when failures arrive before the idle bound", async () => {
@@ -2846,6 +2890,68 @@ describe("Pi runtime fallback error classes and mid-run switches", () => {
 
     expect(providers()).toEqual([primary.provider, backupA.provider]);
     expect(events).toContainEqual(expect.objectContaining({ type: "text", text: "from backup" }));
+  });
+
+  it("gives a backup its own full header and retry budget after the primary expires", async () => {
+    vi.useFakeTimers();
+    const input = request([{ ...backups()[0]!, streamTimeoutMs: 900_000 }]);
+    input.model.streamTimeoutMs = 5_000;
+    providerState.delay.mockImplementation(async (delay) => {
+      vi.setSystemTime(Date.now() + delay);
+    });
+    let backupCalls = 0;
+    providerState.stream.mockImplementation((target: Model<"openai-completions">) => {
+      if (target.provider === primary.provider) {
+        vi.setSystemTime(Date.now() + 5_000);
+        return stream(target, message(target, [], "error", "Request timed out."));
+      }
+      backupCalls += 1;
+      if (backupCalls === 1) {
+        vi.setSystemTime(Date.now() + 500_000);
+        return stream(target, message(target, [], "error", "Request timed out."));
+      }
+      return stream(target, message(target, [{ type: "text", text: "Ready" }], "stop"));
+    });
+    expect(await run(input)).toContainEqual({ type: "text", text: "Ready" });
+    expect(providerState.stream.mock.calls.map(([, , options]) => options.timeoutMs)).toEqual([
+      5_000, 900_000, 398_000,
+    ]);
+  });
+
+  it("preserves a valid explicit header override across fallback switches", async () => {
+    const input = request([{ ...backups()[0]!, streamTimeoutMs: 900_000 }]);
+    input.model.streamTimeoutMs = 5_000;
+    const initialStream = new AssistantMessageEventStream();
+    providerState.stream.mockReturnValue(initialStream);
+    const initialRun = run(input);
+    await vi.waitFor(() => expect(providerState.stream).toHaveBeenCalledOnce());
+    const agentOptions = providerState.agentOptions;
+    if (!agentOptions) throw new Error("Agent was not created");
+    providerState.stream
+      .mockClear()
+      .mockImplementation((target: Model<"openai-completions">) =>
+        stream(
+          target,
+          target.provider === primary.provider
+            ? message(target, [], "error", "Request timed out.")
+            : message(target, [{ type: "text", text: "Ready" }], "stop"),
+        ),
+      );
+    const response = await agentOptions.streamFn(
+      primary,
+      { messages: [] } as unknown as TranscriptContext,
+      { timeoutMs: 800_000 },
+    );
+    for await (const _event of response) {
+      /* drain the offline stream */
+    }
+    expect(providerState.stream.mock.calls.map(([, , options]) => options.timeoutMs)).toEqual([
+      800_000, 800_000,
+    ]);
+    const initial = message(primary, [{ type: "text", text: "Initial" }], "stop");
+    initialStream.push({ type: "done", reason: "stop", message: initial });
+    initialStream.end(initial);
+    await initialRun;
   });
 
   it("leaves retries to the backup instead of the provider SDK", async () => {

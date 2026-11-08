@@ -1,7 +1,13 @@
 import { ORPCError } from "@orpc/server";
 import type { JobPublisher, ProductAnalytics, SandboxProvider } from "@rakazo/adapter-kit";
 import { runContinueJob } from "@rakazo/adapter-kit";
-import { cancelComputerRunWork, screenLeaseIdForRun, toComputerRef } from "@rakazo/adapters";
+import {
+  cancelComputerRunWork,
+  HOST_COMPUTER_MAX_FILE_BYTES,
+  readCodexCheckpoint,
+  screenLeaseIdForRun,
+  toComputerRef,
+} from "@rakazo/adapters";
 import type {
   Actor,
   FarmingControlRiskContext,
@@ -42,6 +48,7 @@ import {
   eligibleWaitingTextAnswer,
   expireComputerExecutionLeases,
   IsolationError,
+  loadRunTurnCheckpoint,
   lockOwnedGroup,
   primaryActiveRun,
   retireWaitingQuestionInTransaction,
@@ -64,6 +71,7 @@ import { loadMessagePage } from "./thread-message-pages.js";
 export type ThreadTarget =
   | {
       kind: "bot";
+      taskId?: string;
       botId: string;
       threadId: string;
       bot: Awaited<ReturnType<ReturnType<typeof createRepos>["getBot"]>>;
@@ -348,11 +356,26 @@ export function sendTargetBotIds(
 export async function resolveThreadTarget(
   prisma: PrismaClient,
   actor: Actor,
-  input: { botId?: string; groupId?: string },
+  input: { botId?: string; groupId?: string; taskId?: string },
   options: { includeArchived?: boolean } = {},
 ): Promise<ThreadTarget> {
   const repos = createRepos(prisma);
   const groupRepos = createGroupRepos(prisma);
+  if (input.taskId) {
+    const task = await prisma.task.findFirst({
+      where: { id: input.taskId, spaceId: actor.spaceId, userId: actor.userId, conversation: true },
+      include: { thread: true },
+    });
+    if (
+      !task ||
+      task.thread.taskBotId !== task.botId ||
+      task.thread.spaceId !== actor.spaceId ||
+      task.thread.userId !== actor.userId
+    )
+      throw new IsolationError();
+    const bot = await repos.getBot(actor, task.botId, options);
+    return { kind: "bot", taskId: task.id, botId: bot.id, threadId: task.threadId, bot };
+  }
   if (input.botId) {
     const bot = await repos.getBot(actor, input.botId, options);
     if (!bot.thread) throw new IsolationError();
@@ -840,6 +863,14 @@ export async function sendThreadMessage(
           target.botId,
           input.artifactIds,
         );
+        if (
+          artifacts.some((file) => file.size > HOST_COMPUTER_MAX_FILE_BYTES) &&
+          ["codex", "claude", "acp"].includes(target.bot.runtimeKind ?? "pi")
+        ) {
+          throw new ORPCError("BAD_REQUEST", {
+            message: "Codex attachments must be 8 MiB or smaller.",
+          });
+        }
         const connectorNames = await resolveOwnedConnectorDisplayNames(
           tx,
           actor,
@@ -1048,6 +1079,23 @@ export async function sendThreadMessage(
         memberBotIds,
         input.artifactIds,
       );
+      if (
+        artifacts.some((file) => file.size > HOST_COMPUTER_MAX_FILE_BYTES) &&
+        (await tx.bot.findFirst({
+          where: {
+            id: { in: targetBotIds },
+            spaceId: actor.spaceId,
+            userId: actor.userId,
+            runtimeKind: { in: ["codex", "claude", "acp"] },
+            archivedAt: null,
+          },
+          select: { id: true },
+        }))
+      ) {
+        throw new ORPCError("BAD_REQUEST", {
+          message: "Codex attachments must be 8 MiB or smaller.",
+        });
+      }
       const connectorNames = await resolveOwnedConnectorDisplayNames(
         tx,
         actor,
@@ -1472,6 +1520,107 @@ async function startReactionTurn(
   return [run];
 }
 
+async function snapshotNativeThreadRunWork(
+  tx: Prisma.TransactionClient,
+  runIds: string[],
+  threadId: string,
+) {
+  if (!runIds.length) return [];
+  const runs = await tx.run.findMany({
+    where: {
+      id: { in: runIds },
+      threadId,
+      bot: { runtimeKind: { in: ["codex", "claude", "acp"] } },
+    },
+    select: {
+      id: true,
+      botId: true,
+      spaceId: true,
+      bot: {
+        select: {
+          runtimeKind: true,
+          computer: {
+            select: {
+              id: true,
+              homeKey: true,
+              kind: true,
+              providerRef: true,
+              executionBotId: true,
+              executionRunId: true,
+            },
+          },
+        },
+      },
+    },
+  });
+  const targets = [];
+  for (const run of runs) {
+    if (!["codex", "claude", "acp"].includes(run.bot?.runtimeKind ?? "pi") || !run.bot.computer)
+      continue;
+    const computer = run.bot.computer;
+    const blob = await loadRunTurnCheckpoint(tx, run);
+    const checkpoint = blob ? readCodexCheckpoint(blob) : undefined;
+    if (
+      checkpoint &&
+      (checkpoint.botId !== run.botId ||
+        checkpoint.threadId !== threadId ||
+        checkpoint.computerKey !== computer.homeKey)
+    ) {
+      throw new Error("Native Codex stop binding mismatch");
+    }
+    targets.push({
+      computer,
+      botId: run.botId,
+      runId: checkpoint?.runId ?? run.id,
+      cancelledRunId: run.id,
+    });
+  }
+  return targets;
+}
+
+/** Capture native ownership within clear's transaction so a concurrent send cannot escape teardown. */
+export async function clearThreadMessageHistory(
+  deps: { prisma: PrismaClient; sandbox: SandboxProvider; events: ThreadEvents },
+  actor: Actor,
+  target: ThreadTarget,
+) {
+  const botId = target.kind === "bot" ? target.botId : target.memberBotIds[0];
+  if (!botId) throw new IsolationError();
+  let targets: Awaited<ReturnType<typeof snapshotNativeThreadRunWork>> = [];
+  const result = await deps.events.clearThread({
+    spaceId: actor.spaceId,
+    threadId: target.threadId,
+    botId,
+    ...(target.kind === "group" ? { groupId: target.groupId } : { taskId: target.taskId }),
+    beforeCancel: async (tx, runIds) => {
+      targets = await snapshotNativeThreadRunWork(tx, runIds, target.threadId);
+    },
+  });
+  await Promise.all(
+    targets.map(async ({ computer, botId, runId }) => {
+      if (!computer.providerRef) return;
+      const context = {
+        operationId: "clear",
+        traceId: "clear",
+        spaceId: actor.spaceId,
+        userId: actor.userId,
+        botId,
+        runId,
+        cancelRunWork: true,
+        signal: new AbortController().signal,
+      };
+      await cancelComputerRunWork(
+        deps.sandbox,
+        toComputerRef(computer),
+        computer.id,
+        runId,
+        context,
+      );
+    }),
+  );
+  return result;
+}
+
 export async function stopThreadRuns(
   deps: {
     prisma: PrismaClient;
@@ -1481,80 +1630,100 @@ export async function stopThreadRuns(
   actor: Actor,
   target: ThreadTarget,
 ) {
-  const { runIds, computers, leases, eventSeq } = await deps.prisma.$transaction(async (tx) => {
-    await tx.$queryRaw`SELECT id FROM threads WHERE id = ${target.threadId} FOR UPDATE`;
-    const cancelled = await tx.run.updateManyAndReturn({
-      where: {
-        threadId: target.threadId,
-        status: { in: [...ACTIVE_RUN_STATUSES] },
-      },
-      data: { status: "cancelled", completedAt: new Date() },
-      select: { id: true, botId: true, userId: true, spaceId: true },
-    });
-    const ids = cancelled.map((run) => run.id);
-    await clearEndedRunState(tx, ids);
-    await tx.steeringMessage.deleteMany({
-      where: {
-        botId: { in: target.kind === "bot" ? [target.botId] : target.memberBotIds },
-        message: { threadId: target.threadId },
-      },
-    });
-    // Snapshot teardown coordinates before commit. Once cancellation becomes
-    // visible, a worker can release its lease / execution columns immediately; a
-    // later lookup would then miss the sandbox work this request must stop.
-    // Team ownership lives on ComputerExecutionLease; Computer.executionRunId is
-    // only a legacy secondary path and is not written by current acquisition.
-    const leases = ids.length
-      ? await tx.computerExecutionLease.findMany({
-          where: { runId: { in: ids } },
-          select: { computerId: true, botId: true, runId: true, fence: true },
-        })
-      : [];
-    const leaseComputerIds = [...new Set(leases.map((lease) => lease.computerId))];
-    const computers = ids.length
-      ? await tx.computer.findMany({
-          where:
-            leaseComputerIds.length > 0
-              ? {
-                  OR: [{ id: { in: leaseComputerIds } }, { executionRunId: { in: ids } }],
-                }
-              : { executionRunId: { in: ids } },
-          select: {
-            id: true,
-            homeKey: true,
-            kind: true,
-            providerRef: true,
-            executionBotId: true,
-            executionRunId: true,
-          },
-        })
-      : [];
-    // One terminal event per cancelled run, in the same commit as the status
-    // flip and the progress purge below. Other clients learn the run ended, and
-    // the fresh seq keeps max(seq) above every deleted progress row so a client
-    // whose cursor pointed at one never discards later refreshes as stale.
-    let eventSeq: number | null = null;
-    for (const run of cancelled) {
-      const event = await appendEventInTransaction(tx, {
-        spaceId: actor.spaceId,
-        threadId: target.threadId,
-        botId: run.botId,
-        type: "run.cancelled",
-        runId: run.id,
-        payload: {},
-      });
-      eventSeq = event.seq;
-    }
-    if (ids.length) {
-      await tx.event.deleteMany({
+  const { runIds, computers, leases, nativeTargets, eventSeq } = await deps.prisma.$transaction(
+    async (tx) => {
+      await tx.$queryRaw`SELECT id FROM threads WHERE id = ${target.threadId} FOR UPDATE`;
+      const cancelled = await tx.run.updateManyAndReturn({
         where: {
-          ...transientRunEventsWhere(),
-          runId: { in: ids },
+          threadId: target.threadId,
+          status: { in: [...ACTIVE_RUN_STATUSES] },
         },
+        data: { status: "cancelled", completedAt: new Date() },
+        select: { id: true, botId: true, userId: true, spaceId: true },
       });
-    }
-    return { runIds: ids, computers, leases, eventSeq };
-  });
+      const nativeTargets = await snapshotNativeThreadRunWork(
+        tx,
+        cancelled.map((run) => run.id),
+        target.threadId,
+      );
+      const ids = cancelled.map((run) => run.id);
+      await clearEndedRunState(tx, ids);
+      const stoppedQueue = await tx.steeringMessage.updateMany({
+        where: {
+          botId: { in: target.kind === "bot" ? [target.botId] : target.memberBotIds },
+          message: { threadId: target.threadId },
+          claimedAt: null,
+          cancelledAt: null,
+        },
+        data: { cancelledAt: new Date() },
+      });
+      // Snapshot teardown coordinates before commit. Once cancellation becomes
+      // visible, a worker can release its lease / execution columns immediately; a
+      // later lookup would then miss the sandbox work this request must stop.
+      // Team ownership lives on ComputerExecutionLease; Computer.executionRunId is
+      // only a legacy secondary path and is not written by current acquisition.
+      const leases = ids.length
+        ? await tx.computerExecutionLease.findMany({
+            where: { runId: { in: ids } },
+            select: { computerId: true, botId: true, runId: true, fence: true },
+          })
+        : [];
+      const leaseComputerIds = [...new Set(leases.map((lease) => lease.computerId))];
+      const computers = ids.length
+        ? await tx.computer.findMany({
+            where:
+              leaseComputerIds.length > 0
+                ? {
+                    OR: [{ id: { in: leaseComputerIds } }, { executionRunId: { in: ids } }],
+                  }
+                : { executionRunId: { in: ids } },
+            select: {
+              id: true,
+              homeKey: true,
+              kind: true,
+              providerRef: true,
+              executionBotId: true,
+              executionRunId: true,
+            },
+          })
+        : [];
+      // One terminal event per cancelled run, in the same commit as the status
+      // flip and the progress purge below. Other clients learn the run ended, and
+      // the fresh seq keeps max(seq) above every deleted progress row so a client
+      // whose cursor pointed at one never discards later refreshes as stale.
+      let eventSeq: number | null = null;
+      if (stoppedQueue.count > 0) {
+        const event = await appendEventInTransaction(tx, {
+          spaceId: actor.spaceId,
+          threadId: target.threadId,
+          botId: target.kind === "bot" ? target.botId : target.memberBotIds[0]!,
+          type: "thread.queue.updated",
+          payload: {},
+        });
+        eventSeq = event.seq;
+      }
+      for (const run of cancelled) {
+        const event = await appendEventInTransaction(tx, {
+          spaceId: actor.spaceId,
+          threadId: target.threadId,
+          botId: run.botId,
+          type: "run.cancelled",
+          runId: run.id,
+          payload: {},
+        });
+        eventSeq = event.seq;
+      }
+      if (ids.length) {
+        await tx.event.deleteMany({
+          where: {
+            ...transientRunEventsWhere(),
+            runId: { in: ids },
+          },
+        });
+      }
+      return { runIds: ids, computers, leases, nativeTargets, eventSeq };
+    },
+  );
   if (eventSeq !== null) {
     // The events are durable; subscribers refetch from their persisted cursor.
     await deps.events.notify(target.threadId, eventSeq).catch((error) => {
@@ -1563,7 +1732,12 @@ export async function stopThreadRuns(
   }
   // Keep the DB lease until after teardown so a replacement run cannot claim the
   // screen while we still need the cancelled run's screenLeaseId to release it.
-  const computerById = new Map(computers.map((computer) => [computer.id, computer]));
+  const computerById = new Map(
+    [...computers, ...nativeTargets.map((target) => target.computer)].map((computer) => [
+      computer.id,
+      computer,
+    ]),
+  );
   const teardownTargets: Array<{
     computer: (typeof computers)[number];
     botId: string;
@@ -1571,9 +1745,22 @@ export async function stopThreadRuns(
     lease: (typeof leases)[number] | null;
   }> = [];
   const seenTargets = new Set<string>();
+  // Native targets take precedence over a continuation's transient lease id.
+  const nativeCancelledRunIds = new Set(nativeTargets.map((target) => target.cancelledRunId));
+  for (const native of nativeTargets) {
+    const key = `${native.computer.id}:${native.runId}`;
+    if (seenTargets.has(key)) continue;
+    seenTargets.add(key);
+    teardownTargets.push({
+      computer: native.computer,
+      botId: native.botId,
+      runId: native.runId,
+      lease: null,
+    });
+  }
   for (const lease of leases) {
     const computer = computerById.get(lease.computerId);
-    if (!computer) continue;
+    if (!computer || nativeCancelledRunIds.has(lease.runId)) continue;
     const key = `${computer.id}:${lease.runId}`;
     if (seenTargets.has(key)) continue;
     seenTargets.add(key);
@@ -1591,7 +1778,11 @@ export async function stopThreadRuns(
     // Computer.executionRunId still points at an unrelated live run. Only treat
     // the legacy columns as a teardown target when they belong to a run we
     // cancelled in this transaction.
-    if (!cancelledRunIds.has(computer.executionRunId)) continue;
+    if (
+      !cancelledRunIds.has(computer.executionRunId) ||
+      nativeCancelledRunIds.has(computer.executionRunId)
+    )
+      continue;
     const key = `${computer.id}:${computer.executionRunId}`;
     if (seenTargets.has(key)) continue;
     seenTargets.add(key);

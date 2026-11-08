@@ -1,5 +1,9 @@
+import { isDeepStrictEqual } from "node:util";
+import type { RoleplayCharacter } from "@rakazo/contracts";
+import { isAttachmentImageMimeType, RoleplayCharacterSchema } from "@rakazo/contracts";
 import { displayName } from "@rakazo/core";
 import { getLogger } from "@rakazo/logging";
+import { BotExecutionSettingsError } from "./bot-execution.js";
 import { writeBotInstructions } from "./bot-instructions.js";
 import type { Bot, Prisma, PrismaClient } from "./client.js";
 import { appendEventInTransaction } from "./events.js";
@@ -21,6 +25,8 @@ export async function commitBotUpdate(
     data: Omit<Prisma.BotUncheckedUpdateInput, "instructions"> & { instructions?: string };
     emitBotUpdated: boolean;
     expectedInstructions?: string;
+    expectedRoleplayCharacter?: RoleplayCharacter;
+    expectedRuntimeKind?: string;
     /** Write only while these settings hold; otherwise Prisma throws P2025. */
     expectedSettings?: Partial<
       Pick<Bot, "modelProvider" | "modelId" | "thinkingLevel" | "autoSpeak" | "voiceId">
@@ -38,11 +44,16 @@ export async function commitBotUpdate(
   }
   if (
     !options.emitBotUpdated &&
+    options.data.roleplayCharacter === undefined &&
     options.data.instructions === undefined &&
     !options.instructionRestore
   ) {
     return options.prisma.bot.update({
-      where: { id: options.botId, ...options.expectedSettings },
+      where: {
+        id: options.botId,
+        ...options.expectedSettings,
+        ...(options.expectedRuntimeKind ? { runtimeKind: options.expectedRuntimeKind } : {}),
+      },
       data: options.data,
       select: { id: true, name: true, description: true },
     });
@@ -52,6 +63,50 @@ export async function commitBotUpdate(
   const committed = await options.prisma.$transaction(async (tx) => {
     // Event appends also lock the thread; all writers take it before the bot row.
     await tx.$queryRaw`SELECT id FROM threads WHERE id = ${options.threadId} FOR UPDATE`;
+    if (data.roleplayCharacter !== undefined) {
+      await tx.$queryRaw`SELECT id FROM bots WHERE id = ${options.botId} FOR UPDATE`;
+      const bot = await tx.bot.findUniqueOrThrow({
+        where: { id: options.botId },
+        select: { botKind: true, roleplayCharacter: true, userId: true, spaceId: true },
+      });
+      if (bot.botKind !== "roleplay")
+        throw new BotExecutionSettingsError("Characters require a roleplay bot");
+      if (
+        options.expectedRoleplayCharacter !== undefined &&
+        !isDeepStrictEqual(bot.roleplayCharacter, options.expectedRoleplayCharacter)
+      )
+        throw new BotExecutionSettingsError(
+          "Roleplay settings changed elsewhere. Reopen settings before saving.",
+        );
+      const character = RoleplayCharacterSchema.parse(data.roleplayCharacter);
+      if (character.media?.album.length) {
+        const ids = character.media.album.map((entry) => entry.artifactId);
+        const images = await tx.artifact.findMany({
+          where: {
+            id: { in: ids },
+            botId: options.botId,
+            spaceId: bot.spaceId,
+            userId: bot.userId,
+            groupId: null,
+            uploadThreadId: null,
+          },
+        });
+        if (
+          images.length !== ids.length ||
+          images.some((image) => !isAttachmentImageMimeType(image.mimeType))
+        )
+          throw new BotExecutionSettingsError("Album images must belong to this character");
+      }
+      const active = await tx.run.findFirst({
+        where: {
+          botId: options.botId,
+          status: { in: ["queued", "leased", "running", "waiting_input", "waiting_takeover"] },
+        },
+        select: { id: true },
+      });
+      if (active)
+        throw new BotExecutionSettingsError("Stop the roleplay bot before replacing its character");
+    }
     if (typeof instructions === "string" || options.instructionRestore) {
       await writeBotInstructions(tx, {
         botId: options.botId,
@@ -62,7 +117,11 @@ export async function commitBotUpdate(
       });
     }
     const updated = await tx.bot.update({
-      where: { id: options.botId, ...options.expectedSettings },
+      where: {
+        id: options.botId,
+        ...options.expectedSettings,
+        ...(options.expectedRuntimeKind ? { runtimeKind: options.expectedRuntimeKind } : {}),
+      },
       data,
       select: { id: true, name: true, description: true },
     });

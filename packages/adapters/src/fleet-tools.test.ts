@@ -14,6 +14,7 @@ import {
 } from "./fleet-tools.js";
 
 type FakeBot = {
+  runtimeKind?: string;
   id: string;
   name: string;
   spaceId?: string;
@@ -521,7 +522,7 @@ describe("prepareFleetRequest set_child_bot_model", () => {
       }),
     ).toEqual({
       ok: false,
-      error: "Thinking level must be one of: off, minimal, low, medium, high, xhigh, max",
+      error: "Thinking level must be one of: off, minimal, low, medium, high, xhigh, max, ultra",
     });
   });
 
@@ -1437,6 +1438,29 @@ describe("setChildBotModel", () => {
     provider: "custom",
     model: "my-model",
   };
+  it("refuses native model changes during preparation and execution", async () => {
+    const { deps, prisma } = fakeFleet({
+      bots: fleet.bots.map((bot) =>
+        bot.id === "bot-scout"
+          ? {
+              ...bot,
+              runtimeKind: "codex",
+              modelProvider: "codex-native",
+              modelId: "chosen-native-model",
+            }
+          : bot,
+      ),
+    });
+    const prepared = await prepareFleetRequest(deps, run, "set_child_bot_model", {
+      bot_id: "bot-scout",
+      clear: true,
+    });
+    expect(prepared).toMatchObject({ error: "Choose this bot's model in its runtime settings." });
+    expect(
+      await setChildBotModel({ ...deps, events: writeDeps(prisma).events }, run, canonical),
+    ).toEqual({ error: "Choose this bot's model in its runtime settings." });
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+  });
 
   it("fails at execution when the bot is no longer the caller's active child", async () => {
     const { deps, prisma } = fakeFleet({
@@ -1498,6 +1522,7 @@ describe("setChildBotModel", () => {
           modelProvider: "anthropic",
           modelId: "claude-old",
           thinkingLevel: null,
+          runtimeKind: "pi",
         },
       }),
     );

@@ -222,3 +222,32 @@ describe("notification space switch", () => {
     ).toBe("space-1");
   });
 });
+
+describe("task notification routing", () => {
+  it("gives a task precedence over its executing bot and preserves Space identity", () => {
+    expect(
+      notificationOpenTarget({
+        botId: "bot-1",
+        taskId: "task-1",
+        threadId: "thread-1",
+        spaceId: "space-1",
+      }),
+    ).toEqual({
+      pathname: "/task-conversation",
+      params: { taskId: "task-1", threadId: "thread-1", spaceId: "space-1" },
+    });
+    expect(notificationOpenTarget({ "rakazo.botId": "bot-1", "rakazo.taskId": "task-1" })).toEqual({
+      pathname: "/task-conversation",
+      params: { taskId: "task-1" },
+    });
+  });
+  it("accepts task deep links and does not reinterpret bot links with stray task parameters", () => {
+    expect(
+      notificationOpenTargetFromLink("rakazo://task-conversation?taskId=task-1&spaceId=space-1"),
+    ).toEqual({ pathname: "/task-conversation", params: { taskId: "task-1", spaceId: "space-1" } });
+    expect(notificationOpenTargetFromLink("rakazo://thread?botId=bot-1&taskId=task-1")).toEqual({
+      pathname: "/thread",
+      params: { botId: "bot-1" },
+    });
+  });
+});

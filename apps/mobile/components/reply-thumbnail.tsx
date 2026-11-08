@@ -16,14 +16,19 @@ export function ReplyThumbnail({
   const [failed, setFailed] = useState(false);
   const botId = threadTarget && "botId" in threadTarget ? threadTarget.botId : undefined;
   const groupId = threadTarget && "groupId" in threadTarget ? threadTarget.groupId : undefined;
+  const taskId = threadTarget && "taskId" in threadTarget ? threadTarget.taskId : undefined;
   const artifactId = attachment?.kind === "image" ? attachment.artifactId : undefined;
   const mimeType = attachment?.mimeType;
   useEffect(() => {
     let cancelled = false;
     setUri(null);
     setFailed(false);
-    if (!artifactId || !mimeType || (!botId && !groupId)) return;
-    void imageArtifactUri(botId ? { botId } : { groupId: groupId! }, artifactId, mimeType)
+    if (!artifactId || !mimeType || (!botId && !groupId && !taskId)) return;
+    void imageArtifactUri(
+      taskId ? { taskId } : botId ? { botId } : { groupId: groupId! },
+      artifactId,
+      mimeType,
+    )
       .then((uri) => {
         if (!cancelled) setUri(uri);
       })
@@ -33,7 +38,7 @@ export function ReplyThumbnail({
     return () => {
       cancelled = true;
     };
-  }, [artifactId, mimeType, botId, groupId]);
+  }, [artifactId, mimeType, botId, groupId, taskId]);
   if (!artifactId || !threadTarget || failed) return null;
   const style = { width: 32, height: 32, borderRadius: 6, backgroundColor: mobileTokens().muted };
   return uri ? (

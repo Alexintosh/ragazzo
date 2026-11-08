@@ -374,6 +374,30 @@ export function restoreTurnCheckpointEffects(
 ): string | undefined {
   const effects = ctx.state.effects;
   try {
+    const native = JSON.parse(turnCheckpoint);
+    if (["codex", "claude", "acp"].includes(native.runtime)) {
+      if (native.completed) return turnCheckpoint;
+      if (Array.isArray(native.effectOccurrences)) {
+        for (const entry of native.effectOccurrences) {
+          if (
+            typeof entry.executionId !== "string" ||
+            typeof entry.fingerprint !== "string" ||
+            !Number.isSafeInteger(entry.occurrence) ||
+            entry.occurrence < 0
+          )
+            throw new Error("Invalid native effect checkpoint");
+          effects.occurrences.push(entry);
+          effects.counts.set(
+            entry.fingerprint,
+            Math.max(effects.counts.get(entry.fingerprint) ?? 0, entry.occurrence + 1),
+          );
+        }
+        effects.restoredPending = effects.occurrences.findLast(
+          (entry) => entry.executionId === native.pendingToolCall?.executionId,
+        );
+      }
+      return turnCheckpoint;
+    }
     const saved = restoreTurnCheckpoint(turnCheckpoint, model);
     const unresolved = new Set(unresolvedTurnCheckpointCalls(saved.messages));
     const namedTools = namedAgentTools(partitionTools(ctx.tools.offered).listed);

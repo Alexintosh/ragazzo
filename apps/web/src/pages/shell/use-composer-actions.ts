@@ -50,6 +50,7 @@ export function useComposerActions({
   activeId,
   inGroup,
   groupId,
+  taskId,
   activeBotId,
   activeGroupId,
   botsRef,
@@ -70,6 +71,7 @@ export function useComposerActions({
   activeId: string | undefined;
   inGroup: boolean;
   groupId: string | undefined;
+  taskId?: string;
   activeBotId: RefObject<string | undefined>;
   activeGroupId: RefObject<string | undefined>;
   botsRef: RefObject<Bot[]>;
@@ -87,6 +89,8 @@ export function useComposerActions({
   flushPendingBrowserNotifications: () => void;
 }) {
   const { t } = useLingui();
+  const taskIdRef = useRef(taskId);
+  taskIdRef.current = taskId;
   const [pendingAttachments, setPendingAttachments] = useState<PendingAttachment[]>([]);
   usePendingAttachmentPreviewCleanup(pendingAttachments);
   const [replyTarget, setReplyTarget] = useState<ThreadMessage | null>(null);
@@ -121,8 +125,8 @@ export function useComposerActions({
   const focusPromptBotIdRef = useRef<string | null>(null);
 
   const activePendingAttachments = useMemo(
-    () => attachmentsForThread(pendingAttachments, inGroup ? groupId : activeId),
-    [activeId, groupId, inGroup, pendingAttachments],
+    () => attachmentsForThread(pendingAttachments, taskId ?? (inGroup ? groupId : activeId)),
+    [activeId, groupId, inGroup, taskId, pendingAttachments],
   );
   // Keep the armed reply even when its parent leaves the loaded page: the
   // server resolves a paged-out target and degrades a deleted one to a plain
@@ -182,15 +186,15 @@ export function useComposerActions({
   }
 
   useEffect(() => {
-    if (focusPromptBotIdRef.current && focusPromptBotIdRef.current !== activeId) {
+    if (focusPromptBotIdRef.current && (taskId || focusPromptBotIdRef.current !== activeId)) {
       cancelFocusPrompt();
     }
-  }, [activeId]);
+  }, [activeId, taskId]);
 
   useEffect(() => () => cancelFocusPrompt(), []);
 
   useEffect(() => {
-    const threadKey = inGroup ? groupId : activeId;
+    const threadKey = taskId ?? (inGroup ? groupId : activeId);
     setPendingAttachments((current) => {
       const stale = current.filter((attachment) => attachment.threadKey !== threadKey);
       revokePendingAttachmentPreviews(stale);
@@ -199,7 +203,7 @@ export function useComposerActions({
     clearReply();
     setAttachmentNotice(null);
     setSendError(null);
-  }, [activeId, clearReply, groupId, inGroup]);
+  }, [activeId, clearReply, groupId, inGroup, taskId]);
 
   const answerMessage = useCallback(
     async (
@@ -214,7 +218,11 @@ export function useComposerActions({
       if (!botId && !groupId) return;
       clearReadBoundary();
       await rpc.threads.answer({
-        ...(groupId ? { groupId } : { botId: botId! }),
+        ...(taskIdRef.current
+          ? { taskId: taskIdRef.current }
+          : groupId
+            ? { groupId }
+            : { botId: botId! }),
         runId: message.runId ?? "",
         messageId: message.id,
         answer: text,
@@ -237,10 +245,15 @@ export function useComposerActions({
     async (message: ThreadMessage, reaction: MessageReaction) => {
       const botId = activeBotId.current;
       const groupId = activeGroupId.current;
+      const reactedTaskId = taskIdRef.current;
       if (!botId && !groupId) return;
       try {
         const result = await rpc.threads.react({
-          ...(groupId ? { groupId } : { botId: botId! }),
+          ...(taskIdRef.current
+            ? { taskId: taskIdRef.current }
+            : groupId
+              ? { groupId }
+              : { botId: botId! }),
           messageId: message.id,
           reaction,
           clientNonce: newClientId(),
@@ -259,7 +272,7 @@ export function useComposerActions({
         const stillHere = groupId
           ? activeGroupId.current === groupId
           : activeBotId.current === botId;
-        if (!stillHere) return;
+        if (!stillHere || taskIdRef.current !== reactedTaskId) return;
         setSendError(errorText(error, t`Could not update reaction`));
       }
     },
@@ -267,7 +280,7 @@ export function useComposerActions({
   );
   const onAttachmentPick = useCallback(
     (files: FileList | readonly File[] | null) => {
-      const threadKey = activeGroupId.current ?? activeBotId.current;
+      const threadKey = taskIdRef.current ?? activeGroupId.current ?? activeBotId.current;
       if (!threadKey || !files?.length) return false;
       const ATTACHMENT_MAX_COUNT = attachmentMaxCount(bootstrapMe);
       const existing = attachmentsForThread(pendingAttachments, threadKey);
@@ -318,11 +331,12 @@ export function useComposerActions({
       clientNonce: string,
       imageHandling?: "file",
     ) => {
+      const initialTaskTarget = taskIdRef.current;
       const initialBotTarget = activeBotId.current;
       const initialGroupTarget = activeGroupId.current;
       if ((!initialBotTarget && !initialGroupTarget) || sending) return false;
       const editsAtSend = draftEdits.current;
-      const originThreadKey = initialGroupTarget ?? initialBotTarget;
+      const originThreadKey = initialTaskTarget ?? initialGroupTarget ?? initialBotTarget;
       const attachments = attachmentsForThread(pendingAttachments, originThreadKey);
       let plan: ReturnType<typeof resolveComposerSendPlan>;
       try {
@@ -333,9 +347,11 @@ export function useComposerActions({
       }
       if (plan.isNoOp) return false;
       const reroutedToGroup = Boolean(
-        plan.rerouteGroupId && plan.rerouteGroupId !== initialGroupTarget,
+        !initialTaskTarget && plan.rerouteGroupId && plan.rerouteGroupId !== initialGroupTarget,
       );
-      const groupTarget = plan.rerouteGroupId ?? initialGroupTarget;
+      const groupTarget = initialTaskTarget
+        ? undefined
+        : (plan.rerouteGroupId ?? initialGroupTarget);
       const botTarget = reroutedToGroup ? undefined : initialBotTarget;
       if (
         plan.shouldSend &&
@@ -361,7 +377,11 @@ export function useComposerActions({
         if (!plan.shouldSend) {
           if (plan.shouldRunRoutines) {
             await rpc.threads.sendWithRoutines({
-              ...(groupTarget ? { groupId: groupTarget } : { botId: botTarget! }),
+              ...(groupTarget
+                ? { groupId: groupTarget }
+                : initialTaskTarget
+                  ? { taskId: initialTaskTarget }
+                  : { botId: botTarget! }),
               clientNonce,
               routineIds: plan.routineIds,
             });
@@ -402,15 +422,21 @@ export function useComposerActions({
           const file = await prepareImage(pending.file);
           const contentBase64 = await readFileAsBase64(file);
           const artifact = await rpc.artifacts.create(
-            groupTarget
-              ? { groupId: groupTarget, name: pending.file.name, mimeType, contentBase64 }
-              : { botId: botTarget!, name: pending.file.name, mimeType, contentBase64 },
+            initialTaskTarget
+              ? { taskId: initialTaskTarget, name: pending.file.name, mimeType, contentBase64 }
+              : groupTarget
+                ? { groupId: groupTarget, name: pending.file.name, mimeType, contentBase64 }
+                : { botId: botTarget!, name: pending.file.name, mimeType, contentBase64 },
           );
           uploaded.set(pending.file, artifact.id);
           artifactIds.push(artifact.id);
         }
         const payload = {
-          ...(groupTarget ? { groupId: groupTarget } : { botId: botTarget! }),
+          ...(groupTarget
+            ? { groupId: groupTarget }
+            : initialTaskTarget
+              ? { taskId: initialTaskTarget }
+              : { botId: botTarget! }),
           clientNonce,
           imageHandling: imageHandling ?? "confirm",
           text: trimmed || undefined,
@@ -426,7 +452,12 @@ export function useComposerActions({
           ? (await rpc.threads.sendWithRoutines({ ...payload, routineIds: plan.routineIds })).send
           : await rpc.threads.send(payload);
         accepted = true;
-        if (sent && botTarget && activeBotId.current === botTarget) {
+        if (
+          sent &&
+          botTarget &&
+          activeBotId.current === botTarget &&
+          taskIdRef.current === initialTaskTarget
+        ) {
           updateSnapshot((current) =>
             applyThreadSendReceipt(
               current,
@@ -475,7 +506,11 @@ export function useComposerActions({
           setSendFailure(failure);
         } else if (groupTarget && activeGroupId.current === groupTarget) {
           setSendFailure(failure);
-        } else if (botTarget && activeBotId.current === botTarget) {
+        } else if (
+          botTarget &&
+          activeBotId.current === botTarget &&
+          taskIdRef.current === initialTaskTarget
+        ) {
           setSendFailure(failure);
         }
         return isConfirmation ? false : accepted;
@@ -500,6 +535,8 @@ export function useComposerActions({
     sendingRef.current = true;
     setSending(true);
     try {
+      const stoppedTaskId = taskIdRef.current;
+      const stoppedThreadId = activeSnapshot?.threadId;
       const botTarget = activeBotId.current;
       const groupTarget = activeGroupId.current;
       if (groupTarget) {
@@ -524,9 +561,9 @@ export function useComposerActions({
       if (!botTarget) return;
       setSendError(null);
       try {
-        await rpc.threads.stop({ botId: botTarget });
+        await rpc.threads.stop(stoppedTaskId ? { taskId: stoppedTaskId } : { botId: botTarget });
       } catch (error) {
-        if (activeBotId.current === botTarget) {
+        if (activeBotId.current === botTarget && taskIdRef.current === stoppedTaskId) {
           setSendError(errorText(error, t`Failed to stop`));
         }
         return;
@@ -534,9 +571,9 @@ export function useComposerActions({
       // Clear local run/busy immediately rather than waiting for run.cancelled so a
       // superseded in-flight refresh (older cursor) cannot leave Stop enabled / Take control
       // blocked while the API is already idle.
-      if (activeBotId.current === botTarget) {
+      if (activeBotId.current === botTarget && taskIdRef.current === stoppedTaskId) {
         updateSnapshot((prev) =>
-          !prev || (prev.botId !== botTarget && prev.botId) ? prev : clearActiveThreadRuns(prev),
+          !prev || prev.threadId !== stoppedThreadId ? prev : clearActiveThreadRuns(prev),
         );
         const currentComputer = computerRef.current;
         if (currentComputer?.busyBotName) {
@@ -548,7 +585,7 @@ export function useComposerActions({
       sendingRef.current = false;
       setSending(false);
     }
-  }, [sending, t]);
+  }, [sending, t, activeSnapshot?.threadId]);
 
   function dismissComposerError() {
     // The strip shows one message at a time, so only dismiss the run failure when it is the

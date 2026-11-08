@@ -94,6 +94,22 @@ beforeEach(() => {
 });
 
 describe("artifact preview caches", () => {
+  it("keeps task previews authorized and cached separately from bot and group previews", async () => {
+    const api = await load();
+    const task = { taskId: "shared-id" };
+    const taskPreview = await api.imageArtifactUri(task, "art-1", "image/png");
+    const botPreview = await api.imageArtifactUri({ botId: "shared-id" }, "art-1", "image/png");
+    const groupPreview = await api.imageArtifactUri({ groupId: "shared-id" }, "art-1", "image/png");
+    expect(new Set([taskPreview, botPreview, groupPreview]).size).toBe(3);
+    expect(taskPreview).toContain("task%3Ashared-id");
+    expect(state.rpc).toHaveBeenCalledWith(
+      "artifacts/get",
+      { taskId: "shared-id", artifactId: "art-1" },
+      expect.any(Object),
+    );
+    await api.imageArtifactUri(task, "art-1", "image/png");
+    expect(artifactFetches()).toBe(3);
+  });
   it("keeps the large-payload download timeout and captured auth context", async () => {
     const api = await load();
     await api.readMobileArtifactText(target, "art-1", "text/plain");

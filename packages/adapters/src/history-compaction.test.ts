@@ -229,6 +229,7 @@ type HarnessMessage = {
 
 function compactionHarness(
   options: {
+    taskBotId?: string;
     deploymentModelKey?: string;
     deploymentModelConfigured?: boolean;
     settings?: { defaultModelProvider: string | null; defaultModelId: string | null } | null;
@@ -258,11 +259,13 @@ function compactionHarness(
     }));
   const thread = {
     id: "thread-1",
-    botId: "bot-1",
+    botId: options.taskBotId ? null : "bot-1",
+    taskBotId: options.taskBotId ?? null,
     spaceId: "workspace-1",
     userId: "user-1",
     nextEventSeq: 0,
-    nextMessageSeq: options.nextMessageSeq ?? messages.length,
+    nextMessageSeq:
+      options.nextMessageSeq ?? Math.max(-1, ...messages.map((message) => message.seq)) + 1,
     historyCompactedUpToSeq: options.historyCompactedUpToSeq ?? (null as number | null),
     historyCompactionSummary: options.historyCompactionSummary ?? (null as string | null),
     historyCompactionGeneration: options.historyCompactionGeneration ?? 0,
@@ -302,17 +305,23 @@ function compactionHarness(
     event: {
       findFirst: vi.fn(async () => (options.wasCleared ? { seq: 0 } : null)),
     },
+    steeringMessage: {
+      findFirst: vi.fn<() => Promise<{ id: string } | null>>(async () => null),
+      findMany: vi.fn<() => Promise<Array<{ message: { seq: number } }>>>(async () => []),
+    },
     message: {
       findMany: vi.fn(
         async (args: {
-          where: { seq: { gt?: number; lte?: number } };
+          where: { seq: { gt?: number; lte?: number; lt?: number } };
           orderBy?: { seq: "asc" | "desc" };
           take?: number;
         }) => {
-          const matching =
-            args.where.seq.lte !== undefined
-              ? messages.filter((message) => message.seq <= args.where.seq.lte!)
-              : messages.filter((message) => message.seq > args.where.seq.gt!);
+          const matching = messages.filter(
+            (message) =>
+              (args.where.seq.lte === undefined || message.seq <= args.where.seq.lte) &&
+              (args.where.seq.gt === undefined || message.seq > args.where.seq.gt) &&
+              (args.where.seq.lt === undefined || message.seq < args.where.seq.lt),
+          );
           const ordered = [...matching].sort((left, right) => left.seq - right.seq);
           if (args.orderBy?.seq === "desc") ordered.reverse();
           return ordered.slice(0, args.take ?? ordered.length);
@@ -473,6 +482,34 @@ describe("recordHistoryCompactAttemptsExhausted", () => {
 });
 
 describe("compactHistory", () => {
+  it("leaves editable queued input out of both local and external summaries", async () => {
+    const harness = compactionHarness({ deploymentModelKey: "test-key" });
+    harness.prisma.steeringMessage.findFirst.mockResolvedValue({ id: "pending-input" });
+    await compactHistory(harness.deps, "thread-1");
+    expect(harness.runtime.run).not.toHaveBeenCalled();
+    expect(harness.prisma.thread.updateMany).not.toHaveBeenCalled();
+    expect(harness.saveMemory).not.toHaveBeenCalled();
+  });
+
+  it("advances over cancelled queue input without summarizing its instructions", async () => {
+    const harness = compactionHarness({ deploymentModelKey: "test-key" });
+    harness.messages[0]!.blocks = [{ kind: "text", text: "CANCELLED_PRIVATE_INSTRUCTION" }];
+    harness.prisma.steeringMessage.findMany.mockResolvedValue([{ message: { seq: 0 } }]);
+    await compactHistory(harness.deps, "thread-1");
+    const prompt = harness.runtime.run.mock.calls[0]![0].prompt;
+    expect(prompt).not.toContain("CANCELLED_PRIVATE_INSTRUCTION");
+    expect(prompt).toContain("Queued message cancelled before delivery");
+    expect(prompt).toContain("message 1");
+    expect(harness.thread.historyCompactedUpToSeq).toBe(49);
+  });
+
+  it("does not compact messages enqueued after its captured boundary", async () => {
+    const harness = compactionHarness({ deploymentModelKey: "test-key", nextMessageSeq: 1 });
+    await compactHistory(harness.deps, "thread-1");
+    expect(harness.runtime.run.mock.calls[0]![0].prompt).toBe("user: message 0");
+    expect(harness.thread.historyCompactedUpToSeq).toBe(0);
+  });
+
   it("summarizes the next batch, saves it through the provider, and advances the cursor", async () => {
     const harness = compactionHarness({ deploymentModelKey: "openrouter-key" });
 
@@ -1215,4 +1252,17 @@ describe("compactHistory", () => {
 
     expect(harness.jobs.enqueue).not.toHaveBeenCalled();
   });
+});
+
+it("compacts task history locally without sharing semantic generations with the bot", async () => {
+  const harness = compactionHarness({ taskBotId: "bot-1", deploymentModelKey: "test-key" });
+  await compactHistory(harness.deps, "thread-1");
+  expect(harness.thread.historyCompactionSummary).toBe("Summary of 50 messages.");
+  expect(harness.thread.historyCompactedUpToSeq).toBe(49);
+  expect(harness.runtime.run.mock.calls[0]![0]).toMatchObject({
+    botId: "bot-1",
+    threadId: "thread-1",
+  });
+  expect(harness.memoryProviders.resolve).not.toHaveBeenCalled();
+  expect(harness.saveMemory).not.toHaveBeenCalled();
 });

@@ -49,6 +49,12 @@ interface ModelSpec {
 
 /** Further content columns (external messages, steering, skills, …) add an entry here. */
 export const ENCRYPTED_MODELS: Record<string, ModelSpec> = {
+  Bot: {
+    table: "bots",
+    fields: { roleplayCharacter: { plainKeys: new Set() } },
+    space: { column: "spaceId" },
+    ownerRelation: "user",
+  },
   Message: {
     table: "messages",
     fields: { blocks: { plainKeys: MESSAGE_BLOCK_PLAIN_KEYS } },
@@ -77,7 +83,7 @@ export const ENCRYPTED_MODELS: Record<string, ModelSpec> = {
   /** The compacted summary of older history is derived message content. */
   Thread: {
     table: "threads",
-    fields: { historyCompactionSummary: {} },
+    fields: { historyCompactionSummary: {}, roleplayState: { plainKeys: new Set() } },
     space: { column: "spaceId" },
     ownerRelation: "user",
   },

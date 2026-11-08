@@ -360,3 +360,65 @@ describe("remote screen capability reuse", () => {
     expect(issued(1_000_000, scope, local)).not.toBe(issued(1_000_001, scope, local));
   });
 });
+
+describe("host browser screen capabilities", () => {
+  const viewer = "http://127.0.0.1:49152/browser-screen/fake-session/embed.html";
+  it.each([false, true])(
+    "confines the host credential to its viewer session (control=%s)",
+    (interactive) => {
+      const url = path(viewer, interactive);
+      const open = (resource: string) =>
+        openScreenCapability(
+          url.replace("/browser-screen/fake-session/embed.html", resource),
+          "fake-secret",
+          101,
+        );
+      expect(open("/browser-screen/fake-session/embed.html")?.target.path).toContain(
+        "/browser-screen/fake-session/embed.html",
+      );
+      expect(open("/browser-screen/fake-session/frame")?.target.path).toBe(
+        "/browser-screen/fake-session/frame",
+      );
+      expect(Boolean(open("/browser-screen/fake-session/input"))).toBe(interactive);
+      for (const resource of [
+        "/computer",
+        "/environment",
+        "/browser-screen/another-session/frame",
+        "/browser-screen/fake-session/../input",
+        "/browser-screen/fake-session/%2e%2e/input",
+        "/browser-screen/fake-session/input/",
+        "/browser-screen/fake-session/frame/extra",
+      ]) {
+        expect(open(resource), resource).toBeNull();
+      }
+    },
+  );
+});
+
+it("admits only the exact Docker host gateway for confined host browser viewers", () => {
+  const host = "http://host.docker.internal:49152";
+  const viewer = path(`${host}/browser-screen/fake-session/embed.html`, true);
+  const opened = openScreenCapability(viewer, "fake-secret", 101);
+  expect(opened?.target).toMatchObject({
+    hostname: "host.docker.internal",
+    path: "/browser-screen/fake-session/embed.html?token=fake-provider-token&view_only=false",
+  });
+  expect(
+    openScreenCapability(viewer.replace("embed.html", "frame"), "fake-secret", 101)?.target.path,
+  ).toBe("/browser-screen/fake-session/frame");
+  expect(
+    openScreenCapability(
+      viewer.replace("/browser-screen/fake-session/embed.html", "/computer"),
+      "fake-secret",
+      101,
+    ),
+  ).toBeNull();
+  for (const upstream of [
+    `${host}/vnc.html`,
+    `${host}/computer`,
+    "http://host.docker.internal.evil:49152/browser-screen/fake-session/embed.html",
+    "http://other.docker.internal:49152/browser-screen/fake-session/embed.html",
+  ]) {
+    expect(openScreenCapability(path(upstream), "fake-secret", 101), upstream).toBeNull();
+  }
+});

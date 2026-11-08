@@ -181,12 +181,16 @@ function migrationNames(ref) {
 }
 
 function mainMigrations() {
-  try {
-    return migrationNames("origin/main");
-  } catch {
-    // Without main to compare against, any migration may be unmerged.
-    throw new Error("Could not read origin/main. Run `git fetch origin main` and try again.");
+  // Forks may track upstream/main without an origin remote. Prefer the configured
+  // main tracking branch; detached CI checkouts can still use remote refs.
+  for (const ref of ["main@{upstream}", "origin/main", "upstream/main"]) {
+    try {
+      return migrationNames(ref);
+    } catch {
+      // Try the next explicit upstream ref; never treat a local feature as main.
+    }
   }
+  throw new Error("Could not read upstream main. Fetch the remote tracked by main and try again.");
 }
 
 /** Migration folders in a checkout's working tree, committed or not. */
@@ -196,7 +200,7 @@ function checkoutMigrations(checkout) {
   return new Set(readdirSync(dir).filter((name) => statSync(path.join(dir, name)).isDirectory()));
 }
 
-/** Migrations in this checkout that origin/main does not have. */
+/** Migrations in this checkout that upstream main does not have. */
 function branchOnlyMigrations(onMain) {
   return [...checkoutMigrations(root)].filter((name) => !onMain.has(name));
 }

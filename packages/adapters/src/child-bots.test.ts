@@ -450,7 +450,8 @@ describe("destroyBot", () => {
         findMany: vi
           .fn()
           .mockResolvedValueOnce([{ id: "run-1" }])
-          .mockResolvedValueOnce([{ id: "run-1", userId: "user-1", spaceId: "workspace-1" }]),
+          .mockResolvedValueOnce([{ id: "run-1", userId: "user-1", spaceId: "workspace-1" }])
+          .mockResolvedValueOnce([{ id: "run-1", nativeExecutionRunId: null }]),
         updateMany: vi.fn().mockResolvedValue({ count: 1 }),
       },
       externalEffect: { deleteMany: vi.fn().mockResolvedValue({ count: 0 }) },
@@ -802,6 +803,7 @@ describe("destroyBot", () => {
           botId: "team-workspace-1",
           kind: "docker",
           providerRef: "container-1",
+          scope: "team",
         },
         expect.objectContaining({ botId: "bot-1", cancelRunWork: true }),
       );
@@ -1988,7 +1990,147 @@ describe("destroyBot", () => {
   });
 });
 
+describe("retained execution target computers", () => {
+  it("destroys every owned target and removes retained disks when the bot is deleted", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "rakazo-owned-targets-"));
+    try {
+      const home = new LocalAgentHomeStore(root);
+      const team = {
+        id: "team",
+        homeKey: "team-home",
+        scope: "team",
+        kind: "docker",
+        providerRef: null,
+        state: "stopped",
+      };
+      const dedicated = ["default", "docker", "host"].map((target) => ({
+        id: `computer-${target}`,
+        homeKey: `bot-1-${target}`,
+        kind: target === "host" ? "desktop" : "docker",
+        providerRef: `provider-${target}`,
+        scopeKey: target === "default" ? "bot:bot-1" : `bot:bot-1:${target}`,
+      }));
+      for (const computer of dedicated)
+        await seedFile(home.pathFor(computer.homeKey), "notes.txt", "owned");
+      const destroy = vi.fn(async () => undefined);
+      await destroyBot(
+        {
+          prisma: deletionPrisma(team, dedicated),
+          sandbox: { destroy } as unknown as SandboxProvider,
+          home,
+          jobs: { cancel: vi.fn() } as unknown as JobPublisher,
+        },
+        {
+          id: "bot-1",
+          spaceId: "workspace-1",
+          userId: "user-1",
+          name: "Helper",
+          archivedAt: null,
+          computerId: team.id,
+        },
+        context,
+        { deleteMemories: true },
+      );
+      expect(destroy).toHaveBeenCalledTimes(3);
+      for (const computer of dedicated) {
+        expect(destroy).toHaveBeenCalledWith(
+          expect.objectContaining({ providerRef: computer.providerRef }),
+          expect.anything(),
+        );
+        await expect(
+          readFile(path.join(home.pathFor(computer.homeKey), "notes.txt")),
+        ).rejects.toMatchObject({ code: "ENOENT" });
+      }
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+});
+
 describe("archiveBot", () => {
+  it("re-reads a native binding pinned during cancellation and stops only that run", async () => {
+    const native = {
+      id: "run-1",
+      nativeExecutionRunId: "native-1",
+      nativeComputerId: "shared-host",
+      nativeComputerKey: "team-host",
+    };
+    let cancelled = false;
+    const stop = vi.fn(async () => undefined);
+    const findRuns = vi.fn(async () =>
+      cancelled
+        ? [native]
+        : [
+            {
+              id: "run-1",
+              nativeExecutionRunId: null,
+              nativeComputerId: null,
+              nativeComputerKey: null,
+            },
+          ],
+    );
+    const tx = {
+      externalEffect: { deleteMany: vi.fn(async () => ({ count: 0 })) },
+      message: { findMany: vi.fn(async () => []) },
+
+      run: {
+        updateMany: vi.fn(async () => {
+          cancelled = true;
+          return { count: 1 };
+        }),
+        findMany: vi.fn(async () => []),
+      },
+      task: { updateMany: vi.fn(async () => ({ count: 1 })) },
+      routine: { updateMany: vi.fn(async () => ({ count: 0 })) },
+      computerExecutionLease: { updateMany: vi.fn(async () => ({ count: 0 })) },
+      computer: { updateMany: vi.fn(async () => ({ count: 0 })) },
+      bot: { update: vi.fn(async () => ({})) },
+    };
+    const computer = {
+      id: "shared-host",
+      scope: "team",
+      kind: "desktop",
+      executionTarget: "host",
+      homeKey: "team-host",
+      providerRef: "host",
+      spaceId: "workspace-1",
+      userId: "user-1",
+    };
+    const prisma = {
+      run: { findMany: findRuns },
+      routine: { findMany: vi.fn(async () => []) },
+      computer: {
+        findUnique: vi.fn(async (args) => (args.where.id === "shared-host" ? computer : null)),
+      },
+      $transaction: vi.fn(async (fn) => fn(tx)),
+    } as unknown as PrismaClient;
+    const sandbox = { cancelRunWork: stop, stop: vi.fn() } as unknown as SandboxProvider;
+    await archiveBot(
+      {
+        prisma,
+        sandbox,
+        home: {} as AgentHomeStore,
+        jobs: { cancel: vi.fn() } as unknown as JobPublisher,
+      },
+      {
+        id: "bot-1",
+        computerId: "shared-host",
+        spaceId: "workspace-1",
+        userId: "user-1",
+        name: "Coder",
+        archivedAt: null,
+      },
+      context,
+    );
+    expect(stop).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ botId: "team-host" }),
+      "shared-host",
+      "native-1",
+      expect.objectContaining({ botId: "bot-1", runId: "run-1", requireRunCleanup: true }),
+    );
+    expect(sandbox.stop).not.toHaveBeenCalled();
+  });
+
   it("stops work and routines while preserving the bot", async () => {
     const updateBot = vi.fn().mockResolvedValue({});
     const disableRoutines = vi.fn().mockResolvedValue({ count: 2 });
@@ -2152,7 +2294,9 @@ describe("archiveBot", () => {
     );
     const prisma = {
       computer: {
-        findUnique: vi.fn().mockResolvedValueOnce(booting).mockResolvedValueOnce(running),
+        findUnique: vi.fn(async (query: { where: { id?: string; scopeKey?: string } }) =>
+          query.where.id ? running : query.where.scopeKey === "bot:bot-1" ? booting : null,
+        ),
         findFirst: vi
           .fn()
           .mockResolvedValue({ state: "running", restorePending: false, screenGeneration: 0 }),
@@ -2225,7 +2369,7 @@ describe("archiveBot", () => {
       await archiveBot({ prisma, sandbox, home: {} as AgentHomeStore, jobs }, bot, context);
       expect(updates.updateMany).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: { id: "c-1", state: { notIn: ["running", "quarantined"] } },
+          where: { id: { in: ["c-1"] }, state: { notIn: ["running", "quarantined"] } },
           data: { state: "stopped" },
         }),
       );
@@ -2298,6 +2442,7 @@ describe("archiveBot", () => {
           botId: "team-workspace-1",
           kind: "docker",
           providerRef: "container-1",
+          scope: "team",
         },
         expect.objectContaining({ botId: "child-1" }),
       );
@@ -2346,7 +2491,16 @@ function runInWorkspace(cwd: string, argv: readonly string[]) {
   }
 }
 
-function deletionPrisma(team: { id: string }) {
+function deletionPrisma(
+  team: { id: string },
+  dedicated: Array<{
+    id: string;
+    homeKey: string;
+    kind: string;
+    providerRef: string;
+    scopeKey: string;
+  }> = [],
+) {
   const transaction = vi.fn(async (callback: (tx: unknown) => Promise<unknown>) =>
     callback({
       $queryRaw: vi.fn().mockResolvedValue([{ id: "bot-1" }]),
@@ -2359,7 +2513,10 @@ function deletionPrisma(team: { id: string }) {
         deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
       },
       computerExecutionLease: { deleteMany: vi.fn().mockResolvedValue({ count: 0 }) },
-      computer: { updateMany: vi.fn().mockResolvedValue({ count: 0 }) },
+      computer: {
+        updateMany: vi.fn().mockResolvedValue({ count: 0 }),
+        delete: vi.fn().mockResolvedValue({}),
+      },
       botDeletion: { create: vi.fn().mockResolvedValue({}) },
       bot: { delete: vi.fn().mockResolvedValue({}) },
     }),
@@ -2369,7 +2526,10 @@ function deletionPrisma(team: { id: string }) {
       findUnique: vi.fn(async (query: { where: { id?: string; scopeKey?: string } }) =>
         query.where.id === team.id || query.where.scopeKey === "team:workspace-1:user-1"
           ? team
-          : null,
+          : (dedicated.find(
+              (computer) =>
+                computer.id === query.where.id || computer.scopeKey === query.where.scopeKey,
+            ) ?? null),
       ),
     },
     run: {

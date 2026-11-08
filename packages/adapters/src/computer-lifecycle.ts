@@ -400,6 +400,8 @@ export async function provisionComputer(
               homePath,
               providerRef: existing.providerRef ?? undefined,
               providerKind: existing.kind as ComputerRef["kind"],
+              executionTarget: existing.executionTarget as ComputerRef["executionTarget"],
+              registeredHostId: existing.registeredHostId,
               // A save from an older release has no time; the provider keeps its own state then.
               savedAt:
                 existing.homeRevision === "empty"

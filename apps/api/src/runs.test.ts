@@ -2,6 +2,10 @@ import { describe, expect, it } from "vitest";
 import { activityNotificationsEnabled, activityPreview } from "./runs.js";
 
 describe("run activity copy", () => {
+  it("never exposes a spontaneous turn's internal concurrency guard", () => {
+    expect(activityPreview({ trigger: "roleplay_spontaneous", prompt: '{"sourceMessageId":"internal"}' }))
+      .toEqual({ promptSnippet: "", agentMessage: null });
+  });
   it.each([
     [
       "request",

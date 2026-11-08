@@ -13,6 +13,7 @@ import {
   hasThinkingActivityMarker,
   loginAnswerValue,
   MessageBlock as MessageBlockSchema,
+  RoleplayCharacterSchema,
   ThreadActivityPayloadSchema,
 } from "@rakazo/contracts";
 import {
@@ -32,6 +33,7 @@ import {
   QUEUE_HOLDING_RUN_STATUSES,
   releasedTakeoverComputerBlocks,
   resolveAskChoice,
+  roleplayMacros,
   STEERING_CONTINUATION_PROMPT,
   sanitizeJsonValue,
 } from "@rakazo/core";
@@ -40,7 +42,8 @@ import { approvalEffectKey } from "@rakazo/core/node/approval-effect-key";
 import { getLogger } from "@rakazo/logging";
 import { saveApprovalRule, storedBatchActions } from "./approval-settings.js";
 import { cancelRunsInTransaction } from "./cancel-runs.js";
-import type { Prisma, PrismaClient } from "./client.js";
+import type { PrismaClient } from "./client.js";
+import { Prisma } from "./client.js";
 import { expireComputerExecutionLeases } from "./computers.js";
 import {
   CrossSpaceCommunicationBlockedError,
@@ -54,6 +57,14 @@ import {
   partialReplyClientNonce,
   RunHistoryWriteError,
 } from "./messages.js";
+import type { RoleplayMediaGuard } from "./roleplay-media.js";
+import { validateRoleplayMediaDelivery } from "./roleplay-media.js";
+import type { RoleplaySpontaneousGuard } from "./roleplay-spontaneous.js";
+import {
+  lockRoleplaySpontaneousPreferences,
+  roleplaySpontaneousSnapshot,
+  sameRoleplaySpontaneousGuard,
+} from "./roleplay-spontaneous.js";
 import { deleteRunSecretsInTransaction } from "./run-secrets.js";
 import { isRunResponse, readRunTimingFields } from "./run-timing.js";
 import { RUN_TURN_CHECKPOINT_KIND } from "./run-turn-checkpoint.js";
@@ -119,6 +130,9 @@ export interface ClearThreadInput {
   /** Event author and the bot-scoped target for one-to-one chats. */
   botId: string;
   groupId?: string;
+  taskId?: string;
+  /** Backend lifecycle snapshot under the thread lock, before private run state is removed. */
+  beforeCancel?: (tx: Prisma.TransactionClient, runIds: string[]) => Promise<void>;
 }
 
 export interface ClearThreadResult {
@@ -142,6 +156,8 @@ export interface FinalizeComputerControlReleaseResult {
 }
 
 export interface ClaimSteeringInput {
+  /** Only a fresh continuation may consume explicitly queued input. */
+  initial?: boolean;
   threadId: string;
   botId: string;
   runId: string;
@@ -164,9 +180,11 @@ export interface ClaimedSteeringMessage {
 
 export interface FinalizeRunResult {
   continuationRunId: string | null;
+  suppressed?: boolean;
 }
 
 interface FinalizeRunBase {
+  spontaneousGuard?: RoleplaySpontaneousGuard;
   spaceId: string;
   threadId: string;
   botId: string;
@@ -182,7 +200,11 @@ export type FinalizeRunInput = FinalizeRunBase &
     | {
         outcome: "completed";
         blocks: MessageBlock[];
+        /** Additional text-only bubbles for a roleplay chat turn, committed with its state. */
+        additionalMessages?: MessageBlock[][];
         markUnread?: boolean;
+        roleplayState?: Prisma.InputJsonValue;
+        roleplayMediaGuard?: RoleplayMediaGuard;
       }
     | {
         outcome: "failed";
@@ -375,7 +397,11 @@ export async function clearThread(
       where: {
         id: input.threadId,
         spaceId: input.spaceId,
-        ...(input.groupId ? { groupId: input.groupId } : { botId: input.botId }),
+        ...(input.groupId
+          ? { groupId: input.groupId }
+          : input.taskId
+            ? { taskBotId: input.botId, tasks: { some: { id: input.taskId, conversation: true } } }
+            : { botId: input.botId }),
       },
       data: { unread: false },
       select: { nextMessageSeq: true, historyCompactionGeneration: true },
@@ -390,6 +416,10 @@ export async function clearThread(
       select: { id: true, taskId: true, userId: true, spaceId: true },
     });
     const now = new Date();
+    await input.beforeCancel?.(
+      tx,
+      activeRuns.map((run) => run.id),
+    );
     const runIds = (await cancelRunsInTransaction(tx, activeRuns, now)).map((run) => run.id);
     // Expire as tombstones so a still-open provider screen claim cannot reset fencing to 1.
     await expireComputerExecutionLeases(tx, { runId: { in: runIds } });
@@ -404,6 +434,7 @@ export async function clearThread(
         data: {
           historyCompactedUpToSeq: thread.nextMessageSeq - 1,
           historyCompactionSummary: null,
+          roleplayState: Prisma.DbNull,
           historyCompactionGeneration: { increment: 1 },
         },
       });
@@ -412,30 +443,57 @@ export async function clearThread(
         where: { id: input.threadId },
         data: {
           historyCompactionSummary: null,
+          roleplayState: Prisma.DbNull,
           historyCompactionGeneration: { increment: 1 },
         },
       });
     }
+    let greeting: string | null = null;
     if (input.groupId) {
       await tx.chatGroup.update({ where: { id: input.groupId }, data: { updatedAt: now } });
     } else {
-      await tx.bot.update({
+      const bot = await tx.bot.update({
         where: { id: input.botId, spaceId: input.spaceId },
         data: { updatedAt: now },
       });
+      if (bot?.botKind === "roleplay") {
+        const character = RoleplayCharacterSchema.parse(bot.roleplayCharacter);
+        if (character.firstMessage)
+          greeting = roleplayMacros(character.firstMessage, character.name);
+      }
     }
     const event = await appendEventInTransaction(tx, {
       ...input,
       type: "thread.cleared",
       payload: {},
     });
+    let notifySeq = event.seq;
+    if (greeting) {
+      const blocks: MessageBlock[] = [{ kind: "text", text: greeting }];
+      const message = await createThreadMessageInTransaction(tx, {
+        threadId: input.threadId,
+        botId: input.botId,
+        role: "bot",
+        blocks,
+        markUnread: false,
+      });
+      const greetingEvent = await appendEventInTransaction(tx, {
+        spaceId: input.spaceId,
+        threadId: input.threadId,
+        botId: input.botId,
+        type: "thread.message.created",
+        payload: { messageId: message.id, role: "bot", blocks },
+      });
+      notifySeq = greetingEvent.seq;
+    }
     return {
       event,
+      notifySeq,
       cancelledRunIds: runIds,
       historyCompactionGeneration: thread.historyCompactionGeneration,
     };
   });
-  await notifyRealtime(realtime, committed.event.threadId, committed.event.seq);
+  await notifyRealtime(realtime, committed.event.threadId, committed.notifySeq);
   // Legacy execution bindings point at runs of pre-lease releases, which kept writing
   // Computer.executionRunId. Clearing them inside the transaction reaches for the
   // computer row while holding the thread row — the inverted half of a cycle with a
@@ -679,9 +737,38 @@ async function claimSteeringOnce(
         userId: true,
         trigger: true,
         sourceMessage: { select: { blocks: true } },
+        task: { select: { prompt: true } },
       },
     });
     if (!run || run.trigger === "created") return [];
+    const initialContinuation = input.initial && run.task?.prompt === STEERING_CONTINUATION_PROMPT;
+    const boundary = initialContinuation
+      ? await tx.event.findFirst({
+          where: { runId: input.runId, type: "run.queue.started" },
+          select: { id: true },
+        })
+      : null;
+    const acceptQueued =
+      initialContinuation &&
+      !boundary &&
+      !(await tx.run.findFirst({
+        where: {
+          threadId: input.threadId,
+          botId: input.botId,
+          status: "waiting_input",
+          id: { not: input.runId },
+        },
+        select: { id: true },
+      }));
+    if (initialContinuation && !boundary)
+      await appendEventInTransaction(tx, {
+        spaceId: run.spaceId,
+        threadId: input.threadId,
+        botId: input.botId,
+        runId: input.runId,
+        type: "run.queue.started",
+        payload: {},
+      });
     const channelId =
       run.trigger === "messaging"
         ? messagingChannelId(run.sourceMessage?.blocks as MessageBlock[] | undefined)
@@ -696,7 +783,17 @@ async function claimSteeringOnce(
     const candidates = await tx.steeringMessage.findMany({
       where: {
         botId: input.botId,
+        cancelledAt: null,
         id: input.seenIds.length ? { notIn: input.seenIds } : undefined,
+        AND: [
+          {
+            OR: [
+              { deliveryMode: { not: "queue" } },
+              { runId: input.runId },
+              ...(acceptQueued ? [{ runId: null }] : []),
+            ],
+          },
+        ],
         // A routine or webhook turn only takes steering addressed to it; pending user messages
         // wait for the conversational continuation that starts once it finishes.
         OR: isConversationalRun(run.trigger)
@@ -723,11 +820,25 @@ async function claimSteeringOnce(
             !farmingControlOutsideBlocks(item.message.blocks),
         )
       : candidates;
+    steering.sort(
+      (a, b) =>
+        (a.queuePosition ?? a.message.seq) - (b.queuePosition ?? b.message.seq) ||
+        a.id.localeCompare(b.id),
+    );
     if (steering.length === 0) return [];
     await tx.steeringMessage.updateMany({
       where: { id: { in: steering.map((item) => item.id) }, claimedAt: null },
       data: { runId: input.runId, claimedAt: new Date() },
     });
+    if (initialContinuation) {
+      const newest = steering.reduce((latest, item) =>
+        item.message.seq > latest.message.seq ? item : latest,
+      );
+      await tx.run.update({
+        where: { id: input.runId },
+        data: { sourceMessageId: newest.messageId },
+      });
+    }
     // The thread lock serializes this watermark with message writes. Unlike claim
     // timestamps, it cannot drift from the database clock or tie with a reply.
     const { nextMessageSeq } = await tx.thread.findUniqueOrThrow({
@@ -856,6 +967,13 @@ async function commitAnswerRunInput(
   );
   if (pendingAsk?.kind !== "ask") return null;
   const approvalAsk = isApprovalAskBlock(pendingAsk);
+  const nativeApproval = approvalAsk && pendingAsk.nativeApproval === true;
+  if (
+    nativeApproval &&
+    (run.userId !== input.answeredByUserId ||
+      !pendingAsk.actions?.some((action) => action.id === input.answer))
+  )
+    return null;
   const secretAsk = isSecretAskBlock(pendingAsk);
   const choiceAsk = !approvalAsk && !secretAsk && Boolean(pendingAsk.actions?.length);
   const selectedChoice = choiceAsk ? resolveAskChoice(input.answer, pendingAsk.actions) : undefined;
@@ -908,7 +1026,7 @@ async function commitAnswerRunInput(
   }
   let approvalUserId: string | null = null;
 
-  if (approvalAsk) {
+  if (approvalAsk && !nativeApproval) {
     if (!pendingAsk.actions?.some((action) => action.id === approvalAnswer)) return null;
     approvalEffect = await tx.externalEffect.findFirst({
       where: {
@@ -979,7 +1097,7 @@ async function commitAnswerRunInput(
     });
   }
 
-  if (approvalAsk) {
+  if (approvalAsk && !nativeApproval) {
     if (pendingAsk.instructionUpdate) {
       if (editedInstructions !== undefined) {
         const stored = await tx.externalEffect.findUniqueOrThrow({
@@ -1017,6 +1135,8 @@ async function commitAnswerRunInput(
         );
       }
     }
+  } else if (nativeApproval) {
+    // The provider owns the action; resume its pinned checkpoint with this exact decision.
   } else if (dismissed) {
     // Nothing is stored. The bot's request_secret call returns the dismissal, and the resumed
     // run is told why.
@@ -1171,7 +1291,9 @@ export async function retireWaitingQuestionInTransaction(
     // Never implicitly dismiss credentials or authorize an external effect, even on a mixed card.
     if (
       pending.some(
-        (block) => block.kind === "ask" && (block.input === "secret" || block.approvalEffectId),
+        (block) =>
+          block.kind === "ask" &&
+          (block.input === "secret" || block.approvalEffectId || block.nativeApproval),
       )
     )
       return false;
@@ -1733,7 +1855,10 @@ export async function finalizeRun(
     "bot.id": input.botId,
   });
   void captureRunAnalytics(prisma, analytics, input.runId, `run.${input.outcome}`);
-  return { continuationRunId: committed.continuationRunId };
+  return {
+    continuationRunId: committed.continuationRunId,
+    ...(committed.suppressed ? { suppressed: true } : {}),
+  };
 }
 
 /** Stamps one turn-level wall-clock duration on the final tool block. */
@@ -1766,6 +1891,7 @@ async function finalizeRunOnce(
   seq: number;
   continuationRunId: string | null;
   firstResponse: boolean;
+  suppressed?: boolean;
 } | null> {
   return prisma.$transaction(async (tx: Prisma.TransactionClient) => {
     await tx.$queryRaw`SELECT id FROM threads WHERE id = ${input.threadId} FOR UPDATE`;
@@ -1775,6 +1901,96 @@ async function finalizeRunOnce(
     } catch (error) {
       if (error instanceof RunHistoryWriteError) return null;
       throw error;
+    }
+    let suppressed = false;
+    if (input.spontaneousGuard) {
+      await lockRoleplaySpontaneousPreferences(tx, {
+        botId: input.botId,
+        userId: writableRun!.userId,
+      });
+      const snapshot = await roleplaySpontaneousSnapshot(
+        tx,
+        { ...input, userId: writableRun!.userId },
+        new Date(),
+        input.runId,
+        true,
+      );
+      suppressed =
+        !snapshot ||
+        !sameRoleplaySpontaneousGuard(input.spontaneousGuard, snapshot.guard) ||
+        input.outcome !== "completed" ||
+        !input.blocks.length;
+      if (suppressed)
+        input = {
+          ...input,
+          outcome: "completed",
+          blocks: [],
+          additionalMessages: undefined,
+          roleplayState: undefined,
+        };
+    }
+    if (
+      input.outcome === "completed" &&
+      input.additionalMessages !== undefined &&
+      !input.roleplayMediaGuard &&
+      [input.blocks, ...input.additionalMessages].flat().some((block) => block.kind !== "text")
+    )
+      throw new Error("Roleplay chat replies support at most three messages");
+    if (
+      input.outcome === "completed" &&
+      (input.roleplayMediaGuard ||
+        (input.roleplayState &&
+          typeof input.roleplayState === "object" &&
+          "media" in input.roleplayState) ||
+        [input.blocks, ...(input.additionalMessages ?? [])]
+          .flat()
+          .some((block) => block.kind === "image"))
+    ) {
+      await lockRoleplaySpontaneousPreferences(tx, {
+        botId: input.botId,
+        userId: writableRun!.userId,
+      });
+      const checked = await validateRoleplayMediaDelivery(tx, {
+        ...input,
+        userId: writableRun!.userId,
+        spontaneous: !!input.spontaneousGuard,
+      });
+      suppressed ||= checked.suppress;
+      input = {
+        ...input,
+        roleplayState: checked.roleplayState,
+        ...(checked.suppress
+          ? { blocks: [], additionalMessages: undefined, roleplayState: undefined }
+          : {}),
+      };
+    }
+    if (input.outcome === "completed" && input.additionalMessages !== undefined) {
+      const replies = [input.blocks, ...input.additionalMessages];
+      if (
+        input.additionalMessages.length > 2 ||
+        replies.some(
+          (blocks) =>
+            !Array.isArray(blocks) ||
+            blocks.length === 0 ||
+            blocks.some(
+              (block) =>
+                !MessageBlockSchema.safeParse(block).success ||
+                !["text", "image"].includes(block.kind),
+            ),
+        )
+      )
+        throw new Error("Roleplay chat replies support at most three messages");
+      const bot = await tx.bot.findUnique({
+        where: { id: input.botId },
+        select: { botKind: true, roleplayCharacter: true },
+      });
+      const character = RoleplayCharacterSchema.safeParse(bot?.roleplayCharacter);
+      if (
+        bot?.botKind !== "roleplay" ||
+        !character.success ||
+        character.data.conversationStyle !== "chat"
+      )
+        throw new Error("Multiple replies require a roleplay chat character");
     }
     const now = new Date();
     const terminal = await tx.run.updateMany({
@@ -1854,11 +2070,16 @@ async function finalizeRunOnce(
       input.outcome === "completed"
         ? completedRunBlocks(input.blocks, writableRun?.startedAt ?? null, now)
         : (input.partialReply ?? []);
-    if (replyBlocks.length > 0) {
+    const replies = [
+      replyBlocks,
+      ...(input.outcome === "completed" ? (input.additionalMessages ?? []) : []),
+    ];
+    for (const blocks of replies) {
+      if (!blocks.length) continue;
       const message = await createThreadMessageInTransaction(tx, {
         threadId: input.threadId,
         role: "bot",
-        blocks: replyBlocks,
+        blocks,
         botId: input.botId,
         runId: input.runId,
         ...(input.outcome === "completed"
@@ -1871,9 +2092,9 @@ async function finalizeRunOnce(
         botId: input.botId,
         type: "thread.message.created",
         runId: input.runId,
-        payload: { messageId: message.id, role: "bot", blocks: replyBlocks },
+        payload: { messageId: message.id, role: "bot", blocks },
       });
-      firstResponse = response.firstResponse;
+      firstResponse ||= response.firstResponse;
     }
     const lastEvent = await appendEventInTransaction(tx, {
       spaceId: input.spaceId,
@@ -1892,6 +2113,11 @@ async function finalizeRunOnce(
       ]);
     }
     if (input.outcome === "completed") {
+      if (input.roleplayState !== undefined)
+        await tx.thread.update({
+          where: { id: input.threadId },
+          data: { roleplayState: input.roleplayState },
+        });
       await tx.steeringMessage.deleteMany({
         where: { runId: input.runId, claimedAt: { not: null } },
       });
@@ -1901,8 +2127,15 @@ async function finalizeRunOnce(
       });
     }
     const continuationRunId = await createPendingSteeringRun(tx, input);
-    await tx.bot.update({ where: { id: input.botId }, data: { updatedAt: now } });
-    return { threadId: lastEvent.threadId, seq: lastEvent.seq, continuationRunId, firstResponse };
+    if (input.outcome === "failed" || input.blocks.length)
+      await tx.bot.update({ where: { id: input.botId }, data: { updatedAt: now } });
+    return {
+      threadId: lastEvent.threadId,
+      seq: lastEvent.seq,
+      continuationRunId,
+      firstResponse,
+      ...(suppressed ? { suppressed: true } : {}),
+    };
   }, FINALIZE_TRANSACTION_OPTIONS);
 }
 
@@ -1960,21 +2193,35 @@ export async function createPendingSteeringRun(
     select: { id: true },
   });
   if (active) return null;
+  const waitingInput = await tx.run.findFirst({
+    where: { threadId: input.threadId, botId: input.botId, status: "waiting_input" },
+    select: { id: true },
+  });
   const pending = await tx.steeringMessage.findMany({
     where: {
       botId: input.botId,
       runId: null,
+      cancelledAt: null,
+      ...(waitingInput ? { deliveryMode: { not: "queue" } } : {}),
       message: { threadId: input.threadId },
     },
     include: { message: { select: { id: true, blocks: true, seq: true } } },
     orderBy: [{ message: { seq: "asc" } }, { id: "asc" }],
   });
+  pending.sort(
+    (a, b) =>
+      (a.queuePosition ?? a.message.seq) - (b.queuePosition ?? b.message.seq) ||
+      a.id.localeCompare(b.id),
+  );
   if (pending.length === 0) return null;
   // One origin per continuation so a group channel and the owner's private chat are not answered
   // together. The app and the owner's direct line are one private conversation.
   const origin = steeringOrigin(pending[0]!);
   const batch = pending.filter((item) => steeringOrigin(item) === origin);
-  const source = batch.at(-1)!;
+  // Failure replay uses this sequence as a watermark, independent of queue order.
+  const source = batch.reduce((latest, item) =>
+    item.message.seq > latest.message.seq ? item : latest,
+  );
   const modelPin = continuationModelPin(batch);
   const task = await tx.task.create({
     data: {

@@ -88,13 +88,19 @@ export function snippetAroundMatch(text: string, query: string, maxLen = 120): s
 }
 
 export type SearchThreadTarget =
-  | { botId: string; groupId?: undefined }
-  | { groupId: string; botId?: undefined };
+  | { botId: string; groupId?: undefined; taskId?: undefined }
+  | { groupId: string; botId?: undefined; taskId?: undefined }
+  | { taskId: string; botId?: undefined; groupId?: undefined };
 
 export function searchHitThreadTarget(hit: {
   botId?: string;
   groupId?: string;
+  taskId?: string;
 }): SearchThreadTarget {
+  if (hit.taskId) {
+    if (hit.groupId) throw new Error("Task search hit cannot target a group");
+    return { taskId: hit.taskId };
+  }
   if (Boolean(hit.botId) === Boolean(hit.groupId)) {
     throw new Error("Search hit must target exactly one of a bot or group");
   }
@@ -108,7 +114,7 @@ export function searchHitThreadTarget(hit: {
 export function searchHitListKey(hit: SearchHit): string {
   return [
     hit.kind,
-    hit.groupId ?? hit.botId ?? "",
+    hit.taskId ?? hit.groupId ?? hit.botId ?? "",
     hit.messageId ?? "",
     hit.artifactId ?? "",
     hit.routineId ?? "",

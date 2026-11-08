@@ -705,7 +705,7 @@ export function mcpRoutes(ctx: RouterContext) {
                     spaceId: context.actor.spaceId,
                     userId: context.actor.userId,
                   },
-                  select: { id: true },
+                  select: { id: true, botKind: true },
                 }),
                 tx.mcpServer.findFirst({
                   where: {
@@ -717,6 +717,10 @@ export function mcpRoutes(ctx: RouterContext) {
                 }),
               ]);
               if (!bot || !server) throw new IsolationError();
+              if (bot.botKind === "roleplay")
+                throw new ORPCError("BAD_REQUEST", {
+                  message: "Roleplay bots cannot use agent tools",
+                });
               const assignment = await tx.botMcpServer.upsert({
                 where: { botId_serverId: { botId: bot.id, serverId: server.id } },
                 create: {
@@ -769,9 +773,13 @@ export function mcpRoutes(ctx: RouterContext) {
                 spaceId: context.actor.spaceId,
                 userId: context.actor.userId,
               },
-              select: { id: true },
+              select: { id: true, botKind: true },
             });
             if (!bot) throw new IsolationError();
+            if (bot.botKind === "roleplay")
+              throw new ORPCError("BAD_REQUEST", {
+                message: "Roleplay bots cannot use agent tools",
+              });
             const servers = await tx.mcpServer.findMany({
               where: {
                 id: { in: input.assignments.map((assignment) => assignment.serverId) },

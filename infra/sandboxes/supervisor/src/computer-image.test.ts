@@ -126,6 +126,20 @@ afterEach(() => {
 });
 
 describe("computer image", () => {
+  it("honors the local launcher opt-out from automatic image builds", async () => {
+    vi.stubEnv("SANDBOX_AUTO_BUILD_IMAGE", "false");
+    try {
+      const fake = fakeDocker();
+      await expect(fake.ensure(local)()).rejects.toThrow("automatic image builds are disabled");
+      expect(fake.docker.buildImage).not.toHaveBeenCalled();
+      // Published images still use upstream's registry pull path.
+      await fake.ensure(published)();
+      expect(fake.docker.pull).toHaveBeenCalledOnce();
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
   it("never pulls or builds an image that is present", async () => {
     const fake = fakeDocker({ present: true });
     await fake.ensure(published)();

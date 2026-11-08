@@ -62,6 +62,10 @@ export function useAutoSpeakReply({
       lastSpokenBotId: autoSpokenBotId.current,
       lastSpokenMessageId: autoSpoken.current,
       runStatus: snap?.run?.status,
+      runId: snap?.run?.id,
+      combineRunReplies:
+        currentBot.botKind === "roleplay" &&
+        currentBot.roleplayCharacter?.conversationStyle === "chat",
       messages: snap?.messages ?? [],
     });
     if (decision.action === "seed") {
@@ -88,6 +92,7 @@ export function useAutoSpeakReply({
     snap?.botId,
     snap?.messages,
     snap?.run?.status,
+    snap?.run?.id,
   ]);
 
   const speakFinishedReplyRef = useRef(speakFinishedReply);
@@ -201,6 +206,7 @@ export function useThreadVoiceCall({
     if (readOnly) return;
     const targetBotId = botId;
     if (!targetBotId || voiceCallStarting.current) return;
+    if (mentionBotsRef.current.find((bot) => bot.id === targetBotId)?.botKind === "roleplay") return;
     voiceCallStarting.current = true;
     const loadVoiceStatus = () => rpc("voice/status");
     try {

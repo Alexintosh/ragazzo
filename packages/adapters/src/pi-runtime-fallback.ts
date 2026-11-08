@@ -34,8 +34,8 @@ import { OPENAI_COMPATIBLE_PROVIDER_ID } from "./pi-openai-compatible-provider.j
 import { assistantText, messageHasToolCall, sanitizeProviderError } from "./pi-runtime-errors.js";
 import {
   effectiveOutputReserve,
-  MODEL_STREAM_TIMEOUT_MS,
   resolveCompletionMaxTokens,
+  resolveModelStreamTimeoutMs,
 } from "./pi-runtime-limits.js";
 import type { RuntimeModelTarget } from "./pi-runtime-models.js";
 import {
@@ -420,7 +420,7 @@ export function fallbackAwareModelStream(
     // Bound same-model retries. Explicit backups retain their per-model header
     // timeout: a post-header idle watchdog can already exceed that timeout.
     let startedAt = Date.now();
-    const timeoutMs = options?.timeoutMs ?? MODEL_STREAM_TIMEOUT_MS;
+    let timeoutMs = resolveModelStreamTimeoutMs(state.getActive().config, options?.timeoutMs);
     let firstRetryableError: Extract<AssistantMessageEvent, { type: "error" }> | undefined;
     // Set once this call has been repeated after spending its output budget on nothing visible.
     let lengthRecovered = false;
@@ -447,7 +447,7 @@ export function fallbackAwareModelStream(
       const outputCap = state.outputCaps?.get(targetKey);
       const attemptOptions = {
         ...options,
-        ...(retries > 0 || sizingFailure ? { timeoutMs: remainingMs } : {}),
+        timeoutMs: retries > 0 || sizingFailure ? Math.max(1, Math.floor(remainingMs)) : timeoutMs,
         ...(outputCap !== undefined
           ? { maxTokens: Math.min(outputCap, options?.maxTokens ?? outputCap) }
           : {}),
@@ -622,6 +622,14 @@ export function fallbackAwareModelStream(
                 state.messagesBeforeSwitch = context.messages.length;
                 await state.onSwitch(next);
                 if (failIfAborted(target)) return;
+                // Each connection owns its retry window; the failed primary's elapsed time
+                // and reduced timeout must never consume the backup's header budget.
+                startedAt = Date.now();
+                timeoutMs = resolveModelStreamTimeoutMs(next.config, options?.timeoutMs);
+                retries = 0;
+                recoveredIdle = false;
+                sizingFailure = undefined;
+                firstRetryableError = undefined;
                 // A raised budget or lower thinking level fitted the failed model, not this one.
                 outputBudget = undefined;
                 thinkingOverride = undefined;

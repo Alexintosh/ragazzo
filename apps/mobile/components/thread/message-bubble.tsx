@@ -151,6 +151,7 @@ const MessageBubbleContent = memo(function MessageBubbleContent({
   showBotSenderName,
   bots,
   groupId,
+  threadTarget,
   message,
   members,
   canAnswer,
@@ -172,6 +173,7 @@ const MessageBubbleContent = memo(function MessageBubbleContent({
   showBotSenderName: boolean;
   bots: MobileBot[];
   groupId?: string;
+  threadTarget?: MobileArtifactTarget;
   message: MobileMessage;
   members?: MobileSnapshot["members"];
   canAnswer: boolean;
@@ -198,7 +200,7 @@ const MessageBubbleContent = memo(function MessageBubbleContent({
   const tokens = withUserBubble(mobileTokens(), userBubble);
   const { t } = useI18n();
   const [peerExpanded, setPeerExpanded] = useState(false);
-  const artifactTarget: MobileArtifactTarget = groupId ? { groupId } : { botId };
+  const artifactTarget: MobileArtifactTarget = threadTarget ?? (groupId ? { groupId } : { botId });
   const cardBotId = message.botId ?? botId;
   const computerBotId = message.botId ?? (groupId ? undefined : botId);
   const appConnectBlocks = message.blocks.filter(

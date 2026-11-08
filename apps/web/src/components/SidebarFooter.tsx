@@ -14,6 +14,7 @@ import {
   Download,
   FolderOpen,
   Gauge,
+  GitBranch,
   Link2,
   LogOut,
   Plug,
@@ -43,6 +44,7 @@ type Props = {
   links?: NavLink[];
   onLink?: (link: NavLink) => void;
   onArtifacts: () => void;
+  onWorkflows?: () => void;
   onSettings: () => void;
   onUsage: () => void;
   onInvite?: () => void;
@@ -71,6 +73,7 @@ export function SidebarFooter({
   links = [],
   onLink,
   onArtifacts,
+  onWorkflows,
   onSettings,
   onUsage,
   onInvite,
@@ -179,6 +182,16 @@ export function SidebarFooter({
               <FolderOpen className="text-muted-foreground" strokeWidth={1.75} />
               <Trans>Artifacts</Trans>
             </Button>
+            {onWorkflows ? (
+              <Button
+                variant="ghost"
+                className="h-9 w-full justify-start gap-2.5 font-normal"
+                onClick={onWorkflows}
+              >
+                <GitBranch className="text-muted-foreground" strokeWidth={1.75} />
+                <Trans>Workflows</Trans>
+              </Button>
+            ) : null}
             {onBoard ? (
               <Button
                 variant="ghost"

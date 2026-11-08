@@ -290,25 +290,104 @@ export async function archiveSpawnedBot(
   return { ok: true as const, botId: target.id, name: target.name };
 }
 
+/** Each explicit target keeps its own disk, including while the bot uses another target. */
+async function botDedicatedComputers(deps: BotLifecycleDeps, bot: LifecycleBot) {
+  const computers = await Promise.all(
+    (["default", "docker", "host"] as const).map((executionTarget) =>
+      deps.prisma.computer.findUnique({
+        where: {
+          scopeKey: computerScopeKey({
+            mode: "dedicated",
+            spaceId: bot.spaceId,
+            userId: bot.userId,
+            botId: bot.id,
+            executionTarget,
+          }),
+        },
+      }),
+    ),
+  );
+  return [
+    ...new Map(
+      computers.filter((computer) => computer !== null).map((computer) => [computer.id, computer]),
+    ).values(),
+  ];
+}
+
+/** Cancel only this bot's pinned native executions, including approvals without a worker heartbeat. */
+async function stopNativeBotRuns(
+  deps: BotLifecycleDeps,
+  bot: LifecycleBot,
+  runs: Array<{
+    id: string;
+    nativeExecutionRunId: string | null;
+    nativeComputerId: string | null;
+    nativeComputerKey: string | null;
+  }>,
+  context: AdapterContext,
+) {
+  if (runs.length === 0) return;
+  // A worker may have pinned its native session after the lifecycle's first read.
+  // Cancellation is already durable; the executor's status CAS now prevents new pins.
+  const pinned = await deps.prisma.run.findMany({
+    where: { botId: bot.id, id: { in: runs.map((run) => run.id) } },
+    select: {
+      id: true,
+      nativeExecutionRunId: true,
+      nativeComputerId: true,
+      nativeComputerKey: true,
+    },
+  });
+  for (const run of pinned) {
+    if (!run.nativeExecutionRunId) continue;
+    const computer = run.nativeComputerId
+      ? await deps.prisma.computer.findUnique({ where: { id: run.nativeComputerId } })
+      : null;
+    if (
+      !computer ||
+      computer.spaceId !== bot.spaceId ||
+      computer.userId !== bot.userId ||
+      computer.homeKey !== run.nativeComputerKey ||
+      !deps.sandbox.cancelRunWork
+    )
+      throw new Error("Native execution cleanup cannot be verified");
+    await deps.sandbox.cancelRunWork(
+      toComputerRef(computer),
+      computer.id,
+      run.nativeExecutionRunId,
+      {
+        ...context,
+        botId: bot.id,
+        runId: run.id,
+        requireRunCleanup: true,
+        cancelRunWork: true,
+        signal: AbortSignal.timeout(15_000),
+      },
+    );
+  }
+}
+
 export async function archiveBot(
   deps: BotLifecycleDeps,
   bot: LifecycleBot,
   context: AdapterContext,
 ) {
-  const [dedicated, activeRuns, activeRoutines] = await Promise.all([
-    deps.prisma.computer.findUnique({
-      where: {
-        scopeKey: computerScopeKey({
-          mode: "dedicated",
-          spaceId: bot.spaceId,
-          userId: bot.userId,
-          botId: bot.id,
-        }),
-      },
-    }),
+  const [dedicatedComputers, activeRuns, activeRoutines] = await Promise.all([
+    botDedicatedComputers(deps, bot),
     deps.prisma.run.findMany({
-      where: { botId: bot.id, status: { in: [...ACTIVE_RUN_STATUSES] } },
-      select: { id: true },
+      where: {
+        botId: bot.id,
+        OR: [
+          { status: { in: [...ACTIVE_RUN_STATUSES] } },
+          { status: "cancelled", nativeExecutionRunId: { not: null } },
+        ],
+      },
+      select: {
+        id: true,
+        nativeExecutionRunId: true,
+        nativeComputerId: true,
+        nativeComputerKey: true,
+      },
     }),
     deps.prisma.routine.findMany({
       where: { botId: bot.id, active: true },
@@ -338,9 +417,12 @@ export async function archiveBot(
       },
       data: releasedComputerLease(),
     });
-    if (dedicated) {
+    if (dedicatedComputers.length) {
       await tx.computer.updateMany({
-        where: { id: dedicated.id, state: { notIn: ["running", "quarantined"] } },
+        where: {
+          id: { in: dedicatedComputers.map((computer) => computer.id) },
+          state: { notIn: ["running", "quarantined"] },
+        },
         data: { state: "stopped" },
       });
     }
@@ -353,22 +435,28 @@ export async function archiveBot(
     ...activeRuns.map((run) => deps.jobs.cancel(runJobKey(run.id))),
     ...activeRoutines.map((routine) => deps.jobs.cancel(routineJobKey(routine.id))),
   ]);
-  await releaseTeamComputerScreen(deps, bot, dedicated?.id, context);
-  const currentDedicated = dedicated
-    ? await deps.prisma.computer.findUnique({ where: { id: dedicated.id } })
-    : null;
-  if (currentDedicated?.providerRef && currentDedicated.state === "running") {
-    const ref = toComputerRef(currentDedicated);
-    await checkpointAndStopComputer(deps, currentDedicated, ref, context);
-    await deps.prisma.computer.updateMany({
-      where: {
-        id: currentDedicated.id,
-        state: "running",
-        providerRef: currentDedicated.providerRef,
-      },
-      data: { state: "stopped" },
-    });
-    await recordComputerRunEnd(deps.prisma, currentDedicated, "stopped");
+  await stopNativeBotRuns(deps, bot, activeRuns, context);
+  await releaseTeamComputerScreen(
+    deps,
+    bot,
+    dedicatedComputers.find((computer) => computer.id === bot.computerId)?.id,
+    context,
+  );
+  for (const dedicated of dedicatedComputers) {
+    const currentDedicated = await deps.prisma.computer.findUnique({ where: { id: dedicated.id } });
+    if (currentDedicated?.providerRef && currentDedicated.state === "running") {
+      const ref = toComputerRef(currentDedicated);
+      await checkpointAndStopComputer(deps, currentDedicated, ref, context);
+      await deps.prisma.computer.updateMany({
+        where: {
+          id: currentDedicated.id,
+          state: "running",
+          providerRef: currentDedicated.providerRef,
+        },
+        data: { state: "stopped" },
+      });
+      await recordComputerRunEnd(deps.prisma, currentDedicated, "stopped");
+    }
   }
 }
 
@@ -384,20 +472,22 @@ export async function destroyBot(
   },
 ) {
   await deps.messagingInstallations?.removeForBot(bot);
-  const [dedicated, activeRuns, routines] = await Promise.all([
-    deps.prisma.computer.findUnique({
-      where: {
-        scopeKey: computerScopeKey({
-          mode: "dedicated",
-          spaceId: bot.spaceId,
-          userId: bot.userId,
-          botId: bot.id,
-        }),
-      },
-    }),
+  const [dedicatedComputers, activeRuns, routines] = await Promise.all([
+    botDedicatedComputers(deps, bot),
     deps.prisma.run.findMany({
-      where: { botId: bot.id, status: { in: [...ACTIVE_RUN_STATUSES] } },
-      select: { id: true },
+      where: {
+        botId: bot.id,
+        OR: [
+          { status: { in: [...ACTIVE_RUN_STATUSES] } },
+          { status: "cancelled", nativeExecutionRunId: { not: null } },
+        ],
+      },
+      select: {
+        id: true,
+        nativeExecutionRunId: true,
+        nativeComputerId: true,
+        nativeComputerKey: true,
+      },
     }),
     deps.prisma.routine.findMany({ where: { botId: bot.id }, select: { id: true } }),
   ]);
@@ -411,10 +501,18 @@ export async function destroyBot(
     ...activeRuns.map((run) => deps.jobs.cancel(runJobKey(run.id))),
     ...routines.map((routine) => deps.jobs.cancel(routineJobKey(routine.id))),
   ]);
-  const sharedComputer = await releaseTeamComputerScreen(deps, bot, dedicated?.id, context, {
-    cancelRunWork: true,
-  });
-  if (dedicated?.providerRef) {
+  await stopNativeBotRuns(deps, bot, activeRuns, context);
+  const sharedComputer = await releaseTeamComputerScreen(
+    deps,
+    bot,
+    dedicatedComputers.find((computer) => computer.id === bot.computerId)?.id,
+    context,
+    {
+      cancelRunWork: true,
+    },
+  );
+  for (const dedicated of dedicatedComputers) {
+    if (!dedicated.providerRef) continue;
     const destroyed = deps.sandbox.destroy(toComputerRef(dedicated), context);
     await (options.strictTeardown ? destroyed : destroyed.catch(() => undefined));
   }
@@ -444,7 +542,9 @@ export async function destroyBot(
       await tx.computerExecutionLease.deleteMany({ where: { botId: bot.id } });
       await tx.computer.updateMany({
         where: {
-          ...(dedicated ? { id: { not: dedicated.id } } : {}),
+          ...(dedicatedComputers.length
+            ? { id: { notIn: dedicatedComputers.map((computer) => computer.id) } }
+            : {}),
           OR: [{ controlBotId: bot.id }, { executionBotId: bot.id }],
         },
         data: releasedComputerLease(),
@@ -475,7 +575,8 @@ export async function destroyBot(
           where: { id: webhookSecretId, kind: "webhook", spaceId: bot.spaceId },
         });
       }
-      if (dedicated) await tx.computer.delete({ where: { id: dedicated.id } });
+      for (const dedicated of dedicatedComputers)
+        await tx.computer.delete({ where: { id: dedicated.id } });
       return {
         artifactKeys: [
           ...botArtifacts.map((artifact) => artifact.storageKey),
@@ -509,7 +610,7 @@ export async function destroyBot(
         .catch(() => undefined);
     }),
   );
-  if (dedicated) {
+  for (const dedicated of dedicatedComputers) {
     await recordComputerRunEnd(deps.prisma, { id: dedicated.id }, "deleted");
     await removeAgentHome(deps.home, dedicated.homeKey, deps.dataDir).catch(() => undefined);
   }
@@ -793,17 +894,31 @@ async function removeTeamBotWorkspace(
   // a folder there. The space's Team Computer from before each person got their own still holds
   // the folders and browser profiles of every member's bots from then. Any other team computer
   // in the space drops them on boot (botDeletion).
-  const [own, legacy] = await Promise.all([
-    deps.prisma.computer.findUnique({
-      where: {
-        scopeKey: computerScopeKey({ mode: "team", spaceId: bot.spaceId, userId: bot.userId }),
-      },
-    }),
+  const [owned, legacy] = await Promise.all([
+    Promise.all(
+      (["default", "host", "docker"] as const).map((executionTarget) =>
+        deps.prisma.computer.findUnique({
+          where: {
+            scopeKey: computerScopeKey({
+              mode: "team",
+              spaceId: bot.spaceId,
+              userId: bot.userId,
+              executionTarget,
+            }),
+          },
+        }),
+      ),
+    ),
     deps.prisma.computer.findUnique({ where: { homeKey: legacyTeamHomeKey(bot.spaceId) } }),
   ]);
   const profile = teamBrowserProfileName(bot.id);
-  if (own) await removeBotFolders(deps, bot.id, own, [["bots", bot.id]], context);
-  if (legacy && legacy.id !== own?.id && legacy.scope === "team") {
+  const seen = new Set<string>();
+  for (const own of owned) {
+    if (!own || seen.has(own.id)) continue;
+    seen.add(own.id);
+    await removeBotFolders(deps, bot.id, own, [["bots", bot.id]], context);
+  }
+  if (legacy && !seen.has(legacy.id) && legacy.scope === "team") {
     await removeBotFolders(
       deps,
       bot.id,

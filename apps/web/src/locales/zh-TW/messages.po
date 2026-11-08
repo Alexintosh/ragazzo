@@ -14,6 +14,10 @@ msgstr ""
 "Plural-Forms: nplurals=1; plural=0;\n"
 "X-Generator: @lingui/cli\n"
 
+#: src/pages/shell/registered-host-picker.tsx
+msgid " (revoked)"
+msgstr ""
+
 #: src/pages/shell/sidebar-roster.tsx
 msgid " (unread)"
 msgstr "（未讀）"
@@ -97,6 +101,12 @@ msgstr "{0} 連線"
 msgid "{0} default"
 msgstr "{0} 預設值"
 
+#. placeholder {0}: files.data.storage.files
+#. placeholder {1}: formatFileBytes(files.data.storage.bytes)
+#: src/pages/shell/conversation-files-panel.tsx
+msgid "{0} files · {1} stored, including versions"
+msgstr ""
+
 #. placeholder {0}: parts.amount
 #: src/components/ArtifactFileCard.tsx
 msgid "{0} GB"
@@ -141,6 +151,11 @@ msgstr "{0} 彙整時數"
 #: src/components/ArtifactFileCard.tsx
 msgid "{0} TB"
 msgstr "{0} TB"
+
+#. placeholder {0}: file.versionCount
+#: src/pages/shell/conversation-files-panel.tsx
+msgid "{0} versions"
+msgstr ""
 
 #. placeholder {0}: bot.name
 #: src/pages/ExternalConversationSettings.tsx
@@ -218,6 +233,11 @@ msgstr ""
 #: src/lib/relative-time.ts
 msgid "{hours}h ago"
 msgstr "{hours} 小時前"
+
+#. placeholder {0}: index + 1
+#: src/pages/shell/roleplay-settings.tsx
+msgid "{label} {0}"
+msgstr ""
 
 #: src/components/markdown-copy.tsx
 msgid "{label}, empty"
@@ -438,6 +458,14 @@ msgstr "訂閱憑證已安全儲存。"
 msgid "About {label}"
 msgstr "關於 {label}"
 
+#: src/pages/shell/project-folder-picker.tsx
+msgid "Absolute path on host"
+msgstr ""
+
+#: src/pages/shell/bot-runtime-settings.tsx
+msgid "Access"
+msgstr ""
+
 #: src/pages/McpServersOverlay.tsx
 msgid "Access token (optional)"
 msgstr "存取權杖（選填）"
@@ -553,6 +581,14 @@ msgstr "加值"
 msgid "Add custom"
 msgstr ""
 
+#: src/pages/Workflows.tsx
+msgid "Add dependency"
+msgstr ""
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Add entry"
+msgstr ""
+
 #: src/pages/ModelRoleSettings.tsx
 msgid "Add fallback"
 msgstr "新增備援模型"
@@ -568,6 +604,14 @@ msgstr "新增標頭"
 #: src/pages/ScratchpadSection.tsx
 msgid "Add item"
 msgstr "新增項目"
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Add key"
+msgstr ""
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Add lorebook"
+msgstr ""
 
 #: src/components/integrations/IntegrationSetup.tsx
 msgid "Add MCP server"
@@ -598,6 +642,10 @@ msgstr "新增伺服器網址"
 msgid "Add skills"
 msgstr ""
 
+#: src/pages/Workflows.tsx
+msgid "Add step"
+msgstr ""
+
 #: src/components/teach/SkillDraftCard.tsx
 msgid "Add to routine"
 msgstr "加入例行任務"
@@ -614,6 +662,10 @@ msgstr "新增工作區"
 #: src/pages/PluginsOverlay.tsx
 msgid "Added"
 msgstr "已新增"
+
+#: src/pages/shell/roleplay-images.tsx
+msgid "Adding image…"
+msgstr ""
 
 #: src/components/integrations/plugin-marketplace.tsx
 #: src/pages/McpServersOverlay.tsx
@@ -635,6 +687,19 @@ msgstr "進階"
 #: src/pages/RoutineEditor.tsx
 msgid "Advanced..."
 msgstr "進階..."
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "After character"
+msgstr ""
+
+#: src/pages/shell/bot-runtime-settings.tsx
+msgid "Agent"
+msgstr ""
+
+#: src/pages/shell/bot-panel.tsx
+#: src/pages/shell/create-bot-dialog.tsx
+msgid "Agent and environment"
+msgstr ""
 
 #: src/pages/McpServersOverlay.tsx
 msgid "Agents:"
@@ -713,6 +778,10 @@ msgstr "已有帳號？"
 #: src/pages/ExternalConversationSettings.tsx
 msgid "Always act"
 msgstr "一律採取行動"
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Always active"
+msgstr ""
 
 #: src/components/AskCard.tsx
 msgid "Always allow {site}"
@@ -836,6 +905,10 @@ msgstr "核准"
 msgid "Approve"
 msgstr "核准"
 
+#: src/pages/shell/native-runtime-setup.tsx
+msgid "Approve in the host terminal"
+msgstr ""
+
 #: src/pages/shell/message-cards.tsx
 msgid "Approve this server to let your agent use its tools."
 msgstr "核准此伺服器，讓代理程式使用它的工具。"
@@ -897,6 +970,7 @@ msgstr "附加檔案"
 
 #: src/pages/shell/chat-context.tsx
 #: src/pages/shell/chat-shared.ts
+#: src/pages/shell/conversation-files-panel.tsx
 msgid "Attachment"
 msgstr "附件"
 
@@ -978,9 +1052,17 @@ msgstr "頭像工作室"
 msgid "Back"
 msgstr "返回"
 
+#: src/pages/Workflows.tsx
+msgid "Back to chats"
+msgstr ""
+
 #: src/pages/Auth.tsx
 msgid "Back to sign in"
 msgstr "返回登入"
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Balanced"
+msgstr "均衡"
 
 #: src/pages/memory-providers/ConnectionModeFields.tsx
 msgid "Base URL"
@@ -999,6 +1081,10 @@ msgstr "基本驗證（{username}）"
 #: src/pages/PluginsOverlay.tsx
 msgid "Bearer token"
 msgstr "Bearer 權杖"
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Before character"
+msgstr ""
 
 #: src/pages/settings-nav.ts
 msgid "Billing"
@@ -1036,8 +1122,10 @@ msgstr "機器人"
 #: src/pages/MessagingSettingsPanel.tsx
 #: src/pages/Shell.tsx
 #: src/pages/shell/avatar-studio-popover.tsx
+#: src/pages/shell/conversation-tasks.tsx
 #: src/pages/shell/message-view.tsx
 #: src/pages/SpaceSearch.tsx
+#: src/pages/Workflows.tsx
 msgid "Bot"
 msgstr "機器人"
 
@@ -1045,6 +1133,10 @@ msgstr "機器人"
 #: src/lib/browser-notifications.ts
 msgid "Bot"
 msgstr "機器人"
+
+#: src/pages/Shell.tsx
+msgid "Bot conversation"
+msgstr ""
 
 #: src/components/teach/TeachRecordingChrome.tsx
 msgid "Bot is watching, not acting"
@@ -1087,7 +1179,12 @@ msgid "Brain label"
 msgstr "大腦標籤"
 
 #: src/components/integrations/skills-dialog.tsx
+#: src/pages/shell/project-folder-picker.tsx
 msgid "Browse"
+msgstr ""
+
+#: src/pages/shell/project-folder-picker.tsx
+msgid "Browse folders in the host home directory."
 msgstr ""
 
 #: src/pages/PluginsOverlay.tsx
@@ -1098,6 +1195,14 @@ msgstr "瀏覽 MCP 伺服器"
 #: src/pages/shell/agent-import.tsx
 msgid "Built-in"
 msgstr "內建"
+
+#: src/pages/RoutineEditor.tsx
+msgid "Calendar"
+msgstr ""
+
+#: src/pages/RoutineCalendar.tsx
+msgid "Calendar view"
+msgstr ""
 
 #: src/pages/shell/chat-header.tsx
 msgid "Call"
@@ -1153,6 +1258,8 @@ msgstr "無法讀取影像"
 #: src/pages/PluginSubmissionsPanel.tsx
 #: src/pages/shell/create-bot-dialog.tsx
 #: src/pages/shell/dialogs.tsx
+#: src/pages/shell/project-folder-picker.tsx
+#: src/pages/shell/thread-queue.tsx
 #: src/pages/SpaceSettingOverrides.tsx
 msgid "Cancel"
 msgstr "取消"
@@ -1168,6 +1275,10 @@ msgstr "取消新增群組"
 #: src/pages/shell/chat-context.tsx
 msgid "Cancel reply"
 msgstr "取消回覆"
+
+#: src/pages/shell/native-runtime-setup.tsx
+msgid "Cancel setup"
+msgstr ""
 
 #: src/pages/BillingSettingsPanel.tsx
 msgid "Canceled"
@@ -1190,6 +1301,10 @@ msgstr "候選規則"
 msgid "Card view"
 msgstr "卡片檢視"
 
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Case sensitive"
+msgstr ""
+
 #: src/pages/ModelRoleSettings.tsx
 msgid "Change {name}"
 msgstr "更改 {name}"
@@ -1206,13 +1321,49 @@ msgstr "更換模型"
 msgid "Change password"
 msgstr "修改密碼"
 
+#: src/pages/shell/roleplay-relationship-debug.tsx
+msgid "Changes affect this conversation."
+msgstr "變更僅影響目前對話。"
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Changes apply to the next reply. Story history and memory are kept."
+msgstr ""
+
 #: src/pages/AccountSettingsOverlay.tsx
 msgid "Changing…"
 msgstr "正在修改…"
 
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Character"
+msgstr ""
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Character content must be at most 1 MB."
+msgstr ""
+
+#: src/pages/shell/create-bot-dialog.tsx
+msgid "Character JSON"
+msgstr ""
+
+#: src/pages/shell/create-bot-dialog.tsx
+msgid "Character JSON contains invalid or oversized fields."
+msgstr ""
+
+#: src/pages/shell/create-bot-dialog.tsx
+msgid "Character JSON must be 1 MB or smaller."
+msgstr ""
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Character name"
+msgstr ""
+
 #: src/pages/shell/message-cards.tsx
 msgid "Chart failed to render: {error}"
 msgstr "圖表渲染失敗：{error}"
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Chat"
+msgstr "聊天"
 
 #: src/pages/shell/composer-mentions.tsx
 msgid "Chat Settings"
@@ -1229,6 +1380,10 @@ msgstr "ChatGPT 訂閱"
 #: src/lib/identity-display.ts
 msgid "Chats"
 msgstr "聊天"
+
+#: src/pages/shell/registered-host-picker.tsx
+msgid "Check"
+msgstr ""
 
 #: src/components/ComputersUnavailableHint.tsx
 #: src/pages/HostComputerPrompt.tsx
@@ -1256,6 +1411,10 @@ msgstr "報到。"
 msgid "Check the API key or sign-in, then test again."
 msgstr "請檢查 API 金鑰或登入，然後重新測試。"
 
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Check the highlighted fields."
+msgstr ""
+
 #: src/lib/model-connection-preflight.ts
 msgid "Check the server URL and network, then test again."
 msgstr "請檢查伺服器 URL 和網路，然後重新測試。"
@@ -1280,11 +1439,24 @@ msgstr "正在檢查電腦設定…"
 msgid "Checking connection…"
 msgstr "正在檢查連線…"
 
+#: src/pages/shell/bot-runtime-settings.tsx
+msgid "Checking Docker availability…"
+msgstr ""
+
+#: src/pages/shell/bot-runtime-settings.tsx
+msgid "Checking runtime…"
+msgstr ""
+
 #: src/components/ComputersUnavailableHint.tsx
 #: src/components/DesktopUpdates.tsx
 #: src/pages/HostComputerPrompt.tsx
 msgid "Checking…"
 msgstr "正在檢查…"
+
+#: src/pages/Shell.tsx
+#: src/pages/shell/conversation-tasks.tsx
+msgid "Choose a bot"
+msgstr "選擇機器人"
 
 #: src/pages/shell/avatar-studio-popover.tsx
 msgid "Choose a bot shape, color, or upload an image"
@@ -1303,6 +1475,10 @@ msgstr "設定新密碼"
 msgid "Choose a provider"
 msgstr "選擇供應商"
 
+#: src/pages/shell/create-bot-dialog.tsx
+msgid "Choose a valid character JSON file."
+msgstr ""
+
 #: src/pages/shell/agent-import.tsx
 msgid "Choose backup"
 msgstr "選擇備份"
@@ -1320,6 +1496,10 @@ msgstr "選擇資料夾"
 #: src/components/SubscriptionGate.tsx
 msgid "Choose how to use Rakazo"
 msgstr "選擇 Rakazo 的使用方式"
+
+#: src/pages/shell/composer.tsx
+msgid "Choose runtime and model"
+msgstr ""
 
 #: src/lib/localized-provider-hint.ts
 msgid "Claude subscription"
@@ -1347,6 +1527,10 @@ msgstr "清除篩選條件 {label}"
 #: src/pages/shell/dialogs.tsx
 msgid "Clearing…"
 msgstr "正在清空…"
+
+#: src/pages/shell/native-runtime-setup.tsx
+msgid "CLI unavailable"
+msgstr ""
 
 #: src/components/ErrorBoundary.tsx
 #: src/pages/KnowledgeSection.tsx
@@ -1537,6 +1721,10 @@ msgstr "電腦未開啟。請設定 SANDBOX_PROVIDER=docker 並提供 SANDBOX_SU
 msgid "Configure a plugin catalog on the server to connect apps."
 msgstr "請在伺服器上設定外掛程式目錄，以連接應用程式。"
 
+#: src/pages/shell/native-runtime-setup.tsx
+msgid "Configure the ACP command in the host’s private native-providers.json file."
+msgstr ""
+
 #: src/pages/McpServersOverlay.tsx
 msgid "Configured servers"
 msgstr "已設定的伺服器"
@@ -1675,6 +1863,10 @@ msgstr ""
 msgid "Contains code to run"
 msgstr "包含可執行的程式碼"
 
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Content"
+msgstr ""
+
 #: src/pages/model-settings/compatible-model-fields.tsx
 #: src/pages/Onboarding.tsx
 msgid "Context limit"
@@ -1695,6 +1887,14 @@ msgstr "繼續"
 msgid "Continue in Background"
 msgstr "在背景繼續"
 
+#: src/pages/shell/native-runtime-setup.tsx
+msgid "Continue in the host browser."
+msgstr ""
+
+#: src/pages/shell/native-runtime-setup.tsx
+msgid "Continue sign-in"
+msgstr ""
+
 #: src/components/ModelCredits.tsx
 msgid "Continue to checkout"
 msgstr "繼續結帳"
@@ -1703,6 +1903,19 @@ msgstr "繼續結帳"
 #: src/pages/Auth.tsx
 msgid "Continue with {0}"
 msgstr "透過 {0} 繼續"
+
+#: src/pages/shell/computer-overlay.tsx
+msgid "Conversation"
+msgstr ""
+
+#: src/pages/shell/chat-header.tsx
+#: src/pages/shell/conversation-files-panel.tsx
+msgid "Conversation files"
+msgstr ""
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Conversation style"
+msgstr "對話風格"
 
 #: src/pages/MessagingSettingsPanel.tsx
 msgid "Conversations"
@@ -1754,6 +1967,10 @@ msgstr "費用"
 msgid "Could not add"
 msgstr "無法新增"
 
+#: src/pages/shell/roleplay-images.tsx
+msgid "Could not add image"
+msgstr ""
+
 #: src/pages/McpServersOverlay.tsx
 msgid "Could not add MCP server"
 msgstr "無法新增 MCP 伺服器"
@@ -1784,6 +2001,18 @@ msgstr "無法修改密碼"
 
 #: src/components/integrations/space-availability.tsx
 msgid "Could not change where this is available"
+msgstr ""
+
+#: src/pages/shell/bot-runtime-settings.tsx
+msgid "Could not check Docker availability."
+msgstr ""
+
+#: src/pages/shell/bot-runtime-settings.tsx
+msgid "Could not check runtime"
+msgstr ""
+
+#: src/pages/shell/native-runtime-setup.tsx
+msgid "Could not check runtime setup"
 msgstr ""
 
 #: src/lib/model-connection-preflight.ts
@@ -1933,8 +2162,16 @@ msgstr "無法下載 {0}。請重試。"
 msgid "Could not download {name}. Try again."
 msgstr "無法下載 {name}。請重試。"
 
+#: src/pages/shell/conversation-files-panel.tsx
+msgid "Could not download file."
+msgstr ""
+
 #: src/components/integrations/plugin-marketplace.tsx
 msgid "Could not enable tools"
+msgstr ""
+
+#: src/pages/shell/create-bot-dialog.tsx
+msgid "Could not import character JSON"
 msgstr ""
 
 #: src/pages/PluginsOverlay.tsx
@@ -1976,6 +2213,14 @@ msgstr "無法載入機器人，請重新載入後再試。"
 msgid "Could not load credentials."
 msgstr "無法載入憑證。"
 
+#: src/pages/shell/conversation-files-panel.tsx
+msgid "Could not load files."
+msgstr ""
+
+#: src/pages/shell/registered-host-picker.tsx
+msgid "Could not load hosts"
+msgstr ""
+
 #: src/pages/PluginsOverlay.tsx
 msgid "Could not load integrations"
 msgstr "無法載入整合"
@@ -1989,6 +2234,15 @@ msgstr "無法載入 MCP 伺服器"
 msgid "Could not load model settings"
 msgstr "無法載入模型設定"
 
+#: src/pages/shell/bot-model-picker.tsx
+msgid "Could not load models"
+msgstr ""
+
+#: src/pages/shell/roleplay-relationship-debug.tsx
+msgid "Could not load relationship"
+msgstr "無法載入關係"
+
+#: src/pages/RoutineCalendar.tsx
 #: src/pages/RoutineRunHistory.tsx
 msgid "Could not load run history"
 msgstr "無法載入執行歷史紀錄"
@@ -2002,6 +2256,14 @@ msgstr "無法載入登入選項"
 #: src/pages/KnowledgeSection.tsx
 msgid "Could not load skill"
 msgstr "無法載入技能"
+
+#: src/pages/shell/roleplay-story-mode.tsx
+msgid "Could not load story mode"
+msgstr ""
+
+#: src/pages/Shell.tsx
+msgid "Could not load task"
+msgstr ""
 
 #: src/pages/Artifacts.tsx
 msgid "Could not load this artifact."
@@ -2029,6 +2291,10 @@ msgstr "無法登出，請再試一次。"
 #: src/pages/Paywall.tsx
 msgid "Could not open billing"
 msgstr "無法開啟帳務頁面"
+
+#: src/pages/shell/project-folder-picker.tsx
+msgid "Could not open folder. Check the path and host access."
+msgstr ""
 
 #: src/pages/VoiceSettingsOverlay.tsx
 msgid "Could not play a test clip"
@@ -2133,13 +2399,22 @@ msgstr "無法儲存"
 msgid "Could not save Auto Review"
 msgstr "無法儲存自動審查"
 
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Could not save character"
+msgstr ""
+
 #: src/pages/GroupPanel.tsx
 msgid "Could not save group"
 msgstr "無法儲存群組"
 
 #: src/pages/Onboarding.tsx
+#: src/pages/shell/bot-model-picker.tsx
 msgid "Could not save model"
 msgstr "無法儲存模型"
+
+#: src/pages/shell/roleplay-relationship-debug.tsx
+msgid "Could not save relationship"
+msgstr "無法儲存關係"
 
 #: src/pages/shell/use-routine-editor.ts
 msgid "Could not save routine"
@@ -2243,6 +2518,10 @@ msgstr "無法更新帳務資訊"
 msgid "Could not update computer"
 msgstr "無法更新電腦"
 
+#: src/pages/shell/registered-host-picker.tsx
+msgid "Could not update host"
+msgstr ""
+
 #: src/pages/AccountSettingsOverlay.tsx
 msgid "Could not update name"
 msgstr "無法更新姓名"
@@ -2250,6 +2529,10 @@ msgstr "無法更新姓名"
 #: src/pages/shell/use-composer-actions.ts
 msgid "Could not update reaction"
 msgstr "無法更新反應"
+
+#: src/pages/shell/roleplay-story-mode.tsx
+msgid "Could not update story mode"
+msgstr ""
 
 #: src/pages/MemorySettingsOverlay.tsx
 msgid "Could not update the default memory scope"
@@ -2274,6 +2557,10 @@ msgstr ""
 #: src/pages/MessagingSettingsPanel.tsx
 msgid "Couldn't update messaging settings"
 msgstr "無法更新訊息設定"
+
+#: src/pages/AccountSettingsOverlay.tsx
+msgid "Couldn't update roleplay settings"
+msgstr ""
 
 #: src/pages/AccountSettingsOverlay.tsx
 msgid "Couldn't update your timezone"
@@ -2399,6 +2686,10 @@ msgstr ""
 msgid "day"
 msgstr "天"
 
+#: src/pages/RoutineCalendar.tsx
+msgid "Day"
+msgstr ""
+
 #: src/pages/shell/message-cards.tsx
 msgid "Day-to-day work"
 msgstr "日常工作"
@@ -2417,14 +2708,21 @@ msgstr "拒絕"
 #: src/pages/ModelRoleSettings.tsx
 #: src/pages/Onboarding.tsx
 #: src/pages/shell/avatar-studio-popover.tsx
+#: src/pages/shell/bot-model-picker.tsx
 msgid "Default"
 msgstr "預設"
 
 #. placeholder {0}: thinkingLevelLabel(defaultThinkingLevel)
+#. placeholder {0}: thinkingLevelLabel(effective.defaultThinkingLevel)
 #: src/pages/RoutineEditor.tsx
+#: src/pages/shell/bot-model-picker.tsx
 #: src/pages/shell/bot-panel.tsx
 msgid "Default ({0})"
 msgstr "預設（{0}）"
+
+#: src/pages/shell/bot-runtime-settings.tsx
+msgid "Default environment"
+msgstr ""
 
 #: src/pages/shell/agent-import.tsx
 msgid "Default from Hermes"
@@ -2492,6 +2790,10 @@ msgstr "刪除分組"
 msgid "Delete space"
 msgstr "刪除空間"
 
+#: src/pages/Workflows.tsx
+msgid "Delete step"
+msgstr ""
+
 #: src/pages/SpaceSettingOverrides.tsx
 msgid "Delete this Space's credentials?"
 msgstr "要刪除此空間的憑證嗎？"
@@ -2520,6 +2822,9 @@ msgstr "拒絕"
 
 #: src/pages/Board.tsx
 #: src/pages/shell/agent-import.tsx
+#: src/pages/shell/bot-panel.tsx
+#: src/pages/shell/roleplay-images.tsx
+#: src/pages/shell/roleplay-settings.tsx
 msgid "Description"
 msgstr "描述"
 
@@ -2544,6 +2849,14 @@ msgstr "詳細資訊"
 msgid "Developer"
 msgstr ""
 
+#: src/pages/shell/native-runtime-setup.tsx
+msgid "Device code"
+msgstr ""
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Dialogue examples"
+msgstr ""
+
 #: src/lib/dictation.ts
 msgid "Dictation ended unexpectedly."
 msgstr ""
@@ -2561,8 +2874,16 @@ msgid "Disable a tool"
 msgstr "停用工具"
 
 #: src/pages/PluginsOverlay.tsx
+#: src/pages/shell/roleplay-settings.tsx
 msgid "Disabled"
 msgstr "已停用"
+
+#: src/pages/shell/conversation-tasks.tsx
+#: src/pages/shell/roleplay-relationship-debug.tsx
+#: src/pages/shell/roleplay-settings.tsx
+#: src/pages/shell/thread-queue.tsx
+msgid "Discard"
+msgstr ""
 
 #: src/components/composer/HoldToTalk.tsx
 msgid "Discard recording"
@@ -2627,9 +2948,17 @@ msgstr "Docker"
 msgid "Docker is configured but computers are not responding. Confirm the sandbox supervisor is running, then recreate the stack after changing .env."
 msgstr "Docker 已設定，但電腦沒有回應。請確認沙箱管理服務正在執行，並在修改 .env 後重新建立服務。"
 
+#: src/pages/shell/bot-runtime-settings.tsx
+msgid "Docker is not enabled on this deployment."
+msgstr ""
+
 #: src/pages/HostComputerPrompt.tsx
 msgid "Docker limits access to your computer for added security. Using {hostLabel} lets bots work with your local files and tools."
 msgstr "Docker 限制對你電腦的存取，以提高安全性。使用 {hostLabel} 時，機器人可以處理你的本機檔案並使用本機工具。"
+
+#: src/pages/shell/bot-runtime-settings.tsx
+msgid "Docker sandbox"
+msgstr ""
 
 #: src/components/SidebarFooter.tsx
 msgid "Docs"
@@ -2659,11 +2988,14 @@ msgstr "下次續訂時降級"
 
 #: src/pages/Artifacts.tsx
 #: src/pages/KnowledgeSection.tsx
+#: src/pages/shell/conversation-files-panel.tsx
 msgid "Download"
 msgstr "下載"
 
+#. placeholder {0}: file.name
 #. placeholder {0}: props.name
 #: src/components/ArtifactFileCard.tsx
+#: src/pages/shell/conversation-files-panel.tsx
 msgid "Download {0}"
 msgstr "下載 {0}"
 
@@ -2698,6 +3030,7 @@ msgstr "每個名稱只能使用一次。"
 #: src/components/AskCard.tsx
 #: src/pages/AccountSettingsOverlay.tsx
 #: src/pages/McpServersOverlay.tsx
+#: src/pages/shell/thread-queue.tsx
 msgid "Edit"
 msgstr "編輯"
 
@@ -2712,6 +3045,18 @@ msgstr "編輯名稱"
 #: src/pages/BotContextMenu.tsx
 msgid "Edit Profile"
 msgstr "編輯資料"
+
+#: src/pages/shell/thread-queue.tsx
+msgid "Edit queued message"
+msgstr ""
+
+#: src/pages/Workflows.tsx
+msgid "Edit workflow"
+msgstr ""
+
+#: src/pages/shell/bot-model-picker.tsx
+msgid "Effort"
+msgstr ""
 
 #: src/pages/Auth.tsx
 msgid "Email"
@@ -2734,6 +3079,11 @@ msgstr "需要驗證電子信箱"
 msgid "Enable {0}"
 msgstr "啟用 {0}"
 
+#: src/pages/shell/roleplay-images.tsx
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Enabled"
+msgstr ""
+
 #: src/pages/BillingSettingsPanel.tsx
 msgid "Ends {day}"
 msgstr "於 {day} 結束"
@@ -2742,13 +3092,33 @@ msgstr "於 {day} 結束"
 msgid "Engage when... Ignore..."
 msgstr "何時參與… 忽略哪些內容…"
 
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Enter a character name (1–500 characters)."
+msgstr ""
+
 #: src/lib/user-error.ts
 msgid "Enter a password"
 msgstr "請輸入密碼"
 
+#: src/pages/shell/project-folder-picker.tsx
+msgid "Enter a path to find other folders."
+msgstr ""
+
 #: src/lib/user-error.ts
 msgid "Enter a valid email"
 msgstr "請輸入有效的電子郵件地址"
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Enter a whole number from -100000 to 100000."
+msgstr ""
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Enter a whole number from 0 to 100."
+msgstr ""
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Enter a whole number from 0 to 32768."
+msgstr ""
 
 #: src/pages/model-settings/use-model-settings.ts
 #: src/pages/Onboarding.tsx
@@ -2761,6 +3131,14 @@ msgid "Enter a whole number from 1 to {MAX_MODEL_MAX_TOKENS} for maximum output 
 msgstr "請輸入 1 到 {MAX_MODEL_MAX_TOKENS} 之間的整數作為最大輸出 token 數。"
 
 #: src/pages/model-settings/use-model-settings.ts
+msgid "Enter a whole number from 1 to {MAX_MODEL_TIMEOUT_MS} for request timeouts, or leave blank to use server defaults."
+msgstr ""
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Enter a whole number from 1 to 100."
+msgstr ""
+
+#: src/pages/model-settings/use-model-settings.ts
 #: src/pages/Onboarding.tsx
 msgid "Enter a whole number from 1 to 1000 for the image limit."
 msgstr "請輸入 1 到 1000 之間的整數作為影像限制。"
@@ -2768,6 +3146,15 @@ msgstr "請輸入 1 到 1000 之間的整數作為影像限制。"
 #: src/lib/model-connection-preflight.ts
 msgid "Enter an API key before testing."
 msgstr "測試前請輸入 API 金鑰。"
+
+#: src/pages/shell/roleplay-relationship-debug.tsx
+msgid "Enter whole numbers from 0 to 100."
+msgstr "請輸入 0 到 100 之間的整數。"
+
+#. placeholder {0}: index + 1
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Entry {0}"
+msgstr ""
 
 #: src/pages/McpServersOverlay.tsx
 msgid "Environment variables"
@@ -2866,6 +3253,14 @@ msgstr "展開表格"
 msgid "expired"
 msgstr "已過期"
 
+#: src/pages/shell/composer.tsx
+msgid "Explore this project"
+msgstr ""
+
+#: src/pages/shell/composer.tsx
+msgid "Explore this project and explain its architecture. Suggest a useful first task without changing files."
+msgstr ""
+
 #: src/pages/shell/bot-panel.tsx
 msgid "Export"
 msgstr "匯出"
@@ -2928,6 +3323,7 @@ msgid "Fields to compare, e.g. id, modifiedTime (optional)"
 msgstr "要比較的欄位，例如 id, modifiedTime（選填）"
 
 #: src/pages/McpServersOverlay.tsx
+#: src/pages/shell/conversation-files-panel.tsx
 #: src/pages/SpaceSearch.tsx
 msgid "File"
 msgstr "檔案"
@@ -2988,6 +3384,14 @@ msgstr "已完成。"
 msgid "Finishing MCP connection…"
 msgstr "正在完成 MCP 連線…"
 
+#: src/pages/shell/roleplay-settings.tsx
+msgid "First message"
+msgstr ""
+
+#: src/pages/shell/project-folder-picker.tsx
+msgid "Folder path"
+msgstr ""
+
 #: src/pages/Auth.tsx
 msgid "Forgot password?"
 msgstr "忘記密碼？"
@@ -3000,6 +3404,15 @@ msgstr "免費"
 #: src/pages/shell/shell-sidebar.tsx
 msgid "Free plan ends {day}"
 msgstr "免費方案將於 {day} 結束"
+
+#: src/pages/shell/roleplay-images.tsx
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Frequency"
+msgstr "頻率"
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Frequent"
+msgstr "頻繁"
 
 #: src/lib/cron.ts
 msgid "Friday"
@@ -3019,6 +3432,10 @@ msgstr "自 {0} 起"
 msgid "From GitHub"
 msgstr ""
 
+#: src/pages/shell/bot-runtime-settings.tsx
+msgid "Full access"
+msgstr ""
+
 #: src/pages/WindowChrome.tsx
 msgid "Fullscreen"
 msgstr "全螢幕"
@@ -3032,6 +3449,14 @@ msgstr "閘道器 ID"
 #: src/pages/SettingsOverlay.tsx
 msgid "General"
 msgstr "一般"
+
+#: src/pages/shell/conversation-files-panel.tsx
+msgid "Generated"
+msgstr ""
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Gentle"
+msgstr "輕柔"
 
 #: src/components/InviteDialog.tsx
 msgid "Get a free month for each friend who starts a trial."
@@ -3109,6 +3534,14 @@ msgstr "標頭"
 msgid "Hear a sample"
 msgstr "試聽"
 
+#: src/pages/shell/composer.tsx
+msgid "Help me plan a project. Ask what I want to achieve and turn it into concrete next steps."
+msgstr ""
+
+#: src/pages/shell/composer.tsx
+msgid "Help me research a topic. Ask what I need to decide, then gather evidence and cite your sources."
+msgstr ""
+
 #: src/pages/VoiceSettingsOverlay.tsx
 msgid "Hi, this is how I'll sound when I read replies out loud."
 msgstr "你好，這是我朗讀回覆時的聲音。"
@@ -3148,6 +3581,30 @@ msgstr "按住說話"
 msgid "Hold to talk, release to send"
 msgstr "按住說話，放開傳送"
 
+#: src/pages/shell/project-folder-picker.tsx
+msgid "Home"
+msgstr ""
+
+#: src/pages/shell/registered-host-picker.tsx
+msgid "Host"
+msgstr ""
+
+#: src/pages/shell/bot-runtime-settings.tsx
+msgid "Host machine"
+msgstr ""
+
+#: src/pages/shell/registered-host-picker.tsx
+msgid "Host name"
+msgstr ""
+
+#: src/pages/shell/registered-host-picker.tsx
+msgid "Host token"
+msgstr ""
+
+#: src/pages/shell/registered-host-picker.tsx
+msgid "Host URL"
+msgstr ""
+
 #: src/lib/cron.ts
 msgid "hour"
 msgstr "小時"
@@ -3181,6 +3638,10 @@ msgstr "如何檢查"
 msgid "How will you use Rakazo?"
 msgstr "你會如何使用 Rakazo？"
 
+#: src/pages/shell/registered-host-picker.tsx
+msgid "I trust this host to run commands and access project files."
+msgstr ""
+
 #: src/pages/shell/computer-release-actions.tsx
 msgid "I’m done"
 msgstr "我做完了"
@@ -3197,6 +3658,10 @@ msgstr "如果聽到了，說明語音已就緒。"
 msgid "Ignore"
 msgstr "忽略"
 
+#: src/pages/shell/roleplay-images.tsx
+msgid "Image"
+msgstr ""
+
 #. js-lingui-explicit-id
 #: src/lib/run-error.ts
 msgid "Image input is not configured for this model."
@@ -3210,6 +3675,19 @@ msgstr "此模型尚未設定圖片輸入。"
 msgid "Image upload area"
 msgstr "圖片上傳區域"
 
+#: src/pages/shell/roleplay-images.tsx
+msgid "Image URL"
+msgstr ""
+
+#: src/pages/shell/roleplay-images.tsx
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Images"
+msgstr ""
+
+#: src/pages/shell/roleplay-images.tsx
+msgid "Import"
+msgstr ""
+
 #: src/components/AccountDataSettings.tsx
 #: src/pages/shell/agent-import.tsx
 msgid "Import an agent"
@@ -3218,6 +3696,18 @@ msgstr "匯入代理程式"
 #: src/components/AccountDataSettings.tsx
 msgid "Import data"
 msgstr "匯入資料"
+
+#: src/pages/shell/roleplay-images.tsx
+msgid "Import from URL"
+msgstr ""
+
+#: src/pages/shell/create-bot-dialog.tsx
+msgid "Import warnings"
+msgstr ""
+
+#: src/pages/shell/create-bot-dialog.tsx
+msgid "Importing…"
+msgstr ""
 
 #: src/lib/ticket-status.ts
 msgid "In progress"
@@ -3259,6 +3749,14 @@ msgstr "輸入"
 msgid "Inputs"
 msgstr "輸入"
 
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Insertion order"
+msgstr ""
+
+#: src/pages/shell/bot-runtime-settings.tsx
+msgid "Install the runtime on the host."
+msgstr ""
+
 #: src/components/SidebarFooter.tsx
 msgid "Install update"
 msgstr "安裝更新"
@@ -3282,6 +3780,7 @@ msgstr "指令歷史"
 #: src/components/AskCard.tsx
 #: src/components/InstructionSettings.tsx
 #: src/pages/shell/agent-import.tsx
+#: src/pages/Workflows.tsx
 msgid "Instructions"
 msgstr "指令"
 
@@ -3318,6 +3817,10 @@ msgstr "間隔數量"
 #: src/pages/RoutineSchedule.tsx
 msgid "Interval unit"
 msgstr "間隔單位"
+
+#: src/pages/shell/roleplay-relationship-debug.tsx
+msgid "Intimacy"
+msgstr "親密度"
 
 #: src/lib/user-error.ts
 msgid "Invalid code"
@@ -3387,6 +3890,10 @@ msgstr "上次檢查 {0}：有變化"
 msgid "Last check {0}: no changes"
 msgstr "上次檢查 {0}：無變化"
 
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Late-night messages"
+msgstr "深夜訊息"
+
 #: src/components/DesktopUpdates.tsx
 msgid "Later"
 msgstr "稍後"
@@ -3394,6 +3901,10 @@ msgstr "稍後"
 #: src/pages/MessagingSettingsPanel.tsx
 msgid "Leave"
 msgstr "退出"
+
+#: src/pages/model-settings/request-timeout-fields.tsx
+msgid "Leave blank to use server defaults."
+msgstr ""
 
 #: src/components/ComputerDeviceSettings.tsx
 msgid "Let bots use this computer"
@@ -3457,9 +3968,21 @@ msgstr "載入更早的執行紀錄"
 msgid "Load web images automatically"
 msgstr "自動載入網路圖片"
 
+#: src/pages/Workflows.tsx
+msgid "Loading"
+msgstr ""
+
 #: src/pages/ActivityList.tsx
 msgid "Loading activity…"
 msgstr "正在載入動態…"
+
+#: src/pages/shell/conversation-files-panel.tsx
+msgid "Loading files…"
+msgstr ""
+
+#: src/pages/shell/project-folder-picker.tsx
+msgid "Loading folders…"
+msgstr ""
 
 #: src/pages/PluginsOverlay.tsx
 msgid "Loading integrations…"
@@ -3473,6 +3996,10 @@ msgstr "正在載入記憶設定…"
 #: src/pages/ModelSettingsOverlay.tsx
 msgid "Loading model catalog…"
 msgstr "正在載入模型目錄…"
+
+#: src/pages/shell/bot-model-picker.tsx
+msgid "Loading models…"
+msgstr ""
 
 #: src/pages/PluginsOverlay.tsx
 msgid "Loading plugins…"
@@ -3493,7 +4020,9 @@ msgstr "正在載入語音供應商…"
 #: src/pages/IntegrationSetup.tsx
 #: src/pages/PeerMessagesOverlay.tsx
 #: src/pages/PluginSubmissionsPanel.tsx
+#: src/pages/RoutineCalendar.tsx
 #: src/pages/RoutineRunHistory.tsx
+#: src/pages/shell/roleplay-relationship-debug.tsx
 #: src/pages/shell/transcript.tsx
 msgid "Loading…"
 msgstr "載入中…"
@@ -3506,6 +4035,10 @@ msgstr "本機存取權限允許機器人無需詢問就執行命令。請勿在
 msgid "Local computer access requires the latest desktop app."
 msgstr "存取本機電腦需要最新版桌面應用程式。"
 
+#: src/pages/shell/registered-host-picker.tsx
+msgid "Local host"
+msgstr ""
+
 #: src/components/ModelCredits.tsx
 #: src/components/SidebarFooter.tsx
 #: src/pages/Paywall.tsx
@@ -3515,6 +4048,22 @@ msgstr "登出"
 #: src/pages/shell/agent-import.tsx
 msgid "Looks like it contains a key"
 msgstr "似乎包含金鑰"
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Lorebook"
+msgstr ""
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Lorebook description"
+msgstr ""
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Lorebook name"
+msgstr ""
+
+#: src/pages/shell/roleplay-relationship-debug.tsx
+msgid "Love"
+msgstr "愛意"
 
 #: src/lib/ticket-priority.ts
 #: src/pages/model-settings/compatible-model-fields.tsx
@@ -3773,6 +4322,7 @@ msgstr "模式"
 #: src/pages/Onboarding.tsx
 #: src/pages/RoutineEditor.tsx
 #: src/pages/shell/agent-import.tsx
+#: src/pages/shell/bot-model-picker.tsx
 #: src/pages/shell/bot-panel.tsx
 msgid "Model"
 msgstr "模型"
@@ -3780,6 +4330,10 @@ msgstr "模型"
 #: src/lib/model-connection-preflight.ts
 msgid "Model \"{modelId}\" was not listed."
 msgstr "模型「{modelId}」未列出。"
+
+#: src/pages/shell/bot-model-picker.tsx
+msgid "Model and effort"
+msgstr ""
 
 #: src/pages/shell/bot-panel.tsx
 msgid "Model connections"
@@ -3792,8 +4346,13 @@ msgstr "模型 ID"
 
 #: src/pages/model-settings/model-picker.tsx
 #: src/pages/model-settings/role-model-picker.tsx
+#: src/pages/shell/bot-model-picker.tsx
 msgid "Model options"
 msgstr "模型選項"
+
+#: src/pages/shell/bot-model-picker.tsx
+msgid "Model selection unavailable"
+msgstr ""
 
 #: src/pages/ModelSettingsOverlay.tsx
 #: src/pages/settings-nav.ts
@@ -3822,6 +4381,10 @@ msgstr "週一"
 msgid "month"
 msgstr "月"
 
+#: src/pages/RoutineCalendar.tsx
+msgid "Month"
+msgstr ""
+
 #: src/lib/cron.ts
 msgid "Monthly"
 msgstr "每月"
@@ -3847,7 +4410,12 @@ msgstr ""
 msgid "More computer actions"
 msgstr "更多電腦操作"
 
+#: src/pages/RoutineCalendar.tsx
+msgid "More occurrences. Choose a shorter period."
+msgstr ""
+
 #: src/pages/ModelRoleSettings.tsx
+#: src/pages/shell/thread-queue.tsx
 msgid "Move down"
 msgstr "下移"
 
@@ -3860,6 +4428,7 @@ msgid "Move to"
 msgstr "移動到"
 
 #: src/pages/ModelRoleSettings.tsx
+#: src/pages/shell/thread-queue.tsx
 msgid "Move up"
 msgstr "上移"
 
@@ -3903,6 +4472,14 @@ msgstr "給這個例行任務命名"
 #: src/pages/shell/create-bot-dialog.tsx
 msgid "Name your Bot"
 msgstr "為你的機器人命名"
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Narrative"
+msgstr "敘事"
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Narrative instructions"
+msgstr ""
 
 #: src/lib/roster-status.ts
 msgid "Needs an answer"
@@ -3985,13 +4562,25 @@ msgstr "新增技能"
 msgid "New space"
 msgstr "新增空間"
 
+#: src/pages/shell/conversation-tasks.tsx
+msgid "New task"
+msgstr ""
+
 #: src/pages/Board.tsx
 msgid "New ticket"
 msgstr "新增工作項目"
 
+#: src/pages/Workflows.tsx
+msgid "New workflow"
+msgstr ""
+
 #: src/components/markdown-copy.tsx
 msgid "Next page"
 msgstr "下一頁"
+
+#: src/pages/RoutineCalendar.tsx
+msgid "Next period"
+msgstr ""
 
 #: src/pages/SettingsOverlay.tsx
 msgid "Next settings sections"
@@ -4018,6 +4607,18 @@ msgstr "無驗證"
 msgid "No bots match"
 msgstr "沒有符合的機器人"
 
+#: src/pages/shell/conversation-files-panel.tsx
+msgid "No files found."
+msgstr ""
+
+#: src/pages/shell/conversation-files-panel.tsx
+msgid "No files yet."
+msgstr ""
+
+#: src/pages/shell/project-folder-picker.tsx
+msgid "No folders"
+msgstr ""
+
 #: src/components/AskCard.tsx
 msgid "No longer active"
 msgstr "已停用"
@@ -4033,6 +4634,7 @@ msgstr "此頁面沒有符合的成品。"
 #: src/pages/model-settings/compatible-model-fields.tsx
 #: src/pages/model-settings/model-picker.tsx
 #: src/pages/model-settings/role-model-picker.tsx
+#: src/pages/shell/bot-model-picker.tsx
 #: src/pages/shell/chat-model-picker.tsx
 msgid "No matching models"
 msgstr "沒有符合的模型"
@@ -4107,6 +4709,10 @@ msgstr "無觸發器"
 #: src/lib/ticket-priority.ts
 msgid "Normal"
 msgstr "一般"
+
+#: src/pages/shell/roleplay-images.tsx
+msgid "Normal chat: turns between images"
+msgstr ""
 
 #: src/pages/shell/agent-import.tsx
 msgid "Not a valid skill"
@@ -4192,6 +4798,10 @@ msgstr "OAuth 已過期"
 msgid "Offline"
 msgstr ""
 
+#: src/pages/shell/conversation-tasks.tsx
+msgid "Older tasks"
+msgstr ""
+
 #: src/pages/model-settings/connection-controls.tsx
 #: src/pages/Onboarding.tsx
 msgid "Ollama API key"
@@ -4228,6 +4838,7 @@ msgstr "單次購買，額度不會到期。"
 #: src/pages/shell/computer-panel.tsx
 #: src/pages/shell/import-setup-card.tsx
 #: src/pages/shell/message-view.tsx
+#: src/pages/shell/project-folder-picker.tsx
 msgid "Open"
 msgstr "開啟"
 
@@ -4270,6 +4881,14 @@ msgstr "在完整視窗中開啟"
 #: src/pages/shell/chat-header.tsx
 msgid "Open navigation"
 msgstr "開啟導覽"
+
+#: src/pages/shell/conversation-tasks.tsx
+msgid "Open recovery"
+msgstr ""
+
+#: src/pages/Workflows.tsx
+msgid "Open task"
+msgstr ""
 
 #: src/pages/ScratchpadSection.tsx
 msgid "Open work"
@@ -4427,6 +5046,10 @@ msgstr "人設"
 msgid "Personal"
 msgstr "個人"
 
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Personality"
+msgstr ""
+
 #: src/components/call/VoiceChatCard.tsx
 msgid "Phone call"
 msgstr "語音通話"
@@ -4460,6 +5083,10 @@ msgstr "置頂"
 msgid "Pinned"
 msgstr "置頂"
 
+#: src/pages/shell/composer.tsx
+msgid "Plan a project"
+msgstr ""
+
 #: src/components/ArtifactFileCard.tsx
 msgid "Play {name}"
 msgstr "播放 {name}"
@@ -4485,6 +5112,10 @@ msgstr ""
 msgid "Plugins"
 msgstr ""
 
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Position"
+msgstr ""
+
 #: src/pages/RoutineEditor.tsx
 msgid "Post \"No changes\" in chat"
 msgstr "在聊天室中傳送「沒有變更」"
@@ -4493,9 +5124,21 @@ msgstr "在聊天室中傳送「沒有變更」"
 msgid "POST to"
 msgstr "POST 到"
 
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Post-history instructions"
+msgstr ""
+
 #: src/pages/AccountSettingsOverlay.tsx
 msgid "Preferences"
 msgstr "偏好設定"
+
+#: src/pages/shell/native-runtime-setup.tsx
+msgid "Prepare install"
+msgstr ""
+
+#: src/pages/shell/native-runtime-setup.tsx
+msgid "Prepare sign-in"
+msgstr ""
 
 #: src/components/ApprovalRulePreview.tsx
 #: src/components/ApprovalRulesSettings.tsx
@@ -4517,9 +5160,17 @@ msgstr "此檔案類型無法預覽，請下載後檢視。"
 msgid "Previous page"
 msgstr "上一頁"
 
+#: src/pages/RoutineCalendar.tsx
+msgid "Previous period"
+msgstr ""
+
 #: src/pages/SettingsOverlay.tsx
 msgid "Previous settings sections"
 msgstr "上一組設定區段"
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Primary keys"
+msgstr ""
 
 #: src/pages/Board.tsx
 msgid "Priority"
@@ -4541,6 +5192,14 @@ msgstr ""
 msgid "Program: {name}"
 msgstr "程式：{name}"
 
+#: src/pages/shell/project-folder-picker.tsx
+msgid "Project folder"
+msgstr ""
+
+#: src/pages/shell/conversation-tasks.tsx
+msgid "Project subdirectory"
+msgstr ""
+
 #: src/components/teach/TeachRecordingChrome.tsx
 msgid "Protected input"
 msgstr "受保護的輸入"
@@ -4559,7 +5218,20 @@ msgstr "供應商"
 msgid "Pull request"
 msgstr "Pull request"
 
+#: src/pages/shell/composer.tsx
+msgid "Queue"
+msgstr ""
+
+#: src/pages/Shell.tsx
+msgid "Queue for"
+msgstr ""
+
+#: src/pages/Shell.tsx
+msgid "Queue recipient"
+msgstr ""
+
 #: src/pages/ActivityList.tsx
+#: src/pages/shell/thread-queue.tsx
 msgid "Queued"
 msgstr "排隊中"
 
@@ -4598,6 +5270,7 @@ msgstr ""
 
 #: src/pages/model-settings/compatible-model-fields.tsx
 #: src/pages/Onboarding.tsx
+#: src/pages/shell/bot-model-picker.tsx
 msgid "Reasoning effort"
 msgstr "推理強度"
 
@@ -4653,6 +5326,14 @@ msgstr "復原電腦"
 msgid "Recover computer?"
 msgstr "要復原電腦嗎？"
 
+#: src/pages/shell/conversation-tasks.tsx
+msgid "Recover or reassign"
+msgstr ""
+
+#: src/pages/Workflows.tsx
+msgid "Recover step"
+msgstr ""
+
 #. placeholder {0}: update.name
 #: src/components/ComputerUpdateProgress.tsx
 msgid "Recovering {0}’s Computer"
@@ -4665,6 +5346,10 @@ msgstr "正在復原團隊電腦"
 #: src/components/ComputerMaintenanceActions.tsx
 msgid "Recovering…"
 msgstr "正在復原…"
+
+#: src/pages/shell/conversation-tasks.tsx
+msgid "Recovery"
+msgstr ""
 
 #: src/components/ComputerUpdateProgress.tsx
 msgid "Recovery failed"
@@ -4698,6 +5383,8 @@ msgstr "重新導向 URI"
 #: src/App.tsx
 #: src/components/ErrorBoundary.tsx
 #: src/components/ModelCredits.tsx
+#: src/pages/shell/bot-model-picker.tsx
+#: src/pages/shell/bot-runtime-settings.tsx
 msgid "Refresh"
 msgstr "重新整理"
 
@@ -4712,6 +5399,14 @@ msgstr "重新整理畫面"
 #: src/components/teach/TeachComputerOverlay.tsx
 msgid "Refreshing…"
 msgstr "重新整理中…"
+
+#: src/pages/shell/registered-host-picker.tsx
+msgid "Register"
+msgstr ""
+
+#: src/pages/shell/registered-host-picker.tsx
+msgid "Register host"
+msgstr ""
 
 #: src/lib/user-error.ts
 msgid "Registration is closed"
@@ -4733,6 +5428,10 @@ msgstr ""
 #: src/pages/PluginSubmissionsPanel.tsx
 msgid "Rejecting…"
 msgstr ""
+
+#: src/pages/shell/roleplay-relationship-debug.tsx
+msgid "Relationship debug"
+msgstr "關係偵錯"
 
 #: src/pages/shell/computer-release-actions.tsx
 msgid "Release control"
@@ -4767,6 +5466,11 @@ msgstr "移除 {0}"
 msgid "Remove {0} from the group"
 msgstr "將 {0} 移出群組"
 
+#. placeholder {0}: index + 1
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Remove {label} {0}"
+msgstr ""
+
 #: src/components/VaultSettings.tsx
 msgid "Remove {secretName}? Bots will no longer be able to use it."
 msgstr "要移除 {secretName} 嗎？機器人將無法再使用它。"
@@ -4778,6 +5482,14 @@ msgstr "移除 {site}"
 #: src/pages/RoutineEditor.tsx
 msgid "Remove change trigger"
 msgstr "移除變化觸發器"
+
+#: src/pages/Workflows.tsx
+msgid "Remove dependency"
+msgstr ""
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Remove entry"
+msgstr ""
 
 #: src/components/integrations/plugin-marketplace.tsx
 #: src/pages/KnowledgeSection.tsx
@@ -4793,6 +5505,14 @@ msgstr "移除 Git 事件"
 #: src/components/ModelHeadersEditor.tsx
 msgid "Remove header"
 msgstr "移除標頭"
+
+#: src/pages/shell/roleplay-images.tsx
+msgid "Remove image"
+msgstr ""
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Remove lorebook"
+msgstr ""
 
 #: src/pages/RoutineEditor.tsx
 msgid "Remove message trigger"
@@ -4873,13 +5593,25 @@ msgstr "正在回覆 {0}"
 msgid "Request a new code"
 msgstr "請重新獲取驗證碼"
 
+#: src/pages/model-settings/request-timeout-fields.tsx
+msgid "Request timeouts"
+msgstr ""
+
 #: src/pages/MessagingSettingsPanel.tsx
 msgid "Requests"
 msgstr "請求"
 
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Require secondary match"
+msgstr ""
+
 #: src/pages/shell/message-cards.tsx
 msgid "Research & writing"
 msgstr "調研和寫作"
+
+#: src/pages/shell/composer.tsx
+msgid "Research a topic"
+msgstr ""
 
 #: src/components/ComputerMaintenanceActions.tsx
 #: src/pages/shell/avatar-studio-popover.tsx
@@ -4951,6 +5683,9 @@ msgstr "正在還原工作空間"
 #: src/pages/ModelRoleSettings.tsx
 #: src/pages/PluginsOverlay.tsx
 #: src/pages/PluginSubmissionsPanel.tsx
+#: src/pages/RoutineCalendar.tsx
+#: src/pages/shell/conversation-files-panel.tsx
+#: src/pages/shell/roleplay-story-mode.tsx
 #: src/pages/SpaceSettingOverrides.tsx
 msgid "Retry"
 msgstr "重試"
@@ -4978,9 +5713,30 @@ msgstr "返回 Rakazo"
 msgid "Review provider settings and test again."
 msgstr "請檢查供應商設定並重新測試。"
 
+#: src/pages/shell/composer.tsx
+msgid "Review the code"
+msgstr ""
+
+#: src/pages/shell/composer.tsx
+msgid "Review this project's code for concrete bugs. Explain your findings before making changes."
+msgstr ""
+
 #: src/pages/MessagingSettingsPanel.tsx
+#: src/pages/shell/registered-host-picker.tsx
 msgid "Revoke"
 msgstr "撤銷授權"
+
+#: src/pages/shell/create-bot-dialog.tsx
+msgid "Roleplay"
+msgstr ""
+
+#: src/pages/AccountSettingsOverlay.tsx
+msgid "Roleplay bots"
+msgstr ""
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Roleplay settings"
+msgstr ""
 
 #: src/pages/ExternalConversationSettings.tsx
 msgid "Room guidance"
@@ -4997,6 +5753,10 @@ msgstr "輪換金鑰"
 msgid "Routine"
 msgstr "例行任務"
 
+#: src/pages/RoutineCalendar.tsx
+msgid "Routine calendar"
+msgstr ""
+
 #: src/pages/shell/agent-import.tsx
 #: src/pages/shell/bot-panel.tsx
 msgid "Routines"
@@ -5010,6 +5770,18 @@ msgstr "在你離線時執行的例行任務"
 msgid "Row"
 msgstr "列"
 
+#: src/pages/Workflows.tsx
+msgid "Run"
+msgstr ""
+
+#: src/pages/Workflows.tsx
+msgid "Run after"
+msgstr ""
+
+#: src/pages/Workflows.tsx
+msgid "Run after…"
+msgstr ""
+
 #: src/pages/RoutineEditor.tsx
 msgid "Run at"
 msgstr "執行時間"
@@ -5017,6 +5789,10 @@ msgstr "執行時間"
 #: src/pages/RoutineRunHistory.tsx
 msgid "Run history"
 msgstr "執行紀錄"
+
+#: src/pages/shell/bot-runtime-settings.tsx
+msgid "Run on"
+msgstr ""
 
 #: src/pages/shell/use-routine-editor.ts
 msgid "Run time must be in the future."
@@ -5038,12 +5814,26 @@ msgid "Running…"
 msgstr "正在執行…"
 
 #: src/pages/AccountSettingsOverlay.tsx
+#: src/pages/Workflows.tsx
 msgid "Runs"
 msgstr "執行"
 
 #: src/pages/RoutineEditor.tsx
 msgid "Runs when this bot receives a verified message from this provider."
 msgstr "當此機器人收到來自這個供應商且通過驗證的訊息時執行。"
+
+#: src/pages/shell/bot-model-picker.tsx
+msgid "Runtime default"
+msgstr ""
+
+#: src/pages/shell/bot-runtime-settings.tsx
+#: src/pages/shell/native-runtime-setup.tsx
+msgid "Runtime ready"
+msgstr ""
+
+#: src/pages/shell/bot-runtime-settings.tsx
+msgid "Runtime unavailable"
+msgstr ""
 
 #: src/pages/PluginsOverlay.tsx
 msgid "Sales & CRM"
@@ -5068,8 +5858,15 @@ msgstr "週六"
 #: src/pages/RoutineEditor.tsx
 #: src/pages/shell/bot-panel.tsx
 #: src/pages/shell/dialogs.tsx
+#: src/pages/shell/thread-queue.tsx
+#: src/pages/Workflows.tsx
 msgid "Save"
 msgstr "儲存"
+
+#: src/pages/shell/roleplay-relationship-debug.tsx
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Save changes"
+msgstr ""
 
 #: src/components/VaultSettings.tsx
 msgid "Save credential"
@@ -5105,6 +5902,10 @@ msgstr "已儲存。"
 msgid "Saved. Rotate to reveal."
 msgstr "已儲存。輪換後可檢視。"
 
+#: src/pages/shell/bot-model-picker.tsx
+msgid "Saving model…"
+msgstr ""
+
 #: src/components/ComputerUpdateProgress.tsx
 msgid "Saving your workspace"
 msgstr "正在儲存工作空間"
@@ -5123,12 +5924,30 @@ msgstr "儲存中…"
 #: src/pages/ModelSettingsOverlay.tsx
 #: src/pages/RoutineEditor.tsx
 #: src/pages/shell/dialogs.tsx
+#: src/pages/shell/roleplay-relationship-debug.tsx
+#: src/pages/shell/roleplay-settings.tsx
 msgid "Saving…"
 msgstr "正在儲存…"
 
 #: src/lib/call-session.ts
 msgid "Say yes or no, or answer in a sentence."
 msgstr "回答是或否，或一句話說明。"
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Scan depth"
+msgstr ""
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Scenario"
+msgstr ""
+
+#: src/pages/shell/roleplay-images.tsx
+msgid "Scene"
+msgstr ""
+
+#: src/pages/RoutineCalendar.tsx
+msgid "Scheduled"
+msgstr ""
 
 #: src/components/ModelCredits.tsx
 msgid "Scheduled routines"
@@ -5172,6 +5991,10 @@ msgstr ""
 msgid "Search by domain"
 msgstr "依網域搜尋"
 
+#: src/pages/shell/conversation-files-panel.tsx
+msgid "Search files"
+msgstr ""
+
 #: src/components/integrations/IntegrationSetup.tsx
 msgid "Search integrations.sh"
 msgstr "搜尋 integrations.sh"
@@ -5179,6 +6002,7 @@ msgstr "搜尋 integrations.sh"
 #: src/pages/model-settings/compatible-model-fields.tsx
 #: src/pages/model-settings/model-picker.tsx
 #: src/pages/model-settings/role-model-picker.tsx
+#: src/pages/shell/bot-model-picker.tsx
 #: src/pages/shell/chat-model-picker.tsx
 msgid "Search models"
 msgstr "搜尋模型"
@@ -5200,6 +6024,10 @@ msgstr "搜尋：{0}"
 #: src/pages/SpaceSearch.tsx
 msgid "Searching…"
 msgstr "正在搜尋…"
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Secondary keys"
+msgstr ""
 
 #: src/pages/AccountSettingsOverlay.tsx
 msgid "Security"
@@ -5273,6 +6101,10 @@ msgstr "Sentry 警示"
 msgid "Serenity endpoint is required."
 msgstr "請填寫 Serenity 端點。"
 
+#: src/pages/model-settings/request-timeout-fields.tsx
+msgid "Server default"
+msgstr ""
+
 #: src/pages/McpServersOverlay.tsx
 msgid "Server name"
 msgstr "伺服器名稱"
@@ -5284,6 +6116,10 @@ msgstr "伺服器名稱"
 #: src/pages/VoiceSettingsOverlay.tsx
 msgid "Server URL"
 msgstr "伺服器 URL"
+
+#: src/pages/shell/native-runtime-setup.tsx
+msgid "Set up runtime"
+msgstr ""
 
 #: src/components/call/CallCard.tsx
 #: src/components/SidebarFooter.tsx
@@ -5309,13 +6145,30 @@ msgstr "設定：一般"
 msgid "Settings: Usage"
 msgstr "設定：用量"
 
+#: src/pages/shell/native-runtime-setup.tsx
+msgid "Setup cancelled"
+msgstr ""
+
 #: src/pages/shell/import-setup-card.tsx
+#: src/pages/shell/native-runtime-setup.tsx
 msgid "Setup complete"
 msgstr "設定完成"
+
+#: src/pages/shell/native-runtime-setup.tsx
+msgid "Setup expired"
+msgstr ""
+
+#: src/pages/shell/native-runtime-setup.tsx
+msgid "Setup failed"
+msgstr ""
 
 #: src/pages/model-settings/compatible-model-fields.tsx
 msgid "Setup help"
 msgstr "設定說明"
+
+#: src/pages/shell/native-runtime-setup.tsx
+msgid "Setup running"
+msgstr ""
 
 #: src/pages/shell/avatar-studio-popover.tsx
 msgid "Shape"
@@ -5350,6 +6203,15 @@ msgstr "顯示機器人"
 #: src/pages/Artifacts.tsx
 msgid "Show list"
 msgstr "顯示清單"
+
+#: src/pages/shell/conversation-files-panel.tsx
+msgid "Show message"
+msgstr ""
+
+#. placeholder {0}: file.name
+#: src/pages/shell/conversation-files-panel.tsx
+msgid "Show message for {0}"
+msgstr ""
 
 #: src/pages/KnowledgeSection.tsx
 #: src/pages/PluginsOverlay.tsx
@@ -5406,6 +6268,10 @@ msgstr "在 <0>{0}</0> 登入，然後將代碼貼到這裡。"
 msgid "Sign in to Rakazo"
 msgstr "登入 Rakazo"
 
+#: src/pages/shell/bot-runtime-settings.tsx
+msgid "Sign in to the runtime on the host."
+msgstr ""
+
 #: src/lib/user-error.ts
 msgid "Sign in to your existing account to link SSO"
 msgstr "請登入現有帳號以關聯 SSO"
@@ -5425,6 +6291,10 @@ msgstr "註冊"
 
 #: src/components/integrations/plugin-marketplace.tsx
 msgid "Sign-in cancelled. Try again."
+msgstr ""
+
+#: src/pages/shell/native-runtime-setup.tsx
+msgid "Sign-in required"
 msgstr ""
 
 #: src/components/VaultSettings.tsx
@@ -5481,6 +6351,10 @@ msgstr "未啟用 Slack"
 msgid "Slide up to lock"
 msgstr "向上滑動以鎖定"
 
+#: src/pages/model-settings/request-timeout-fields.tsx
+msgid "Slow local inference (15 min)"
+msgstr ""
+
 #: src/components/integrations/skills-dialog.tsx
 #: src/pages/PluginsOverlay.tsx
 msgid "Some plugins could not be loaded."
@@ -5519,11 +6393,16 @@ msgstr "已依 {column} 遞增排序"
 msgid "Sorted by {column}, descending"
 msgstr "已依 {column} 遞減排序"
 
+#: src/pages/shell/conversation-tasks.tsx
+msgid "Source conversation"
+msgstr ""
+
 #: src/lib/identity-display.ts
 #: src/pages/SettingsOverlay.tsx
 msgid "Space"
 msgstr "空間"
 
+#: src/pages/shell/bot-model-picker.tsx
 #: src/pages/shell/bot-panel.tsx
 msgid "Space default"
 msgstr "空間預設"
@@ -5548,6 +6427,14 @@ msgstr "說話中"
 msgid "Speech model"
 msgstr "語音模型"
 
+#: src/pages/shell/roleplay-images.tsx
+msgid "Spontaneous images"
+msgstr ""
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Spontaneous messages"
+msgstr "主動訊息"
+
 #: src/lib/user-error.ts
 msgid "SSO is temporarily unavailable. Try again."
 msgstr "SSO 暫時不可用，請重試。"
@@ -5561,9 +6448,25 @@ msgstr "啟動"
 msgid "Start {trialDays}-day free trial"
 msgstr "開始 {trialDays} 天免費試用"
 
+#: src/pages/shell/thread-queue.tsx
+msgid "Start as task"
+msgstr ""
+
 #: src/components/teach/TeachComputerOverlay.tsx
 msgid "Start recording"
 msgstr "開始錄製"
+
+#: src/pages/shell/conversation-tasks.tsx
+msgid "Start recovery"
+msgstr ""
+
+#: src/pages/shell/conversation-tasks.tsx
+msgid "Start task"
+msgstr ""
+
+#: src/pages/shell/bot-runtime-settings.tsx
+msgid "Start the host with host access enabled."
+msgstr ""
 
 #: src/pages/ActivityList.tsx
 msgid "Starting"
@@ -5576,10 +6479,35 @@ msgstr "正在開始"
 msgid "Starting…"
 msgstr "正在開始…"
 
+#: src/pages/shell/conversation-tasks.tsx
+msgid "Starts a new execution. Earlier actions may already have taken effect. Review the instructions to avoid repeating them."
+msgstr ""
+
 #: src/pages/ActivityList.tsx
 #: src/pages/Board.tsx
 msgid "Status"
 msgstr "狀態"
+
+#: src/pages/shell/thread-queue.tsx
+msgid "Steer"
+msgstr ""
+
+#. placeholder {0}: current.nodes.length + 1
+#: src/pages/Workflows.tsx
+msgid "Step {0}"
+msgstr ""
+
+#: src/pages/Workflows.tsx
+msgid "Step dependencies"
+msgstr ""
+
+#: src/pages/Workflows.tsx
+msgid "Step details"
+msgstr ""
+
+#: src/pages/Workflows.tsx
+msgid "Step name"
+msgstr ""
 
 #: src/components/teach/SkillDraftCard.tsx
 msgid "Steps"
@@ -5589,6 +6517,7 @@ msgstr "步驟"
 #: src/pages/shell/composer.tsx
 #: src/pages/shell/computer-overlay.tsx
 #: src/pages/shell/message-view.tsx
+#: src/pages/Workflows.tsx
 msgid "Stop"
 msgstr "停止"
 
@@ -5604,10 +6533,18 @@ msgstr "停止朗讀"
 msgid "Stop teaching"
 msgstr "停止示範"
 
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Stop the current reply before saving character changes."
+msgstr ""
+
 #. js-lingui-explicit-id
 #: src/lib/browser-notifications.ts
 msgid "Stopped."
 msgstr "已停止。"
+
+#: src/pages/shell/registered-host-picker.tsx
+msgid "Stopping work"
+msgstr ""
 
 #: src/components/ComputerMaintenanceActions.tsx
 msgid "Stopping…"
@@ -5616,6 +6553,22 @@ msgstr "正在停止…"
 #: src/pages/McpServersOverlay.tsx
 msgid "Stored encrypted"
 msgstr "已加密儲存"
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Story"
+msgstr ""
+
+#: src/pages/shell/roleplay-story-mode.tsx
+msgid "Story mode"
+msgstr ""
+
+#: src/pages/shell/roleplay-images.tsx
+msgid "Story mode: turns between images"
+msgstr ""
+
+#: src/pages/model-settings/request-timeout-fields.tsx
+msgid "Stream inactivity (ms)"
+msgstr ""
 
 #: src/pages/AccountSettingsOverlay.tsx
 msgid "Stream replies"
@@ -5682,6 +6635,10 @@ msgstr "正在切換…"
 msgid "System"
 msgstr "系統"
 
+#: src/pages/shell/roleplay-settings.tsx
+msgid "System prompt"
+msgstr ""
+
 #: src/components/markdown-copy.tsx
 msgid "Table"
 msgstr "表格"
@@ -5689,6 +6646,22 @@ msgstr "表格"
 #: src/pages/shell/computer-overlay.tsx
 msgid "Take control"
 msgstr "接管控制權"
+
+#: src/pages/shell/conversation-tasks.tsx
+msgid "Task"
+msgstr ""
+
+#: src/pages/shell/conversation-tasks.tsx
+msgid "Task bot"
+msgstr ""
+
+#: src/pages/shell/conversation-tasks.tsx
+msgid "Task instructions"
+msgstr ""
+
+#: src/pages/shell/conversation-tasks.tsx
+msgid "Tasks"
+msgstr ""
 
 #: src/components/teach/TeachComputerOverlay.tsx
 msgid "Teach a task"
@@ -5755,6 +6728,10 @@ msgstr ""
 #: src/lib/model-connection-preflight.ts
 msgid "The connection timed out."
 msgstr "連線超時。"
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "The first message is used when a story starts or is reset."
+msgstr ""
 
 #. js-lingui-explicit-id
 #: src/lib/run-error.ts
@@ -5876,6 +6853,14 @@ msgstr "此對話對模型來說太長了。重試無濟於事。請開始新的
 msgid "This deletes all {0} versions of this artifact. This can't be undone."
 msgstr "這將刪除此成品的全部 {0} 個版本，且無法復原。"
 
+#: src/pages/Workflows.tsx
+msgid "This dependency would create a cycle."
+msgstr ""
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "This field exceeds the character limit."
+msgstr ""
+
 #: src/components/ArtifactFileCard.tsx
 msgid "This file is not valid UTF-8 text."
 msgstr "此檔案不是有效的 UTF-8 文字。"
@@ -5887,6 +6872,10 @@ msgstr "此匯入已使用過。請重新選擇檔案。"
 #: src/pages/HostComputerPrompt.tsx
 msgid "this Mac"
 msgstr "這臺 Mac"
+
+#: src/pages/shell/thread-queue.tsx
+msgid "This message has left the queue."
+msgstr ""
 
 #. js-lingui-explicit-id
 #: src/lib/run-error.ts
@@ -5958,6 +6947,10 @@ msgstr "週四"
 msgid "Time of day"
 msgstr "時間"
 
+#: src/pages/model-settings/request-timeout-fields.tsx
+msgid "Time to response headers (ms)"
+msgstr ""
+
 #: src/pages/AccountSettingsOverlay.tsx
 msgid "Timezone"
 msgstr "時區"
@@ -5988,9 +6981,14 @@ msgid "To:"
 msgstr "收件人："
 
 #: src/pages/Artifacts.tsx
+#: src/pages/RoutineCalendar.tsx
 #: src/pages/shell/chat-context.tsx
 msgid "Today"
 msgstr "今天"
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Token budget"
+msgstr ""
 
 #: src/pages/AccountSettingsOverlay.tsx
 msgid "Tokens"
@@ -6060,6 +7058,7 @@ msgstr "受信任的網站"
 
 #: src/pages/ActivityList.tsx
 #: src/pages/Onboarding.tsx
+#: src/pages/Shell.tsx
 msgid "Try again"
 msgstr "重試"
 
@@ -6083,10 +7082,19 @@ msgstr "輸入文字但不記錄內容"
 msgid "Type your answer"
 msgstr "輸入你的回答"
 
+#. js-lingui-explicit-id
+#: src/lib/model-catalog.ts
+msgid "Ultra"
+msgstr ""
+
 #: src/pages/BotContextMenu.tsx
 #: src/pages/Shell.tsx
 msgid "Unassigned"
 msgstr "未分配"
+
+#: src/pages/shell/registered-host-picker.tsx
+msgid "Unavailable host"
+msgstr ""
 
 #: src/components/AskCard.tsx
 msgid "Undo"
@@ -6112,6 +7120,10 @@ msgstr "取消置頂"
 #: src/pages/shell/use-composer-actions.ts
 msgid "Unsupported file type: {0}"
 msgstr "不支援的檔案類型：{0}"
+
+#: src/pages/shell/project-folder-picker.tsx
+msgid "Up"
+msgstr ""
 
 #: src/components/DesktopUpdates.tsx
 msgid "Up to date"
@@ -6178,6 +7190,10 @@ msgstr "立即升級"
 msgid "Upload"
 msgstr "上傳"
 
+#: src/pages/shell/roleplay-images.tsx
+msgid "Upload image"
+msgstr ""
+
 #: src/lib/ticket-priority.ts
 msgid "Urgent"
 msgstr "緊急"
@@ -6221,6 +7237,10 @@ msgstr "使用預設值"
 #: src/pages/SpaceSettingOverrides.tsx
 msgid "Use defaults for {label}"
 msgstr "{label}使用預設值"
+
+#: src/pages/shell/project-folder-picker.tsx
+msgid "Use folder"
+msgstr ""
 
 #: src/components/integrations/plugin-marketplace.tsx
 msgid "Use in this bot"
@@ -6302,6 +7322,10 @@ msgstr "版本"
 msgid "View all"
 msgstr ""
 
+#: src/pages/RoutineCalendar.tsx
+msgid "View chat"
+msgstr "檢視聊天"
+
 #: src/components/integrations/plugin-marketplace.tsx
 msgid "View source"
 msgstr ""
@@ -6321,6 +7345,18 @@ msgstr ""
 msgid "Wait a moment and test again."
 msgstr "請稍候並重新測試。"
 
+#: src/pages/shell/thread-queue.tsx
+msgid "Waiting for approval"
+msgstr ""
+
+#: src/pages/shell/thread-queue.tsx
+msgid "Waiting for computer"
+msgstr ""
+
+#: src/pages/shell/thread-queue.tsx
+msgid "Waiting for current work"
+msgstr ""
+
 #: src/lib/roster-status.ts
 msgid "Waiting in line…"
 msgstr "排隊等候…"
@@ -6332,6 +7368,10 @@ msgstr "等待中…"
 #: src/pages/settings-nav.ts
 msgid "Wallet"
 msgstr ""
+
+#: src/pages/shell/roleplay-relationship-debug.tsx
+msgid "Warmth"
+msgstr "溫暖度"
 
 #: src/components/ModelCredits.tsx
 msgid "Web, desktop and mobile"
@@ -6356,6 +7396,10 @@ msgstr "週三"
 #: src/lib/billing.ts
 msgid "week"
 msgstr "週"
+
+#: src/pages/RoutineCalendar.tsx
+msgid "Week"
+msgstr ""
 
 #: src/lib/cron.ts
 #: src/pages/RoutineEditor.tsx
@@ -6439,6 +7483,23 @@ msgstr "不處理"
 msgid "Work"
 msgstr "工作"
 
+#: src/pages/Workflows.tsx
+msgid "Workflow"
+msgstr ""
+
+#: src/pages/Workflows.tsx
+msgid "Workflow canvas"
+msgstr ""
+
+#: src/pages/Workflows.tsx
+msgid "Workflow name"
+msgstr ""
+
+#: src/components/SidebarFooter.tsx
+#: src/pages/Workflows.tsx
+msgid "Workflows"
+msgstr ""
+
 #: src/pages/shell/agent-import.tsx
 msgid "Working instructions"
 msgstr "工作指示"
@@ -6455,8 +7516,13 @@ msgid "Works with your ChatGPT or Claude plan."
 msgstr "可使用你的 ChatGPT 或 Claude 方案。"
 
 #: src/pages/memory-providers/HonchoSettingsForm.tsx
+#: src/pages/shell/bot-runtime-settings.tsx
 msgid "Workspace"
 msgstr "工作空間"
+
+#: src/pages/shell/conversation-tasks.tsx
+msgid "Write scope"
+msgstr ""
 
 #: src/lib/billing.ts
 msgid "year"

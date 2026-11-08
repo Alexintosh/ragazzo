@@ -40,8 +40,10 @@ function catalogModels(): Models {
 const REASONING_MODEL_THINKING_LEVEL: ModelThinkingLevel = "medium";
 export function thinkingLevelFor(
   model: Model<Api>,
-  preferred?: ModelThinkingLevel | null,
+  preferred?: ModelThinkingLevel | "ultra" | null,
 ): ModelThinkingLevel {
+  if (preferred === "ultra")
+    throw new Error("This runtime does not support ultra reasoning effort");
   if (!model.reasoning) return "off";
   if (preferred) return clampThinkingLevel(model, preferred);
   return clampThinkingLevel(model, REASONING_MODEL_THINKING_LEVEL);

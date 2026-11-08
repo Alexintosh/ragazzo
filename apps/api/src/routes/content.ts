@@ -4,7 +4,7 @@ import { resolveBotWorkspacePath } from "@rakazo/adapters";
 import type { ExportManifest } from "@rakazo/contracts";
 import { attachmentMaxBytes, resolveBotAvatarSet } from "@rakazo/contracts";
 import { AttachmentValidationError } from "@rakazo/core";
-import { IsolationError, parseComputerMode } from "@rakazo/db";
+import { IsolationError, isRoleplayEnabled, parseComputerMode } from "@rakazo/db";
 import {
   ArtifactListCursorError,
   createOwnedArtifact,
@@ -15,10 +15,12 @@ import {
   listArtifactVersions,
   listSpaceArtifacts,
 } from "../artifacts.js";
+import { listConversationFiles } from "../conversation-files.js";
 import { requireIdentityConfirmation } from "../identity-confirmation.js";
 import { listSpaceRuns } from "../runs.js";
 import { querySpaceSearch } from "../search.js";
 import { loadAllMessages } from "../thread-message-pages.js";
+import { resolveThreadTarget } from "../thread-target.js";
 import type { RouterContext } from "./context.js";
 
 const EXPORT_MESSAGE_PAGE_SIZE = 500;
@@ -27,6 +29,10 @@ export function contentRoutes(ctx: RouterContext) {
   const { deps, repos, favicons, groupRepos, authed } = ctx;
   return {
     artifacts: {
+      listConversation: authed.artifacts.listConversation.handler(async ({ context, input }) => {
+        const target = await resolveThreadTarget(deps.prisma, context.actor, input);
+        return listConversationFiles(deps, context.actor, target);
+      }),
       list: authed.artifacts.list.handler(async ({ context, input }) => {
         await repos.getBot(context.actor, input.botId);
         const rows = await deps.prisma.artifact.findMany({
@@ -65,15 +71,27 @@ export function contentRoutes(ctx: RouterContext) {
         return listArtifactVersions(deps, context.actor, input);
       }),
       create: authed.artifacts.create.handler(async ({ context, input }) => {
-        const botId = input.botId
-          ? (await repos.getBot(context.actor, input.botId)).id
-          : (await groupRepos.getGroupTarget(context.actor, input.groupId!)).members[0]?.bot.id;
+        const taskTarget = input.taskId
+          ? await resolveThreadTarget(deps.prisma, context.actor, { taskId: input.taskId })
+          : null;
+        const directBot = input.botId ? await repos.getBot(context.actor, input.botId) : null;
+        if (
+          directBot?.botKind === "roleplay" &&
+          !(await isRoleplayEnabled(deps.prisma, context.actor.userId))
+        )
+          throw new ORPCError("FORBIDDEN", { message: "Roleplay is not enabled" });
+        const botId =
+          taskTarget?.kind === "bot"
+            ? taskTarget.botId
+            : input.botId
+              ? directBot!.id
+              : (await groupRepos.getGroupTarget(context.actor, input.groupId!)).members[0]?.bot.id;
         if (!botId) throw new IsolationError();
         try {
           return await createOwnedArtifact(
             { ...deps, maxUploadSizeBytes: attachmentMaxBytes(deps.env) },
             context.actor,
-            { ...input, botId },
+            { ...input, botId, uploadThreadId: taskTarget?.threadId },
           );
         } catch (error) {
           if (error instanceof AttachmentValidationError) {
@@ -83,6 +101,41 @@ export function contentRoutes(ctx: RouterContext) {
         }
       }),
       get: authed.artifacts.get.handler(async ({ context, input }) => {
+        if (input.taskId) {
+          const target = await resolveThreadTarget(deps.prisma, context.actor, input);
+          const row = await deps.prisma.artifact.findFirst({
+            where: {
+              id: input.artifactId,
+              spaceId: context.actor.spaceId,
+              userId: context.actor.userId,
+            },
+            select: { runId: true, uploadThreadId: true },
+          });
+          if (!row) throw new IsolationError();
+          const [reference, run] = await Promise.all([
+            deps.prisma.message.findFirst({
+              where: {
+                threadId: target.threadId,
+                blocks: { array_contains: [{ artifactId: input.artifactId }] },
+              },
+              select: { id: true },
+            }),
+            row.runId
+              ? deps.prisma.run.findFirst({
+                  where: {
+                    id: row.runId,
+                    threadId: target.threadId,
+                    spaceId: context.actor.spaceId,
+                    userId: context.actor.userId,
+                  },
+                  select: { id: true },
+                })
+              : null,
+          ]);
+          if (!reference && !run && row.uploadThreadId !== target.threadId)
+            throw new IsolationError();
+          return getSpaceArtifactById(deps, context.actor, input);
+        }
         if (input.groupId) {
           const group = await groupRepos.getGroupTarget(context.actor, input.groupId);
           const contextBotId = group.members[0]?.bot.id;
@@ -197,6 +250,11 @@ export function contentRoutes(ctx: RouterContext) {
     export: {
       bot: authed.export.bot.handler(async ({ context, input }) => {
         const bot = await repos.getBot(context.actor, input.botId);
+        if (bot.botKind === "roleplay") {
+          throw new ORPCError("BAD_REQUEST", {
+            message: "Roleplay characters cannot be exported as operational agents",
+          });
+        }
         if (!bot.thread || !bot.computer) throw new IsolationError();
         const homeKey = bot.computer.homeKey;
         const computerMode = parseComputerMode(bot.computer.scope);

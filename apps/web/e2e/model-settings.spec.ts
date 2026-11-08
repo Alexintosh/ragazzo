@@ -245,6 +245,18 @@ test("connects, lists, and uses an OpenAI-compatible endpoint", async ({ page },
     await expect(page.getByRole("checkbox", { name: LOCAL_MODEL_ID })).toBeChecked();
     await page.getByRole("checkbox", { name: SECOND_MODEL_ID }).check();
     await page.getByText("Advanced", { exact: true }).click();
+    await page.getByText("Request timeouts", { exact: true }).click();
+    await page
+      .getByRole("button", {
+        name: "Slow local inference (15 min)",
+        exact: true,
+      })
+      .click();
+    await expect(page.getByLabel("Time to response headers (ms)", { exact: true })).toHaveValue(
+      "900000",
+    );
+    await expect(page.getByLabel("Stream inactivity (ms)", { exact: true })).toHaveValue("900000");
+    await captureScreenshot(page, testInfo, "openai-compatible-request-timeouts");
     await page.getByRole("button", { name: "Add header", exact: true }).click();
     await page.getByRole("textbox", { name: "Header name", exact: true }).fill("x-session");
     await page.getByLabel("Header value", { exact: true }).fill("fake-session-secret");
@@ -263,10 +275,15 @@ test("connects, lists, and uses an OpenAI-compatible endpoint", async ({ page },
     await captureScreenshot(page, testInfo, "openai-compatible-connected");
     await page.getByRole("button", { name: "Close model settings" }).click();
     await openUserSettings(page, "models");
-    const saved = await manageModelConnection(page, "OpenAI-compatible");
+    let saved = await manageModelConnection(page, "OpenAI-compatible");
     await expect(saved.getByRole("checkbox", { name: SECOND_MODEL_ID })).toBeChecked();
     await captureScreenshot(page, testInfo, "openai-compatible-multi-model");
     await saved.getByText("Advanced", { exact: true }).click();
+    await saved.getByText("Request timeouts", { exact: true }).click();
+    await expect(saved.getByLabel("Time to response headers (ms)", { exact: true })).toHaveValue(
+      "900000",
+    );
+    await expect(saved.getByLabel("Stream inactivity (ms)", { exact: true })).toHaveValue("900000");
     await expect(saved.getByRole("textbox", { name: "Header name", exact: true })).toHaveValue(
       "x-session",
     );
@@ -281,6 +298,16 @@ test("connects, lists, and uses an OpenAI-compatible endpoint", async ({ page },
     expect(
       savedCredentials.find((entry) => entry.modelId === LOCAL_MODEL_ID)?.enabledModelIds,
     ).toEqual([LOCAL_MODEL_ID, SECOND_MODEL_ID]);
+
+    await saved.getByLabel("Time to response headers (ms)", { exact: true }).fill("");
+    await saved.getByLabel("Stream inactivity (ms)", { exact: true }).fill("");
+    await saved.getByRole("button", { name: "Save", exact: true }).click();
+    await expect(saved).toBeHidden();
+    saved = await manageModelConnection(page, "OpenAI-compatible");
+    await saved.getByText("Advanced", { exact: true }).click();
+    await saved.getByText("Request timeouts", { exact: true }).click();
+    await expect(saved.getByLabel("Time to response headers (ms)", { exact: true })).toHaveValue("");
+    await expect(saved.getByLabel("Stream inactivity (ms)", { exact: true })).toHaveValue("");
 
     await saved.getByLabel("OpenAI-compatible server URL").fill("");
     await expect(saved.getByRole("button", { name: "Find models" })).toBeDisabled();

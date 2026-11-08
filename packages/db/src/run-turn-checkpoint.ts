@@ -14,7 +14,7 @@ const locationOf = (runId: string) => ({
 });
 
 export async function loadRunTurnCheckpoint(
-  prisma: PrismaClient,
+  prisma: Pick<PrismaClient, "externalEffect">,
   run: { id: string; spaceId: string },
 ): Promise<string | undefined> {
   const rows = await prisma.externalEffect.findMany({
@@ -44,6 +44,7 @@ export async function saveRunTurnCheckpoint(
   leaseOwner: string,
   leaseFence: number,
   blob: string,
+  nativeExecutionRunId?: string,
 ): Promise<void> {
   const encryption = contentEncryptionOf(prisma);
   const result = encryption?.ring.encryptWrites
@@ -54,7 +55,7 @@ export async function saveRunTurnCheckpoint(
     // follow this write and remove it, or win first and reject it.
     const locked = await tx.run.updateMany({
       where: { id: run.id, spaceId: run.spaceId, status: "running", leaseOwner, leaseFence },
-      data: { leaseFence },
+      data: { leaseFence, ...(nativeExecutionRunId ? { nativeExecutionRunId } : {}) },
     });
     if (locked.count !== 1) throw new Error("Run lease expired before checkpoint");
     await tx.externalEffect.upsert({

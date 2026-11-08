@@ -11,11 +11,13 @@ import type {
 } from "@earendil-works/pi-ai";
 import { AssistantMessageEventStream } from "@earendil-works/pi-ai/utils/event-stream";
 import { codexComputeResidency } from "./pi-oauth.js";
+import type { ModelStreamTimeoutConfig } from "./pi-runtime-limits.js";
 import {
   MODEL_STREAM_IDLE_TIMEOUT_MS,
-  MODEL_STREAM_TIMEOUT_MS,
   modelStreamMaxRetries,
   resolveCompletionMaxTokens,
+  resolveModelStreamIdleTimeoutMs,
+  resolveModelStreamTimeoutMs,
 } from "./pi-runtime-limits.js";
 import { fetchPairedWithDispatcher } from "./undici-fetch.js";
 
@@ -60,7 +62,11 @@ export function modelStreamIdleWatchdog(
   let disposed = false;
   let timer: ReturnType<typeof setTimeout> | undefined;
 
-  const onUpstreamAbort = () => controller.abort(upstream?.reason);
+  const onUpstreamAbort = () => {
+    if (timer !== undefined) clearTimeout(timer);
+    timer = undefined;
+    controller.abort(upstream?.reason);
+  };
   if (upstream?.aborted) controller.abort(upstream.reason);
   else upstream?.addEventListener("abort", onUpstreamAbort, { once: true });
 
@@ -213,8 +219,10 @@ export function reliableModelStream(
   accessToken?: string | (() => string | undefined),
   runStream?: (options: ModelsSimpleStreamOptions) => AssistantMessageEventStream,
   cacheRetention?: ModelsSimpleStreamOptions["cacheRetention"],
+  timeoutConfig?: ModelStreamTimeoutConfig,
 ): AssistantMessageEventStream {
-  const watchdog = modelStreamIdleWatchdog(options?.signal);
+  const idleTimeoutMs = resolveModelStreamIdleTimeoutMs(timeoutConfig);
+  const watchdog = modelStreamIdleWatchdog(options?.signal, idleTimeoutMs);
   try {
     const preparedOptions = reliableStreamOptions(
       model,
@@ -223,7 +231,7 @@ export function reliableModelStream(
         signal: watchdog.signal,
         fetch: APIS_WITHOUT_CUSTOM_FETCH.has(model.api)
           ? options?.fetch
-          : modelRequestFetch(options?.fetch, MODEL_STREAM_IDLE_TIMEOUT_MS),
+          : modelRequestFetch(options?.fetch, idleTimeoutMs),
         // Only a 2xx arms the shared watchdog. Error bodies are bounded by
         // the fetch wrapper where supported; caller hooks still see every status.
         onResponse: (response, requestModel) => {
@@ -234,6 +242,7 @@ export function reliableModelStream(
       configuredMaxTokens,
       accessToken,
       cacheRetention,
+      timeoutConfig,
     );
     const stream = runStream
       ? runStream(preparedOptions)
@@ -259,11 +268,12 @@ export function reliableStreamOptions(
   configuredMaxTokens?: number,
   accessToken?: string | (() => string | undefined),
   cacheRetention?: ModelsSimpleStreamOptions["cacheRetention"],
+  timeoutConfig?: ModelStreamTimeoutConfig,
 ): ModelsSimpleStreamOptions {
   let next: ModelsSimpleStreamOptions = {
     ...options,
     ...(cacheRetention ? { cacheRetention } : {}),
-    timeoutMs: options?.timeoutMs ?? MODEL_STREAM_TIMEOUT_MS,
+    timeoutMs: resolveModelStreamTimeoutMs(timeoutConfig, options?.timeoutMs),
     maxRetries: options?.maxRetries ?? modelStreamMaxRetries(),
     maxTokens: resolveCompletionMaxTokens(
       model.maxTokens,

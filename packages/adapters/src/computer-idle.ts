@@ -28,9 +28,10 @@ import { getLogger } from "@rakazo/logging";
 import { activeCodingAgent } from "./coding-agent-activity.js";
 import { expireComputerControl, hasActiveComputerControl } from "./computer-control.js";
 import { screenLeaseIdForRun, toComputerRef } from "./computer-lifecycle.js";
-import { checkpointComputerWorkspace } from "./computer-workspace.js";
+import { checkpointComputerWorkspace, deletedTeamBotFolders } from "./computer-workspace.js";
 import { HomeSaveConflictError } from "./home-object-store.js";
 import { sandboxAllowanceUsedUp } from "./sandbox-allowance.js";
+import { isNativeCodexCleanupFailedError } from "./host-computer-errors.js";
 import { isSandboxDamagedError, isSandboxGoneError } from "./sandbox-errors.js";
 
 export const DEFAULT_SANDBOX_IDLE_MS = 10 * 60 * 1000;
@@ -233,7 +234,10 @@ export async function cancelComputerRunWork(
       await sandbox.cancelRunWork(computer, computerId, runId, context);
       return;
     }
-    if (computer.kind === "desktop") return;
+    if (computer.kind === "desktop") {
+      if (context.requireRunCleanup) throw new Error("Run cleanup is unavailable");
+      return;
+    }
 
     for await (const _event of sandbox.execute(
       computer,
@@ -242,7 +246,8 @@ export async function cancelComputerRunWork(
     )) {
       // Drain so providers can finish the exec session.
     }
-  } catch {
+  } catch (error) {
+    if (context.requireRunCleanup || isNativeCodexCleanupFailedError(error)) throw error;
     // Best effort after the run is already cancelled.
   }
 }

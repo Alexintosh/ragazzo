@@ -3,6 +3,24 @@ import { describe, expect, it, vi } from "vitest";
 import { withRuntimeCleanup } from "./runtime-stream.js";
 
 describe("executor runtime cleanup", () => {
+  it("keeps a native approval alive only after its pause was persisted", async () => {
+    const controller = new AbortController();
+    let persisted = false;
+    let closed = false;
+    async function* native(): AsyncIterable<AgentRuntimeEvent> {
+      try {
+        yield { type: "ask", text: "Approve?" };
+      } finally {
+        closed = true;
+      }
+    }
+    for await (const _event of withRuntimeCleanup(native(), controller, () => persisted)) {
+      persisted = true;
+      break;
+    }
+    expect(controller.signal.aborted).toBe(false);
+    expect(closed).toBe(true);
+  });
   it.each(["cancelled", "lease lost", "pause", "consumer error"])(
     "settles runtime and tool work before ownership cleanup on %s",
     async (reason) => {

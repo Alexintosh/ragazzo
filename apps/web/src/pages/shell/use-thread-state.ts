@@ -9,6 +9,7 @@ import {
 export type PinnedAround = {
   botId?: string;
   groupId?: string;
+  taskId?: string;
   messageId: string;
   threadId: string;
   messages: ThreadMessage[];

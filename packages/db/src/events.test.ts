@@ -7,6 +7,7 @@ import {
 } from "@rakazo/core";
 import { describe, expect, it, vi } from "vitest";
 import type { PrismaClient } from "./client.js";
+import { Prisma } from "./client.js";
 import { CrossSpaceCommunicationBlockedError } from "./cross-space-communication.js";
 import type { AnswerRunInput } from "./events.js";
 import {
@@ -3443,8 +3444,14 @@ describe("queue admission beside pending cards", () => {
   it("creates a pending steering continuation without attaching it to a paused run", async () => {
     const tx = {
       run: {
-        findFirst: vi.fn(async ({ where }: { where: { status: { in: string[] } } }) =>
-          where.status.in.includes("waiting_input") ? { id: "paused" } : null,
+        findFirst: vi.fn(async ({ where }: { where: { status: string | { in: string[] } } }) =>
+          (
+            typeof where.status === "string"
+              ? where.status === "waiting_input"
+              : where.status.in.includes("waiting_input")
+          )
+            ? { id: "paused" }
+            : null,
         ),
         create: vi.fn().mockResolvedValue({ id: "continuation" }),
       },
@@ -3468,6 +3475,11 @@ describe("queue admission beside pending cards", () => {
         botId: "bot-1",
       }),
     ).resolves.toBe("continuation");
+    expect(tx.steeringMessage.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ deliveryMode: { not: "queue" } }),
+      }),
+    );
     expect(tx.steeringMessage.updateMany).toHaveBeenCalledWith({
       where: { id: { in: ["steering-1"] }, runId: null },
       data: { runId: "continuation", claimedAt: null },
@@ -4494,8 +4506,16 @@ describe("clearThread", () => {
       $transaction: vi.fn(async (callback: (client: typeof tx) => unknown) => callback(tx)),
     } as unknown as PrismaClient;
 
+    const beforeCancel = vi.fn(async () => {
+      expect(tx.thread.update).toHaveBeenCalled();
+      expect(tx.externalEffect.deleteMany).not.toHaveBeenCalled();
+    });
     await expect(
-      clearThread(prisma, { spaceId: "workspace-1", threadId: "thread-1", botId: "bot-1" }, fanout),
+      clearThread(
+        prisma,
+        { spaceId: "workspace-1", threadId: "thread-1", botId: "bot-1", beforeCancel },
+        fanout,
+      ),
     ).resolves.toMatchObject({
       event: { type: "thread.cleared" },
       cancelledRunIds: ["run-1"],
@@ -4521,6 +4541,7 @@ describe("clearThread", () => {
       data: {
         historyCompactedUpToSeq: 41,
         historyCompactionSummary: null,
+        roleplayState: Prisma.DbNull,
         historyCompactionGeneration: { increment: 1 },
       },
     });
@@ -5168,4 +5189,90 @@ it("checks cross-space peer permission inside the message transaction before cre
   ).rejects.toBeInstanceOf(CrossSpaceCommunicationBlockedError);
   expect(tx.task.create).not.toHaveBeenCalled();
   expect(tx.run.create).not.toHaveBeenCalled();
+});
+
+describe("native approval decisions", () => {
+  const input = {
+    spaceId: "workspace-1",
+    threadId: "thread-1",
+    runId: "run-1",
+    messageId: "message-1",
+    answeredByUserId: "user-1",
+    answer: "approve",
+  };
+  function fixture() {
+    const blocks = [
+      {
+        kind: "ask",
+        nativeApproval: true,
+        text: "Allow native command?",
+        status: "pending",
+        actions: [
+          { id: "approve", label: "Approve" },
+          { id: "reject", label: "Reject" },
+        ],
+      },
+    ];
+    const tx = {
+      $queryRaw: vi.fn(async () => [{ id: "thread-1" }]),
+      message: {
+        findFirst: vi.fn(async () => ({ id: "message-1", blocks })),
+        findMany: vi.fn(async () => [{ id: "message-1", blocks }]),
+        update: vi.fn(async () => ({ id: "message-1" })),
+      },
+      run: {
+        findFirst: vi.fn(async () => ({ botId: "bot-1", userId: "user-1", trigger: "user" })),
+        updateMany: vi.fn(async () => ({ count: 1 })),
+        findUnique: vi.fn(async () => ({
+          status: "queued",
+          createdAt: new Date(),
+          threadId: "thread-1",
+        })),
+      },
+      task: { updateMany: vi.fn() },
+      thread: { update: vi.fn(async () => ({ nextEventSeq: 10 })) },
+      event: {
+        create: vi.fn(async ({ data }) => ({ ...event(data.seq), type: data.type })),
+        findFirst: vi.fn(async () => null),
+      },
+    };
+    const prisma = { $transaction: vi.fn(async (fn) => fn(tx)) } as unknown as PrismaClient;
+    return { tx, prisma };
+  }
+  it("does not consume a command approval through the ordinary composer", async () => {
+    const { tx } = fixture();
+    expect(await answerWaitingRunWithTextInTransaction(tx as never, input)).toBeNull();
+    expect(tx.run.updateMany).not.toHaveBeenCalled();
+  });
+  it.each(["approve", "reject"])(
+    "resumes exact native decision %s without inventing an application effect",
+    async (answer) => {
+      const { tx, prisma } = fixture();
+      expect(await answerRunInput(prisma, { ...input, answer })).toBe(true);
+      expect(tx.run.updateMany).toHaveBeenCalledWith(
+        expect.objectContaining({ data: { status: "queued" } }),
+      );
+      expect(tx.task.updateMany).not.toHaveBeenCalled();
+      expect(tx.message.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: {
+            blocks: [expect.objectContaining({ nativeApproval: true, status: "answered", answer })],
+          },
+        }),
+      );
+    },
+  );
+  it.each(["one more thing", "approved", "always", "Approve"])(
+    "keeps an invalid native decision pending: %s",
+    async (answer) => {
+      const { tx, prisma } = fixture();
+      expect(await answerRunInput(prisma, { ...input, answer })).toBe(false);
+      expect(tx.run.updateMany).not.toHaveBeenCalled();
+    },
+  );
+  it("does not let another member approve native work", async () => {
+    const { tx, prisma } = fixture();
+    expect(await answerRunInput(prisma, { ...input, answeredByUserId: "other-user" })).toBe(false);
+    expect(tx.run.updateMany).not.toHaveBeenCalled();
+  });
 });

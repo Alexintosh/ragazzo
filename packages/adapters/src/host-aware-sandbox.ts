@@ -10,6 +10,7 @@ import type {
   ProcessEvent,
   SandboxProvider,
   ScreenRequest,
+  SecretStore,
   TerminalRequest,
   WorkspaceDirectoryRequest,
   WorkspaceExportLimits,
@@ -19,6 +20,7 @@ import { cancelComputerRunWork } from "./computer-idle.js";
 import { manageComputerWorkspaceDirectories } from "./computer-workspace.js";
 import { assertHostCommandsAllowed, DesktopSandboxProvider } from "./desktop-sandbox.js";
 import { HostComputerSandbox } from "./host-computer-sandbox.js";
+import { createHostComputerTransport } from "./registered-hosts.js";
 import type { SandboxProviderOptions } from "./sandbox-factory.js";
 import { createSandboxProvider } from "./sandbox-factory.js";
 
@@ -29,9 +31,17 @@ export function sandboxKindForBot(envKind: string, computerHost: string | null |
 
 export async function createRunSandbox(
   kind: string,
-  opts: SandboxProviderOptions & { prisma?: PrismaClient },
+  opts: SandboxProviderOptions & { prisma?: PrismaClient; secrets?: SecretStore },
 ): Promise<SandboxProvider> {
+  const host =
+    opts.prisma && opts.secrets
+      ? createHostComputerTransport({ ...opts, prisma: opts.prisma, secrets: opts.secrets })
+      : new HostComputerSandbox(opts.hostComputerUrl ?? "", opts.hostComputerToken ?? "");
   if (kind === "desktop") {
+    // A locally authorized bridge owns host execution in standalone deployments too.
+    // The API/worker never gain direct host access merely by selecting this provider.
+    if ((opts.prisma && opts.secrets) || (opts.hostComputerUrl && opts.hostComputerToken))
+      return host;
     assertHostCommandsAllowed();
     return new DesktopSandboxProvider({
       root: opts.dataDir,
@@ -61,20 +71,19 @@ export async function createRunSandbox(
         }
       : opts.onUnsafeStop,
   });
-  if (kind !== "docker" || !opts.prisma) return primary;
-  return new HostAwareSandbox(
-    primary,
-    new HostComputerSandbox(opts.hostComputerUrl ?? "", opts.hostComputerToken ?? ""),
-    async () => {
-      const settings = await opts.prisma!.deploymentSettings.findUnique({
-        where: { id: "default" },
-      });
-      return settings?.computerHost === "this-mac";
-    },
-  );
+  if (!opts.prisma) return primary;
+  return new HostAwareSandbox(primary, host, async () => {
+    const settings = await opts.prisma!.deploymentSettings.findUnique({
+      where: { id: "default" },
+    });
+    return settings?.computerHost === "this-mac";
+  });
 }
 
 export class HostAwareSandbox implements SandboxProvider {
+  get nativeWriteScopes() {
+    return this.host.nativeWriteScopes === true && this.isolated.describe().id !== "desktop";
+  }
   readonly pageBrowser?: SandboxProvider["pageBrowser"];
 
   constructor(
@@ -105,7 +114,11 @@ export class HostAwareSandbox implements SandboxProvider {
     return computer.kind === "desktop" ? this.host : this.isolated;
   }
 
-  async provisionKind() {
+  async provisionKind(placement?: { executionTarget?: "default" | "docker" | "host" }) {
+    // Explicit targets stay pinned; legacy default computers follow the deployment preference.
+    if (placement?.executionTarget === "host") return "desktop";
+    if (placement?.executionTarget === "docker")
+      return this.isolated.describe().id as ComputerRef["kind"];
     const provider = (await this.hostEnabled()) ? this.host : this.isolated;
     return provider.describe().id as ComputerRef["kind"];
   }
@@ -116,22 +129,35 @@ export class HostAwareSandbox implements SandboxProvider {
       homePath: string;
       providerRef?: string;
       providerKind?: ComputerRef["kind"];
+      executionTarget?: "default" | "docker" | "host";
+      registeredHostId?: string | null;
     },
     context: AdapterContext,
   ) {
-    const provider = (await this.hostEnabled()) ? this.host : this.isolated;
+    const kind = await this.provisionKind({
+      executionTarget: request.executionTarget,
+    });
+    const provider = kind === "desktop" ? this.host : this.isolated;
     const providerKind = provider.describe().id;
-    return provider.provision(
+    const provisioned = await provider.provision(
       {
         ...request,
         providerRef: request.providerKind === providerKind ? request.providerRef : undefined,
       },
       context,
     );
+    return {
+      ...provisioned,
+      executionTarget: request.executionTarget,
+      registeredHostId: request.registeredHostId,
+    };
   }
 
   async isRunning(computer: ComputerRef, context: AdapterContext): Promise<boolean> {
-    const provider = (await this.hostEnabled()) ? this.host : this.isolated;
+    const kind = await this.provisionKind({
+      executionTarget: computer.executionTarget,
+    });
+    const provider = kind === "desktop" ? this.host : this.isolated;
     if (provider.describe().id !== computer.kind) return false;
     return provider.isRunning?.(computer, context) ?? false;
   }
@@ -154,8 +180,15 @@ export class HostAwareSandbox implements SandboxProvider {
     request: CommandRequest,
     context: AdapterContext,
   ): AsyncIterable<ProcessEvent> {
-    if (computer.kind === "desktop" && !(await this.hostEnabled()))
+    // Explicit host placement is independent of the preference; local consent still lives
+    // on the authenticated host service. Legacy default computers follow that preference.
+    if (
+      computer.kind === "desktop" &&
+      computer.executionTarget !== "host" &&
+      !(await this.hostEnabled())
+    ) {
       throw new Error("Local computer access is disabled");
+    }
     yield* this.route(computer).execute(computer, request, context);
   }
 

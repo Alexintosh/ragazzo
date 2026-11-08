@@ -28,6 +28,7 @@ export async function meDto(deps: RouterDeps, actor: Actor): Promise<Me> {
         email: true,
         name: true,
         timezone: true,
+        roleplayEnabled: true,
         signupSurvey: { select: { userId: true } },
       },
     }),
@@ -68,6 +69,7 @@ export async function meDto(deps: RouterDeps, actor: Actor): Promise<Me> {
       }),
     avatarStyle: "organic",
     timezone: user.timezone ?? null,
+    roleplayEnabled: user.roleplayEnabled === true,
     billingEnabled: Boolean(deps.billing),
     // Only billing deployments ask; self-hosted installs never see the survey.
     needsSignupSurvey: Boolean(deps.billing) && !user.signupSurvey,
@@ -123,10 +125,11 @@ export async function modelSetup(deps: RouterDeps, actor: Actor) {
 export async function botsRunOwnModels(deps: RouterDeps, actor: Actor, botIds: string[]) {
   const bots = await deps.prisma.bot.findMany({
     where: { id: { in: botIds }, userId: actor.userId, spaceId: actor.spaceId },
-    select: { modelProvider: true, modelId: true, thinkingLevel: true },
+    select: { modelProvider: true, modelId: true, thinkingLevel: true, runtimeKind: true },
   });
   const credentials = await Promise.all(
     bots.map(async (bot) => {
+      if (["codex", "claude", "acp"].includes(bot.runtimeKind ?? "pi")) return true;
       const overrideCredential = bot.modelProvider
         ? await findConnectedModelCredential(
             deps.prisma,

@@ -12,6 +12,7 @@ import {
   isOneShotRoutineCrons,
   nextRoutineRunDateAcross,
 } from "@rakazo/core";
+import { isRoleplayEnabled } from "@rakazo/db";
 import { getLogger } from "@rakazo/logging";
 import { sanitizedError } from "@rakazo/logging/monitoring";
 import { protectedComputerLifecycleRefusal } from "./desktop-command-guard.js";
@@ -141,6 +142,22 @@ export async function wakeRoutine(deps: ExecutorDeps, routineId: string, schedul
     return;
   }
   if (!bot?.thread) return;
+  // Keep the timer intact while disabled so re-enabling resumes the existing routine.
+  if (bot.botKind === "roleplay" && !(await isRoleplayEnabled(deps.prisma, routine.userId))) return;
+  // Roleplay schedules share the durable timer, never operational watch/skill capabilities.
+  if (
+    bot.botKind === "roleplay" &&
+    (routine.watch != null ||
+      routine.webhookEnabled ||
+      routine.githubEnabled ||
+      routine.messageProvider)
+  ) {
+    await deps.prisma.routine.updateMany({
+      where: { id: routine.id, active: true },
+      data: { active: false, nextRunAt: null },
+    });
+    return;
+  }
   const targetThread = routine.threadId
     ? await deps.prisma.thread.findFirst({
         where: {
@@ -185,10 +202,13 @@ export async function wakeRoutine(deps: ExecutorDeps, routineId: string, schedul
           new Date(Date.now()),
           routine.timezone,
         );
-  const skillRecords = await listAgentSkillRecords(deps.prisma, {
-    spaceId: routine.spaceId,
-    userId: routine.userId,
-  });
+  const skillRecords =
+    bot.botKind === "roleplay"
+      ? []
+      : await listAgentSkillRecords(deps.prisma, {
+          spaceId: routine.spaceId,
+          userId: routine.userId,
+        });
   const routinePrompt =
     expandSkillReferencesInPrompt(routine.prompt, skillRecords) +
     (watchTick?.run ? watchTick.note : "");

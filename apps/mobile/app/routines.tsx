@@ -4,6 +4,7 @@ import { useState } from "react";
 import { ActivityIndicator, Alert, StyleSheet, Text, View } from "react-native";
 import { NativeActionButton } from "../components/native-action-button";
 import { RoutineList } from "../components/routine-list";
+import { SettingsGroup, SettingsRow } from "../components/settings-group";
 import { useI18n } from "../lib/i18n";
 import { native, useThemedStyles } from "../lib/native";
 import { deviceTimeZone } from "../lib/routine";
@@ -52,23 +53,32 @@ export default function Routines() {
 
   if (routines?.length) {
     return (
-      <RoutineList
-        routines={routines}
-        timeZone={deviceTimeZone()}
-        canDelete={!deleting}
-        onOpen={(routine) =>
-          router.push({
-            pathname: "/routine",
-            params: { botId, botName: name, routineId: routine.id, origin: "profile" },
-          })
-        }
-        onToggle={(routine, active) =>
-          setRoutineActive(botId, routine, active, (cause) =>
-            Alert.alert(t("Could not update routine"), errorText(cause, t("Try again."))),
-          )
-        }
-        onDelete={confirmDelete}
-      />
+      <>
+        <SettingsGroup>
+          <SettingsRow
+            title={t("Routine calendar")}
+            chevron="right"
+            onPress={() => router.push({ pathname: "/routine-calendar", params: { botId } })}
+          />
+        </SettingsGroup>
+        <RoutineList
+          routines={routines}
+          timeZone={deviceTimeZone()}
+          canDelete={!deleting}
+          onOpen={(routine) =>
+            router.push({
+              pathname: "/routine",
+              params: { botId, botName: name, routineId: routine.id, origin: "profile" },
+            })
+          }
+          onToggle={(routine, active) =>
+            setRoutineActive(botId, routine, active, (cause) =>
+              Alert.alert(t("Could not update routine"), errorText(cause, t("Try again."))),
+            )
+          }
+          onDelete={confirmDelete}
+        />
+      </>
     );
   }
   return (

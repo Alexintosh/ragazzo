@@ -4,6 +4,7 @@ import type { AgentRuntimeEvent } from "@rakazo/adapter-kit";
 export async function* withRuntimeCleanup(
   events: AsyncIterable<AgentRuntimeEvent>,
   controller: AbortController,
+  preservePausedRuntime: () => boolean = () => false,
 ): AsyncIterable<AgentRuntimeEvent> {
   const iterator = events[Symbol.asyncIterator]();
   let complete = false;
@@ -20,7 +21,7 @@ export async function* withRuntimeCleanup(
     if (!complete) {
       // for-await's implicit return() would otherwise run before the executor's
       // finally, potentially waiting on a tool whose signal is still live.
-      controller.abort();
+      if (!preservePausedRuntime()) controller.abort();
       await iterator.return?.();
     }
   }

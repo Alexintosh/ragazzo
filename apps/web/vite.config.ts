@@ -29,6 +29,7 @@ import { resolveScreenProxySecret } from "../../packages/core/src/secrets-guard.
 import { createServiceLogger } from "../../packages/logging/src/env.ts";
 import { apiProxy } from "./src/api-proxy.js";
 import { ASSET_ARCHIVE_DIR, archiveAssets } from "./src/asset-archive.js";
+import { linguiMacroOptions } from "./src/lib/lingui-macro-options.ts";
 import { missingAssetMiddleware } from "./src/missing-asset.js";
 import {
   collectNovncHtml,
@@ -526,7 +527,7 @@ export default defineConfig(({ command, mode }) => {
         },
       },
       react(),
-      babel({ plugins: ["@lingui/babel-plugin-lingui-macro"] }),
+      babel({ plugins: [["@lingui/babel-plugin-lingui-macro", linguiMacroOptions]] }),
       lingui(),
       tailwindcss(),
       rakazoPwa(buildId),

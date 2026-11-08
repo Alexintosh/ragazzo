@@ -1,6 +1,7 @@
 import { timingSafeEqual } from "node:crypto";
 import { once } from "node:events";
 import { createServer } from "node:http";
+import type { HostBrowserManager } from "./host-browser.js";
 import { HOST_COMPUTER_MAX_BYTES } from "./host-computer-protocol.js";
 import { createHostComputerRunner } from "./host-computer-runner.js";
 
@@ -10,9 +11,12 @@ export async function startHostComputerServer(options: {
   token: string;
   port?: number;
   hostname?: string;
+  writeScopeRoot?: string;
+  browserManager?: HostBrowserManager;
 }) {
   if (!/^[a-f0-9]{64}$/.test(options.token)) throw new Error("Invalid local computer credential");
-  const runner = createHostComputerRunner({ root: options.root });
+  const runner = createHostComputerRunner(options);
+  await runner.ready;
   const secret = Buffer.from(`Bearer ${options.token}`);
   const server = createServer(async (request, response) => {
     const credential = Buffer.from(request.headers.authorization ?? "");
@@ -25,8 +29,8 @@ export async function startHostComputerServer(options: {
       response.writeHead(401).end();
       return;
     }
-    if (!runner.isEnabled()) {
-      response.writeHead(403).end();
+    if (request.url?.startsWith("/browser-screen/")) {
+      await runner.serveBrowser(request, response);
       return;
     }
     if (request.method !== "POST" || request.url !== "/computer") {
@@ -101,9 +105,12 @@ export async function startHostComputerServer(options: {
     isEnabled: runner.isEnabled,
     setEnabled: runner.setEnabled,
     async close() {
-      runner.close();
-      server.closeAllConnections();
-      await new Promise<void>((resolve) => server.close(() => resolve()));
+      try {
+        await runner.close();
+      } finally {
+        server.closeAllConnections();
+        await new Promise<void>((resolve) => server.close(() => resolve()));
+      }
     },
   };
 }

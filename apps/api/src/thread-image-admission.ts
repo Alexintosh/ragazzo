@@ -15,6 +15,7 @@ import {
   selectConfiguredModel,
 } from "@rakazo/adapters";
 import type { Actor, MessageBlock } from "@rakazo/contracts";
+import { NativeRuntimeCapabilities } from "@rakazo/contracts";
 import { MODEL_IMAGE_INPUT_ERROR, MODEL_IMAGE_INPUT_UNKNOWN } from "@rakazo/core";
 import type { PrismaClient } from "@rakazo/db";
 import { appliedModelRole, findModelCredential, findModelCredentialById } from "@rakazo/db";
@@ -47,9 +48,17 @@ export async function assertThreadImageInput(
   if (!blocks.some((block) => block.kind === "image")) return;
   const bot = await prisma.bot.findFirst({
     where: { id: botId, userId: actor.userId, spaceId: actor.spaceId },
-    select: { modelProvider: true, modelId: true, thinkingLevel: true },
+    select: { modelProvider: true, modelId: true, thinkingLevel: true, runtimeKind: true },
   });
   if (!bot) return;
+  if (bot.runtimeKind === "codex" || bot.runtimeKind === "claude" || bot.runtimeKind === "acp") {
+    if (!NativeRuntimeCapabilities[bot.runtimeKind].images)
+      throw new ORPCError("CONFLICT", {
+        message: MODEL_IMAGE_INPUT_ERROR,
+        data: { reason: "model_image_input_unsupported" },
+      });
+    return;
+  }
   // A running turn has already selected its model, including any backup switch.
   const running = run?.status === "running" && run.modelProvider && run.modelId;
   const override = running ? run : run ? runModelChoice(run, bot) : bot;

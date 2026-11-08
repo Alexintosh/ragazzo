@@ -38,6 +38,7 @@ export function expoPushData(message: NotificationMessage, spaceId: string, deli
     deliveryId,
     ...(spaceId ? { spaceId } : {}),
     ...(message.groupId ? { groupId: message.groupId } : {}),
+    ...(message.taskId ? { taskId: message.taskId } : {}),
   };
 }
 

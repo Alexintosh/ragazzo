@@ -48,6 +48,7 @@ private data class RunRecord(
   val spaceId: String,
   val botId: String,
   val botName: String,
+  val taskId: String?,
   val groupId: String?,
   val groupName: String?,
   val threadId: String,
@@ -278,6 +279,8 @@ class RakazoNotificationService : Service() {
         putString("rakazo.spaceId", run.spaceId)
         putString("rakazo.botId", run.botId)
         putString("rakazo.threadId", run.threadId)
+        run.taskId?.let { putString("rakazo.taskId", it) }
+        run.groupId?.let { putString("rakazo.groupId", it) }
       })
       .setAutoCancel(true)
       .setCategory(Notification.CATEGORY_MESSAGE)
@@ -355,7 +358,7 @@ class RakazoNotificationService : Service() {
   }
 
   private fun isOpenThread(run: RunRecord): Boolean = synchronized(sessionLock) {
-    if (openThreadId != null) openThreadId == run.threadId else openBotId == run.botId
+    if (openThreadId != null) openThreadId == run.threadId else run.taskId == null && run.groupId == null && openBotId == run.botId
   }
 
   @Suppress("DEPRECATION")
@@ -366,7 +369,9 @@ class RakazoNotificationService : Service() {
     val intent = if (run == null) {
       packageManager.getLaunchIntentForPackage(packageName) ?: Intent(Intent.ACTION_VIEW, Uri.parse("rakazo://"))
     } else {
-      val destination = if (run.groupId != null) {
+      val destination = if (run.taskId != null) {
+        "rakazo://task-conversation?taskId=${Uri.encode(run.taskId)}&spaceId=${Uri.encode(run.spaceId)}&threadId=${Uri.encode(run.threadId)}"
+      } else if (run.groupId != null) {
         "rakazo://group-thread?groupId=${Uri.encode(run.groupId)}&name=${Uri.encode(run.groupName.orEmpty())}&spaceId=${Uri.encode(run.spaceId)}&threadId=${Uri.encode(run.threadId)}"
       } else {
         "rakazo://thread?botId=${Uri.encode(run.botId)}&name=${Uri.encode(run.botName)}&spaceId=${Uri.encode(run.spaceId)}&threadId=${Uri.encode(run.threadId)}"
@@ -522,6 +527,7 @@ private fun runs(
       spaceId = spaceId,
       botId = row.requiredString("botId"),
       botName = row.requiredString("botName"),
+      taskId = row.optionalString("taskId"),
       groupId = row.optionalString("groupId"),
       groupName = row.optionalString("groupName"),
       threadId = row.requiredString("threadId"),
@@ -547,7 +553,9 @@ private fun latestReply(
   run: RunRecord,
 ): String? {
   val target = JSONObject().apply {
-    if (run.groupId != null) put("groupId", run.groupId) else put("botId", run.botId)
+    if (run.taskId != null) put("taskId", run.taskId)
+    else if (run.groupId != null) put("groupId", run.groupId)
+    else put("botId", run.botId)
   }
   val root = rpc(endpoint, token, spaceId, headers, "threads/get", target)
   val messages = root.optJSONArray("messages") ?: return ""

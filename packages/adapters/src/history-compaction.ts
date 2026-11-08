@@ -215,8 +215,10 @@ export interface CompactHistoryDeps {
 }
 
 export async function compactHistory(deps: CompactHistoryDeps, threadId: string): Promise<void> {
-  const thread = await deps.prisma.thread.findUniqueOrThrow({ where: { id: threadId } });
-  if (!thread.botId) return;
+  const owner = await deps.prisma.thread.findUniqueOrThrow({ where: { id: threadId } });
+  const botId = owner.botId ?? owner.taskBotId;
+  if (!botId) return;
+  const thread = { ...owner, botId };
   const previousCursor = thread.historyCompactedUpToSeq;
   const previousGeneration = thread.historyCompactionGeneration;
   const previousSummary = thread.historyCompactionSummary?.trim() || null;
@@ -235,6 +237,27 @@ export async function compactHistory(deps: CompactHistoryDeps, threadId: string)
     return;
   }
 
+  // An editable message cannot enter a durable summary. Capture the message boundary
+  // before checking pending input so an enqueue racing this job cannot slip into its batch.
+  // Claimed input is immutable; cancelled input is replaced below without losing its cursor.
+  const messageBoundary = thread.nextMessageSeq;
+  const pending = await deps.prisma.steeringMessage.findFirst({
+    where: {
+      botId: thread.botId,
+      claimedAt: null,
+      cancelledAt: null,
+      message: {
+        threadId,
+        seq: {
+          gt: needsLocalBootstrap ? NOTHING_COMPACTED : (previousCursor ?? NOTHING_COMPACTED),
+          lt: messageBoundary,
+        },
+      },
+    },
+    select: { id: true },
+  });
+  if (pending) return;
+
   let fromSeqExclusive = previousCursor ?? NOTHING_COMPACTED;
   let batch: Array<{ seq: number; role: string; blocks: unknown }> = [];
   let bootstrappingLocalSummary = false;
@@ -244,7 +267,7 @@ export async function compactHistory(deps: CompactHistoryDeps, threadId: string)
       return;
     }
     const bootstrapCandidates = await deps.prisma.message.findMany({
-      where: { threadId, seq: { lte: previousCursor } },
+      where: { threadId, seq: { lte: previousCursor, lt: messageBoundary } },
       orderBy: { seq: "desc" },
       take: LEGACY_HISTORY_WINDOW_SIZE + 1,
       select: { seq: true, role: true, blocks: true },
@@ -273,7 +296,7 @@ export async function compactHistory(deps: CompactHistoryDeps, threadId: string)
     const range = nextCompactionBatchRange(previousCursor, COMPACTION_BATCH_SIZE);
     fromSeqExclusive = range.fromSeqExclusive;
     batch = await deps.prisma.message.findMany({
-      where: { threadId, seq: { gt: range.fromSeqExclusive } },
+      where: { threadId, seq: { gt: range.fromSeqExclusive, lt: messageBoundary } },
       orderBy: { seq: "asc" },
       take: range.take,
       select: { seq: true, role: true, blocks: true },
@@ -285,8 +308,20 @@ export async function compactHistory(deps: CompactHistoryDeps, threadId: string)
   }
   if (batch.length === 0) return;
 
-  const transcriptParts = batch.map(
-    (message) => `${message.role}: ${blocksToAgentHistoryText(message.blocks as MessageBlock[])}`,
+  const cancelled = await deps.prisma.steeringMessage.findMany({
+    where: {
+      botId: thread.botId,
+      cancelledAt: { not: null },
+      message: { threadId, seq: { in: batch.map((message) => message.seq) } },
+    },
+    select: { message: { select: { seq: true } } },
+  });
+  const cancelledSequences = new Set(cancelled.map((entry) => entry.message.seq));
+
+  const transcriptParts = batch.map((message) =>
+    cancelledSequences.has(message.seq)
+      ? "system: [Queued message cancelled before delivery]"
+      : `${message.role}: ${blocksToAgentHistoryText(message.blocks as MessageBlock[])}`,
   );
   let transcript = transcriptParts.join("\n\n");
   if (transcript.length > MAX_TRANSCRIPT_CHARS) {
@@ -437,7 +472,9 @@ export async function compactHistory(deps: CompactHistoryDeps, threadId: string)
   // Saving only after the compare-and-set also prevents losing workers from creating duplicates.
   let semanticMemory: ConfiguredMemoryProvider | null = null;
   try {
-    semanticMemory = await deps.memoryProviders.resolve(thread.spaceId);
+    // Task summaries stay in their conversation. The optional semantic provider's
+    // history namespace is per bot and cannot safely separate task generations.
+    if (!thread.taskBotId) semanticMemory = await deps.memoryProviders.resolve(thread.spaceId);
   } catch (error) {
     getLogger().error("Failed to load semantic memory provider for history compaction", error);
   }

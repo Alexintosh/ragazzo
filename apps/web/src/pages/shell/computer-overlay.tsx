@@ -17,7 +17,7 @@ import { TeachRecordingChrome, TeachStopButton } from "../../components/teach/Te
 import { screenIframeSandbox } from "../../lib/computer-screen";
 import { computerTakeoverBlocked } from "../../lib/thread-events";
 import { ComputerReleaseActions } from "./computer-release-actions";
-import { computerLabel, DesktopKindEmptyState } from "./computer-view";
+import { computerLabel } from "./computer-view";
 
 type ComputerOverlayProps = {
   bot: Bot;
@@ -170,6 +170,9 @@ export function ComputerOverlay({
                 }}
               />
             ) : null}
+            <Button variant="ghost" size="sm" onClick={onClose}>
+              <Trans>Conversation</Trans>
+            </Button>
             <Button
               variant="ghost"
               size="icon-sm"
@@ -190,9 +193,7 @@ export function ComputerOverlay({
           </div>
         ) : null}
         <div className="relative min-h-0 flex-1 bg-background">
-          {computer?.kind === "desktop" ? (
-            <DesktopKindEmptyState className="grid h-full place-items-center px-8 text-center text-sm text-muted-foreground/80" />
-          ) : computer?.state === "running" && embeddedScreenUrl && !computerScreenError ? (
+          {computer?.state === "running" && embeddedScreenUrl && !computerScreenError ? (
             <>
               <iframe
                 key={screenFrameKey}

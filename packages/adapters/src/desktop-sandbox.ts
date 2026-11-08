@@ -124,14 +124,8 @@ export class DesktopSandboxProvider implements SandboxProvider {
     }
   }
 
-  cancelAllCommands() {
-    for (const tree of this.processTrees.keys()) {
-      tree.kill();
-      tree.close();
-    }
-    this.processTrees.clear();
-    clearInterval(this.processSweep);
-    this.processSweep = undefined;
+  async cancelAllCommands() {
+    await this.stopProcesses([...this.processTrees.keys()]);
   }
 
   async cancelRunWork(
@@ -142,17 +136,32 @@ export class DesktopSandboxProvider implements SandboxProvider {
   ) {
     const box = this.boxFor(computer);
     if (!box) return;
-    this.cancelOwnedProcesses(box.home, runId);
+    await this.cancelOwnedProcesses(box.home, runId);
   }
 
-  private cancelOwnedProcesses(home: string, runId?: string) {
+  private async cancelOwnedProcesses(home: string, runId?: string) {
+    const owned: NativeProcessTree[] = [];
     for (const [tree, owner] of this.processTrees) {
-      if (owner.home === home && (runId === undefined || owner.runId === runId)) {
-        tree.kill();
+      if (owner.home === home && (runId === undefined || owner.runId === runId)) owned.push(tree);
+    }
+    await this.stopProcesses(owned);
+  }
+
+  private async stopProcesses(trees: NativeProcessTree[]) {
+    for (const tree of trees) tree.kill();
+    await Promise.all(
+      trees.map(async (tree) => {
+        const deadline = Date.now() + 3000;
+        // A successful signal/TerminateJobObject call does not prove exit. Keep
+        // ownership (and the caller's durable journal) until the tree is dead.
+        while (tree.alive()) {
+          if (Date.now() >= deadline) throw new Error("Local computer command cleanup uncertain");
+          await new Promise<void>((resolve) => setTimeout(resolve, 10));
+        }
         tree.close();
         this.processTrees.delete(tree);
-      }
-    }
+      }),
+    );
     this.sweepProcesses();
   }
 
@@ -436,7 +445,7 @@ export class DesktopSandboxProvider implements SandboxProvider {
   async stop(computer: ComputerRef, _context: AdapterContext): Promise<void> {
     const box = this.boxFor(computer);
     if (box) {
-      this.cancelOwnedProcesses(box.home);
+      await this.cancelOwnedProcesses(box.home);
       await markStopped(box.home);
     }
   }
@@ -444,7 +453,7 @@ export class DesktopSandboxProvider implements SandboxProvider {
   async destroy(computer: ComputerRef, _context: AdapterContext): Promise<void> {
     const box = this.boxFor(computer);
     if (box) {
-      this.cancelOwnedProcesses(box.home);
+      await this.cancelOwnedProcesses(box.home);
       this.boxes.delete(box.ref.id);
     }
     this.boxes.delete(computer.id);
@@ -599,8 +608,17 @@ async function localWorkspaceTarget(home: string, relative: string, mustExist: b
   return resolved;
 }
 
-async function openContainedWorkspaceFile(home: string, target: string, mode: number) {
+export async function openContainedWorkspaceFile(
+  home: string,
+  target: string,
+  mode: number,
+  createOnly = false,
+  expectedCanonicalHome?: string,
+) {
   const resolvedHome = await realpath(home);
+  if (createOnly && resolvedHome !== (expectedCanonicalHome ?? path.resolve(home))) {
+    throw new Error("Path escapes the computer workspace");
+  }
   const parentPath = path.dirname(target);
   const name = path.basename(target);
   if (!name || name === "." || name === "..") {
@@ -633,7 +651,10 @@ async function openContainedWorkspaceFile(home: string, target: string, mode: nu
       // Open/create relative to the held parent HANDLE so a junction swap of the
       // parent pathname cannot redirect the write (true openat-style on Windows).
       try {
-        handle = openExistingChildViaDirectoryFdWin32(parentHandle.fd, name);
+        handle = createOnly
+          ? createExclusiveChildViaDirectoryFdWin32(parentHandle.fd, name)
+          : openExistingChildViaDirectoryFdWin32(parentHandle.fd, name);
+        if (createOnly) created = true;
       } catch (error) {
         if (!hasErrorCode(error, "ENOENT")) throw error;
         handle = createExclusiveChildViaDirectoryFdWin32(parentHandle.fd, name);
@@ -652,7 +673,12 @@ async function openContainedWorkspaceFile(home: string, target: string, mode: nu
 
       try {
         // Opening without O_TRUNC makes following a Windows reparse point non-destructive.
-        handle = await open(openedPath, constants.O_WRONLY | O_NOFOLLOW);
+        handle = await open(
+          openedPath,
+          constants.O_WRONLY | (createOnly ? constants.O_CREAT | constants.O_EXCL : 0) | O_NOFOLLOW,
+          mode,
+        );
+        if (createOnly) created = true;
       } catch (error) {
         if (!hasErrorCode(error, "ENOENT")) throw error;
         handle = await open(

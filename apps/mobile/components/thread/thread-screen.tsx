@@ -189,7 +189,15 @@ export function Thread({ sessionEpoch, userId }: { sessionEpoch: number; userId:
     },
     [onCatalogMentionRequested, farmingMentions.onMentionRequested],
   );
-  const attachments = useThreadAttachments({ botId, groupId, readOnly, uploadConfig });
+  const attachmentsEnabled =
+    !botId || mentionBots.find((bot) => bot.id === botId)?.botKind !== "roleplay";
+  const attachments = useThreadAttachments({
+    botId,
+    groupId,
+    readOnly,
+    uploadConfig,
+    attachmentsEnabled,
+  });
   const draftScope = useMemo(
     () => composerDraftScope(userId, botId, groupId),
     [userId, botId, groupId],
@@ -320,6 +328,8 @@ export function Thread({ sessionEpoch, userId }: { sessionEpoch: number; userId:
     groupId,
     inGroup,
     readOnly,
+    roleplay: currentBot?.botKind === "roleplay",
+    storyRefreshKey: latestMessage?.id,
     displayName,
     titleBot,
     titleName,
@@ -524,6 +534,7 @@ export function Thread({ sessionEpoch, userId }: { sessionEpoch: number; userId:
       }))}
       atBottom={!scroll.state.detached}
       label={activityLine ?? t("Working…")}
+      botKind={inGroup ? undefined : currentBot?.botKind}
     />
   );
 
@@ -539,7 +550,13 @@ export function Thread({ sessionEpoch, userId }: { sessionEpoch: number; userId:
     <FailedSendBubble
       key={attempt.clientNonce}
       attempt={attempt}
-      needsModel={needsModel}
+      needsModel={
+        ["codex", "claude", "acp"].includes(
+          mentionBots.find((bot) => bot.id === botId)?.runtimeKind ?? "pi",
+        )
+          ? false
+          : needsModel
+      }
       onRetry={() => composer.retry(attempt)}
       onDelete={() => feedback.discard(attempt)}
       userBubble={userBubble}
@@ -620,8 +637,14 @@ export function Thread({ sessionEpoch, userId }: { sessionEpoch: number; userId:
             key={threadKey}
             ref={composer.composerRef}
             draftScope={draftScope}
-            agentSkills={agentSkills}
-            composerMentionTargets={composerMentionTargets}
+            agentSkills={currentBot?.botKind === "roleplay" ? [] : agentSkills}
+            composerMentionTargets={
+              currentBot?.botKind === "roleplay"
+                ? composerMentionTargets.filter(
+                    (target) => target.kind !== "connector" && target.kind !== "routine",
+                  )
+                : composerMentionTargets
+            }
             onMentionRequested={onMentionRequested}
             allowFarmingMentions={farmingMentions.allowFarmingMentions}
             farmingMentionState={farmingMentions.farmingMentionState}
@@ -634,11 +657,12 @@ export function Thread({ sessionEpoch, userId }: { sessionEpoch: number; userId:
             working={working}
             sending={composer.sending || attachments.shareImporting}
             styles={styles}
+            attachmentsEnabled={attachmentsEnabled}
             attachActions={attachments.attachActions}
             attachFrom={attachments.attachFrom}
             send={composer.send}
             stop={composer.stop}
-            startVoiceCall={startVoiceCall}
+            startVoiceCall={currentBot?.botKind === "roleplay" ? undefined : startVoiceCall}
             onSlashAction={composer.runSlashAction}
           />
         </ThreadComposerDock>

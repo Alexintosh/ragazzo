@@ -55,7 +55,6 @@ import { mobileTokens, resolveMobileAppearance } from "../lib/appearance";
 import { AvatarViewportScope, createAvatarViewport } from "../lib/avatar-life";
 import { isPaywallShown } from "../lib/billing";
 import type { CreateAction } from "../lib/create-chooser";
-import { createInboxBot } from "../lib/create-inbox-bot";
 import { useHeaderHeightIfAny } from "../lib/floating-header";
 import { useForegroundPoll } from "../lib/foreground-poll";
 import { t, useI18n } from "../lib/i18n";
@@ -174,7 +173,6 @@ function Home({ embedded, onSelectSpace, onShareSelect }: InboxPaneProps & { emb
   const activityRequestId = useRef(0);
   const inboxRequestId = useRef(0);
   const inboxLoaded = useRef(false);
-  const creatingBotRef = useRef(false);
   const spaceActionRef = useRef<{ busy: boolean; recoveryId: string | null }>({
     busy: false,
     recoveryId: null,
@@ -648,27 +646,14 @@ function Home({ embedded, onSelectSpace, onShareSelect }: InboxPaneProps & { emb
     [deleteInboxSpace, t],
   );
 
-  const createQuickBot = useCallback(async () => {
-    if (creatingBotRef.current || spaceActionRef.current.busy || spaceActionRef.current.recoveryId)
-      return;
-    creatingBotRef.current = true;
-    try {
-      await createInboxBot({ refreshBots, openChat });
-    } catch (err) {
-      setError(errorText(err, t("Could not create bot")));
-    } finally {
-      creatingBotRef.current = false;
-    }
-  }, [openChat, refreshBots, t]);
-
   const runCreateAction = useCallback(
     (action: CreateAction) => {
       if (spaceActionRef.current.busy || spaceActionRef.current.recoveryId) return;
-      if (action === "bot") void createQuickBot();
+      if (action === "bot") router.push("/new-bot");
       else if (action === "group") router.push("/new-group");
       else router.push("/new-space");
     },
-    [createQuickBot, router],
+    [router],
   );
 
   useHomeHeader({

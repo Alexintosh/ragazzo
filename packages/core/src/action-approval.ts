@@ -619,8 +619,15 @@ export function isSecretAskBlock(block: {
 export function isApprovalAskBlock(block: {
   kind: string;
   approvalEffectId?: string;
+  nativeApproval?: boolean;
   actions?: Array<{ id: string; label: string }>;
 }): boolean {
+  if (block.kind === "ask" && block.nativeApproval && !block.approvalEffectId)
+    return (
+      block.actions?.length === 2 &&
+      block.actions.some((action) => action.id === "approve") &&
+      block.actions.some((action) => action.id === "reject")
+    );
   if (block.kind !== "ask" || !block.approvalEffectId || !block.actions?.length) return false;
   const actionIds = new Set(block.actions.map((action) => action.id));
   return (

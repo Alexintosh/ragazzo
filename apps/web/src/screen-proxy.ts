@@ -136,12 +136,13 @@ function isHttp2PseudoHeader(key: string) {
 
 /**
  * Headers for the provider request. The provider's own credentials replace the browser's, and the
- * browser's Origin becomes the provider's: Boat refuses cross-origin WebSockets, and this proxy has
- * already authorized the request with the sealed capability.
+ * browser's Origin becomes the provider's for WebSockets (including Boat). Host browser requests
+ * omit Origin because the host accepts only authenticated server requests.
  */
 export function safeProxyHeaders(
   headers: IncomingHttpHeaders,
-  target?: Pick<ScreenProxyTarget, "protocol" | "hostname" | "port" | "headers">,
+  target?: Pick<ScreenProxyTarget, "protocol" | "hostname" | "port" | "headers"> &
+    Partial<Pick<ScreenProxyTarget, "path">>,
 ) {
   const forwarded: IncomingHttpHeaders = Object.fromEntries(
     Object.entries(headers).filter(([key, value]) => {
@@ -152,7 +153,15 @@ export function safeProxyHeaders(
       );
     }),
   );
-  if (target && forwarded.origin) forwarded.origin = screenTargetOrigin(target);
+  if (target && forwarded.origin) {
+    // The authenticated host bridge accepts only server requests, without a browser Origin.
+    // Other providers still require their own Origin for WebSocket handshakes.
+    if (
+      /^\/browser-screen\/[a-f0-9]{64}\/(?:embed\.html|frame|input)(?:\?|$)/.test(target.path ?? "")
+    )
+      delete forwarded.origin;
+    else forwarded.origin = screenTargetOrigin(target);
+  }
   return { ...forwarded, ...target?.headers };
 }
 

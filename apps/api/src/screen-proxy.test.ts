@@ -29,6 +29,9 @@ function fixture(
     controlLeaseId: "lease",
     controlBotId: "bot",
     controlLeaseExpiresAt: new Date(Date.now() + 60_000),
+    registeredHostId: null as string | null,
+    spaceId: "space",
+    userId: "owner",
   };
   const bot = {
     id: "bot",
@@ -43,7 +46,12 @@ function fixture(
       : null,
   );
   const app = new Hono();
-  mountScreenTarget(app, { bot: { findFirst } } as unknown as PrismaClient, secret);
+  const hostCount = vi.fn(async () => 1);
+  mountScreenTarget(
+    app,
+    { bot: { findFirst }, registeredHost: { count: hostCount } } as unknown as PrismaClient,
+    secret,
+  );
   const url = addScreenProxyCapability(
     upstream,
     secret,
@@ -59,10 +67,22 @@ function fixture(
       headers: { authorization: `Bearer ${credential}`, "content-type": "application/json" },
       body: JSON.stringify({ path: value }),
     });
-  return { bot, computer, findFirst, path, request };
+  return { bot, computer, findFirst, path, request, hostCount };
 }
 
 describe("screen capability lifecycle authorization", () => {
+  it("rejects old view and control capabilities when their registered host is revoked", async () => {
+    for (const interactive of [false, true]) {
+      const f = fixture(interactive);
+      f.computer.registeredHostId = "registered";
+      expect((await f.request()).status).toBe(200);
+      expect(f.hostCount).toHaveBeenCalledWith({
+        where: { id: "registered", spaceId: "space", userId: "owner", revokedAt: null },
+      });
+      f.hostCount.mockResolvedValue(0);
+      expect((await f.request()).status).toBe(403);
+    }
+  });
   it("returns sealed provider headers only after lifecycle authorization", async () => {
     const headers = { cookie: "provider_auth=fake-private-token" };
     const { request, path, computer } = fixture(false, undefined, headers);

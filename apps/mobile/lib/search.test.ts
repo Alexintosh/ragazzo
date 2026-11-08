@@ -70,3 +70,29 @@ describe("mobileSearchDestination", () => {
     });
   });
 });
+
+it("opens task search matches in the task conversation with the original message jump", () => {
+  expect(
+    mobileSearchDestination({
+      kind: "message",
+      botId: "bot-1",
+      taskId: "task-1",
+      title: "Task match",
+      snippet: "match",
+      messageId: "message-1",
+    }),
+  ).toEqual({
+    pathname: "/task-conversation",
+    params: { taskId: "task-1", messageId: "message-1" },
+  });
+  expect(
+    mobileSearchDestination({
+      kind: "conversation",
+      botId: "bot-1",
+      taskId: "task-1",
+      title: "Task",
+      snippet: "match",
+      messageId: "old-message",
+    }),
+  ).toEqual({ pathname: "/task-conversation", params: { taskId: "task-1" } });
+});

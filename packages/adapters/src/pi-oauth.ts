@@ -16,6 +16,7 @@ import type {
   ModelContextLimits,
   ModelOAuthBegin,
   ModelOAuthSignInMode,
+  ModelTimeouts,
   SettingsScope,
   ThinkingLevel,
 } from "@rakazo/contracts";
@@ -26,6 +27,7 @@ import {
   ModelApiProtocolSchema,
   ModelContextLimitsSchema,
   parseModelHeaders,
+  parseModelTimeoutMs,
   ThinkingLevelSchema,
 } from "@rakazo/contracts";
 import type { PrismaClient } from "@rakazo/db";
@@ -276,7 +278,7 @@ function modelLimits(value: Record<string, unknown>): StoredModelLimits {
   };
 }
 
-export type StoredModelSecret =
+export type StoredModelSecret = (
   | ({
       kind: "api_key";
       key: string;
@@ -299,7 +301,19 @@ export type StoredModelSecret =
       visionModelIds?: string[];
       enabledModelIds?: string[];
       maxImagesPerPrompt?: number;
-    } & StoredModelLimits);
+    } & StoredModelLimits)
+) &
+  ModelTimeouts;
+
+/** Read only valid connection timeouts from encrypted settings. */
+export function modelTimeouts(value: ModelTimeouts | Record<string, unknown>): ModelTimeouts {
+  const streamTimeoutMs = parseModelTimeoutMs(value.streamTimeoutMs);
+  const streamIdleTimeoutMs = parseModelTimeoutMs(value.streamIdleTimeoutMs);
+  return {
+    ...(streamTimeoutMs !== undefined ? { streamTimeoutMs } : {}),
+    ...(streamIdleTimeoutMs !== undefined ? { streamIdleTimeoutMs } : {}),
+  };
+}
 
 export type PiOAuthConnected = {
   status: "connected";
@@ -495,6 +509,7 @@ export function parseModelSecret(plaintext: string): StoredModelSecret {
       ...(enabledModelIds ? { enabledModelIds } : {}),
       ...(maxImagesPerPrompt !== undefined ? { maxImagesPerPrompt } : {}),
       ...modelLimits(parsed),
+      ...modelTimeouts(parsed),
     };
   }
   if (parsed.kind === "api_key") {
@@ -511,6 +526,7 @@ export function parseModelSecret(plaintext: string): StoredModelSecret {
       ...(accountId ? { accountId } : {}),
       ...(gatewayId ? { gatewayId } : {}),
       ...modelLimits(parsed),
+      ...modelTimeouts(parsed),
     };
   }
   if (parsed.kind === "oauth") {
@@ -519,6 +535,7 @@ export function parseModelSecret(plaintext: string): StoredModelSecret {
       return {
         kind: "oauth",
         reconnectRequired: true,
+        ...modelTimeouts(parsed),
         ...(maxTokens !== undefined ? { maxTokens } : {}),
       };
     }
@@ -527,6 +544,7 @@ export function parseModelSecret(plaintext: string): StoredModelSecret {
     return {
       kind: "oauth",
       credential,
+      ...modelTimeouts(parsed),
       ...(maxTokens !== undefined ? { maxTokens } : {}),
     };
   }
@@ -542,16 +560,20 @@ export function parseModelSecret(plaintext: string): StoredModelSecret {
 export function serializeModelSecret(secret: StoredModelSecret): string {
   if (secret.kind === "oauth") {
     if (secret.reconnectRequired) return JSON.stringify(secret);
-    if (secret.maxTokens === undefined) return JSON.stringify(secret.credential);
+    if (secret.maxTokens === undefined && Object.keys(modelTimeouts(secret)).length === 0) {
+      return JSON.stringify(secret.credential);
+    }
     return JSON.stringify({
       kind: "oauth",
       credential: secret.credential,
       maxTokens: secret.maxTokens,
+      ...modelTimeouts(secret),
     });
   }
   if (secret.kind === "openai_compatible") {
     return JSON.stringify({
       kind: "openai_compatible",
+      ...modelTimeouts(secret),
       ...modelLimits(secret as unknown as Record<string, unknown>),
       baseUrl: secret.baseUrl,
       ...(secret.apiProtocol !== undefined
@@ -575,7 +597,8 @@ export function serializeModelSecret(secret: StoredModelSecret): string {
     secret.accountId === undefined &&
     secret.gatewayId === undefined &&
     secret.contextWindow === undefined &&
-    secret.cacheCapabilities === undefined
+    secret.cacheCapabilities === undefined &&
+    Object.keys(modelTimeouts(secret)).length === 0
   ) {
     return secret.key;
   }
@@ -586,6 +609,7 @@ export function serializeModelSecret(secret: StoredModelSecret): string {
     ...(secret.accountId ? { accountId: secret.accountId } : {}),
     ...(secret.gatewayId ? { gatewayId: secret.gatewayId } : {}),
     ...modelLimits(secret as unknown as Record<string, unknown>),
+    ...modelTimeouts(secret),
   });
 }
 
@@ -745,6 +769,7 @@ export async function resolveModelAuth(
       serializeModelSecret({
         kind: "oauth",
         credential,
+        ...modelTimeouts(parsed),
         ...(maxTokens !== undefined ? { maxTokens } : {}),
       }),
     );
@@ -757,6 +782,7 @@ export async function resolveModelAuth(
     secret: {
       kind: "oauth",
       credential,
+      ...modelTimeouts(parsed),
       ...(maxTokens !== undefined ? { maxTokens } : {}),
     },
     apiKey: auth.apiKey,
@@ -806,6 +832,7 @@ export function retireToReconnectMarker(
   scope: { userId: string; spaceId: string },
   credential: { id: string; secretId: string },
   maxTokens: number | undefined,
+  timeouts: ModelTimeouts = {},
 ) {
   return async (
     _reason: ModelCredentialRetireReason,
@@ -822,6 +849,7 @@ export function retireToReconnectMarker(
       serializeModelSecret({
         kind: "oauth",
         reconnectRequired: true,
+        ...modelTimeouts(timeouts),
         ...(maxTokens !== undefined ? { maxTokens } : {}),
       }),
       {

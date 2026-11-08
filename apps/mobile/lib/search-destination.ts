@@ -10,6 +10,7 @@ export function searchHitMessageId(hit: SearchHit): string | undefined {
 }
 
 export function mobileSearchDestination(hit: SearchHit):
+  | { pathname: "/task-conversation"; params: { taskId: string; messageId?: string } }
   | {
       pathname: "/routine";
       params: { botId: string; botName: string; routineId: string };
@@ -29,6 +30,11 @@ export function mobileSearchDestination(hit: SearchHit):
     };
   }
   const messageId = searchHitMessageId(hit);
+  if (hit.taskId)
+    return {
+      pathname: "/task-conversation",
+      params: { taskId: hit.taskId, ...(messageId ? { messageId } : {}) },
+    };
   if (hit.groupId) {
     return {
       pathname: "/group-thread",

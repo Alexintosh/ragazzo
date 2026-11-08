@@ -1,4 +1,4 @@
-import type { BotAvatarSet } from "@rakazo/contracts";
+import type { Bot, BotAvatarSet } from "@rakazo/contracts";
 import { splitPeerLabel } from "@rakazo/core";
 import type { GroupAvatarMember } from "@rakazo/ui-web";
 import { BotAvatar, GroupAvatar } from "@rakazo/ui-web";
@@ -42,13 +42,30 @@ export function CollaborationMarker({
 }
 
 /** The working bot with what it is doing right now, such as its current tool call. */
-export function ActiveBotGlyph({ bots, label }: { bots: GroupAvatarMember[]; label: string }) {
+export function ActiveBotGlyph({
+  bots,
+  label,
+  botKind,
+}: {
+  bots: GroupAvatarMember[];
+  label: string;
+  botKind?: Bot["botKind"];
+}) {
   return (
-    <div role="status" className="flex min-h-10 min-w-0 items-center gap-2.5 px-1">
+    <div
+      role="status"
+      aria-label={botKind === "roleplay" ? label : undefined}
+      className="flex min-h-10 min-w-0 items-center gap-2.5 px-1"
+    >
       <GroupAvatar members={bots} size={28} />
-      <span dir="auto" className="min-w-0 truncate text-[15px] text-muted-foreground text-shimmer">
-        {label}
-      </span>
+      {botKind !== "roleplay" ? (
+        <span
+          dir="auto"
+          className="min-w-0 truncate text-[15px] text-muted-foreground text-shimmer"
+        >
+          {label}
+        </span>
+      ) : null}
     </div>
   );
 }

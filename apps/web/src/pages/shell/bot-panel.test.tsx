@@ -18,7 +18,7 @@ vi.mock("../../lib/rpc", () => {
       credentials: vi.fn().mockResolvedValue([]),
       list: vi.fn().mockResolvedValue([]),
     },
-    me: vi.fn().mockResolvedValue(null),
+    me: vi.fn().mockResolvedValue({ sandboxProvider: "docker" }),
   };
   return {
     rpc,
@@ -134,6 +134,12 @@ function bot(description = "Billing", overrides: Partial<Bot> = {}): Bot {
   return {
     id: "bot-1",
     spaceId: "space-1",
+    botKind: "agent",
+    roleplayCharacter: null,
+    runtimeKind: "pi",
+    executionTarget: "default",
+    runtimePermission: "workspace",
+    projectPath: null,
     name: "Ada",
     title: "Helper",
     description,
@@ -794,4 +800,48 @@ describe("BotSettings cached data", () => {
     expect(patch).toMatchObject({ description: "Invoices", computerMode: "dedicated" });
     expect(patch).not.toHaveProperty("name");
   });
+});
+
+it("saves roleplay changes independently and keeps the draft after a rejected character save", async () => {
+  const character = {
+    name: "Mira",
+    description: "A cartographer",
+    personality: "Curious",
+    scenario: "At the harbor",
+    firstMessage: "Hello",
+    exampleDialogue: "",
+    systemPrompt: "",
+    postHistoryInstructions: "",
+    alternateGreetings: ["Preserved"],
+    lorebook: null,
+  };
+  await render("Sidebar description", { botKind: "roleplay", roleplayCharacter: character });
+  const input = container.querySelector<HTMLTextAreaElement>(
+    '[data-testid="roleplay-settings"] textarea[id$="-description"]',
+  )!;
+  await act(async () => {
+    Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")!.set!.call(
+      input,
+      "Edited character",
+    );
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+  onSave.mockRejectedValueOnce(new Error("Stop the roleplay bot before replacing its character"));
+  const saveCharacter = () =>
+    [...container.querySelectorAll("button")].find(
+      (button) => button.textContent === "Save changes",
+    )!;
+  await act(async () => saveCharacter().click());
+  expect(onSave).toHaveBeenCalledExactlyOnceWith({
+    roleplayCharacter: { ...character, description: "Edited character" },
+    expectedRoleplayCharacter: character,
+  });
+  expect(input.value).toBe("Edited character");
+  expect(container.textContent).toContain("Stop the roleplay bot");
+  expect(saveCharacter()).toBeDefined();
+  await act(async () => saveCharacter().click());
+  expect(onSave).toHaveBeenCalledTimes(2);
+  expect(container.querySelector('[data-testid="roleplay-settings"]')?.textContent).not.toContain(
+    "Save changes",
+  );
 });

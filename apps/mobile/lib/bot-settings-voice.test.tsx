@@ -7,9 +7,15 @@ import type { Root } from "react-dom/client";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import BotSettingsScreen from "../app/bot-settings";
+import NewBot from "../app/new-bot";
 import { MenuPicker } from "../components/menu-picker";
 
 const mocks = vi.hoisted(() => ({
+  createInboxBot: vi.fn(),
+  environment: undefined as Promise<{ sandboxProvider: string }> | undefined,
+  runtimeReason: undefined as string | undefined,
+  botKind: "agent" as "agent" | "roleplay",
+  executionTarget: "default" as "default" | "docker" | "host",
   instructions: "",
   description: "",
   crossSpaceCommunication: false,
@@ -51,6 +57,25 @@ function deferredSave() {
   return { promise, resolve, reject };
 }
 
+vi.mock("./create-inbox-bot", () => ({ createInboxBot: mocks.createInboxBot }));
+vi.mock("./conversation-work", () => ({ createConversationRequest: () => ({}) }));
+vi.mock("./query", () => ({ queryClient: { invalidateQueries: vi.fn() } }));
+vi.mock("../components/native-runtime-setup", () => ({ NativeRuntimeSetup: () => null }));
+vi.mock("../components/registered-host-picker", () => ({
+  RegisteredHostPicker: ({
+    value,
+    onChange,
+  }: {
+    value: string | null;
+    onChange: (id: string) => void;
+  }) =>
+    createElement(
+      "button",
+      { type: "button", "data-host": value ?? "", onClick: () => onChange("host-fixture") },
+      "Choose host",
+    ),
+}));
+
 vi.mock("./side-insets", () => ({ useSideInsets: () => ({}) }));
 vi.mock("./bot-voices", () => ({
   voiceLabel: (voice: { language: string; name: string }) => `${voice.name} (${voice.language})`,
@@ -62,11 +87,13 @@ vi.mock("./device-voice", () => ({ loadDeviceVoiceEnabled: async () => true }));
 vi.mock("./voice", () => ({ stopVoicePlayback: mocks.stopVoicePlayback }));
 vi.mock("expo-speech", () => ({ stop: mocks.stop, speak: mocks.speak }));
 vi.mock("./api", () => ({
+  selectedSpaceId: () => "space-fixture",
   rpc: async (procedure: string, input?: unknown) => {
     if (
       [
         "bots/update",
         "bots/setComputer",
+        "bots/setExecution",
         "scratchpad/create",
         "scratchpad/update",
         "bots/restoreInstructions",
@@ -75,9 +102,15 @@ vi.mock("./api", () => ({
       ].includes(procedure)
     )
       return mocks.rpc(procedure, input);
+    if (procedure === "bots/executionStatus")
+      return { available: true, authenticated: true, reason: mocks.runtimeReason };
     if (procedure === "bots/get")
       return {
         id: "bot-fixture",
+        botKind: mocks.botKind,
+        roleplayCharacter:
+          mocks.botKind === "roleplay" ? { name: "Aster", description: "Quiet archivist" } : null,
+        spaceId: "space-fixture",
         name: "Fixture",
         title: "",
         instructions: mocks.instructions,
@@ -87,12 +120,13 @@ vi.mock("./api", () => ({
         avatarSet: mocks.avatarSet,
         autoSpeak: false,
         computerMode: "team",
+        executionTarget: mocks.executionTarget,
         fleetManagement: false,
         crossSpaceCommunication: mocks.crossSpaceCommunication,
       };
     if (procedure === "scratchpad/list") return mocks.work;
     if (procedure === "memory/list") return mocks.docs;
-    if (procedure === "me") return {};
+    if (procedure === "me") return mocks.environment ?? { sandboxProvider: "docker" };
     return [];
   },
 }));
@@ -313,7 +347,7 @@ vi.mock("@expo/ui/community/menu", () => ({
     style,
   }: {
     title: string;
-    actions: { id: string; title: string; state: string }[];
+    actions: { id: string; title: string; state: string; attributes?: { disabled?: boolean } }[];
     onPressAction: (event: { nativeEvent: { event: string } }) => void;
     children: ReactNode;
     style?: unknown;
@@ -329,6 +363,7 @@ vi.mock("@expo/ui/community/menu", () => ({
             type: "button",
             key: action.id,
             "data-state": action.state,
+            disabled: action.attributes?.disabled,
             onClick: () => onPressAction({ nativeEvent: { event: action.id } }),
           },
           action.title,
@@ -341,6 +376,10 @@ describe("bot settings device voice menu", () => {
   let root: Root;
   let container: HTMLDivElement;
   beforeEach(() => {
+    mocks.runtimeReason = undefined;
+    mocks.botKind = "agent";
+    mocks.executionTarget = "default";
+    mocks.environment = undefined;
     mocks.crossSpaceCommunication = false;
     mocks.avatarSet = undefined;
     vi.clearAllMocks();
@@ -364,6 +403,17 @@ describe("bot settings device voice menu", () => {
     act(() => root.unmount());
     vi.unstubAllGlobals();
   });
+  it("renders Roleplay character and model without operational controls", async () => {
+    mocks.botKind = "roleplay";
+    await act(async () => root.render(<BotSettingsScreen />));
+    await expand();
+    expect(container.textContent).toContain("Quiet archivist");
+    expect(container.textContent).toContain("Model");
+    expect(container.textContent).not.toContain("Instructions");
+    expect(container.textContent).not.toContain("Runtime");
+    expect(container.textContent).not.toContain("Computer");
+    expect(container.textContent).not.toContain("Permissions");
+  });
   const expand = async () =>
     act(async () => container.querySelector<HTMLButtonElement>('[aria-label="Advanced"]')!.click());
   const render = async () => {
@@ -371,6 +421,324 @@ describe("bot settings device voice menu", () => {
     await expand();
   };
   const menu = () => container.querySelector('[data-menu="Device voice"]');
+
+  const choose = async (label: string, choice: string) => {
+    const menu = container.querySelector(`[data-menu="${label}"]`)!;
+    await act(async () =>
+      [...menu.querySelectorAll("button")].find((button) => button.textContent === choice)!.click(),
+    );
+  };
+
+  it.each([false, true])(
+    "accepts canonical project folders before a later save fails: %s",
+    async (fail) => {
+      mocks.rpc.mockImplementation(async (procedure: string, input: object) => {
+        if (procedure === "bots/setExecution")
+          return {
+            id: "bot-fixture",
+            name: "Fixture",
+            title: "",
+            description: "",
+            instructions: "",
+            color: BOT_COLORS[0],
+            autoSpeak: false,
+            computerMode: "dedicated",
+            ...input,
+            projectPath: "/private/tmp/project",
+          };
+        if (fail && procedure === "bots/update") throw new Error("Profile save failed");
+        return input;
+      });
+      await render();
+      await choose("Runtime", "Codex");
+      const project = container.querySelector<HTMLTextAreaElement>(
+        '[aria-label="Project folder"]',
+      )!;
+      await act(async () => {
+        project.value = "/tmp/project";
+        project.dispatchEvent(new Event("input", { bubbles: true }));
+        container.querySelector<HTMLButtonElement>('[aria-label="Read replies aloud"]')!.click();
+      });
+      const save = () =>
+        [...container.querySelectorAll("button")].find((button) => button.textContent === "Save")!;
+      await act(async () => save().click());
+      expect(project.value).toBe("/private/tmp/project");
+      expect(mocks.back).toHaveBeenCalledTimes(fail ? 0 : 1);
+      if (!fail)
+        await act(async () =>
+          container.querySelector<HTMLButtonElement>('[aria-label="Read replies aloud"]')!.click(),
+        );
+      await act(async () => save().click());
+      expect(
+        mocks.rpc.mock.calls.filter(([procedure]) => procedure === "bots/setExecution"),
+      ).toHaveLength(1);
+    },
+  );
+
+  it.each(["path", "host"])("preserves an in-flight project %s edit", async (edit) => {
+    let accept!: (value: object) => void;
+    mocks.rpc.mockImplementation(async (procedure: string, input: object) => {
+      if (procedure === "bots/setExecution") {
+        await new Promise<object>((resolve) => {
+          accept = resolve;
+        });
+        return {
+          id: "bot-fixture",
+          name: "Fixture",
+          title: "",
+          description: "",
+          instructions: "",
+          color: BOT_COLORS[0],
+          autoSpeak: false,
+          computerMode: "dedicated",
+          ...input,
+          projectPath: "/private/tmp/project",
+        };
+      }
+      throw new Error("Later save failed");
+    });
+    await render();
+    await choose("Runtime", "Codex");
+    const project = container.querySelector<HTMLTextAreaElement>('[aria-label="Project folder"]')!;
+    await act(async () => {
+      project.value = "/tmp/project";
+      project.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    await act(async () =>
+      [...container.querySelectorAll("button")]
+        .find((button) => button.textContent === "Save")!
+        .click(),
+    );
+    await act(async () => {
+      if (edit === "path") {
+        project.value = "/another/project";
+        project.dispatchEvent(new Event("input", { bubbles: true }));
+      } else container.querySelector<HTMLButtonElement>("[data-host]")!.click();
+    });
+    await act(async () => accept({}));
+    expect(project.value).toBe(edit === "path" ? "/another/project" : "/tmp/project");
+  });
+
+  it.each(["Claude Code", "ACP"])(
+    "keeps workspace visible until explicit Full access in settings for %s",
+    async (runtime) => {
+      mocks.rpc.mockImplementation(async (_procedure: string, input: object) => ({
+        id: "bot-fixture",
+        computerMode: "dedicated",
+        ...input,
+      }));
+      await render();
+      await choose("Runtime", "Codex");
+      await choose("Runtime", runtime);
+      const access = container.querySelector('[data-menu="Access"]')!;
+      expect(access.firstElementChild!.getAttribute("aria-valuetext")).toBe("Workspace");
+      const workspace = access.querySelector("button")!;
+      expect(workspace.disabled).toBe(true);
+      expect(workspace.dataset.state).toBe("on");
+      expect(mocks.rpc).not.toHaveBeenCalledWith("bots/setExecution", expect.anything());
+      await choose("Runtime", "Codex");
+      expect(
+        container.querySelector<HTMLButtonElement>('[data-menu="Access"] button')!.disabled,
+      ).toBe(false);
+      await choose("Runtime", runtime);
+      await choose("Access", "Full access");
+      await choose("Runtime", "Codex");
+      await choose("Runtime", runtime);
+      expect(
+        container
+          .querySelector('[data-menu="Access"]')!
+          .firstElementChild!.getAttribute("aria-valuetext"),
+      ).toBe("Full access");
+      await act(async () =>
+        [...container.querySelectorAll("button")]
+          .find((button) => button.textContent === "Save")!
+          .click(),
+      );
+      expect(mocks.rpc).toHaveBeenCalledWith(
+        "bots/setExecution",
+        expect.objectContaining({
+          runtimeKind: runtime === "ACP" ? "acp" : "claude",
+          runtimePermission: "full",
+        }),
+      );
+    },
+  );
+
+  it.each(["Claude Code", "ACP"])(
+    "keeps workspace visible until explicit Full access when creating %s",
+    async (runtime) => {
+      await act(async () => root.render(<NewBot />));
+      await act(async () =>
+        [...container.querySelectorAll("button")]
+          .find((button) => button.textContent === "Runtime and computer")!
+          .click(),
+      );
+      await choose("Runtime", "Codex");
+      await choose("Runtime", runtime);
+      const access = container.querySelector('[data-menu="Permissions"]')!;
+      expect(access.firstElementChild!.getAttribute("aria-valuetext")).toBe("Workspace");
+      expect(access.querySelector("button")!.disabled).toBe(true);
+      expect(mocks.createInboxBot).not.toHaveBeenCalled();
+      await choose("Runtime", "Codex");
+      expect(
+        container.querySelector<HTMLButtonElement>('[data-menu="Permissions"] button')!.disabled,
+      ).toBe(false);
+      await choose("Runtime", runtime);
+      await choose("Permissions", "Full access");
+      await choose("Runtime", "Codex");
+      await choose("Runtime", runtime);
+      expect(
+        container
+          .querySelector('[data-menu="Permissions"]')!
+          .firstElementChild!.getAttribute("aria-valuetext"),
+      ).toBe("Full access");
+      await act(async () =>
+        [...container.querySelectorAll("button")]
+          .find((button) => button.textContent === "Create bot")!
+          .click(),
+      );
+      expect(mocks.createInboxBot).toHaveBeenCalledWith(
+        expect.objectContaining({
+          input: expect.objectContaining({
+            runtimeKind: runtime === "ACP" ? "acp" : "claude",
+            runtimePermission: "full",
+          }),
+        }),
+      );
+    },
+  );
+
+  it.each(["new", "settings"])("disables Docker on a host-only %s screen", async (screen) => {
+    mocks.environment = Promise.resolve({ sandboxProvider: "desktop" });
+    if (screen === "settings") await render();
+    else {
+      await act(async () => root.render(<NewBot />));
+      await act(async () =>
+        [...container.querySelectorAll("button")]
+          .find((button) => button.textContent === "Runtime and computer")!
+          .click(),
+      );
+    }
+    const target = container.querySelector('[data-menu="Execution target"]')!;
+    expect(
+      [...target.querySelectorAll("button")].find((button) => button.textContent === "Docker")!
+        .disabled,
+    ).toBe(true);
+    expect(container.textContent).toContain("Docker is not enabled on this deployment.");
+    await choose("Execution target", "Host");
+    expect(container.querySelector("[data-host]")).not.toBeNull();
+  });
+
+  it.each(["loading", "failed"])(
+    "keeps creating with the deployment default when Docker availability is %s",
+    async (state) => {
+      let reject!: (cause: Error) => void;
+      mocks.environment = new Promise((_resolve, fail) => {
+        reject = fail;
+      });
+      await act(async () => root.render(<NewBot />));
+      await act(async () =>
+        [...container.querySelectorAll("button")]
+          .find((button) => button.textContent === "Runtime and computer")!
+          .click(),
+      );
+      if (state === "failed") await act(async () => reject(new Error("offline")));
+      expect(container.textContent).toContain(
+        state === "failed"
+          ? "Could not check Docker availability."
+          : "Checking Docker availability…",
+      );
+      const docker = [
+        ...container.querySelectorAll<HTMLButtonElement>('[data-menu="Execution target"] button'),
+      ].find((button) => button.textContent === "Docker")!;
+      expect(docker.disabled).toBe(true);
+      await act(async () =>
+        [...container.querySelectorAll("button")]
+          .find((button) => button.textContent === "Create bot")!
+          .click(),
+      );
+      expect(mocks.createInboxBot).toHaveBeenCalledWith(
+        expect.objectContaining({ input: expect.objectContaining({ executionTarget: "default" }) }),
+      );
+    },
+  );
+
+  it("preserves a saved Docker target on a host-only deployment", async () => {
+    mocks.executionTarget = "docker";
+    mocks.environment = Promise.resolve({ sandboxProvider: "desktop" });
+    await render();
+    const target = container.querySelector('[data-menu="Execution target"]')!;
+    expect(target.firstElementChild!.getAttribute("aria-valuetext")).toBe("Docker");
+    expect(
+      [...target.querySelectorAll("button")].find((button) => button.textContent === "Docker")!
+        .disabled,
+    ).toBe(true);
+    expect(mocks.rpc).not.toHaveBeenCalledWith("bots/updateExecution", expect.anything());
+  });
+
+  it.each(["Docker", "Deployment default"])(
+    "clears the selected host when creating after switching to %s",
+    async (target) => {
+      await act(async () => root.render(<NewBot />));
+      await act(async () =>
+        [...container.querySelectorAll("button")]
+          .find((button) => button.textContent === "Runtime and computer")!
+          .click(),
+      );
+      await choose("Execution target", "Host");
+      await act(async () => container.querySelector<HTMLButtonElement>("[data-host]")!.click());
+      expect(container.querySelector("[data-host]")!.getAttribute("data-host")).toBe(
+        "host-fixture",
+      );
+      await choose("Execution target", target);
+      await choose("Execution target", "Host");
+      expect(container.querySelector("[data-host]")!.getAttribute("data-host")).toBe("");
+      await act(async () =>
+        [...container.querySelectorAll("button")]
+          .find((button) => button.textContent === "Create bot")!
+          .click(),
+      );
+      expect(mocks.createInboxBot).toHaveBeenCalledWith(
+        expect.objectContaining({ input: expect.objectContaining({ registeredHostId: null }) }),
+      );
+    },
+  );
+
+  it("shows host launcher guidance when the runtime host is unavailable", async () => {
+    mocks.runtimeReason = "host-unavailable";
+    await render();
+    await choose("Runtime", "Codex");
+    expect(container.textContent).toContain("Start the host with host access enabled.");
+  });
+
+  it("shows host-only execution and native access choices for Codex", async () => {
+    await render();
+    const runtime = container.querySelector('[data-menu="Runtime"]')!;
+    await act(async () =>
+      [...runtime.querySelectorAll("button")]
+        .find((button) => button.textContent === "Codex")!
+        .click(),
+    );
+    const target = container.querySelector('[data-menu="Execution target"]')!;
+    expect([...target.querySelectorAll("button")].map((button) => button.textContent)).toEqual([
+      "Host",
+    ]);
+    expect(container.querySelector('[data-menu="Model"]')).toBeNull();
+    expect(container.querySelector('[aria-label="Project folder"]')).not.toBeNull();
+    const access = container.querySelector('[data-menu="Access"]')!;
+    expect([...access.querySelectorAll("button")].map((button) => button.textContent)).toEqual([
+      "Workspace",
+      "Full access",
+    ]);
+    await act(async () =>
+      [...runtime.querySelectorAll("button")]
+        .find((button) => button.textContent === "Pi")!
+        .click(),
+    );
+    expect(container.querySelector('[aria-label="Project folder"]')).toBeNull();
+    expect(container.querySelector('[data-menu="Access"]')).toBeNull();
+    expect(container.querySelector('[data-menu="Model"]')).not.toBeNull();
+  });
 
   it.each([false, true])("loads and saves cross-space communication: %s", async (enabled) => {
     mocks.crossSpaceCommunication = enabled;
@@ -680,7 +1048,6 @@ describe("bot settings device voice menu", () => {
       "Read replies aloud",
       "Device voice",
       "Manage the bots it creates",
-      "Instructions",
     ]) {
       expect(container.textContent).not.toContain(label);
     }
@@ -689,9 +1056,12 @@ describe("bot settings device voice menu", () => {
     expect(trigger.getAttribute("role")).toBe("button");
     expect(JSON.parse(trigger.dataset.style!)).toMatchObject({ marginTop: 24, minHeight: 44 });
     const headings = [...container.querySelectorAll<HTMLElement>('[role="header"]')];
-    expect(headings.map((heading) => heading.textContent)).toEqual(["Notifications"]);
+    expect(headings.map((heading) => heading.textContent)).toEqual([
+      "Instructions",
+      "Notifications",
+    ]);
     expect(trigger.querySelector('[data-ios="chevron.right"]')).not.toBeNull();
-    expect(container.querySelector('[aria-label="Instructions"]')).toBeNull();
+    expect(container.querySelector('[aria-label="Instructions"]')).not.toBeNull();
     await expand();
     expect(container.querySelector('[aria-label="Instructions"]')).not.toBeNull();
     expect(trigger.getAttribute("aria-expanded")).toBe("true");
@@ -1193,6 +1563,22 @@ describe("bot settings device voice menu", () => {
     await act(async () => actions[0]!.click());
     expect(onChange).toHaveBeenCalledWith("");
     expect(container.querySelector("i")!.dataset.ios).toBe("chevron.up.chevron.down");
+  });
+
+  it("does not label an unmatched permission as the first choice", async () => {
+    await act(async () =>
+      root.render(
+        <MenuPicker
+          label="Access"
+          value="workspace"
+          choices={[{ key: "full", label: "Full access" }]}
+          onChange={vi.fn()}
+        />,
+      ),
+    );
+    const menu = container.querySelector('[data-menu="Access"]')!;
+    expect(menu.firstElementChild!.getAttribute("aria-valuetext")).toBe("");
+    expect(menu.querySelector("button")!.dataset.state).toBe("off");
   });
 
   it.each([false, true])(

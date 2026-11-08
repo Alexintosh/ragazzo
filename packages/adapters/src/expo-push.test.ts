@@ -184,6 +184,30 @@ describe("expo push", () => {
     });
   });
 
+  it("preserves the task destination on the payload a tap opens", () => {
+    expect(
+      expoPushData(
+        {
+          kind: "help",
+          title: "Approval needed",
+          body: "",
+          botId: "bot-1",
+          threadId: "task-thread-1",
+          taskId: "task-1",
+        },
+        "space-1",
+        "delivery-1",
+      ),
+    ).toEqual({
+      kind: "help",
+      botId: "bot-1",
+      threadId: "task-thread-1",
+      taskId: "task-1",
+      spaceId: "space-1",
+      deliveryId: "delivery-1",
+    });
+  });
+
   it("does not deliver a token whose session row is gone, and leaves it to be retargeted", async () => {
     const tokens = new MemoryPushTokenStore();
     const token = "ExponentPushToken[test]";

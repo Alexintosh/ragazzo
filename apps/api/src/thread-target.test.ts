@@ -7,6 +7,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { ThreadTarget } from "./thread-target.js";
 import {
   cancelSupersededQueuedRuns,
+  clearThreadMessageHistory,
   reactToThreadMessage,
   sendThreadMessage,
   stopThreadRuns,
@@ -47,6 +48,66 @@ describe("threadHead", () => {
       select: { seq: true },
     });
   });
+});
+describe("native attachment preflight", () => {
+  it.each(["direct", "group"])(
+    "rejects a 10 MiB native attachment in %s chat before creating input or disturbing active work",
+    async (surface) => {
+      const tx = {
+        $queryRaw: vi.fn().mockResolvedValue([{ id: "group" }]),
+        chatGroup: {
+          findFirst: vi.fn().mockResolvedValue({
+            members: [
+              { bot: { id: "bot", name: "Native", color: "blue" } },
+              { bot: { id: "pi", name: "Pi", color: "red" } },
+            ],
+          }),
+        },
+        bot: { findFirst: vi.fn().mockResolvedValue({ id: "bot" }) },
+        artifact: {
+          findMany: vi.fn().mockResolvedValue([
+            {
+              id: "large",
+              name: "large.png",
+              mimeType: "image/png",
+              size: 10 * 1024 * 1024,
+              storageKey: "large",
+            },
+          ]),
+        },
+        message: { create: vi.fn() },
+        steeringMessage: { create: vi.fn() },
+        run: { updateMany: vi.fn() },
+      };
+      const prisma = {
+        $transaction: vi.fn(async (callback: (client: typeof tx) => unknown) => callback(tx)),
+      } as unknown as PrismaClient;
+      const direct = {
+        kind: "bot",
+        botId: "bot",
+        threadId: "thread",
+        bot: { runtimeKind: "codex" },
+      } as ThreadTarget;
+      const target =
+        surface === "direct"
+          ? direct
+          : ({ kind: "group", groupId: "group", threadId: "thread" } as ThreadTarget);
+      await expect(
+        sendThreadMessage(
+          { prisma, events: {} as never, jobs: {} as never },
+          { userId: "user", spaceId: "space" } as Actor,
+          target,
+          { text: "Use this", artifactIds: ["large"] },
+        ),
+      ).rejects.toMatchObject({
+        code: "BAD_REQUEST",
+        message: "Codex attachments must be 8 MiB or smaller.",
+      });
+      expect(tx.message.create).not.toHaveBeenCalled();
+      expect(tx.steeringMessage.create).not.toHaveBeenCalled();
+      expect(tx.run.updateMany).not.toHaveBeenCalled();
+    },
+  );
 });
 
 describe("queued run supersession", () => {
@@ -3728,7 +3789,172 @@ describe("sendThreadMessage", () => {
   });
 });
 
+describe("native thread clear", () => {
+  it("captures paused native ownership before clearing private state and cancels only that owned run", async () => {
+    const computer = {
+      id: "host-computer",
+      homeKey: "bot-a-host",
+      kind: "desktop",
+      providerRef: "host-ref",
+      executionBotId: null,
+      executionRunId: null,
+    };
+    let cleared = false;
+    const checkpoint = JSON.stringify({
+      runtime: "codex",
+      version: 1,
+      botId: "bot-a",
+      threadId: "thread-1",
+      runId: "original",
+      historyGeneration: 0,
+      computerKey: computer.homeKey,
+      projectPath: "/projects/example",
+      permission: "workspace",
+      after: 1,
+      prompt: "work",
+      instructions: "",
+      model: "",
+    });
+    const tx = {
+      run: {
+        findMany: vi.fn(async () => [
+          {
+            id: "continuation",
+            botId: "bot-a",
+            spaceId: "space-1",
+            bot: { runtimeKind: "codex", computer },
+          },
+        ]),
+      },
+      externalEffect: {
+        findMany: vi.fn(async () => {
+          expect(cleared).toBe(false);
+          return [{ result: checkpoint }];
+        }),
+      },
+    };
+    const cancelRunWork = vi.fn(async () => {
+      expect(cleared).toBe(true);
+    });
+    const clearThread = vi.fn(
+      async (input: { beforeCancel: (tx: unknown, runIds: string[]) => Promise<void> }) => {
+        await input.beforeCancel(tx, ["continuation"]);
+        cleared = true;
+        return { cancelledRunIds: ["continuation"], historyCompactionGeneration: 1 };
+      },
+    );
+    await clearThreadMessageHistory(
+      {
+        prisma: {} as PrismaClient,
+        sandbox: { cancelRunWork } as unknown as SandboxProvider,
+        events: { clearThread } as never,
+      },
+      { userId: "user-1", spaceId: "space-1" } as Actor,
+      { kind: "bot", botId: "bot-a", threadId: "thread-1", bot: {} } as ThreadTarget,
+    );
+    expect(cancelRunWork).toHaveBeenCalledOnce();
+    expect(cancelRunWork).toHaveBeenCalledWith(
+      expect.objectContaining({ botId: "bot-a-host" }),
+      "host-computer",
+      "original",
+      expect.objectContaining({ botId: "bot-a", runId: "original" }),
+    );
+  });
+});
+
 describe("stopThreadRuns", () => {
+  it("stops a paused native process without a computer lease using its original run binding", async () => {
+    const cancelRunWork = vi.fn(async () => undefined);
+    const releaseScreen = vi.fn(async () => undefined);
+    const computer = {
+      id: "host-computer",
+      homeKey: "bot-a-host",
+      kind: "desktop",
+      providerRef: "host-ref",
+      executionBotId: null,
+      executionRunId: null,
+    };
+    let checkpoint: string | null = JSON.stringify({
+      runtime: "codex",
+      version: 1,
+      botId: "bot-a",
+      threadId: "thread-1",
+      runId: "native-original",
+      historyGeneration: 0,
+      computerKey: "bot-a-host",
+      projectPath: "/projects/example",
+      permission: "workspace",
+      after: 2,
+      prompt: "work",
+      instructions: "",
+      model: "",
+      approvalId: "approval-1",
+    });
+    const tx = {
+      $queryRaw: vi.fn(),
+      externalEffect: {
+        findMany: vi.fn(async () => (checkpoint ? [{ result: checkpoint }] : [])),
+        deleteMany: vi.fn(async () => {
+          checkpoint = null;
+          return { count: 1 };
+        }),
+      },
+      thread: { update: vi.fn(async () => ({ nextEventSeq: 3 })) },
+      message: { findMany: vi.fn(async () => []) },
+      run: {
+        findMany: vi.fn(async () => [
+          {
+            id: "continuation",
+            botId: "bot-a",
+            spaceId: "space-1",
+            bot: { runtimeKind: "codex", computer },
+          },
+        ]),
+        updateManyAndReturn: vi.fn(async () => [
+          {
+            id: "continuation",
+            botId: "bot-a",
+            spaceId: "space-1",
+            userId: "user-1",
+            bot: { runtimeKind: "codex", computer },
+          },
+        ]),
+        findUnique: vi.fn(async () => ({ status: "cancelled" })),
+      },
+      steeringMessage: { updateMany: vi.fn(async () => ({ count: 0 })) },
+      secret: { deleteMany: vi.fn(async () => ({ count: 0 })) },
+      computer: { findMany: vi.fn(async () => []) },
+      computerExecutionLease: { findMany: vi.fn(async () => []) },
+      event: {
+        create: vi.fn(async ({ data }: { data: object }) => data),
+        deleteMany: vi.fn(async () => ({ count: 0 })),
+      },
+    };
+    const prisma = {
+      $transaction: vi.fn(async (run: (client: typeof tx) => Promise<unknown>) => run(tx)),
+      computer: { updateMany: vi.fn(async () => ({ count: 0 })) },
+      computerExecutionLease: { updateMany: vi.fn(async () => ({ count: 0 })) },
+    } as unknown as PrismaClient;
+    await stopThreadRuns(
+      {
+        prisma,
+        sandbox: { cancelRunWork, releaseScreen } as unknown as SandboxProvider,
+        events: { notify: vi.fn(async () => undefined) } as never,
+      },
+      { userId: "user-1", spaceId: "space-1" } as Actor,
+      { kind: "bot", botId: "bot-a", threadId: "thread-1", bot: {} } as ThreadTarget,
+    );
+    expect(checkpoint).toBeNull();
+    expect(cancelRunWork).toHaveBeenCalledOnce();
+    expect(cancelRunWork).toHaveBeenCalledWith(
+      expect.objectContaining({ botId: "bot-a-host", kind: "desktop" }),
+      "host-computer",
+      "native-original",
+      expect.objectContaining({ runId: "native-original", botId: "bot-a" }),
+    );
+    expect(releaseScreen).toHaveBeenCalledOnce();
+  });
+
   it("snapshots every lease when group members share a team computer", async () => {
     const releaseScreen = vi.fn().mockResolvedValue(undefined);
     const execute = vi.fn(async function* () {
@@ -3750,7 +3976,7 @@ describe("stopThreadRuns", () => {
         ]),
         findUnique: vi.fn().mockResolvedValue({ status: "cancelled" }),
       },
-      steeringMessage: { deleteMany: vi.fn().mockResolvedValue({ count: 0 }) },
+      steeringMessage: { updateMany: vi.fn().mockResolvedValue({ count: 0 }) },
       secret: { deleteMany: vi.fn().mockResolvedValue({ count: 0 }) },
       computer: {
         // Production team ownership is lease-only: Computer.executionRunId stays null.
@@ -3890,7 +4116,7 @@ describe("stopThreadRuns", () => {
         updateManyAndReturn: vi.fn().mockResolvedValue([{ id: "run-a", botId: "bot-a" }]),
         findUnique: vi.fn().mockResolvedValue({ status: "cancelled" }),
       },
-      steeringMessage: { deleteMany: vi.fn().mockResolvedValue({ count: 0 }) },
+      steeringMessage: { updateMany: vi.fn().mockResolvedValue({ count: 0 }) },
       secret: { deleteMany: vi.fn().mockResolvedValue({ count: 0 }) },
       computer: {
         // Selected via lease for cancelled run A, but legacy columns still name
@@ -4008,7 +4234,7 @@ describe("stopThreadRuns", () => {
         // appendEventInTransaction re-reads the run after the flip.
         findUnique: vi.fn().mockResolvedValue({ status: "cancelled" }),
       },
-      steeringMessage: { deleteMany: vi.fn().mockResolvedValue({ count: 0 }) },
+      steeringMessage: { updateMany: vi.fn().mockResolvedValue({ count: 0 }) },
       secret: { deleteMany: vi.fn().mockResolvedValue({ count: 0 }) },
       computer: { findMany: vi.fn().mockResolvedValue([]) },
       computerExecutionLease: { findMany: vi.fn().mockResolvedValue([]) },
@@ -4113,7 +4339,7 @@ describe("stopThreadRuns", () => {
         updateManyAndReturn: vi.fn().mockResolvedValue([]),
         findUnique: vi.fn(),
       },
-      steeringMessage: { deleteMany: vi.fn().mockResolvedValue({ count: 0 }) },
+      steeringMessage: { updateMany: vi.fn().mockResolvedValue({ count: 0 }) },
       secret: { deleteMany: vi.fn().mockResolvedValue({ count: 0 }) },
       computer: { findMany: vi.fn() },
       computerExecutionLease: { findMany: vi.fn() },

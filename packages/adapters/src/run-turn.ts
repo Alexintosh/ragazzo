@@ -122,7 +122,13 @@ export async function consumeRunEvents(
     }
   };
   try {
-    for await (const event of withRuntimeCleanup(events, ctx.abortController)) {
+    for await (const event of withRuntimeCleanup(
+      events,
+      ctx.abortController,
+      () =>
+        ["codex", "claude", "acp"].includes(ctx.bot.runtimeKind ?? "pi") &&
+        ctx.state.approval.pausePending,
+    )) {
       if (ctx.state.approval.pausePending) return true;
       if (!ctx.state.lease.valid) return true;
       if (await runLeaseLost(ctx)) return true;
@@ -360,12 +366,24 @@ async function pauseForAnswer(ctx: RunContext, event: RuntimeEvent<"ask">) {
         detail: safeDetail,
         status: "pending",
         actions: safeActions,
+        ...(event.nativeApproval ? { nativeApproval: true } : {}),
+        ...(bot.runtimeKind && bot.runtimeKind !== "pi" && event.executionId
+          ? { nativeInteractionId: event.executionId }
+          : {}),
       },
     ],
     // Keep unredacted labels on the run for resume; message blocks stay redacted.
     offeredActions: event.actions,
   });
   if (!paused) return;
+  ctx.state.approval.pausePending = true;
+  // A native question may ask the user to finish a browser login. Release execution,
+  // but retain the exact page for the existing preview/takeover flow.
+  const screenRelease = ctx.state.computerUse.screenRelease;
+  if (screenRelease) {
+    screenRelease.keepWarm = true;
+    scheduleComputerSleep(deps.jobs, ctx.computer.stored.id);
+  }
   if (paused.continuationRunId) {
     await deps.jobs
       .enqueue(runContinueJob(paused.continuationRunId))
@@ -824,6 +842,7 @@ export async function completeRun(ctx: RunContext) {
       },
     });
     if (
+      !["codex", "claude", "acp"].includes(bot.runtimeKind ?? "pi") &&
       (deps.contextStrategy ?? DEFAULT_CONTEXT_STRATEGY) === "current" &&
       shouldEnqueueCompaction(
         updatedThread.nextMessageSeq,

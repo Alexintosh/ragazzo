@@ -21,8 +21,8 @@ function releaseUnusedDownload(key: string, download: ImageDownload) {
 
 function acquireDownload(target: ArtifactTarget, artifactId: string) {
   const key = JSON.stringify([
-    "botId" in target ? "bot" : "group",
-    "botId" in target ? target.botId : target.groupId,
+    "botId" in target ? "bot" : "taskId" in target ? "task" : "group",
+    "botId" in target ? target.botId : "taskId" in target ? target.taskId : target.groupId,
     artifactId,
   ]);
   let download = downloads.get(key);

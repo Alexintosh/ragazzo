@@ -578,3 +578,53 @@ it("closes the name editor before refresh finishes and ignores a refresh failure
     await editor.cleanup();
   }
 });
+
+it("keeps roleplay on the saved account state while saving and after failure", async () => {
+  vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+  const container = document.createElement("div");
+  document.body.append(container);
+  const root = createRoot(container);
+  let rejectSave!: (cause: Error) => void;
+  const onRoleplayEnabledChange = vi.fn(
+    () =>
+      new Promise<void>((_resolve, reject) => {
+        rejectSave = reject;
+      }),
+  );
+  const render = (roleplayEnabled = false) =>
+    root.render(
+      <GeneralSettingsPanels
+        name="Jamie"
+        roleplayEnabled={roleplayEnabled}
+        onRoleplayEnabledChange={onRoleplayEnabledChange}
+      />,
+    );
+  try {
+    await act(async () => render());
+    const toggle = container.querySelector<HTMLButtonElement>(
+      '[data-testid="roleplay-enabled-toggle"]',
+    )!;
+    expect(toggle.getAttribute("aria-checked")).toBe("false");
+    await act(async () => toggle.click());
+    expect(onRoleplayEnabledChange).toHaveBeenCalledWith(true);
+    expect(toggle.disabled).toBe(true);
+    expect(toggle.getAttribute("aria-checked")).toBe("false");
+    await act(async () => rejectSave(new Error("Failed")));
+    expect(toggle.disabled).toBe(false);
+    expect(toggle.getAttribute("aria-checked")).toBe("false");
+    expect(container.querySelector('[role="alert"]')?.textContent).toBe(
+      "Couldn't update roleplay settings",
+    );
+    onRoleplayEnabledChange.mockResolvedValueOnce();
+    await act(async () => toggle.click());
+    await act(async () => render(true));
+    expect(toggle.getAttribute("aria-checked")).toBe("true");
+    expect(container.querySelector('[role="alert"]')).toBeNull();
+    await act(async () => toggle.click());
+    expect(onRoleplayEnabledChange).toHaveBeenLastCalledWith(false);
+  } finally {
+    act(() => root.unmount());
+    container.remove();
+    vi.unstubAllGlobals();
+  }
+});

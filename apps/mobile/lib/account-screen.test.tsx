@@ -7,7 +7,7 @@ import type { Root } from "react-dom/client";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import Account from "../app/(settings)/account";
-import { deleteAccount, fetchAccountSecurity, requestAccountDeletionCode } from "./api";
+import { deleteAccount, fetchAccountSecurity, requestAccountDeletionCode, rpc } from "./api";
 import { replaceWithSignIn } from "./auth-routing";
 import { promptAccountDeletion } from "./delete-account-prompt";
 import { registerSettingsSheet } from "./settings-sheet";
@@ -162,8 +162,28 @@ vi.mock("../components/settings-group", () => ({
       },
       title,
     ),
-  SettingsSwitch: ({ title }: { title: string }) =>
-    createElement("button", { type: "button" }, title),
+  SettingsSwitch: ({
+    label,
+    value,
+    disabled,
+    onChange,
+  }: {
+    label: string;
+    value: boolean;
+    disabled?: boolean;
+    onChange: (value: boolean) => void;
+  }) =>
+    createElement(
+      "button",
+      {
+        type: "button",
+        role: "switch",
+        "aria-checked": value,
+        disabled,
+        onClick: () => onChange(!value),
+      },
+      label,
+    ),
   useStackedSettings: () => false,
 }));
 vi.mock("./api", () => ({
@@ -531,4 +551,29 @@ it("shows the approval mode as the Approvals row's value, with Rules only once t
   expect(view.button("Rules")!.dataset.value).toBe("2");
   await view.press("Rules");
   expect(account.push).toHaveBeenCalledWith("/approvals");
+});
+
+it("saves roleplay for the account using server-confirmed state", async () => {
+  const view = await renderAccount();
+  const toggle = view.button("Roleplay bots")!;
+  expect(toggle.getAttribute("aria-checked")).toBe("false");
+  let resolveSave!: (value: never) => void;
+  vi.mocked(rpc).mockReturnValueOnce(
+    new Promise((resolve) => {
+      resolveSave = resolve;
+    }),
+  );
+  await view.press("Roleplay bots");
+  expect(rpc).toHaveBeenCalledWith("preferences/update", { roleplayEnabled: true });
+  expect(toggle.disabled).toBe(true);
+  expect(toggle.getAttribute("aria-checked")).toBe("false");
+  await act(async () => resolveSave({ ...account.me, roleplayEnabled: true } as never));
+  expect(toggle.disabled).toBe(false);
+  expect(toggle.getAttribute("aria-checked")).toBe("true");
+  vi.mocked(rpc).mockRejectedValueOnce(new Error("Failed"));
+  await view.press("Roleplay bots");
+  expect(rpc).toHaveBeenLastCalledWith("preferences/update", { roleplayEnabled: false });
+  expect(toggle.disabled).toBe(false);
+  expect(toggle.getAttribute("aria-checked")).toBe("true");
+  expect(view.screen.textContent).toContain("Couldn't update roleplay settings");
 });

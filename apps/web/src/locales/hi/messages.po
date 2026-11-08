@@ -13,6 +13,10 @@ msgstr ""
 "Language-Team: \n"
 "Plural-Forms: \n"
 
+#: src/pages/shell/registered-host-picker.tsx
+msgid " (revoked)"
+msgstr ""
+
 #: src/pages/shell/sidebar-roster.tsx
 msgid " (unread)"
 msgstr " (अपठित)"
@@ -96,6 +100,12 @@ msgstr "{0} कनेक्शन"
 msgid "{0} default"
 msgstr ""
 
+#. placeholder {0}: files.data.storage.files
+#. placeholder {1}: formatFileBytes(files.data.storage.bytes)
+#: src/pages/shell/conversation-files-panel.tsx
+msgid "{0} files · {1} stored, including versions"
+msgstr ""
+
 #. placeholder {0}: parts.amount
 #: src/components/ArtifactFileCard.tsx
 msgid "{0} GB"
@@ -140,6 +150,11 @@ msgstr ""
 #: src/components/ArtifactFileCard.tsx
 msgid "{0} TB"
 msgstr "{0} TB"
+
+#. placeholder {0}: file.versionCount
+#: src/pages/shell/conversation-files-panel.tsx
+msgid "{0} versions"
+msgstr ""
 
 #. placeholder {0}: bot.name
 #: src/pages/ExternalConversationSettings.tsx
@@ -217,6 +232,11 @@ msgstr ""
 #: src/lib/relative-time.ts
 msgid "{hours}h ago"
 msgstr "{hours} घंटे पहले"
+
+#. placeholder {0}: index + 1
+#: src/pages/shell/roleplay-settings.tsx
+msgid "{label} {0}"
+msgstr ""
 
 #: src/components/markdown-copy.tsx
 msgid "{label}, empty"
@@ -437,6 +457,14 @@ msgstr "एक सब्सक्रिप्शन क्रेडेंशि�
 msgid "About {label}"
 msgstr "{label} के बारे में"
 
+#: src/pages/shell/project-folder-picker.tsx
+msgid "Absolute path on host"
+msgstr ""
+
+#: src/pages/shell/bot-runtime-settings.tsx
+msgid "Access"
+msgstr ""
+
 #: src/pages/McpServersOverlay.tsx
 msgid "Access token (optional)"
 msgstr "एक्सेस टोकन (वैकल्पिक)"
@@ -552,6 +580,14 @@ msgstr ""
 msgid "Add custom"
 msgstr ""
 
+#: src/pages/Workflows.tsx
+msgid "Add dependency"
+msgstr ""
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Add entry"
+msgstr ""
+
 #: src/pages/ModelRoleSettings.tsx
 msgid "Add fallback"
 msgstr "फ़ॉलबैक जोड़ें"
@@ -567,6 +603,14 @@ msgstr "हेडर जोड़ें"
 #: src/pages/ScratchpadSection.tsx
 msgid "Add item"
 msgstr "आइटम जोड़ें"
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Add key"
+msgstr ""
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Add lorebook"
+msgstr ""
 
 #: src/components/integrations/IntegrationSetup.tsx
 msgid "Add MCP server"
@@ -597,6 +641,10 @@ msgstr ""
 msgid "Add skills"
 msgstr ""
 
+#: src/pages/Workflows.tsx
+msgid "Add step"
+msgstr ""
+
 #: src/components/teach/SkillDraftCard.tsx
 msgid "Add to routine"
 msgstr "रूटीन में जोड़ें"
@@ -612,6 +660,10 @@ msgstr "वर्कस्पेस जोड़ें"
 #: src/components/integrations/plugin-marketplace.tsx
 #: src/pages/PluginsOverlay.tsx
 msgid "Added"
+msgstr ""
+
+#: src/pages/shell/roleplay-images.tsx
+msgid "Adding image…"
 msgstr ""
 
 #: src/components/integrations/plugin-marketplace.tsx
@@ -633,6 +685,19 @@ msgstr "उन्नत"
 
 #: src/pages/RoutineEditor.tsx
 msgid "Advanced..."
+msgstr ""
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "After character"
+msgstr ""
+
+#: src/pages/shell/bot-runtime-settings.tsx
+msgid "Agent"
+msgstr ""
+
+#: src/pages/shell/bot-panel.tsx
+#: src/pages/shell/create-bot-dialog.tsx
+msgid "Agent and environment"
 msgstr ""
 
 #: src/pages/McpServersOverlay.tsx
@@ -711,6 +776,10 @@ msgstr "पहले से खाता है?"
 
 #: src/pages/ExternalConversationSettings.tsx
 msgid "Always act"
+msgstr ""
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Always active"
 msgstr ""
 
 #: src/components/AskCard.tsx
@@ -835,6 +904,10 @@ msgstr "स्वीकृतियाँ"
 msgid "Approve"
 msgstr "अनुमोदित करें"
 
+#: src/pages/shell/native-runtime-setup.tsx
+msgid "Approve in the host terminal"
+msgstr ""
+
 #: src/pages/shell/message-cards.tsx
 msgid "Approve this server to let your agent use its tools."
 msgstr "अपने एजेंट को इसके टूल उपयोग करने देने के लिए इस सर्वर को अनुमोदित करें।"
@@ -896,6 +969,7 @@ msgstr "फ़ाइल संलग्न करें"
 
 #: src/pages/shell/chat-context.tsx
 #: src/pages/shell/chat-shared.ts
+#: src/pages/shell/conversation-files-panel.tsx
 msgid "Attachment"
 msgstr "अटैचमेंट"
 
@@ -977,9 +1051,17 @@ msgstr "अवतार स्टूडियो"
 msgid "Back"
 msgstr "वापस"
 
+#: src/pages/Workflows.tsx
+msgid "Back to chats"
+msgstr ""
+
 #: src/pages/Auth.tsx
 msgid "Back to sign in"
 msgstr "साइन इन पर वापस जाएँ"
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Balanced"
+msgstr "संतुलित"
 
 #: src/pages/memory-providers/ConnectionModeFields.tsx
 msgid "Base URL"
@@ -998,6 +1080,10 @@ msgstr ""
 #: src/pages/PluginsOverlay.tsx
 msgid "Bearer token"
 msgstr "बियरर टोकन"
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Before character"
+msgstr ""
 
 #: src/pages/settings-nav.ts
 msgid "Billing"
@@ -1035,8 +1121,10 @@ msgstr "बॉट"
 #: src/pages/MessagingSettingsPanel.tsx
 #: src/pages/Shell.tsx
 #: src/pages/shell/avatar-studio-popover.tsx
+#: src/pages/shell/conversation-tasks.tsx
 #: src/pages/shell/message-view.tsx
 #: src/pages/SpaceSearch.tsx
+#: src/pages/Workflows.tsx
 msgid "Bot"
 msgstr "बॉट"
 
@@ -1044,6 +1132,10 @@ msgstr "बॉट"
 #: src/lib/browser-notifications.ts
 msgid "Bot"
 msgstr "बॉट"
+
+#: src/pages/Shell.tsx
+msgid "Bot conversation"
+msgstr ""
 
 #: src/components/teach/TeachRecordingChrome.tsx
 msgid "Bot is watching, not acting"
@@ -1086,7 +1178,12 @@ msgid "Brain label"
 msgstr ""
 
 #: src/components/integrations/skills-dialog.tsx
+#: src/pages/shell/project-folder-picker.tsx
 msgid "Browse"
+msgstr ""
+
+#: src/pages/shell/project-folder-picker.tsx
+msgid "Browse folders in the host home directory."
 msgstr ""
 
 #: src/pages/PluginsOverlay.tsx
@@ -1097,6 +1194,14 @@ msgstr ""
 #: src/pages/shell/agent-import.tsx
 msgid "Built-in"
 msgstr "अंतर्निहित"
+
+#: src/pages/RoutineEditor.tsx
+msgid "Calendar"
+msgstr ""
+
+#: src/pages/RoutineCalendar.tsx
+msgid "Calendar view"
+msgstr ""
 
 #: src/pages/shell/chat-header.tsx
 msgid "Call"
@@ -1152,6 +1257,8 @@ msgstr "तस्वीरें नहीं पढ़ सकता"
 #: src/pages/PluginSubmissionsPanel.tsx
 #: src/pages/shell/create-bot-dialog.tsx
 #: src/pages/shell/dialogs.tsx
+#: src/pages/shell/project-folder-picker.tsx
+#: src/pages/shell/thread-queue.tsx
 #: src/pages/SpaceSettingOverrides.tsx
 msgid "Cancel"
 msgstr "रद्द करें"
@@ -1167,6 +1274,10 @@ msgstr "नया समूह रद्द करें"
 #: src/pages/shell/chat-context.tsx
 msgid "Cancel reply"
 msgstr "उत्तर रद्द करें"
+
+#: src/pages/shell/native-runtime-setup.tsx
+msgid "Cancel setup"
+msgstr ""
 
 #: src/pages/BillingSettingsPanel.tsx
 msgid "Canceled"
@@ -1189,6 +1300,10 @@ msgstr "प्रस्तावित नियम"
 msgid "Card view"
 msgstr ""
 
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Case sensitive"
+msgstr ""
+
 #: src/pages/ModelRoleSettings.tsx
 msgid "Change {name}"
 msgstr "{name} बदलें"
@@ -1205,13 +1320,49 @@ msgstr "मॉडल बदलें"
 msgid "Change password"
 msgstr "पासवर्ड बदलें"
 
+#: src/pages/shell/roleplay-relationship-debug.tsx
+msgid "Changes affect this conversation."
+msgstr "बदलाव इस बातचीत पर लागू होते हैं।"
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Changes apply to the next reply. Story history and memory are kept."
+msgstr ""
+
 #: src/pages/AccountSettingsOverlay.tsx
 msgid "Changing…"
 msgstr "बदला जा रहा है…"
 
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Character"
+msgstr ""
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Character content must be at most 1 MB."
+msgstr ""
+
+#: src/pages/shell/create-bot-dialog.tsx
+msgid "Character JSON"
+msgstr ""
+
+#: src/pages/shell/create-bot-dialog.tsx
+msgid "Character JSON contains invalid or oversized fields."
+msgstr ""
+
+#: src/pages/shell/create-bot-dialog.tsx
+msgid "Character JSON must be 1 MB or smaller."
+msgstr ""
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Character name"
+msgstr ""
+
 #: src/pages/shell/message-cards.tsx
 msgid "Chart failed to render: {error}"
 msgstr "चार्ट रेंडर नहीं हो सका: {error}"
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Chat"
+msgstr "चैट"
 
 #: src/pages/shell/composer-mentions.tsx
 msgid "Chat Settings"
@@ -1228,6 +1379,10 @@ msgstr ""
 #: src/lib/identity-display.ts
 msgid "Chats"
 msgstr "चैट"
+
+#: src/pages/shell/registered-host-picker.tsx
+msgid "Check"
+msgstr ""
 
 #: src/components/ComputersUnavailableHint.tsx
 #: src/pages/HostComputerPrompt.tsx
@@ -1255,6 +1410,10 @@ msgstr "जांच करें।"
 msgid "Check the API key or sign-in, then test again."
 msgstr "API कुंजी या साइन-इन जाँचें, फिर फिर से परीक्षण करें।"
 
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Check the highlighted fields."
+msgstr ""
+
 #: src/lib/model-connection-preflight.ts
 msgid "Check the server URL and network, then test again."
 msgstr "सर्वर URL और नेटवर्क जाँचें, फिर फिर से परीक्षण करें।"
@@ -1279,11 +1438,24 @@ msgstr ""
 msgid "Checking connection…"
 msgstr "कनेक्शन जाँचा जा रहा है…"
 
+#: src/pages/shell/bot-runtime-settings.tsx
+msgid "Checking Docker availability…"
+msgstr ""
+
+#: src/pages/shell/bot-runtime-settings.tsx
+msgid "Checking runtime…"
+msgstr ""
+
 #: src/components/ComputersUnavailableHint.tsx
 #: src/components/DesktopUpdates.tsx
 #: src/pages/HostComputerPrompt.tsx
 msgid "Checking…"
 msgstr ""
+
+#: src/pages/Shell.tsx
+#: src/pages/shell/conversation-tasks.tsx
+msgid "Choose a bot"
+msgstr "बॉट चुनें"
 
 #: src/pages/shell/avatar-studio-popover.tsx
 msgid "Choose a bot shape, color, or upload an image"
@@ -1302,6 +1474,10 @@ msgstr "नया पासवर्ड चुनें"
 msgid "Choose a provider"
 msgstr ""
 
+#: src/pages/shell/create-bot-dialog.tsx
+msgid "Choose a valid character JSON file."
+msgstr ""
+
 #: src/pages/shell/agent-import.tsx
 msgid "Choose backup"
 msgstr "बैकअप चुनें"
@@ -1318,6 +1494,10 @@ msgstr "फ़ोल्डर चुनें"
 #: src/components/ModelCredits.tsx
 #: src/components/SubscriptionGate.tsx
 msgid "Choose how to use Rakazo"
+msgstr ""
+
+#: src/pages/shell/composer.tsx
+msgid "Choose runtime and model"
 msgstr ""
 
 #: src/lib/localized-provider-hint.ts
@@ -1346,6 +1526,10 @@ msgstr ""
 #: src/pages/shell/dialogs.tsx
 msgid "Clearing…"
 msgstr "साफ़ किया जा रहा है…"
+
+#: src/pages/shell/native-runtime-setup.tsx
+msgid "CLI unavailable"
+msgstr ""
 
 #: src/components/ErrorBoundary.tsx
 #: src/pages/KnowledgeSection.tsx
@@ -1536,6 +1720,10 @@ msgstr "कंप्यूटर बंद हैं। SANDBOX_PROVIDER=docker 
 msgid "Configure a plugin catalog on the server to connect apps."
 msgstr ""
 
+#: src/pages/shell/native-runtime-setup.tsx
+msgid "Configure the ACP command in the host’s private native-providers.json file."
+msgstr ""
+
 #: src/pages/McpServersOverlay.tsx
 msgid "Configured servers"
 msgstr "कॉन्फ़िगर किए गए सर्वर"
@@ -1674,6 +1862,10 @@ msgstr ""
 msgid "Contains code to run"
 msgstr "चलाने योग्य कोड है"
 
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Content"
+msgstr ""
+
 #: src/pages/model-settings/compatible-model-fields.tsx
 #: src/pages/Onboarding.tsx
 msgid "Context limit"
@@ -1694,6 +1886,14 @@ msgstr "जारी रखें"
 msgid "Continue in Background"
 msgstr ""
 
+#: src/pages/shell/native-runtime-setup.tsx
+msgid "Continue in the host browser."
+msgstr ""
+
+#: src/pages/shell/native-runtime-setup.tsx
+msgid "Continue sign-in"
+msgstr ""
+
 #: src/components/ModelCredits.tsx
 msgid "Continue to checkout"
 msgstr ""
@@ -1702,6 +1902,19 @@ msgstr ""
 #: src/pages/Auth.tsx
 msgid "Continue with {0}"
 msgstr "{0} के साथ जारी रखें"
+
+#: src/pages/shell/computer-overlay.tsx
+msgid "Conversation"
+msgstr ""
+
+#: src/pages/shell/chat-header.tsx
+#: src/pages/shell/conversation-files-panel.tsx
+msgid "Conversation files"
+msgstr ""
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Conversation style"
+msgstr "बातचीत की शैली"
 
 #: src/pages/MessagingSettingsPanel.tsx
 msgid "Conversations"
@@ -1753,6 +1966,10 @@ msgstr "लागत"
 msgid "Could not add"
 msgstr "जोड़ा नहीं जा सका"
 
+#: src/pages/shell/roleplay-images.tsx
+msgid "Could not add image"
+msgstr ""
+
 #: src/pages/McpServersOverlay.tsx
 msgid "Could not add MCP server"
 msgstr "MCP सर्वर जोड़ा नहीं जा सका"
@@ -1783,6 +2000,18 @@ msgstr "पासवर्ड बदला नहीं जा सका"
 
 #: src/components/integrations/space-availability.tsx
 msgid "Could not change where this is available"
+msgstr ""
+
+#: src/pages/shell/bot-runtime-settings.tsx
+msgid "Could not check Docker availability."
+msgstr ""
+
+#: src/pages/shell/bot-runtime-settings.tsx
+msgid "Could not check runtime"
+msgstr ""
+
+#: src/pages/shell/native-runtime-setup.tsx
+msgid "Could not check runtime setup"
 msgstr ""
 
 #: src/lib/model-connection-preflight.ts
@@ -1932,8 +2161,16 @@ msgstr "{0} डाउनलोड नहीं हो सका। पुनः 
 msgid "Could not download {name}. Try again."
 msgstr "{name} डाउनलोड नहीं हो सका। पुनः प्रयास करें।"
 
+#: src/pages/shell/conversation-files-panel.tsx
+msgid "Could not download file."
+msgstr ""
+
 #: src/components/integrations/plugin-marketplace.tsx
 msgid "Could not enable tools"
+msgstr ""
+
+#: src/pages/shell/create-bot-dialog.tsx
+msgid "Could not import character JSON"
 msgstr ""
 
 #: src/pages/PluginsOverlay.tsx
@@ -1975,6 +2212,14 @@ msgstr ""
 msgid "Could not load credentials."
 msgstr ""
 
+#: src/pages/shell/conversation-files-panel.tsx
+msgid "Could not load files."
+msgstr ""
+
+#: src/pages/shell/registered-host-picker.tsx
+msgid "Could not load hosts"
+msgstr ""
+
 #: src/pages/PluginsOverlay.tsx
 msgid "Could not load integrations"
 msgstr "इंटीग्रेशन लोड नहीं हो सके"
@@ -1988,6 +2233,15 @@ msgstr "MCP सर्वर लोड नहीं हो सके"
 msgid "Could not load model settings"
 msgstr "मॉडल सेटिंग्स लोड नहीं हो सकीं"
 
+#: src/pages/shell/bot-model-picker.tsx
+msgid "Could not load models"
+msgstr ""
+
+#: src/pages/shell/roleplay-relationship-debug.tsx
+msgid "Could not load relationship"
+msgstr "रिश्ता लोड नहीं हो सका"
+
+#: src/pages/RoutineCalendar.tsx
 #: src/pages/RoutineRunHistory.tsx
 msgid "Could not load run history"
 msgstr "रन का इतिहास लोड नहीं हो सका"
@@ -2001,6 +2255,14 @@ msgstr "साइन इन के विकल्प लोड नहीं ह
 #: src/pages/KnowledgeSection.tsx
 msgid "Could not load skill"
 msgstr "स्किल लोड नहीं हो सकी"
+
+#: src/pages/shell/roleplay-story-mode.tsx
+msgid "Could not load story mode"
+msgstr ""
+
+#: src/pages/Shell.tsx
+msgid "Could not load task"
+msgstr ""
 
 #: src/pages/Artifacts.tsx
 msgid "Could not load this artifact."
@@ -2027,6 +2289,10 @@ msgstr "लॉग आउट नहीं हो सका। फिर से �
 #: src/pages/Onboarding.tsx
 #: src/pages/Paywall.tsx
 msgid "Could not open billing"
+msgstr ""
+
+#: src/pages/shell/project-folder-picker.tsx
+msgid "Could not open folder. Check the path and host access."
 msgstr ""
 
 #: src/pages/VoiceSettingsOverlay.tsx
@@ -2132,13 +2398,22 @@ msgstr "सहेजा नहीं जा सका"
 msgid "Could not save Auto Review"
 msgstr ""
 
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Could not save character"
+msgstr ""
+
 #: src/pages/GroupPanel.tsx
 msgid "Could not save group"
 msgstr "समूह सहेजा नहीं जा सका"
 
 #: src/pages/Onboarding.tsx
+#: src/pages/shell/bot-model-picker.tsx
 msgid "Could not save model"
 msgstr "मॉडल सहेजा नहीं जा सका"
+
+#: src/pages/shell/roleplay-relationship-debug.tsx
+msgid "Could not save relationship"
+msgstr "रिश्ता सहेजा नहीं जा सका"
 
 #: src/pages/shell/use-routine-editor.ts
 msgid "Could not save routine"
@@ -2242,12 +2517,20 @@ msgstr ""
 msgid "Could not update computer"
 msgstr "कंप्यूटर अपडेट नहीं हो सका"
 
+#: src/pages/shell/registered-host-picker.tsx
+msgid "Could not update host"
+msgstr ""
+
 #: src/pages/AccountSettingsOverlay.tsx
 msgid "Could not update name"
 msgstr "नाम अपडेट नहीं किया जा सका"
 
 #: src/pages/shell/use-composer-actions.ts
 msgid "Could not update reaction"
+msgstr ""
+
+#: src/pages/shell/roleplay-story-mode.tsx
+msgid "Could not update story mode"
 msgstr ""
 
 #: src/pages/MemorySettingsOverlay.tsx
@@ -2272,6 +2555,10 @@ msgstr ""
 
 #: src/pages/MessagingSettingsPanel.tsx
 msgid "Couldn't update messaging settings"
+msgstr ""
+
+#: src/pages/AccountSettingsOverlay.tsx
+msgid "Couldn't update roleplay settings"
 msgstr ""
 
 #: src/pages/AccountSettingsOverlay.tsx
@@ -2398,6 +2685,10 @@ msgstr ""
 msgid "day"
 msgstr "दिन"
 
+#: src/pages/RoutineCalendar.tsx
+msgid "Day"
+msgstr ""
+
 #: src/pages/shell/message-cards.tsx
 msgid "Day-to-day work"
 msgstr ""
@@ -2416,14 +2707,21 @@ msgstr "अस्वीकार करें"
 #: src/pages/ModelRoleSettings.tsx
 #: src/pages/Onboarding.tsx
 #: src/pages/shell/avatar-studio-popover.tsx
+#: src/pages/shell/bot-model-picker.tsx
 msgid "Default"
 msgstr "डिफ़ॉल्ट"
 
 #. placeholder {0}: thinkingLevelLabel(defaultThinkingLevel)
+#. placeholder {0}: thinkingLevelLabel(effective.defaultThinkingLevel)
 #: src/pages/RoutineEditor.tsx
+#: src/pages/shell/bot-model-picker.tsx
 #: src/pages/shell/bot-panel.tsx
 msgid "Default ({0})"
 msgstr "डिफ़ॉल्ट ({0})"
+
+#: src/pages/shell/bot-runtime-settings.tsx
+msgid "Default environment"
+msgstr ""
 
 #: src/pages/shell/agent-import.tsx
 msgid "Default from Hermes"
@@ -2491,6 +2789,10 @@ msgstr "अनुभाग हटाएँ"
 msgid "Delete space"
 msgstr ""
 
+#: src/pages/Workflows.tsx
+msgid "Delete step"
+msgstr ""
+
 #: src/pages/SpaceSettingOverrides.tsx
 msgid "Delete this Space's credentials?"
 msgstr "इस कार्यस्थान के क्रेडेंशियल डिलीट करें?"
@@ -2519,6 +2821,9 @@ msgstr "अस्वीकार करें"
 
 #: src/pages/Board.tsx
 #: src/pages/shell/agent-import.tsx
+#: src/pages/shell/bot-panel.tsx
+#: src/pages/shell/roleplay-images.tsx
+#: src/pages/shell/roleplay-settings.tsx
 msgid "Description"
 msgstr "विवरण"
 
@@ -2543,6 +2848,14 @@ msgstr "विवरण"
 msgid "Developer"
 msgstr ""
 
+#: src/pages/shell/native-runtime-setup.tsx
+msgid "Device code"
+msgstr ""
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Dialogue examples"
+msgstr ""
+
 #: src/lib/dictation.ts
 msgid "Dictation ended unexpectedly."
 msgstr ""
@@ -2560,8 +2873,16 @@ msgid "Disable a tool"
 msgstr "टूल अक्षम करें"
 
 #: src/pages/PluginsOverlay.tsx
+#: src/pages/shell/roleplay-settings.tsx
 msgid "Disabled"
 msgstr "अक्षम"
+
+#: src/pages/shell/conversation-tasks.tsx
+#: src/pages/shell/roleplay-relationship-debug.tsx
+#: src/pages/shell/roleplay-settings.tsx
+#: src/pages/shell/thread-queue.tsx
+msgid "Discard"
+msgstr ""
 
 #: src/components/composer/HoldToTalk.tsx
 msgid "Discard recording"
@@ -2626,9 +2947,17 @@ msgstr "Docker"
 msgid "Docker is configured but computers are not responding. Confirm the sandbox supervisor is running, then recreate the stack after changing .env."
 msgstr ""
 
+#: src/pages/shell/bot-runtime-settings.tsx
+msgid "Docker is not enabled on this deployment."
+msgstr ""
+
 #: src/pages/HostComputerPrompt.tsx
 msgid "Docker limits access to your computer for added security. Using {hostLabel} lets bots work with your local files and tools."
 msgstr "Docker अतिरिक्त सुरक्षा के लिए आपके कंप्यूटर तक पहुँच सीमित करता है। {hostLabel} चुनने पर बॉट्स आपकी स्थानीय फ़ाइलों और टूल्स के साथ काम कर सकते हैं।"
+
+#: src/pages/shell/bot-runtime-settings.tsx
+msgid "Docker sandbox"
+msgstr ""
 
 #: src/components/SidebarFooter.tsx
 msgid "Docs"
@@ -2658,11 +2987,14 @@ msgstr ""
 
 #: src/pages/Artifacts.tsx
 #: src/pages/KnowledgeSection.tsx
+#: src/pages/shell/conversation-files-panel.tsx
 msgid "Download"
 msgstr ""
 
+#. placeholder {0}: file.name
 #. placeholder {0}: props.name
 #: src/components/ArtifactFileCard.tsx
+#: src/pages/shell/conversation-files-panel.tsx
 msgid "Download {0}"
 msgstr "{0} डाउनलोड करें"
 
@@ -2697,6 +3029,7 @@ msgstr "हर नाम का उपयोग केवल एक बार �
 #: src/components/AskCard.tsx
 #: src/pages/AccountSettingsOverlay.tsx
 #: src/pages/McpServersOverlay.tsx
+#: src/pages/shell/thread-queue.tsx
 msgid "Edit"
 msgstr "संपादित करें"
 
@@ -2711,6 +3044,18 @@ msgstr "नाम संपादित करें"
 #: src/pages/BotContextMenu.tsx
 msgid "Edit Profile"
 msgstr "प्रोफ़ाइल संपादित करें"
+
+#: src/pages/shell/thread-queue.tsx
+msgid "Edit queued message"
+msgstr ""
+
+#: src/pages/Workflows.tsx
+msgid "Edit workflow"
+msgstr ""
+
+#: src/pages/shell/bot-model-picker.tsx
+msgid "Effort"
+msgstr ""
 
 #: src/pages/Auth.tsx
 msgid "Email"
@@ -2733,6 +3078,11 @@ msgstr "ईमेल सत्यापन आवश्यक है"
 msgid "Enable {0}"
 msgstr "{0} सक्षम करें"
 
+#: src/pages/shell/roleplay-images.tsx
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Enabled"
+msgstr ""
+
 #: src/pages/BillingSettingsPanel.tsx
 msgid "Ends {day}"
 msgstr ""
@@ -2741,13 +3091,33 @@ msgstr ""
 msgid "Engage when... Ignore..."
 msgstr ""
 
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Enter a character name (1–500 characters)."
+msgstr ""
+
 #: src/lib/user-error.ts
 msgid "Enter a password"
 msgstr "पासवर्ड दर्ज करें"
 
+#: src/pages/shell/project-folder-picker.tsx
+msgid "Enter a path to find other folders."
+msgstr ""
+
 #: src/lib/user-error.ts
 msgid "Enter a valid email"
 msgstr "मान्य ईमेल दर्ज करें"
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Enter a whole number from -100000 to 100000."
+msgstr ""
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Enter a whole number from 0 to 100."
+msgstr ""
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Enter a whole number from 0 to 32768."
+msgstr ""
 
 #: src/pages/model-settings/use-model-settings.ts
 #: src/pages/Onboarding.tsx
@@ -2760,6 +3130,14 @@ msgid "Enter a whole number from 1 to {MAX_MODEL_MAX_TOKENS} for maximum output 
 msgstr "अधिकतम आउटपुट टोकन के लिए 1 से {MAX_MODEL_MAX_TOKENS} के बीच कोई पूर्णांक दर्ज करें।"
 
 #: src/pages/model-settings/use-model-settings.ts
+msgid "Enter a whole number from 1 to {MAX_MODEL_TIMEOUT_MS} for request timeouts, or leave blank to use server defaults."
+msgstr ""
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Enter a whole number from 1 to 100."
+msgstr ""
+
+#: src/pages/model-settings/use-model-settings.ts
 #: src/pages/Onboarding.tsx
 msgid "Enter a whole number from 1 to 1000 for the image limit."
 msgstr "इमेज सीमा के लिए 1 से 1000 के बीच कोई पूर्णांक दर्ज करें।"
@@ -2767,6 +3145,15 @@ msgstr "इमेज सीमा के लिए 1 से 1000 के बी�
 #: src/lib/model-connection-preflight.ts
 msgid "Enter an API key before testing."
 msgstr "परीक्षण से पहले API कुंजी दर्ज करें।"
+
+#: src/pages/shell/roleplay-relationship-debug.tsx
+msgid "Enter whole numbers from 0 to 100."
+msgstr "0 से 100 तक पूर्णांक दर्ज करें।"
+
+#. placeholder {0}: index + 1
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Entry {0}"
+msgstr ""
 
 #: src/pages/McpServersOverlay.tsx
 msgid "Environment variables"
@@ -2865,6 +3252,14 @@ msgstr "तालिका बड़ी करें"
 msgid "expired"
 msgstr "समाप्त"
 
+#: src/pages/shell/composer.tsx
+msgid "Explore this project"
+msgstr ""
+
+#: src/pages/shell/composer.tsx
+msgid "Explore this project and explain its architecture. Suggest a useful first task without changing files."
+msgstr ""
+
 #: src/pages/shell/bot-panel.tsx
 msgid "Export"
 msgstr "एक्सपोर्ट करें"
@@ -2927,6 +3322,7 @@ msgid "Fields to compare, e.g. id, modifiedTime (optional)"
 msgstr "तुलना के लिए फ़ील्ड, जैसे id, modifiedTime (वैकल्पिक)"
 
 #: src/pages/McpServersOverlay.tsx
+#: src/pages/shell/conversation-files-panel.tsx
 #: src/pages/SpaceSearch.tsx
 msgid "File"
 msgstr "फ़ाइल"
@@ -2987,6 +3383,14 @@ msgstr "पूरा हुआ।"
 msgid "Finishing MCP connection…"
 msgstr "MCP कनेक्शन पूरा हो रहा है…"
 
+#: src/pages/shell/roleplay-settings.tsx
+msgid "First message"
+msgstr ""
+
+#: src/pages/shell/project-folder-picker.tsx
+msgid "Folder path"
+msgstr ""
+
 #: src/pages/Auth.tsx
 msgid "Forgot password?"
 msgstr "पासवर्ड भूल गए?"
@@ -2999,6 +3403,15 @@ msgstr ""
 #: src/pages/shell/shell-sidebar.tsx
 msgid "Free plan ends {day}"
 msgstr "मुफ़्त प्लान {day} को खत्म होगा"
+
+#: src/pages/shell/roleplay-images.tsx
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Frequency"
+msgstr "आवृत्ति"
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Frequent"
+msgstr "अधिक"
 
 #: src/lib/cron.ts
 msgid "Friday"
@@ -3018,6 +3431,10 @@ msgstr ""
 msgid "From GitHub"
 msgstr ""
 
+#: src/pages/shell/bot-runtime-settings.tsx
+msgid "Full access"
+msgstr ""
+
 #: src/pages/WindowChrome.tsx
 msgid "Fullscreen"
 msgstr "फ़ुलस्क्रीन"
@@ -3031,6 +3448,14 @@ msgstr "गेटवे आईडी"
 #: src/pages/SettingsOverlay.tsx
 msgid "General"
 msgstr "सामान्य"
+
+#: src/pages/shell/conversation-files-panel.tsx
+msgid "Generated"
+msgstr ""
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Gentle"
+msgstr "कम"
 
 #: src/components/InviteDialog.tsx
 msgid "Get a free month for each friend who starts a trial."
@@ -3108,6 +3533,14 @@ msgstr "हेडर"
 msgid "Hear a sample"
 msgstr "एक नमूना सुनें"
 
+#: src/pages/shell/composer.tsx
+msgid "Help me plan a project. Ask what I want to achieve and turn it into concrete next steps."
+msgstr ""
+
+#: src/pages/shell/composer.tsx
+msgid "Help me research a topic. Ask what I need to decide, then gather evidence and cite your sources."
+msgstr ""
+
 #: src/pages/VoiceSettingsOverlay.tsx
 msgid "Hi, this is how I'll sound when I read replies out loud."
 msgstr "नमस्ते, उत्तर पढ़कर सुनाते समय मेरी आवाज़ ऐसी होगी।"
@@ -3147,6 +3580,30 @@ msgstr "बोलने के लिए दबाए रखें"
 msgid "Hold to talk, release to send"
 msgstr "बोलने के लिए दबाए रखें, भेजने के लिए छोड़ें"
 
+#: src/pages/shell/project-folder-picker.tsx
+msgid "Home"
+msgstr ""
+
+#: src/pages/shell/registered-host-picker.tsx
+msgid "Host"
+msgstr ""
+
+#: src/pages/shell/bot-runtime-settings.tsx
+msgid "Host machine"
+msgstr ""
+
+#: src/pages/shell/registered-host-picker.tsx
+msgid "Host name"
+msgstr ""
+
+#: src/pages/shell/registered-host-picker.tsx
+msgid "Host token"
+msgstr ""
+
+#: src/pages/shell/registered-host-picker.tsx
+msgid "Host URL"
+msgstr ""
+
 #: src/lib/cron.ts
 msgid "hour"
 msgstr "घंटा"
@@ -3180,6 +3637,10 @@ msgstr "जांच कैसे करें"
 msgid "How will you use Rakazo?"
 msgstr ""
 
+#: src/pages/shell/registered-host-picker.tsx
+msgid "I trust this host to run commands and access project files."
+msgstr ""
+
 #: src/pages/shell/computer-release-actions.tsx
 msgid "I’m done"
 msgstr "मेरा काम हो गया"
@@ -3196,6 +3657,10 @@ msgstr "अगर आपने वह सुना, तो आवाज़ त�
 msgid "Ignore"
 msgstr ""
 
+#: src/pages/shell/roleplay-images.tsx
+msgid "Image"
+msgstr ""
+
 #. js-lingui-explicit-id
 #: src/lib/run-error.ts
 msgid "Image input is not configured for this model."
@@ -3209,6 +3674,19 @@ msgstr "इस मॉडल के लिए चित्र इनपुट क
 msgid "Image upload area"
 msgstr "छवि अपलोड क्षेत्र"
 
+#: src/pages/shell/roleplay-images.tsx
+msgid "Image URL"
+msgstr ""
+
+#: src/pages/shell/roleplay-images.tsx
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Images"
+msgstr ""
+
+#: src/pages/shell/roleplay-images.tsx
+msgid "Import"
+msgstr ""
+
 #: src/components/AccountDataSettings.tsx
 #: src/pages/shell/agent-import.tsx
 msgid "Import an agent"
@@ -3217,6 +3695,18 @@ msgstr "एजेंट इंपोर्ट करें"
 #: src/components/AccountDataSettings.tsx
 msgid "Import data"
 msgstr "डेटा आयात करें"
+
+#: src/pages/shell/roleplay-images.tsx
+msgid "Import from URL"
+msgstr ""
+
+#: src/pages/shell/create-bot-dialog.tsx
+msgid "Import warnings"
+msgstr ""
+
+#: src/pages/shell/create-bot-dialog.tsx
+msgid "Importing…"
+msgstr ""
 
 #: src/lib/ticket-status.ts
 msgid "In progress"
@@ -3258,6 +3748,14 @@ msgstr "इनपुट"
 msgid "Inputs"
 msgstr "इनपुट"
 
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Insertion order"
+msgstr ""
+
+#: src/pages/shell/bot-runtime-settings.tsx
+msgid "Install the runtime on the host."
+msgstr ""
+
 #: src/components/SidebarFooter.tsx
 msgid "Install update"
 msgstr "अपडेट इंस्टॉल करें"
@@ -3281,6 +3779,7 @@ msgstr "निर्देशों का इतिहास"
 #: src/components/AskCard.tsx
 #: src/components/InstructionSettings.tsx
 #: src/pages/shell/agent-import.tsx
+#: src/pages/Workflows.tsx
 msgid "Instructions"
 msgstr "निर्देश"
 
@@ -3317,6 +3816,10 @@ msgstr "अंतराल मात्रा"
 #: src/pages/RoutineSchedule.tsx
 msgid "Interval unit"
 msgstr "अंतराल इकाई"
+
+#: src/pages/shell/roleplay-relationship-debug.tsx
+msgid "Intimacy"
+msgstr "निकटता"
 
 #: src/lib/user-error.ts
 msgid "Invalid code"
@@ -3386,12 +3889,20 @@ msgstr "पिछली जाँच {0}: बदलाव हुए"
 msgid "Last check {0}: no changes"
 msgstr "पिछली जाँच {0}: कोई बदलाव नहीं"
 
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Late-night messages"
+msgstr "देर रात के संदेश"
+
 #: src/components/DesktopUpdates.tsx
 msgid "Later"
 msgstr ""
 
 #: src/pages/MessagingSettingsPanel.tsx
 msgid "Leave"
+msgstr ""
+
+#: src/pages/model-settings/request-timeout-fields.tsx
+msgid "Leave blank to use server defaults."
 msgstr ""
 
 #: src/components/ComputerDeviceSettings.tsx
@@ -3456,9 +3967,21 @@ msgstr "पुराने रन लोड करें"
 msgid "Load web images automatically"
 msgstr "वेब छवियाँ अपने-आप लोड करें"
 
+#: src/pages/Workflows.tsx
+msgid "Loading"
+msgstr ""
+
 #: src/pages/ActivityList.tsx
 msgid "Loading activity…"
 msgstr "गतिविधि लोड हो रही है…"
+
+#: src/pages/shell/conversation-files-panel.tsx
+msgid "Loading files…"
+msgstr ""
+
+#: src/pages/shell/project-folder-picker.tsx
+msgid "Loading folders…"
+msgstr ""
 
 #: src/pages/PluginsOverlay.tsx
 msgid "Loading integrations…"
@@ -3472,6 +3995,10 @@ msgstr "मेमोरी सेटिंग्स लोड हो रही �
 #: src/pages/ModelSettingsOverlay.tsx
 msgid "Loading model catalog…"
 msgstr "मॉडल कैटलॉग लोड हो रहा है…"
+
+#: src/pages/shell/bot-model-picker.tsx
+msgid "Loading models…"
+msgstr ""
 
 #: src/pages/PluginsOverlay.tsx
 msgid "Loading plugins…"
@@ -3492,7 +4019,9 @@ msgstr "आवाज़ प्रोवाइडर्स लोड हो र�
 #: src/pages/IntegrationSetup.tsx
 #: src/pages/PeerMessagesOverlay.tsx
 #: src/pages/PluginSubmissionsPanel.tsx
+#: src/pages/RoutineCalendar.tsx
 #: src/pages/RoutineRunHistory.tsx
+#: src/pages/shell/roleplay-relationship-debug.tsx
 #: src/pages/shell/transcript.tsx
 msgid "Loading…"
 msgstr "लोड हो रहा है…"
@@ -3505,6 +4034,10 @@ msgstr "स्थानीय पहुँच मिलने पर बॉट�
 msgid "Local computer access requires the latest desktop app."
 msgstr ""
 
+#: src/pages/shell/registered-host-picker.tsx
+msgid "Local host"
+msgstr ""
+
 #: src/components/ModelCredits.tsx
 #: src/components/SidebarFooter.tsx
 #: src/pages/Paywall.tsx
@@ -3514,6 +4047,22 @@ msgstr "लॉग आउट"
 #: src/pages/shell/agent-import.tsx
 msgid "Looks like it contains a key"
 msgstr "लगता है कि इसमें कोई कुंजी है"
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Lorebook"
+msgstr ""
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Lorebook description"
+msgstr ""
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Lorebook name"
+msgstr ""
+
+#: src/pages/shell/roleplay-relationship-debug.tsx
+msgid "Love"
+msgstr "प्रेम"
 
 #: src/lib/ticket-priority.ts
 #: src/pages/model-settings/compatible-model-fields.tsx
@@ -3772,6 +4321,7 @@ msgstr "मोड"
 #: src/pages/Onboarding.tsx
 #: src/pages/RoutineEditor.tsx
 #: src/pages/shell/agent-import.tsx
+#: src/pages/shell/bot-model-picker.tsx
 #: src/pages/shell/bot-panel.tsx
 msgid "Model"
 msgstr "मॉडल"
@@ -3779,6 +4329,10 @@ msgstr "मॉडल"
 #: src/lib/model-connection-preflight.ts
 msgid "Model \"{modelId}\" was not listed."
 msgstr "मॉडल \"{modelId}\" सूची में नहीं था।"
+
+#: src/pages/shell/bot-model-picker.tsx
+msgid "Model and effort"
+msgstr ""
 
 #: src/pages/shell/bot-panel.tsx
 msgid "Model connections"
@@ -3791,8 +4345,13 @@ msgstr "मॉडल आईडी"
 
 #: src/pages/model-settings/model-picker.tsx
 #: src/pages/model-settings/role-model-picker.tsx
+#: src/pages/shell/bot-model-picker.tsx
 msgid "Model options"
 msgstr "मॉडल विकल्प"
+
+#: src/pages/shell/bot-model-picker.tsx
+msgid "Model selection unavailable"
+msgstr ""
 
 #: src/pages/ModelSettingsOverlay.tsx
 #: src/pages/settings-nav.ts
@@ -3821,6 +4380,10 @@ msgstr "सोमवार"
 msgid "month"
 msgstr ""
 
+#: src/pages/RoutineCalendar.tsx
+msgid "Month"
+msgstr ""
+
 #: src/lib/cron.ts
 msgid "Monthly"
 msgstr "मासिक"
@@ -3846,7 +4409,12 @@ msgstr ""
 msgid "More computer actions"
 msgstr ""
 
+#: src/pages/RoutineCalendar.tsx
+msgid "More occurrences. Choose a shorter period."
+msgstr ""
+
 #: src/pages/ModelRoleSettings.tsx
+#: src/pages/shell/thread-queue.tsx
 msgid "Move down"
 msgstr "नीचे ले जाएँ"
 
@@ -3859,6 +4427,7 @@ msgid "Move to"
 msgstr "यहां ले जाएं"
 
 #: src/pages/ModelRoleSettings.tsx
+#: src/pages/shell/thread-queue.tsx
 msgid "Move up"
 msgstr "ऊपर ले जाएँ"
 
@@ -3901,6 +4470,14 @@ msgstr ""
 
 #: src/pages/shell/create-bot-dialog.tsx
 msgid "Name your Bot"
+msgstr ""
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Narrative"
+msgstr "कथात्मक"
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Narrative instructions"
 msgstr ""
 
 #: src/lib/roster-status.ts
@@ -3984,13 +4561,25 @@ msgstr "नई स्किल"
 msgid "New space"
 msgstr ""
 
+#: src/pages/shell/conversation-tasks.tsx
+msgid "New task"
+msgstr ""
+
 #: src/pages/Board.tsx
 msgid "New ticket"
+msgstr ""
+
+#: src/pages/Workflows.tsx
+msgid "New workflow"
 msgstr ""
 
 #: src/components/markdown-copy.tsx
 msgid "Next page"
 msgstr "अगला पृष्ठ"
+
+#: src/pages/RoutineCalendar.tsx
+msgid "Next period"
+msgstr ""
 
 #: src/pages/SettingsOverlay.tsx
 msgid "Next settings sections"
@@ -4017,6 +4606,18 @@ msgstr "कोई प्रमाणीकरण नहीं"
 msgid "No bots match"
 msgstr ""
 
+#: src/pages/shell/conversation-files-panel.tsx
+msgid "No files found."
+msgstr ""
+
+#: src/pages/shell/conversation-files-panel.tsx
+msgid "No files yet."
+msgstr ""
+
+#: src/pages/shell/project-folder-picker.tsx
+msgid "No folders"
+msgstr ""
+
 #: src/components/AskCard.tsx
 msgid "No longer active"
 msgstr "अब सक्रिय नहीं"
@@ -4032,6 +4633,7 @@ msgstr ""
 #: src/pages/model-settings/compatible-model-fields.tsx
 #: src/pages/model-settings/model-picker.tsx
 #: src/pages/model-settings/role-model-picker.tsx
+#: src/pages/shell/bot-model-picker.tsx
 #: src/pages/shell/chat-model-picker.tsx
 msgid "No matching models"
 msgstr ""
@@ -4105,6 +4707,10 @@ msgstr ""
 
 #: src/lib/ticket-priority.ts
 msgid "Normal"
+msgstr ""
+
+#: src/pages/shell/roleplay-images.tsx
+msgid "Normal chat: turns between images"
 msgstr ""
 
 #: src/pages/shell/agent-import.tsx
@@ -4191,6 +4797,10 @@ msgstr "OAuth की समय-सीमा समाप्त हो गई"
 msgid "Offline"
 msgstr ""
 
+#: src/pages/shell/conversation-tasks.tsx
+msgid "Older tasks"
+msgstr ""
+
 #: src/pages/model-settings/connection-controls.tsx
 #: src/pages/Onboarding.tsx
 msgid "Ollama API key"
@@ -4227,6 +4837,7 @@ msgstr ""
 #: src/pages/shell/computer-panel.tsx
 #: src/pages/shell/import-setup-card.tsx
 #: src/pages/shell/message-view.tsx
+#: src/pages/shell/project-folder-picker.tsx
 msgid "Open"
 msgstr "खोलें"
 
@@ -4269,6 +4880,14 @@ msgstr "पूरी विंडो में खोलें"
 #: src/pages/shell/chat-header.tsx
 msgid "Open navigation"
 msgstr "नेविगेशन खोलें"
+
+#: src/pages/shell/conversation-tasks.tsx
+msgid "Open recovery"
+msgstr ""
+
+#: src/pages/Workflows.tsx
+msgid "Open task"
+msgstr ""
 
 #: src/pages/ScratchpadSection.tsx
 msgid "Open work"
@@ -4426,6 +5045,10 @@ msgstr "व्यक्तित्व"
 msgid "Personal"
 msgstr ""
 
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Personality"
+msgstr ""
+
 #: src/components/call/VoiceChatCard.tsx
 msgid "Phone call"
 msgstr "फ़ोन कॉल"
@@ -4459,6 +5082,10 @@ msgstr "पिन करें"
 msgid "Pinned"
 msgstr "पिन किए गए"
 
+#: src/pages/shell/composer.tsx
+msgid "Plan a project"
+msgstr ""
+
 #: src/components/ArtifactFileCard.tsx
 msgid "Play {name}"
 msgstr "{name} चलाएँ"
@@ -4484,6 +5111,10 @@ msgstr ""
 msgid "Plugins"
 msgstr ""
 
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Position"
+msgstr ""
+
 #: src/pages/RoutineEditor.tsx
 msgid "Post \"No changes\" in chat"
 msgstr "चैट में “कोई बदलाव नहीं” पोस्ट करें"
@@ -4492,9 +5123,21 @@ msgstr "चैट में “कोई बदलाव नहीं” पो�
 msgid "POST to"
 msgstr ""
 
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Post-history instructions"
+msgstr ""
+
 #: src/pages/AccountSettingsOverlay.tsx
 msgid "Preferences"
 msgstr "प्राथमिकताएँ"
+
+#: src/pages/shell/native-runtime-setup.tsx
+msgid "Prepare install"
+msgstr ""
+
+#: src/pages/shell/native-runtime-setup.tsx
+msgid "Prepare sign-in"
+msgstr ""
 
 #: src/components/ApprovalRulePreview.tsx
 #: src/components/ApprovalRulesSettings.tsx
@@ -4516,8 +5159,16 @@ msgstr ""
 msgid "Previous page"
 msgstr "पिछला पृष्ठ"
 
+#: src/pages/RoutineCalendar.tsx
+msgid "Previous period"
+msgstr ""
+
 #: src/pages/SettingsOverlay.tsx
 msgid "Previous settings sections"
+msgstr ""
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Primary keys"
 msgstr ""
 
 #: src/pages/Board.tsx
@@ -4540,6 +5191,14 @@ msgstr ""
 msgid "Program: {name}"
 msgstr "प्रोग्राम: {name}"
 
+#: src/pages/shell/project-folder-picker.tsx
+msgid "Project folder"
+msgstr ""
+
+#: src/pages/shell/conversation-tasks.tsx
+msgid "Project subdirectory"
+msgstr ""
+
 #: src/components/teach/TeachRecordingChrome.tsx
 msgid "Protected input"
 msgstr ""
@@ -4558,7 +5217,20 @@ msgstr "प्रोवाइडर"
 msgid "Pull request"
 msgstr "पुल अनुरोध"
 
+#: src/pages/shell/composer.tsx
+msgid "Queue"
+msgstr ""
+
+#: src/pages/Shell.tsx
+msgid "Queue for"
+msgstr ""
+
+#: src/pages/Shell.tsx
+msgid "Queue recipient"
+msgstr ""
+
 #: src/pages/ActivityList.tsx
+#: src/pages/shell/thread-queue.tsx
 msgid "Queued"
 msgstr "कतार में"
 
@@ -4597,6 +5269,7 @@ msgstr ""
 
 #: src/pages/model-settings/compatible-model-fields.tsx
 #: src/pages/Onboarding.tsx
+#: src/pages/shell/bot-model-picker.tsx
 msgid "Reasoning effort"
 msgstr "रीज़निंग प्रयास"
 
@@ -4652,6 +5325,14 @@ msgstr "कंप्यूटर रिकवर करें"
 msgid "Recover computer?"
 msgstr "कंप्यूटर पुनर्प्राप्त करें?"
 
+#: src/pages/shell/conversation-tasks.tsx
+msgid "Recover or reassign"
+msgstr ""
+
+#: src/pages/Workflows.tsx
+msgid "Recover step"
+msgstr ""
+
 #. placeholder {0}: update.name
 #: src/components/ComputerUpdateProgress.tsx
 msgid "Recovering {0}’s Computer"
@@ -4664,6 +5345,10 @@ msgstr ""
 #: src/components/ComputerMaintenanceActions.tsx
 msgid "Recovering…"
 msgstr "रिकवर हो रहा है…"
+
+#: src/pages/shell/conversation-tasks.tsx
+msgid "Recovery"
+msgstr ""
 
 #: src/components/ComputerUpdateProgress.tsx
 msgid "Recovery failed"
@@ -4697,6 +5382,8 @@ msgstr "रीडायरेक्ट URI"
 #: src/App.tsx
 #: src/components/ErrorBoundary.tsx
 #: src/components/ModelCredits.tsx
+#: src/pages/shell/bot-model-picker.tsx
+#: src/pages/shell/bot-runtime-settings.tsx
 msgid "Refresh"
 msgstr "रीफ़्रेश करें"
 
@@ -4710,6 +5397,14 @@ msgstr ""
 
 #: src/components/teach/TeachComputerOverlay.tsx
 msgid "Refreshing…"
+msgstr ""
+
+#: src/pages/shell/registered-host-picker.tsx
+msgid "Register"
+msgstr ""
+
+#: src/pages/shell/registered-host-picker.tsx
+msgid "Register host"
 msgstr ""
 
 #: src/lib/user-error.ts
@@ -4732,6 +5427,10 @@ msgstr ""
 #: src/pages/PluginSubmissionsPanel.tsx
 msgid "Rejecting…"
 msgstr ""
+
+#: src/pages/shell/roleplay-relationship-debug.tsx
+msgid "Relationship debug"
+msgstr "रिश्ते की डीबगिंग"
 
 #: src/pages/shell/computer-release-actions.tsx
 msgid "Release control"
@@ -4766,6 +5465,11 @@ msgstr "{0} हटाएं"
 msgid "Remove {0} from the group"
 msgstr ""
 
+#. placeholder {0}: index + 1
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Remove {label} {0}"
+msgstr ""
+
 #: src/components/VaultSettings.tsx
 msgid "Remove {secretName}? Bots will no longer be able to use it."
 msgstr "{secretName} हटाएँ? बॉट इसका उपयोग नहीं कर पाएँगे।"
@@ -4777,6 +5481,14 @@ msgstr "{site} हटाएं"
 #: src/pages/RoutineEditor.tsx
 msgid "Remove change trigger"
 msgstr "बदलाव ट्रिगर हटाएँ"
+
+#: src/pages/Workflows.tsx
+msgid "Remove dependency"
+msgstr ""
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Remove entry"
+msgstr ""
 
 #: src/components/integrations/plugin-marketplace.tsx
 #: src/pages/KnowledgeSection.tsx
@@ -4792,6 +5504,14 @@ msgstr ""
 #: src/components/ModelHeadersEditor.tsx
 msgid "Remove header"
 msgstr "हेडर हटाएँ"
+
+#: src/pages/shell/roleplay-images.tsx
+msgid "Remove image"
+msgstr ""
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Remove lorebook"
+msgstr ""
 
 #: src/pages/RoutineEditor.tsx
 msgid "Remove message trigger"
@@ -4872,12 +5592,24 @@ msgstr ""
 msgid "Request a new code"
 msgstr "नया कोड मँगाएँ"
 
+#: src/pages/model-settings/request-timeout-fields.tsx
+msgid "Request timeouts"
+msgstr ""
+
 #: src/pages/MessagingSettingsPanel.tsx
 msgid "Requests"
 msgstr ""
 
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Require secondary match"
+msgstr ""
+
 #: src/pages/shell/message-cards.tsx
 msgid "Research & writing"
+msgstr ""
+
+#: src/pages/shell/composer.tsx
+msgid "Research a topic"
 msgstr ""
 
 #: src/components/ComputerMaintenanceActions.tsx
@@ -4950,6 +5682,9 @@ msgstr ""
 #: src/pages/ModelRoleSettings.tsx
 #: src/pages/PluginsOverlay.tsx
 #: src/pages/PluginSubmissionsPanel.tsx
+#: src/pages/RoutineCalendar.tsx
+#: src/pages/shell/conversation-files-panel.tsx
+#: src/pages/shell/roleplay-story-mode.tsx
 #: src/pages/SpaceSettingOverrides.tsx
 msgid "Retry"
 msgstr "फिर कोशिश करें"
@@ -4977,8 +5712,29 @@ msgstr "Rakazo पर लौटें"
 msgid "Review provider settings and test again."
 msgstr "प्रोवाइडर सेटिंग्स की समीक्षा करें और फिर से परीक्षण करें।"
 
+#: src/pages/shell/composer.tsx
+msgid "Review the code"
+msgstr ""
+
+#: src/pages/shell/composer.tsx
+msgid "Review this project's code for concrete bugs. Explain your findings before making changes."
+msgstr ""
+
 #: src/pages/MessagingSettingsPanel.tsx
+#: src/pages/shell/registered-host-picker.tsx
 msgid "Revoke"
+msgstr ""
+
+#: src/pages/shell/create-bot-dialog.tsx
+msgid "Roleplay"
+msgstr ""
+
+#: src/pages/AccountSettingsOverlay.tsx
+msgid "Roleplay bots"
+msgstr ""
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Roleplay settings"
 msgstr ""
 
 #: src/pages/ExternalConversationSettings.tsx
@@ -4996,6 +5752,10 @@ msgstr ""
 msgid "Routine"
 msgstr "रूटीन"
 
+#: src/pages/RoutineCalendar.tsx
+msgid "Routine calendar"
+msgstr ""
+
 #: src/pages/shell/agent-import.tsx
 #: src/pages/shell/bot-panel.tsx
 msgid "Routines"
@@ -5009,12 +5769,28 @@ msgstr ""
 msgid "Row"
 msgstr "पंक्ति"
 
+#: src/pages/Workflows.tsx
+msgid "Run"
+msgstr ""
+
+#: src/pages/Workflows.tsx
+msgid "Run after"
+msgstr ""
+
+#: src/pages/Workflows.tsx
+msgid "Run after…"
+msgstr ""
+
 #: src/pages/RoutineEditor.tsx
 msgid "Run at"
 msgstr ""
 
 #: src/pages/RoutineRunHistory.tsx
 msgid "Run history"
+msgstr ""
+
+#: src/pages/shell/bot-runtime-settings.tsx
+msgid "Run on"
 msgstr ""
 
 #: src/pages/shell/use-routine-editor.ts
@@ -5037,11 +5813,25 @@ msgid "Running…"
 msgstr "चल रहा है…"
 
 #: src/pages/AccountSettingsOverlay.tsx
+#: src/pages/Workflows.tsx
 msgid "Runs"
 msgstr "रन"
 
 #: src/pages/RoutineEditor.tsx
 msgid "Runs when this bot receives a verified message from this provider."
+msgstr ""
+
+#: src/pages/shell/bot-model-picker.tsx
+msgid "Runtime default"
+msgstr ""
+
+#: src/pages/shell/bot-runtime-settings.tsx
+#: src/pages/shell/native-runtime-setup.tsx
+msgid "Runtime ready"
+msgstr ""
+
+#: src/pages/shell/bot-runtime-settings.tsx
+msgid "Runtime unavailable"
 msgstr ""
 
 #: src/pages/PluginsOverlay.tsx
@@ -5067,8 +5857,15 @@ msgstr "शनिवार"
 #: src/pages/RoutineEditor.tsx
 #: src/pages/shell/bot-panel.tsx
 #: src/pages/shell/dialogs.tsx
+#: src/pages/shell/thread-queue.tsx
+#: src/pages/Workflows.tsx
 msgid "Save"
 msgstr "सहेजें"
+
+#: src/pages/shell/roleplay-relationship-debug.tsx
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Save changes"
+msgstr ""
 
 #: src/components/VaultSettings.tsx
 msgid "Save credential"
@@ -5104,6 +5901,10 @@ msgstr "सहेजा गया।"
 msgid "Saved. Rotate to reveal."
 msgstr ""
 
+#: src/pages/shell/bot-model-picker.tsx
+msgid "Saving model…"
+msgstr ""
+
 #: src/components/ComputerUpdateProgress.tsx
 msgid "Saving your workspace"
 msgstr ""
@@ -5122,12 +5923,30 @@ msgstr ""
 #: src/pages/ModelSettingsOverlay.tsx
 #: src/pages/RoutineEditor.tsx
 #: src/pages/shell/dialogs.tsx
+#: src/pages/shell/roleplay-relationship-debug.tsx
+#: src/pages/shell/roleplay-settings.tsx
 msgid "Saving…"
 msgstr "सहेजा जा रहा है…"
 
 #: src/lib/call-session.ts
 msgid "Say yes or no, or answer in a sentence."
 msgstr "हां या ना कहें, या एक वाक्य में उत्तर दें।"
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Scan depth"
+msgstr ""
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Scenario"
+msgstr ""
+
+#: src/pages/shell/roleplay-images.tsx
+msgid "Scene"
+msgstr ""
+
+#: src/pages/RoutineCalendar.tsx
+msgid "Scheduled"
+msgstr ""
 
 #: src/components/ModelCredits.tsx
 msgid "Scheduled routines"
@@ -5171,6 +5990,10 @@ msgstr ""
 msgid "Search by domain"
 msgstr ""
 
+#: src/pages/shell/conversation-files-panel.tsx
+msgid "Search files"
+msgstr ""
+
 #: src/components/integrations/IntegrationSetup.tsx
 msgid "Search integrations.sh"
 msgstr ""
@@ -5178,6 +6001,7 @@ msgstr ""
 #: src/pages/model-settings/compatible-model-fields.tsx
 #: src/pages/model-settings/model-picker.tsx
 #: src/pages/model-settings/role-model-picker.tsx
+#: src/pages/shell/bot-model-picker.tsx
 #: src/pages/shell/chat-model-picker.tsx
 msgid "Search models"
 msgstr ""
@@ -5199,6 +6023,10 @@ msgstr ""
 #: src/pages/SpaceSearch.tsx
 msgid "Searching…"
 msgstr "खोजा जा रहा है…"
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Secondary keys"
+msgstr ""
 
 #: src/pages/AccountSettingsOverlay.tsx
 msgid "Security"
@@ -5272,6 +6100,10 @@ msgstr ""
 msgid "Serenity endpoint is required."
 msgstr ""
 
+#: src/pages/model-settings/request-timeout-fields.tsx
+msgid "Server default"
+msgstr ""
+
 #: src/pages/McpServersOverlay.tsx
 msgid "Server name"
 msgstr "सर्वर का नाम"
@@ -5283,6 +6115,10 @@ msgstr "सर्वर का नाम"
 #: src/pages/VoiceSettingsOverlay.tsx
 msgid "Server URL"
 msgstr "सर्वर URL"
+
+#: src/pages/shell/native-runtime-setup.tsx
+msgid "Set up runtime"
+msgstr ""
 
 #: src/components/call/CallCard.tsx
 #: src/components/SidebarFooter.tsx
@@ -5308,13 +6144,30 @@ msgstr "सेटिंग्स: सामान्य"
 msgid "Settings: Usage"
 msgstr "सेटिंग्स: उपयोग"
 
+#: src/pages/shell/native-runtime-setup.tsx
+msgid "Setup cancelled"
+msgstr ""
+
 #: src/pages/shell/import-setup-card.tsx
+#: src/pages/shell/native-runtime-setup.tsx
 msgid "Setup complete"
 msgstr "सेटअप पूरा हुआ"
+
+#: src/pages/shell/native-runtime-setup.tsx
+msgid "Setup expired"
+msgstr ""
+
+#: src/pages/shell/native-runtime-setup.tsx
+msgid "Setup failed"
+msgstr ""
 
 #: src/pages/model-settings/compatible-model-fields.tsx
 msgid "Setup help"
 msgstr "सेटअप सहायता"
+
+#: src/pages/shell/native-runtime-setup.tsx
+msgid "Setup running"
+msgstr ""
 
 #: src/pages/shell/avatar-studio-popover.tsx
 msgid "Shape"
@@ -5348,6 +6201,15 @@ msgstr ""
 
 #: src/pages/Artifacts.tsx
 msgid "Show list"
+msgstr ""
+
+#: src/pages/shell/conversation-files-panel.tsx
+msgid "Show message"
+msgstr ""
+
+#. placeholder {0}: file.name
+#: src/pages/shell/conversation-files-panel.tsx
+msgid "Show message for {0}"
 msgstr ""
 
 #: src/pages/KnowledgeSection.tsx
@@ -5405,6 +6267,10 @@ msgstr "<0>{0}</0> पर साइन इन करें, फिर कोड 
 msgid "Sign in to Rakazo"
 msgstr "Rakazo में साइन इन करें"
 
+#: src/pages/shell/bot-runtime-settings.tsx
+msgid "Sign in to the runtime on the host."
+msgstr ""
+
 #: src/lib/user-error.ts
 msgid "Sign in to your existing account to link SSO"
 msgstr "SSO लिंक करने के लिए अपने मौजूदा खाते में साइन इन करें"
@@ -5424,6 +6290,10 @@ msgstr "साइन अप करें"
 
 #: src/components/integrations/plugin-marketplace.tsx
 msgid "Sign-in cancelled. Try again."
+msgstr ""
+
+#: src/pages/shell/native-runtime-setup.tsx
+msgid "Sign-in required"
 msgstr ""
 
 #: src/components/VaultSettings.tsx
@@ -5480,6 +6350,10 @@ msgstr ""
 msgid "Slide up to lock"
 msgstr "लॉक करने के लिए ऊपर खिसकाएँ"
 
+#: src/pages/model-settings/request-timeout-fields.tsx
+msgid "Slow local inference (15 min)"
+msgstr ""
+
 #: src/components/integrations/skills-dialog.tsx
 #: src/pages/PluginsOverlay.tsx
 msgid "Some plugins could not be loaded."
@@ -5518,11 +6392,16 @@ msgstr "{column} के अनुसार क्रमबद्ध, आरो�
 msgid "Sorted by {column}, descending"
 msgstr "{column} के अनुसार क्रमबद्ध, अवरोही"
 
+#: src/pages/shell/conversation-tasks.tsx
+msgid "Source conversation"
+msgstr ""
+
 #: src/lib/identity-display.ts
 #: src/pages/SettingsOverlay.tsx
 msgid "Space"
 msgstr "कार्यस्थान"
 
+#: src/pages/shell/bot-model-picker.tsx
 #: src/pages/shell/bot-panel.tsx
 msgid "Space default"
 msgstr "स्पेस डिफ़ॉल्ट"
@@ -5547,6 +6426,14 @@ msgstr "बोल रहा है"
 msgid "Speech model"
 msgstr "वाक् मॉडल"
 
+#: src/pages/shell/roleplay-images.tsx
+msgid "Spontaneous images"
+msgstr ""
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Spontaneous messages"
+msgstr "स्वतः भेजे गए संदेश"
+
 #: src/lib/user-error.ts
 msgid "SSO is temporarily unavailable. Try again."
 msgstr "SSO अस्थायी रूप से उपलब्ध नहीं है। फिर कोशिश करें।"
@@ -5560,9 +6447,25 @@ msgstr ""
 msgid "Start {trialDays}-day free trial"
 msgstr "{trialDays} दिन का मुफ़्त ट्रायल शुरू करें"
 
+#: src/pages/shell/thread-queue.tsx
+msgid "Start as task"
+msgstr ""
+
 #: src/components/teach/TeachComputerOverlay.tsx
 msgid "Start recording"
 msgstr "रिकॉर्डिंग शुरू करें"
+
+#: src/pages/shell/conversation-tasks.tsx
+msgid "Start recovery"
+msgstr ""
+
+#: src/pages/shell/conversation-tasks.tsx
+msgid "Start task"
+msgstr ""
+
+#: src/pages/shell/bot-runtime-settings.tsx
+msgid "Start the host with host access enabled."
+msgstr ""
 
 #: src/pages/ActivityList.tsx
 msgid "Starting"
@@ -5575,9 +6478,34 @@ msgstr "शुरू हो रहा है"
 msgid "Starting…"
 msgstr "शुरू हो रहा है…"
 
+#: src/pages/shell/conversation-tasks.tsx
+msgid "Starts a new execution. Earlier actions may already have taken effect. Review the instructions to avoid repeating them."
+msgstr ""
+
 #: src/pages/ActivityList.tsx
 #: src/pages/Board.tsx
 msgid "Status"
+msgstr ""
+
+#: src/pages/shell/thread-queue.tsx
+msgid "Steer"
+msgstr ""
+
+#. placeholder {0}: current.nodes.length + 1
+#: src/pages/Workflows.tsx
+msgid "Step {0}"
+msgstr ""
+
+#: src/pages/Workflows.tsx
+msgid "Step dependencies"
+msgstr ""
+
+#: src/pages/Workflows.tsx
+msgid "Step details"
+msgstr ""
+
+#: src/pages/Workflows.tsx
+msgid "Step name"
 msgstr ""
 
 #: src/components/teach/SkillDraftCard.tsx
@@ -5588,6 +6516,7 @@ msgstr "चरण"
 #: src/pages/shell/composer.tsx
 #: src/pages/shell/computer-overlay.tsx
 #: src/pages/shell/message-view.tsx
+#: src/pages/Workflows.tsx
 msgid "Stop"
 msgstr "रोकें"
 
@@ -5603,10 +6532,18 @@ msgstr "बोलना रोकें"
 msgid "Stop teaching"
 msgstr "सिखाना रोकें"
 
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Stop the current reply before saving character changes."
+msgstr ""
+
 #. js-lingui-explicit-id
 #: src/lib/browser-notifications.ts
 msgid "Stopped."
 msgstr "रोक दिया गया।"
+
+#: src/pages/shell/registered-host-picker.tsx
+msgid "Stopping work"
+msgstr ""
 
 #: src/components/ComputerMaintenanceActions.tsx
 msgid "Stopping…"
@@ -5615,6 +6552,22 @@ msgstr ""
 #: src/pages/McpServersOverlay.tsx
 msgid "Stored encrypted"
 msgstr "एन्क्रिप्टेड रूप में संग्रहीत"
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Story"
+msgstr ""
+
+#: src/pages/shell/roleplay-story-mode.tsx
+msgid "Story mode"
+msgstr ""
+
+#: src/pages/shell/roleplay-images.tsx
+msgid "Story mode: turns between images"
+msgstr ""
+
+#: src/pages/model-settings/request-timeout-fields.tsx
+msgid "Stream inactivity (ms)"
+msgstr ""
 
 #: src/pages/AccountSettingsOverlay.tsx
 msgid "Stream replies"
@@ -5681,6 +6634,10 @@ msgstr "बदला जा रहा है…"
 msgid "System"
 msgstr "सिस्टम"
 
+#: src/pages/shell/roleplay-settings.tsx
+msgid "System prompt"
+msgstr ""
+
 #: src/components/markdown-copy.tsx
 msgid "Table"
 msgstr "तालिका"
@@ -5688,6 +6645,22 @@ msgstr "तालिका"
 #: src/pages/shell/computer-overlay.tsx
 msgid "Take control"
 msgstr "नियंत्रण लें"
+
+#: src/pages/shell/conversation-tasks.tsx
+msgid "Task"
+msgstr ""
+
+#: src/pages/shell/conversation-tasks.tsx
+msgid "Task bot"
+msgstr ""
+
+#: src/pages/shell/conversation-tasks.tsx
+msgid "Task instructions"
+msgstr ""
+
+#: src/pages/shell/conversation-tasks.tsx
+msgid "Tasks"
+msgstr ""
 
 #: src/components/teach/TeachComputerOverlay.tsx
 msgid "Teach a task"
@@ -5754,6 +6727,10 @@ msgstr ""
 #: src/lib/model-connection-preflight.ts
 msgid "The connection timed out."
 msgstr "कनेक्शन का समय समाप्त हो गया।"
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "The first message is used when a story starts or is reset."
+msgstr ""
 
 #. js-lingui-explicit-id
 #: src/lib/run-error.ts
@@ -5875,6 +6852,14 @@ msgstr "यह बातचीत मॉडल के लिए बहुत ल
 msgid "This deletes all {0} versions of this artifact. This can't be undone."
 msgstr ""
 
+#: src/pages/Workflows.tsx
+msgid "This dependency would create a cycle."
+msgstr ""
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "This field exceeds the character limit."
+msgstr ""
+
 #: src/components/ArtifactFileCard.tsx
 msgid "This file is not valid UTF-8 text."
 msgstr ""
@@ -5886,6 +6871,10 @@ msgstr "यह इंपोर्ट पहले ही इस्तेमा�
 #: src/pages/HostComputerPrompt.tsx
 msgid "this Mac"
 msgstr "यह Mac"
+
+#: src/pages/shell/thread-queue.tsx
+msgid "This message has left the queue."
+msgstr ""
 
 #. js-lingui-explicit-id
 #: src/lib/run-error.ts
@@ -5957,6 +6946,10 @@ msgstr "गुरुवार"
 msgid "Time of day"
 msgstr "दिन का समय"
 
+#: src/pages/model-settings/request-timeout-fields.tsx
+msgid "Time to response headers (ms)"
+msgstr ""
+
 #: src/pages/AccountSettingsOverlay.tsx
 msgid "Timezone"
 msgstr ""
@@ -5987,9 +6980,14 @@ msgid "To:"
 msgstr "प्रति:"
 
 #: src/pages/Artifacts.tsx
+#: src/pages/RoutineCalendar.tsx
 #: src/pages/shell/chat-context.tsx
 msgid "Today"
 msgstr "आज"
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Token budget"
+msgstr ""
 
 #: src/pages/AccountSettingsOverlay.tsx
 msgid "Tokens"
@@ -6059,6 +7057,7 @@ msgstr "विश्वसनीय साइटें"
 
 #: src/pages/ActivityList.tsx
 #: src/pages/Onboarding.tsx
+#: src/pages/Shell.tsx
 msgid "Try again"
 msgstr "फिर से कोशिश करें"
 
@@ -6082,10 +7081,19 @@ msgstr ""
 msgid "Type your answer"
 msgstr "अपना उत्तर लिखें"
 
+#. js-lingui-explicit-id
+#: src/lib/model-catalog.ts
+msgid "Ultra"
+msgstr ""
+
 #: src/pages/BotContextMenu.tsx
 #: src/pages/Shell.tsx
 msgid "Unassigned"
 msgstr "असाइन नहीं किया गया"
+
+#: src/pages/shell/registered-host-picker.tsx
+msgid "Unavailable host"
+msgstr ""
 
 #: src/components/AskCard.tsx
 msgid "Undo"
@@ -6111,6 +7119,10 @@ msgstr "पिन हटाएं"
 #: src/pages/shell/use-composer-actions.ts
 msgid "Unsupported file type: {0}"
 msgstr "असमर्थित फ़ाइल प्रकार: {0}"
+
+#: src/pages/shell/project-folder-picker.tsx
+msgid "Up"
+msgstr ""
 
 #: src/components/DesktopUpdates.tsx
 msgid "Up to date"
@@ -6177,6 +7189,10 @@ msgstr ""
 msgid "Upload"
 msgstr "अपलोड"
 
+#: src/pages/shell/roleplay-images.tsx
+msgid "Upload image"
+msgstr ""
+
 #: src/lib/ticket-priority.ts
 msgid "Urgent"
 msgstr ""
@@ -6220,6 +7236,10 @@ msgstr "अपने डिफ़ॉल्ट इस्तेमाल करे
 #: src/pages/SpaceSettingOverrides.tsx
 msgid "Use defaults for {label}"
 msgstr "{label} के लिए अपने डिफ़ॉल्ट इस्तेमाल करें"
+
+#: src/pages/shell/project-folder-picker.tsx
+msgid "Use folder"
+msgstr ""
 
 #: src/components/integrations/plugin-marketplace.tsx
 msgid "Use in this bot"
@@ -6301,6 +7321,10 @@ msgstr ""
 msgid "View all"
 msgstr ""
 
+#: src/pages/RoutineCalendar.tsx
+msgid "View chat"
+msgstr "चैट देखें"
+
 #: src/components/integrations/plugin-marketplace.tsx
 msgid "View source"
 msgstr ""
@@ -6320,6 +7344,18 @@ msgstr ""
 msgid "Wait a moment and test again."
 msgstr "थोड़ी देर रुकें और फिर से परीक्षण करें।"
 
+#: src/pages/shell/thread-queue.tsx
+msgid "Waiting for approval"
+msgstr ""
+
+#: src/pages/shell/thread-queue.tsx
+msgid "Waiting for computer"
+msgstr ""
+
+#: src/pages/shell/thread-queue.tsx
+msgid "Waiting for current work"
+msgstr ""
+
 #: src/lib/roster-status.ts
 msgid "Waiting in line…"
 msgstr "कतार में प्रतीक्षा…"
@@ -6331,6 +7367,10 @@ msgstr "प्रतीक्षा…"
 #: src/pages/settings-nav.ts
 msgid "Wallet"
 msgstr ""
+
+#: src/pages/shell/roleplay-relationship-debug.tsx
+msgid "Warmth"
+msgstr "गर्मजोशी"
 
 #: src/components/ModelCredits.tsx
 msgid "Web, desktop and mobile"
@@ -6354,6 +7394,10 @@ msgstr "बुधवार"
 
 #: src/lib/billing.ts
 msgid "week"
+msgstr ""
+
+#: src/pages/RoutineCalendar.tsx
+msgid "Week"
 msgstr ""
 
 #: src/lib/cron.ts
@@ -6438,6 +7482,23 @@ msgstr ""
 msgid "Work"
 msgstr ""
 
+#: src/pages/Workflows.tsx
+msgid "Workflow"
+msgstr ""
+
+#: src/pages/Workflows.tsx
+msgid "Workflow canvas"
+msgstr ""
+
+#: src/pages/Workflows.tsx
+msgid "Workflow name"
+msgstr ""
+
+#: src/components/SidebarFooter.tsx
+#: src/pages/Workflows.tsx
+msgid "Workflows"
+msgstr ""
+
 #: src/pages/shell/agent-import.tsx
 msgid "Working instructions"
 msgstr "काम के निर्देश"
@@ -6454,7 +7515,12 @@ msgid "Works with your ChatGPT or Claude plan."
 msgstr "आपके ChatGPT या Claude प्लान के साथ काम करता है।"
 
 #: src/pages/memory-providers/HonchoSettingsForm.tsx
+#: src/pages/shell/bot-runtime-settings.tsx
 msgid "Workspace"
+msgstr ""
+
+#: src/pages/shell/conversation-tasks.tsx
+msgid "Write scope"
 msgstr ""
 
 #: src/lib/billing.ts

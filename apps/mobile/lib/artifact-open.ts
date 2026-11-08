@@ -11,7 +11,12 @@ import type { ImageSize } from "./inline-image";
 import { createKeyedPromiseCache } from "./inline-image";
 import { currentSessionGeneration, loadSessionToken } from "./session";
 
-export type MobileArtifactTarget = { botId: string } | { groupId: string };
+export type MobileArtifactTarget = { botId: string } | { groupId: string } | { taskId: string };
+
+export function artifactTargetKey(target: MobileArtifactTarget): string {
+  if ("taskId" in target) return `task:${target.taskId}`;
+  return "groupId" in target ? `group:${target.groupId}` : `bot:${target.botId}`;
+}
 
 /** Writes an artifact's bytes to its cache file; no network call. */
 export function writeArtifactCacheFile(
@@ -84,12 +89,7 @@ function artifactScope(): Promise<ArtifactScope> {
 }
 
 function requestKey(target: MobileArtifactTarget, artifactId: string, mimeType: string): string {
-  return JSON.stringify([
-    "botId" in target ? "bot" : "group",
-    "botId" in target ? target.botId : target.groupId,
-    artifactId,
-    mimeType,
-  ]);
+  return JSON.stringify([artifactTargetKey(target), artifactId, mimeType]);
 }
 
 async function cacheMobileArtifact(
@@ -107,7 +107,7 @@ async function cacheMobileArtifact(
     scope.namespace,
     `endpoint-${encodeURIComponent(scope.context.apiBase)}`,
     `user-${encodeURIComponent(scope.userId)}`,
-    `target-${encodeURIComponent("botId" in target ? `bot:${target.botId}` : `group:${target.groupId}`)}`,
+    `target-${encodeURIComponent(artifactTargetKey(target))}`,
     `artifact-${encodeURIComponent(artifactId)}`,
     `mime-${encodeURIComponent(mimeType)}`,
   );

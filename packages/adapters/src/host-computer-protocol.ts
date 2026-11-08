@@ -1,5 +1,8 @@
 import { boundedSandboxCommandTimeoutMs } from "@rakazo/core";
 import { z } from "zod";
+import { hostBrowserRequests } from "./host-browser-protocol.js";
+import { hostCodexRequests } from "./host-codex-protocol.js";
+import { nativeSetupRequests } from "./native-setup-protocol.js";
 import { hostScreenMethods } from "./host-screen.js";
 
 export const HOST_COMPUTER_MAX_BYTES = 12 * 1024 * 1024;
@@ -30,6 +33,25 @@ const directories = z.discriminatedUnion("action", [
 ]);
 const base = { botId: z.string().min(1).max(256), runId: z.string().min(1).max(256).optional() };
 export const hostComputerRequest = z.discriminatedUnion("method", [
+  ...hostCodexRequests,
+  ...nativeSetupRequests,
+  ...hostBrowserRequests,
+  z
+    .object({
+      method: z.literal("hostProjectDirectory"),
+      botId: z.literal("setup"),
+      runId: z.undefined().optional(),
+      path: z.string().min(1).max(4096),
+    })
+    .strict(),
+  z
+    .object({
+      method: z.literal("hostDirectories"),
+      botId: z.literal("setup"),
+      runId: z.undefined().optional(),
+      path: z.string().min(1).max(4096).optional(),
+    })
+    .strict(),
   z.object({
     ...base,
     method: z.enum([
@@ -49,6 +71,7 @@ export const hostComputerRequest = z.discriminatedUnion("method", [
     ...base,
     method: z.literal("cancelRunWork"),
     targetRunId: z.string().min(1).max(256),
+    requireCleanup: z.boolean().optional(),
   }),
   z.object({ ...base, method: z.literal("listFiles"), path: z.string().max(4096) }),
   z.object({
@@ -75,6 +98,13 @@ export type HostComputerFrame<T> =
 
 /** Leave time for the command timeout event and final response to cross the bridge. */
 export function hostComputerDeadlineMs(request: HostComputerRequest) {
+  if (
+    request.method === "codexRun" ||
+    request.method === "codexRunModelSettings" ||
+    request.method === "codexRunScoped" ||
+    request.method === "codexRunContextScoped"
+  )
+    return 24 * 60 * 60_000;
   if (request.method === "execute")
     return boundedSandboxCommandTimeoutMs(request.command.timeoutMs) + 30_000;
   return request.method.startsWith("screen") ? 2 * 60_000 : 10 * 60_000;

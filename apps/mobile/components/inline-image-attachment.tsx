@@ -49,12 +49,17 @@ export function InlineImageAttachment({
   >({ status: "loading" });
   const targetBotId = "botId" in threadTarget ? threadTarget.botId : undefined;
   const targetGroupId = "groupId" in threadTarget ? threadTarget.groupId : undefined;
+  const targetTaskId = "taskId" in threadTarget ? threadTarget.taskId : undefined;
 
   useEffect(() => {
     let cancelled = false;
     setState({ status: "loading" });
     const target: MobileArtifactTarget =
-      targetBotId !== undefined ? { botId: targetBotId } : { groupId: targetGroupId! };
+      targetTaskId !== undefined
+        ? { taskId: targetTaskId }
+        : targetBotId !== undefined
+          ? { botId: targetBotId }
+          : { groupId: targetGroupId! };
     imageArtifactPreview(target, artifactId, mimeType)
       .then((loaded) => {
         if (!cancelled) setState({ status: "ready", ...loaded });
@@ -65,7 +70,7 @@ export function InlineImageAttachment({
     return () => {
       cancelled = true;
     };
-  }, [targetBotId, targetGroupId, artifactId, mimeType]);
+  }, [targetBotId, targetGroupId, targetTaskId, artifactId, mimeType]);
 
   if (state.status === "ready") {
     const size = fitImageSize(state.size, maxWidth, MAX_INLINE_HEIGHT);

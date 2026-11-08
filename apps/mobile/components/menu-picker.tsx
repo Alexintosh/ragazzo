@@ -7,7 +7,7 @@ import { native, useMobileTokens, useResolvedAppearance, useThemedStyles } from 
 import { NativeSymbol } from "./native-symbol";
 import { Chevron } from "./row-accessories";
 
-export type MenuPickerChoice = { key: string; label: string };
+export type MenuPickerChoice = { key: string; label: string; disabled?: boolean };
 
 /** Native choice menu shared by rows with different layouts. */
 export function MenuPickerMenu({
@@ -42,12 +42,13 @@ export function MenuPickerMenu({
           id: `choice:${choice.key}`,
           title: choice.label,
           state: choice.key === value ? "on" : "off",
-          attributes: { disabled },
+          attributes: { disabled: disabled || choice.disabled },
         }))}
         colorScheme={colorScheme}
         onPressAction={(event) => {
           const id = event.nativeEvent.event;
-          if (!disabled && id.startsWith("choice:")) onChange(id.slice("choice:".length));
+          const choice = choices.find((choice) => `choice:${choice.key}` === id);
+          if (!disabled && choice && !choice.disabled) onChange(choice.key);
         }}
         title={label}
       >
@@ -87,7 +88,7 @@ export function MenuPicker({
   const styles = useThemedStyles(createStyles);
   const tokens = useMobileTokens();
   const rowStyle = [styles.row, plain && { paddingHorizontal: 0, minHeight: 44 }];
-  const current = choices.find((choice) => choice.key === value)?.label ?? choices[0]?.label ?? "";
+  const current = choices.find((choice) => choice.key === value)?.label ?? "";
   const row = {
     accessibilityLabel: label,
     accessibilityRole: "button",

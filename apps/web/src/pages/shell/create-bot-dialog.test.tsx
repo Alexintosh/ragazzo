@@ -153,6 +153,53 @@ describe("CreateBotDialog", () => {
     });
   });
 
+  it.each(["codex", "claude", "acp"] as const)(
+    "submits %s and project atomically without silently broadening access",
+    async (runtimeKind) => {
+      const onCreate = vi.fn(async (_input: CreateBotDialogInput) => undefined);
+      await render(onCreate);
+      await typeName("Coder");
+      await click(button("Agent and environment"));
+      await act(async () => {
+        const select = document.querySelector<HTMLSelectElement>('select[id$="-runtime"]')!;
+        select.value = runtimeKind;
+        select.dispatchEvent(new Event("change", { bubbles: true }));
+      });
+      const permission = document.querySelector<HTMLSelectElement>('select[id$="-permission"]')!;
+      expect(permission.value).toBe("workspace");
+      if (runtimeKind !== "codex") {
+        expect(
+          permission.querySelector<HTMLOptionElement>('option[value="workspace"]')?.disabled,
+        ).toBe(true);
+        await act(async () => {
+          permission.value = "full";
+          permission.dispatchEvent(new Event("change", { bubbles: true }));
+        });
+      }
+      await act(async () => {
+        const project = document.querySelector<HTMLInputElement>(
+          'input[placeholder="Absolute path on host"]',
+        )!;
+        Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(
+          project,
+          "/projects/example",
+        );
+        project.dispatchEvent(new Event("input", { bubbles: true }));
+      });
+      await click(button("Create"));
+      expect(onCreate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          name: "Coder",
+          runtimeKind,
+          executionTarget: "host",
+          runtimePermission: runtimeKind === "codex" ? "workspace" : "full",
+          projectPath: "/projects/example",
+          computerMode: "team",
+        }),
+      );
+    },
+  );
+
   it("shows the error and stays open when creating fails", async () => {
     await render(async () => {
       throw new Error("Bot limit reached");
@@ -187,4 +234,100 @@ it("retains the preview identity and colour through rerenders, set toggles and a
   expect(second.id).toBe(first.id);
   expect(second.color).toBe(first.color);
   expect(second.color?.toUpperCase()).toBe(colour?.toUpperCase());
+});
+
+async function importJson(text: string, size = text.length) {
+  const input = document.querySelector<HTMLInputElement>('input[aria-label="Character JSON"]')!;
+  const file = { name: "character.json", size, text: async () => text };
+  await act(async () => {
+    Object.defineProperty(input, "files", {
+      configurable: true,
+      value: [file],
+    });
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+}
+
+describe("Roleplay creation", () => {
+  it("requires an imported character and omits all operational settings", async () => {
+    const onCreate = vi.fn(async (_input: CreateBotDialogInput) => undefined);
+    await render(onCreate);
+    await typeName("Aster");
+    await click(button("Agent and environment"));
+    await click(button("Roleplay"));
+    expect(button("Create").disabled).toBe(true);
+    expect(document.querySelector('select[id$="-runtime"]')).toBeNull();
+    expect(document.body.textContent).not.toContain("Agent and environment");
+    await importJson(JSON.stringify({ name: "Aster", description: "A friendly archivist" }));
+    expect(button("Create").disabled).toBe(false);
+    await click(button("Create"));
+    expect(onCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        botKind: "roleplay",
+        name: "Aster",
+        runtimeKind: "pi",
+        executionTarget: "docker",
+        computerMode: "dedicated",
+        registeredHostId: null,
+        projectPath: null,
+        roleplayCharacter: expect.objectContaining({
+          name: "Aster",
+          description: "A friendly archivist",
+        }),
+      }),
+    );
+  });
+
+  it("fills an empty name, shows unsupported feature warnings, and resets import on toggle", async () => {
+    await render(async () => undefined);
+    await click(button("Roleplay"));
+    await importJson(JSON.stringify({ name: "Aster", scripts: ["ignored"] }));
+    expect(
+      document.querySelector<HTMLInputElement>('input[placeholder="Name your Bot"]')?.value,
+    ).toBe("Aster");
+    expect(document.querySelector('[aria-label="Import warnings"]')?.textContent).toContain(
+      "not imported",
+    );
+    await click(button("Roleplay"));
+    expect(button("Create").disabled).toBe(false);
+    await click(button("Roleplay"));
+    expect(button("Create").disabled).toBe(true);
+  });
+
+  it("rejects malformed and oversized JSON without allowing submission", async () => {
+    await render(async () => undefined);
+    await typeName("Aster");
+    await click(button("Roleplay"));
+    await importJson("{broken");
+    expect(document.querySelector('[role="alert"]')).not.toBeNull();
+    expect(button("Create").disabled).toBe(true);
+    await importJson('{"name":"Aster"}', 1024 * 1024 + 1);
+    expect(document.querySelector('[role="alert"]')?.textContent).toContain("1 MB");
+    expect(button("Create").disabled).toBe(true);
+  });
+
+  it("ignores an older file read after a replacement or toggle", async () => {
+    await render(async () => undefined);
+    await click(button("Roleplay"));
+    let resolve!: (value: string) => void;
+    const pending = new Promise<string>((done) => {
+      resolve = done;
+    });
+    const input = document.querySelector<HTMLInputElement>('input[aria-label="Character JSON"]')!;
+    await act(async () => {
+      Object.defineProperty(input, "files", {
+        configurable: true,
+        value: [{ name: "old.json", size: 20, text: () => pending }],
+      });
+      input.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    await importJson('{"name":"New character"}');
+    await act(async () => {
+      resolve('{"name":"Old character"}');
+    });
+    expect(document.body.textContent).not.toContain("Old character");
+    expect(
+      document.querySelector<HTMLInputElement>('input[placeholder="Name your Bot"]')?.value,
+    ).toBe("New character");
+  });
 });

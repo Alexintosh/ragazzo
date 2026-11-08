@@ -1,3 +1,4 @@
+import type { Bot } from "@rakazo/contracts";
 import { ActivityIndicator, Pressable, Text, View } from "react-native";
 import { mobileTokens } from "../../lib/appearance";
 import { useI18n } from "../../lib/i18n";
@@ -10,10 +11,12 @@ export function ThreadWorkingFooter({
   bots,
   label,
   atBottom,
+  botKind,
 }: {
   bots: ReadonlyArray<ActivityMarkBot & { name?: string }>;
   label: string;
   atBottom: boolean;
+  botKind?: Bot["botKind"];
 }) {
   const { t } = useI18n();
   if (bots.length === 0) return null;
@@ -27,7 +30,11 @@ export function ThreadWorkingFooter({
       accessibilityRole="text"
       style={{ minHeight: 40, marginTop: 12, justifyContent: "center" }}
     >
-      <ActivityMark bots={bots} atBottom={atBottom} label={label} />
+      <ActivityMark
+        bots={bots}
+        atBottom={atBottom}
+        label={botKind === "roleplay" ? undefined : label}
+      />
     </View>
   );
 }

@@ -1,0 +1,23 @@
+{
+  "title": "Nina e la stella che aveva perso la strada",
+  "images": [
+    {
+      "id": "forest",
+      "file": "01-forest.png",
+      "scene": "Bosco al crepuscolo",
+      "description": "Nina, piccola volpe con fazzoletto verde, trova la stellina dorata Tilla dentro una lanterna rovesciata su un tronco tra felci e campanule. Illustrazione per l'inizio del racconto, quando Nina incontra Tilla. Non mostra ancora il gufo o il ponte."
+    },
+    {
+      "id": "bridge",
+      "file": "02-bridge.png",
+      "scene": "Il ponte sul ruscello",
+      "description": "Nina e un piccolo gufo guardano il riflesso di Tilla sull'acqua da un ponte di legno. La stella è al sicuro nella lanterna e una collina si vede in lontananza. Illustrazione per la seconda scena, dopo aver lasciato il bosco e raggiunto il ponte."
+    },
+    {
+      "id": "homecoming",
+      "file": "03-homecoming.png",
+      "scene": "La collina delle stelle",
+      "description": "Nina e il gufo salutano Tilla che sale nel cielo sopra il paese addormentato. La lanterna è aperta e vuota. Illustrazione per il finale sulla collina, quando la stella torna a casa; non usarla all'inizio o sul ponte."
+    }
+  ]
+}

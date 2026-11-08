@@ -87,6 +87,7 @@ export interface AppEnv {
   paymentWalletProvider: string | undefined;
   paymentWalletClientId: string | undefined;
   agentRuntime: string;
+  /** Activate only after every API and worker supports the dedicated roleplay path. */
   deploymentModelKey: string | undefined;
   /** The deployment default model can run; see resolveDeploymentModel. */
   deploymentModelConfigured: boolean;

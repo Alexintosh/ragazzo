@@ -376,8 +376,9 @@ export async function claimRunSteering(
   currentTurn: { messageId?: string; hasImages: boolean },
   privateOwnerOnly = false,
   fcContext: FarmingControlContextKinds = false,
+  initial = false,
 ): Promise<AgentSteeringMessage[]> {
-  const steering = await deps.events.claimSteering({ ...lease, seenIds });
+  const steering = await deps.events.claimSteering({ ...lease, seenIds, initial });
   return Promise.all(
     steering
       .filter(
@@ -400,7 +401,7 @@ export async function claimRunSteering(
           origin: item.origin,
           historyText: item.text,
           text: [
-            await loadReplyContext(deps.prisma, lease.threadId, item.messageId),
+            await loadReplyContext(deps.prisma, lease.threadId, item.messageId, lease.botId),
             item.text,
             item.origin === "user"
               ? currentFarmingControlContext(item.blocks, fcContext)

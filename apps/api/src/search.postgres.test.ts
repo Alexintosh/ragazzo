@@ -2,6 +2,8 @@ import type { Actor } from "@rakazo/contracts";
 import type { PrismaClient } from "@rakazo/db";
 import { createDb, createThreadMessage, runAsSystem } from "@rakazo/db";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { createConversationTask } from "./conversation-tasks.js";
+import { listSpaceRuns } from "./runs.js";
 import { querySpaceSearch } from "./search.js";
 
 const databaseUrl = process.env.DATABASE_URL;
@@ -58,6 +60,59 @@ describePostgres("space search with CONTENT_ENCRYPTION on and off (PostgreSQL)",
       await db?.pool.end();
     }
   });
+
+  it("routes task messages, artifacts and activity to the task conversation", () =>
+    system(async () => {
+      const created = await createConversationTask(off.prisma, actor, {
+        botId,
+        originThreadId: threadId,
+        text: "taskroutingcanary",
+        clientNonce: "task-search",
+      });
+      const artifact = await off.prisma.artifact.create({
+        data: {
+          spaceId,
+          userId,
+          botId,
+          runId: created.task.runId,
+          uploadThreadId: created.task.threadId,
+          name: "taskroutingcanary.txt",
+          mimeType: "text/plain",
+          size: 1,
+          hash: "fake",
+          storageKey: "fake",
+        },
+      });
+      await createThreadMessage(off.prisma, {
+        threadId: created.task.threadId,
+        role: "bot",
+        botId,
+        runId: created.task.runId,
+        blocks: [
+          {
+            kind: "file",
+            artifactId: artifact.id,
+            name: artifact.name,
+            mimeType: "text/plain",
+            size: 1,
+          },
+        ],
+      });
+      const hits = await querySpaceSearch(off.prisma, actor, "taskroutingcanary");
+      expect(hits.find((hit) => hit.kind === "file")).toMatchObject({
+        taskId: created.task.id,
+        botId,
+        artifactId: artifact.id,
+      });
+      expect(hits.find((hit) => hit.kind === "message")).toMatchObject({
+        taskId: created.task.id,
+        botId,
+      });
+      const activity = await listSpaceRuns(off.prisma, actor, "active");
+      expect(activity.find((run) => run.runId === created.task.runId)).toMatchObject({
+        taskId: created.task.id,
+      });
+    }));
 
   it("finds plaintext, encrypted and mixed messages in both modes", () =>
     system(async () => {

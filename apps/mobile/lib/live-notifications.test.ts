@@ -143,3 +143,11 @@ describe("after a chat's notifications change", () => {
     expect(vi.mocked(Notifications.dismissNotificationAsync).mock.calls).toEqual([["a"]]);
   });
 });
+
+it("keeps a task notification distinct from its bot's direct chat", () => {
+  const data = { botId: "bot-1", taskId: "task-1", threadId: "task-thread" };
+  expect(notificationTargetsThread(data, { botId: "bot-1" })).toBe(false);
+  expect(notificationTargetsThread(data, { taskId: "task-1" })).toBe(true);
+  expect(notificationTargetsThread(data, { taskId: "task-2" })).toBe(false);
+  expect(notificationTargetsThread({ "rakazo.taskId": "task-1" }, { taskId: "task-1" })).toBe(true);
+});

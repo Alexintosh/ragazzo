@@ -238,7 +238,8 @@ export function ShellSidebar({
                   filtersId={activityFiltersId}
                   onOpenRun={(run) => {
                     setMobileOpen(false);
-                    if (run.groupId) navigate(`/app/g/${run.groupId}`);
+                    if (run.taskId) navigate(`/app/${run.botId}/tasks/${run.taskId}`);
+                    else if (run.groupId) navigate(`/app/g/${run.groupId}`);
                     else navigate(`/app/${run.botId}`);
                   }}
                 />
@@ -359,6 +360,11 @@ function ShellSidebarFooter({
           setMenuOpen(false);
           closeMobileSidebar();
           navigate(`/app/x/${link.id}`);
+        }}
+        onWorkflows={() => {
+          setMenuOpen(false);
+          closeMobileSidebar();
+          navigate("/app/workflows");
         }}
         onArtifacts={() => {
           setMenuOpen(false);

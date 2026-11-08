@@ -46,6 +46,7 @@ describe.each([
       const token = "ab".repeat(32);
       const server = await startHostComputerServer({
         root: await realpath(root),
+        writeScopeRoot: path.join(await realpath(root), "write-scopes"),
         token,
         hostname: "127.0.0.1",
       });
@@ -131,8 +132,18 @@ describe.each([
       context,
     );
     if (provider instanceof HostComputerSandbox) {
-      await expect(provider.observe()).rejects.toThrow("Local screen control is unavailable");
-      await expect(provider.act()).rejects.toThrow("Local screen control is unavailable");
+      await expect(
+        provider.act(
+          computer,
+          {
+            actions: Array.from({ length: 25 }, () => ({
+              kind: "clipboard" as const,
+              text: "never dispatched",
+            })),
+          },
+          { ...context, botId: "actions" },
+        ),
+      ).rejects.toThrow("Host computer unavailable");
       return;
     }
     const before = await provider.observe(computer, context);

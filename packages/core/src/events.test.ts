@@ -230,6 +230,38 @@ describe("runFailureError", () => {
 });
 
 describe("projectMessages", () => {
+  it("replaces one live chat preview with three distinct ordered replies from the same run", () => {
+    const common = {
+      threadId: "story",
+      botId: "character",
+      runId: "turn",
+      createdAt: "2026-01-01T00:00:00.000Z",
+    };
+    const replies = ["That went well.", "Mostly.", "I owe you dumplings."];
+    const messages = projectMessages([
+      {
+        ...common,
+        id: "progress",
+        seq: 1,
+        type: "thread.progress",
+        payload: { text: replies.join("\n\n"), streaming: true },
+      },
+      ...replies.map((text, i) => ({
+        ...common,
+        id: `event-${i}`,
+        seq: i + 2,
+        type: "thread.message.created",
+        payload: { messageId: `reply-${i}`, role: "bot", blocks: [{ kind: "text", text }] },
+      })),
+      { ...common, id: "completed", seq: 5, type: "run.completed", payload: {} },
+    ]);
+    expect(messages.map(({ id }) => id)).toEqual(["reply-0", "reply-1", "reply-2"]);
+    expect(messages.map(({ blocks }) => blocks)).toEqual(
+      replies.map((text) => [{ kind: "text", text }]),
+    );
+    expect(messages.every(({ runId }) => runId === "turn")).toBe(true);
+  });
+
   it("replays durable messages and trailing live tokens from progress events", () => {
     const messages = projectMessages([
       {

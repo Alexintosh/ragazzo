@@ -5,9 +5,14 @@ import {
   clipToolResultContent,
   clipToolResultText,
   effectiveOutputReserve,
+  MODEL_CONNECT_TIMEOUT_MS,
+  MODEL_STREAM_IDLE_TIMEOUT_MS,
+  MODEL_STREAM_TIMEOUT_MS,
   modelStreamMaxRetries,
   REASONING_MODEL_MAX_TOKENS,
   resolveCompletionMaxTokens,
+  resolveModelStreamIdleTimeoutMs,
+  resolveModelStreamTimeoutMs,
   TOOL_RESULT_TEXT_LIMIT,
 } from "./pi-runtime-limits.js";
 
@@ -177,5 +182,57 @@ describe("clipToolResultContent", () => {
       .filter((part) => part.type === "text")
       .reduce((sum, part) => sum + part.text.replace(/…$/, "").length, 0);
     expect(textChars).toBe(TOOL_RESULT_TEXT_LIMIT);
+  });
+});
+
+describe("model request timeouts", () => {
+  afterEach(() => vi.unstubAllEnvs());
+
+  it("preserves finite defaults and the independent connection timeout", () => {
+    vi.stubEnv("MODEL_STREAM_TIMEOUT_MS", undefined);
+    vi.stubEnv("MODEL_STREAM_IDLE_TIMEOUT_MS", undefined);
+    expect(resolveModelStreamTimeoutMs()).toBe(120_000);
+    expect(resolveModelStreamIdleTimeoutMs()).toBe(180_000);
+    expect(MODEL_CONNECT_TIMEOUT_MS).toBe(30_000);
+  });
+
+  it("prefers valid caller options, then connection settings, then environment", () => {
+    vi.stubEnv("MODEL_STREAM_TIMEOUT_MS", "600000");
+    vi.stubEnv("MODEL_STREAM_IDLE_TIMEOUT_MS", " 700000 ");
+    expect(resolveModelStreamTimeoutMs()).toBe(600_000);
+    expect(resolveModelStreamIdleTimeoutMs()).toBe(700_000);
+    const config = { streamTimeoutMs: 900_000, streamIdleTimeoutMs: 950_000 };
+    expect(resolveModelStreamTimeoutMs(config)).toBe(900_000);
+    expect(resolveModelStreamIdleTimeoutMs(config)).toBe(950_000);
+    expect(resolveModelStreamTimeoutMs(config, 800_000)).toBe(800_000);
+  });
+
+  it.each(["", " ", "0", "-1", "1.5", "Infinity", "NaN", "no", "1e3", "2147483648"])(
+    "uses defaults for invalid environment values %j",
+    (value) => {
+      vi.stubEnv("MODEL_STREAM_TIMEOUT_MS", value);
+      vi.stubEnv("MODEL_STREAM_IDLE_TIMEOUT_MS", value);
+      expect(resolveModelStreamTimeoutMs()).toBe(MODEL_STREAM_TIMEOUT_MS);
+      expect(resolveModelStreamIdleTimeoutMs()).toBe(MODEL_STREAM_IDLE_TIMEOUT_MS);
+    },
+  );
+
+  it.each([0, -1, 1.5, Infinity, NaN, 2_147_483_648])(
+    "ignores invalid connection and caller values %s",
+    (value) => {
+      vi.stubEnv("MODEL_STREAM_TIMEOUT_MS", "500000");
+      vi.stubEnv("MODEL_STREAM_IDLE_TIMEOUT_MS", "600000");
+      const config = { streamTimeoutMs: value, streamIdleTimeoutMs: value };
+      expect(resolveModelStreamTimeoutMs(config, value)).toBe(500_000);
+      expect(resolveModelStreamIdleTimeoutMs(config)).toBe(600_000);
+      expect(resolveModelStreamTimeoutMs({ streamTimeoutMs: 900_000 }, value)).toBe(900_000);
+    },
+  );
+
+  it("accepts the timer maximum without overflow", () => {
+    expect(resolveModelStreamTimeoutMs({ streamTimeoutMs: 2_147_483_647 })).toBe(2_147_483_647);
+    expect(resolveModelStreamIdleTimeoutMs({ streamIdleTimeoutMs: 2_147_483_647 })).toBe(
+      2_147_483_647,
+    );
   });
 });

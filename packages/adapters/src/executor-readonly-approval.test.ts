@@ -20,6 +20,7 @@ import { FakeWebProvider } from "./fake-web.js";
 import type * as FleetToolsModule from "./fleet-tools.js";
 import type { HostComputerRequest } from "./host-computer-protocol.js";
 import { catalogEntries, resolveCatalogCall } from "./lazy-tool-catalog.js";
+import { NativeToolBridge } from "./native-tool-bridge.js";
 import type { UserDeviceGateway } from "./user-device-protocol.js";
 
 vi.mock("./computer-lifecycle.js", async (importOriginal) => ({
@@ -72,6 +73,7 @@ function fixture({
   savedPreference = true,
   approvalRole,
   nativeReview = false,
+  nativeBridge = false,
   checkerConnected = true,
   skipApprovals = false,
   trigger = "user",
@@ -97,6 +99,8 @@ function fixture({
   botUserId = "user-1",
   batch,
 }: {
+  /** Apps connected through Composio. */
+  nativeBridge?: boolean;
   /** The tool runs the actions its arguments name; see ConnectorTool.batch. */
   batch?: ConnectorTool["batch"];
   userDevices?: UserDeviceGateway;
@@ -451,6 +455,29 @@ function fixture({
   const runtimeRun = vi.fn(async function* (request: AgentRunRequest) {
     offeredTools = request.tools.map((tool) => tool.name);
     instructions = request.instructions ?? "";
+    if (nativeBridge) {
+      const bridge = new NativeToolBridge(request);
+      for (const call of calls) {
+        const exposed = bridge.catalog.find((item) => item.name === (call.name ?? name));
+        if (!exposed) throw new Error("Application tool missing from native catalog");
+        const outcome = await bridge.execute(
+          {
+            callId: call.executionId,
+            tool: exposed.name,
+            arguments: call.args,
+            executionId: JSON.stringify(["native-tool", request.runId, call.executionId]),
+          },
+          new AbortController().signal,
+        );
+        results.push(outcome);
+        if (outcome.paused) {
+          yield { type: "progress" as const, text: "Waiting for approval" };
+          return;
+        }
+      }
+      yield { type: "done" as const, text: "Done" };
+      return;
+    }
     const executeCall = async (call: (typeof calls)[number]) => {
       const result = call.name
         ? await request.executeTool!(call.name, call.args, call.executionId)
@@ -2696,6 +2723,42 @@ it("uses the OpenRouter environment key for a decision checker on another deploy
     vi.unstubAllGlobals();
     vi.unstubAllEnvs();
   }
+});
+
+describe("native bridge through actual executor authorization gates", () => {
+  it.each(["approved", "denied"])(
+    "replays an owner %s application effect exactly once",
+    async (decision) => {
+      const f = fixture({ name: "demo_update_item", readOnly: false, nativeBridge: true });
+      await f.run();
+      expect(f.results[0]).toEqual({ paused: true });
+      expect(f.execute).not.toHaveBeenCalled();
+      expect(f.effects).toHaveLength(1);
+      expect(f.effects[0]?.status).toBe("intended");
+      f.effects[0]!.status = decision;
+      await f.run();
+      expect(f.execute).toHaveBeenCalledTimes(decision === "approved" ? 1 : 0);
+      expect(f.results.at(-1)).toMatchObject({
+        paused: false,
+        response: { success: decision === "approved" },
+      });
+      await f.run();
+      expect(f.execute).toHaveBeenCalledTimes(decision === "approved" ? 1 : 0);
+      expect(f.effects).toHaveLength(1);
+    },
+  );
+  it("honors explicit approval rules on read-only connectors before dispatch", async () => {
+    const f = fixture({
+      name: "demo_get_item",
+      readOnly: true,
+      nativeBridge: true,
+      rules: [{ effect: "require_approval", matchKind: "tool", matchValue: "demo_get_item" }],
+    });
+    await f.run();
+    expect(f.execute).not.toHaveBeenCalled();
+    expect(f.results[0]).toEqual({ paused: true });
+    expect(f.pauseRunForInput).toHaveBeenCalledOnce();
+  });
 });
 
 describe("retry of an action a person denied in the same run", () => {

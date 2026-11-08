@@ -1,0 +1,1 @@
+ALTER TABLE "bots" ADD COLUMN "runtimeGeneration" INTEGER NOT NULL DEFAULT 0;

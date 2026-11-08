@@ -30,6 +30,7 @@ export async function createOwnedArtifact(
   input: {
     botId: string;
     groupId?: string;
+    uploadThreadId?: string;
     name: string;
     description?: string;
     mimeType: string;
@@ -106,6 +107,7 @@ async function storeOwnedArtifact(
   input: {
     botId: string;
     groupId?: string;
+    uploadThreadId?: string;
     name: string;
     description?: string;
     mimeType: string;
@@ -124,6 +126,7 @@ async function storeOwnedArtifact(
       userId: actor.userId,
       botId: input.botId,
       groupId: input.groupId,
+      uploadThreadId: input.uploadThreadId,
       name: input.name,
     },
     async (tx, { rootArtifactId, version }) => {
@@ -136,6 +139,7 @@ async function storeOwnedArtifact(
           userId: actor.userId,
           botId: input.botId,
           groupId: input.groupId,
+          uploadThreadId: input.uploadThreadId,
           name: input.name,
           description: input.description?.trim() || null,
           mimeType,
@@ -161,7 +165,7 @@ async function storeOwnedArtifact(
 async function findReplayedArtifact(
   db: Pick<Prisma.TransactionClient, "artifact">,
   actor: ArtifactOwner,
-  input: { botId: string; groupId?: string; clientNonce?: string },
+  input: { botId: string; groupId?: string; uploadThreadId?: string; clientNonce?: string },
 ) {
   if (!input.clientNonce) return null;
   const row = await db.artifact.findFirst({
@@ -172,7 +176,8 @@ async function findReplayedArtifact(
   const sameTarget = input.groupId
     ? row.groupId === input.groupId
     : row.botId === input.botId && row.groupId === null;
-  if (!sameTarget) throw new IsolationError();
+  if (!sameTarget || (row.uploadThreadId ?? null) !== (input.uploadThreadId ?? null))
+    throw new IsolationError();
   return row;
 }
 

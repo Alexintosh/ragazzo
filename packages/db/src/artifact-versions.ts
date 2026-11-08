@@ -8,6 +8,7 @@ export async function resolveNextArtifactVersion(
     userId: string;
     botId: string;
     groupId?: string | null;
+    uploadThreadId?: string | null;
     name: string;
   },
 ): Promise<{ rootArtifactId: string | null; version: number }> {
@@ -17,6 +18,7 @@ export async function resolveNextArtifactVersion(
       userId: params.userId,
       botId: params.botId,
       groupId: params.groupId ?? null,
+      uploadThreadId: params.uploadThreadId ?? null,
       name: { equals: params.name, mode: "insensitive" },
     },
     orderBy: [{ version: "desc" }, { createdAt: "desc" }],
@@ -44,6 +46,7 @@ export async function withResolvedArtifactVersion<T>(
     userId: string;
     botId: string;
     groupId?: string | null;
+    uploadThreadId?: string | null;
     name: string;
   },
   attempt: (db: Prisma.TransactionClient, version: ArtifactVersionWrite) => Promise<T>,
@@ -72,6 +75,7 @@ function artifactVersionLockKey(params: {
   userId: string;
   botId: string;
   groupId?: string | null;
+  uploadThreadId?: string | null;
   name: string;
 }): string {
   return [
@@ -80,6 +84,7 @@ function artifactVersionLockKey(params: {
     params.botId,
     params.groupId ?? "",
     params.name.toLowerCase(),
+    ...(params.uploadThreadId ? [params.uploadThreadId] : []),
   ].join("\u001f");
 }
 

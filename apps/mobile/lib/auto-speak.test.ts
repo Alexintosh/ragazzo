@@ -74,4 +74,88 @@ describe("nextAutoSpeakAction", () => {
       }),
     ).toEqual({ action: "seed", messageId: "msg-2" });
   });
+
+  const burst = {
+    ...base,
+    combineRunReplies: true,
+    runId: "run-2",
+    messages: [
+      { ...textMessage("msg-1", "Earlier."), runId: "run-1", botId: "bot-1" },
+      { id: "user-2", role: "user", blocks: [] },
+      { ...textMessage("msg-2", "First."), runId: "run-2", botId: "bot-1" },
+      { ...textMessage("msg-3", "Second."), runId: "run-2", botId: "bot-1" },
+      { ...textMessage("msg-4", "Third."), runId: "run-2", botId: "bot-1" },
+    ],
+  };
+
+  it("speaks all unseen bubbles from the completed RP chat run in one request", () => {
+    expect(nextAutoSpeakAction(burst)).toEqual({
+      action: "speak",
+      messageId: "msg-4",
+      text: "First.\n\nSecond.\n\nThird.",
+    });
+    expect(nextAutoSpeakAction({ ...burst, lastSpokenMessageId: "msg-4" })).toEqual({
+      action: "wait",
+    });
+  });
+
+  it("does not replay a completed burst when opening or reconnecting to a chat", () => {
+    expect(nextAutoSpeakAction({ ...burst, lastSpokenBotId: null })).toEqual({
+      action: "seed",
+      messageId: "msg-4",
+    });
+  });
+
+  it("waits for completion even when all burst bubbles have arrived", () => {
+    expect(nextAutoSpeakAction({ ...burst, runStatus: "running" })).toEqual({ action: "wait" });
+  });
+
+  it("keeps only the unseen part of a burst", () => {
+    expect(nextAutoSpeakAction({ ...burst, lastSpokenMessageId: "msg-2" })).toEqual({
+      action: "speak",
+      messageId: "msg-4",
+      text: "Second.\n\nThird.",
+    });
+  });
+
+  it("does not merge other bots, earlier runs, earlier user turns, or progress blocks", () => {
+    expect(
+      nextAutoSpeakAction({
+        ...burst,
+        messages: [
+          { ...textMessage("old-turn", "Old turn."), runId: "run-2", botId: "bot-1" },
+          { id: "user-2", role: "user", blocks: [] },
+          { ...textMessage("old-run", "Old run."), runId: "run-1", botId: "bot-1" },
+          { ...textMessage("peer", "Other bot."), runId: "run-2", botId: "bot-2" },
+          {
+            id: "progress",
+            role: "bot",
+            runId: "run-2",
+            botId: "bot-1",
+            blocks: [{ kind: "progress", text: "Still working." }],
+          },
+          ...burst.messages.slice(2),
+        ],
+      }),
+    ).toEqual({
+      action: "speak",
+      messageId: "msg-4",
+      text: "First.\n\nSecond.\n\nThird.",
+    });
+  });
+
+  it("preserves last-message behavior for agents and narrative RP", () => {
+    expect(nextAutoSpeakAction({ ...burst, combineRunReplies: false })).toEqual({
+      action: "speak",
+      messageId: "msg-4",
+      text: "Third.",
+    });
+  });
+
+  it("does not speak an older run when the latest completed run has no reply", () => {
+    expect(nextAutoSpeakAction({ ...burst, runId: "run-3" })).toEqual({
+      action: "seed",
+      messageId: "msg-4",
+    });
+  });
 });

@@ -16,6 +16,7 @@ import {
   parseModelContextWindow,
   parseModelMaxImagesPerPrompt,
   parseModelMaxTokens,
+  parseModelTimeoutMs,
   savedCompatibleEndpointMatches,
 } from "@rakazo/contracts";
 import {
@@ -35,6 +36,8 @@ export type ConnectionFormFields = {
   reasoning: boolean;
   thinkingLevel: ThinkingLevel | null;
   maxTokens: string;
+  streamTimeoutMs: string;
+  streamIdleTimeoutMs: string;
   contextWindow: string;
   supportsImages: boolean;
   maxImagesPerPrompt: string;
@@ -83,6 +86,8 @@ export function connectionFormFields(input: {
     | "reasoning"
     | "thinkingLevel"
     | "maxTokens"
+    | "streamTimeoutMs"
+    | "streamIdleTimeoutMs"
     | "contextWindow"
     | "supportsImages"
     | "maxImagesPerPrompt"
@@ -108,6 +113,8 @@ export function connectionFormFields(input: {
       supportedThinking,
     ) as ThinkingLevel | null,
     maxTokens: connectionMaxTokensField(provider, credential?.maxTokens),
+    streamTimeoutMs: String(credential?.streamTimeoutMs ?? ""),
+    streamIdleTimeoutMs: String(credential?.streamIdleTimeoutMs ?? ""),
     contextWindow: String(credential?.contextWindow ?? DEFAULT_MODEL_CONTEXT_WINDOW),
     supportsImages: credential?.supportsImages ?? false,
     maxImagesPerPrompt: String(credential?.maxImagesPerPrompt ?? ""),
@@ -146,7 +153,12 @@ export type ConnectionFormDraft = Omit<ConnectionFormFields, "enabledModelIds"> 
 };
 
 /** A field whose number is out of range; each app words the message. */
-export type ConnectionFormInvalidField = "maxTokens" | "maxImagesPerPrompt" | "contextWindow";
+export type ConnectionFormInvalidField =
+  | "maxTokens"
+  | "maxImagesPerPrompt"
+  | "contextWindow"
+  | "streamTimeoutMs"
+  | "streamIdleTimeoutMs";
 
 export type ModelConnectRequest =
   | { status: "incomplete" }
@@ -205,6 +217,14 @@ export function modelConnectRequest(input: {
   if (compatible && contextWindow === undefined) {
     return { status: "invalid", field: "contextWindow" };
   }
+  const streamTimeoutMs = form.streamTimeoutMs.trim()
+    ? parseModelTimeoutMs(form.streamTimeoutMs)
+    : null;
+  if (streamTimeoutMs === undefined) return { status: "invalid", field: "streamTimeoutMs" };
+  const streamIdleTimeoutMs = form.streamIdleTimeoutMs.trim()
+    ? parseModelTimeoutMs(form.streamIdleTimeoutMs)
+    : null;
+  if (streamIdleTimeoutMs === undefined) return { status: "invalid", field: "streamIdleTimeoutMs" };
   // The staged effort belongs to the model on screen. Clamp it before a connect or a limit
   // save so a previous model's level cannot stick.
   const thinkingLevel = clampCatalogThinkingLevel(
@@ -227,6 +247,8 @@ export function modelConnectRequest(input: {
         reasoning: form.reasoning,
         thinkingLevel,
         maxTokens,
+        streamTimeoutMs,
+        streamIdleTimeoutMs,
         contextWindow,
         supportsImages: form.supportsImages,
         maxImagesPerPrompt:
@@ -259,6 +281,8 @@ export function modelConnectRequest(input: {
         ? { thinkingLevel }
         : {}),
       ...makeDefault,
+      streamTimeoutMs,
+      streamIdleTimeoutMs,
       maxTokens: maxTokens ?? null,
       label,
       credentialId,

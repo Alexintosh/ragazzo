@@ -16,11 +16,13 @@ import {
   recordComputerRunEnd,
   releaseSpaceDeletionClaim,
   renewSpaceDeletionClaim,
+  runAsSystem,
   SPACE_DELETION_CLAIM_TIMEOUT_MS,
   SpaceDeletionInProgressError,
 } from "@rakazo/db";
 import { getLogger } from "@rakazo/logging";
 import { rehomeItemsLeaving } from "./availability.js";
+import { nativeSetupOwners } from "./native-setup-owners.js";
 
 /** Bound for one bot or sandbox teardown. Providers may ignore the abort signal,
  * so without a deadline a hung destroy would keep the deletion claim renewed
@@ -40,6 +42,7 @@ export type SpaceDeletionDeps = {
   artifacts: ArtifactStore;
   dataDir: string;
   messagingInstallations?: Parameters<typeof destroyBot>[0]["messagingInstallations"];
+  nativeSetupCleanup?: (owners: Array<{ spaceId: string; userId: string }>) => Promise<void>;
 };
 
 /** The owner-only rules live in the db layer. A worker that dies mid-way leaves the Space
@@ -119,6 +122,15 @@ export async function deleteSpaceWithContent(
       }
       await assertClaim();
     };
+
+    if (deps.nativeSetupCleanup) {
+      await teardown(async () => {
+        const owners = await runAsSystem("claimed Space setup teardown owners", () =>
+          nativeSetupOwners(deps.prisma, { spaceId }),
+        );
+        await deps.nativeSetupCleanup!(owners);
+      }, "Space runtime setup teardown timed out");
+    }
 
     for (const bot of await listClaimedSpaceBots(deps.prisma, claimedInput)) {
       try {

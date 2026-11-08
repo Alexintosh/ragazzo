@@ -33,7 +33,6 @@ import {
   reduceComputerStatus,
   reduceThreadSnapshot,
 } from "../../lib/thread-events";
-import { transcriptCanSnapAfterFrame, transcriptIsNearEnd } from "../../lib/transcript-scroll";
 import type { useBrowserNotifications } from "./use-browser-notifications";
 import type { ComputerState } from "./use-computer";
 import type { ThreadState } from "./use-thread-state";
@@ -71,6 +70,8 @@ export function useThreadSync({
   active,
   inGroup,
   groupId,
+  taskId,
+  taskThreadId,
   activeGroup,
   activeBotId,
   activeGroupId,
@@ -89,6 +90,8 @@ export function useThreadSync({
   active: Bot | undefined;
   inGroup: boolean;
   groupId: string | undefined;
+  taskId?: string;
+  taskThreadId?: string;
   activeGroup: Group | undefined;
   activeBotId: RefObject<string | undefined>;
   activeGroupId: RefObject<string | undefined>;
@@ -124,6 +127,9 @@ export function useThreadSync({
     computerBotIdRef,
     refreshComputerScreen,
   } = computerState;
+  const displayedBotTarget = useRef<string | null>(null);
+  const taskIdRef = useRef(taskId);
+  taskIdRef.current = taskId;
   const threadRefreshEpoch = useRef(0);
   const groupRefreshEpoch = useRef(0);
   const [loadingOlder, setLoadingOlder] = useState(false);
@@ -135,25 +141,11 @@ export function useThreadSync({
    * Each chat's last snapshot, so reopening it paints at once. The live load and
    * subscription still run and replace it, so it is only ever a first frame.
    */
-  function cachedThreadKey(target: { botId: string } | { groupId: string }) {
+  function cachedThreadKey(target: { botId: string } | { groupId: string } | { taskId: string }) {
     return queries.threads.get.queryKey({ input: target });
   }
 
-  function snapTranscriptToEndAfterFrame() {
-    const queuedElement = messageScroll.current;
-    if (!queuedElement) return;
-    const queuedScrollTop = queuedElement.scrollTop;
-    window.requestAnimationFrame(() => {
-      const element = messageScroll.current;
-      if (transcriptCanSnapAfterFrame(element, queuedElement, queuedScrollTop)) {
-        queuedElement.scrollTop = queuedElement.scrollHeight;
-      }
-    });
-  }
-
   async function refreshGroupThread(id: string, signal?: AbortSignal) {
-    const scrollElement = messageScroll.current;
-    const stickToEnd = !scrollElement || transcriptIsNearEnd(scrollElement);
     markOnce("rk:renderer:thread-request-start");
     const request = ++groupRefreshEpoch.current;
     const snap = await rpc.threads.get({ groupId: id }, signal ? { signal } : undefined);
@@ -170,28 +162,22 @@ export function useThreadSync({
     if (!computerOpenRef.current) commitComputer(null);
     setRoutines([]);
     setRoutinesBotId(null);
-    // Keep the search-jump viewport; expandedHistoryThread merge still accepts live messages.
-    if (
-      stickToEnd &&
-      (!scrollElement || transcriptIsNearEnd(scrollElement)) &&
-      expandedHistoryThread.current !== snap.threadId
-    ) {
-      snapTranscriptToEndAfterFrame();
-    }
+    // Transcript owns tail-following, including the reader's explicit scroll-away intent.
     return snap;
   }
 
   async function refreshThread(id: string, signal?: AbortSignal) {
-    const scrollElement = messageScroll.current;
-    const stickToEnd = !scrollElement || transcriptIsNearEnd(scrollElement);
     markOnce("rk:renderer:thread-request-start");
     const epoch = historyEpoch.current;
     const request = ++threadRefreshEpoch.current;
     // Apply threads.get as soon as it returns so stop/takeover status is not held behind
     // routines/skills/screen fetches (progress can advance the cursor meanwhile).
-    const snap = await rpc.threads.get({ botId: id }, signal ? { signal } : undefined);
+    const requestedTaskId = taskIdRef.current;
+    const target = requestedTaskId ? { taskId: requestedTaskId } : { botId: id };
+    const snap = await rpc.threads.get(target, signal ? { signal } : undefined);
     markOnce("rk:renderer:thread-response");
     if (
+      taskIdRef.current !== requestedTaskId ||
       activeBotId.current !== id ||
       epoch !== historyEpoch.current ||
       request !== threadRefreshEpoch.current
@@ -208,13 +194,6 @@ export function useThreadSync({
     commitSnapshot(reconciled.snapshot);
     commitComputer(reconciled.computer);
     cacheComputerFor(id, { computer: reconciled.computer });
-    if (
-      stickToEnd &&
-      (!scrollElement || transcriptIsNearEnd(scrollElement)) &&
-      expandedHistoryThread.current !== snap.threadId
-    ) {
-      snapTranscriptToEndAfterFrame();
-    }
     void Promise.all([
       // Runs after routine changes too, so an older read in flight is not reused.
       fetchFresh(queryClient, queries.routines.list.queryOptions({ input: { botId: id } })).catch(
@@ -227,6 +206,7 @@ export function useThreadSync({
     ]).then(([routines, skills]) => {
       if (
         activeBotId.current !== id ||
+        taskIdRef.current !== requestedTaskId ||
         epoch !== historyEpoch.current ||
         request !== threadRefreshEpoch.current
       ) {
@@ -257,11 +237,14 @@ export function useThreadSync({
   }
 
   async function loadOlderMessages() {
+    const targetTaskId = taskId;
     const targetBotId = inGroup ? undefined : active?.id;
     const targetGroupId = inGroup ? groupId : undefined;
-    const snapshotMatchesTarget = targetGroupId
-      ? snapshot?.groupId === targetGroupId
-      : snapshot?.botId === targetBotId;
+    const snapshotMatchesTarget = targetTaskId
+      ? snapshot?.threadId === taskThreadId
+      : targetGroupId
+        ? snapshot?.groupId === targetGroupId
+        : snapshot?.botId === targetBotId;
     if (
       (!targetBotId && !targetGroupId) ||
       !snapshotMatchesTarget ||
@@ -277,11 +260,16 @@ export function useThreadSync({
     setLoadingOlder(true);
     try {
       const page = await rpc.threads.messages({
-        ...(targetGroupId ? { groupId: targetGroupId } : { botId: targetBotId! }),
+        ...(targetTaskId
+          ? { taskId: targetTaskId }
+          : targetGroupId
+            ? { groupId: targetGroupId }
+            : { botId: targetBotId! }),
         before,
       });
       if (
         epoch !== historyEpoch.current ||
+        taskIdRef.current !== targetTaskId ||
         activeBotId.current !== targetBotId ||
         activeGroupId.current !== targetGroupId
       )
@@ -306,12 +294,20 @@ export function useThreadSync({
     showCachedComputer(active.id);
     expandedHistoryThread.current = null;
     historyEpoch.current += 1;
-    const threadKey = cachedThreadKey({ botId: active.id });
+    const target = taskId ? { taskId } : { botId: active.id };
+    const threadKey = cachedThreadKey(target);
     const cachedThread = pendingJump
       ? undefined
       : (queryClient.getQueryData(threadKey) ??
-        (seed?.thread?.botId === active.id ? seed.thread : undefined));
-    if (cachedThread && snapshotRef.current?.botId !== active.id) commitSnapshot(cachedThread);
+        (!taskId && seed?.thread?.botId === active.id ? seed.thread : undefined));
+    const targetIdentity = taskId ? `task:${taskId}` : `bot:${active.id}`;
+    const changedTarget =
+      displayedBotTarget.current !== targetIdentity ||
+      snapshotRef.current?.groupId !== undefined ||
+      (snapshotRef.current !== null && snapshotRef.current.botId !== active.id);
+    displayedBotTarget.current = targetIdentity;
+    if (changedTarget) commitSnapshot(cachedThread ?? null);
+    else if (cachedThread && !snapshotRef.current) commitSnapshot(cachedThread);
     const sidebarRefresh = createRefreshCoalescer(() => refreshBots());
     const snapshotRefresh = createRefreshCoalescer(() => refreshThread(active.id));
     const abort = new AbortController();
@@ -322,19 +318,18 @@ export function useThreadSync({
         const primed = bootstrappedThread.current;
         bootstrappedThread.current = null;
         // Pending search jumps load the around-page separately; avoid replacing it with latest.
-        return primed?.botId === active.id
+        return !taskId && primed?.botId === active.id
           ? primed
           : pendingJump
-            ? rpc.threads.get({ botId: active.id }, { signal: threadSnapshotSignal(abort.signal) })
+            ? rpc.threads.get(target, { signal: threadSnapshotSignal(abort.signal) })
             : refreshThread(active.id, threadSnapshotSignal(abort.signal));
       },
-      loadHead: () =>
-        rpc.threads.head({ botId: active.id }, { signal: threadSnapshotSignal(abort.signal) }),
+      loadHead: () => rpc.threads.head(target, { signal: threadSnapshotSignal(abort.signal) }),
       refresh: () => refreshThread(active.id, threadSnapshotSignal(abort.signal)),
       currentSnapshot: () => snapshotRef.current,
       subscribe: (cursor, signal) =>
         openLogoAvatarActivityFeed(avatarSource, snapshotRef.current, cursor, signal, () =>
-          rpc.threads.subscribe({ botId: active.id, cursor }, { signal }),
+          rpc.threads.subscribe({ ...target, cursor }, { signal }),
         ),
       beforeEvent: (event) => {
         webLogoAvatarActivity.apply(avatarSource, event);
@@ -378,7 +373,7 @@ export function useThreadSync({
           if (blocks.some((block) => block.kind === "child_bot")) {
             void sidebarRefresh.invalidate().catch(() => undefined);
           }
-          if (event.payload.role === "bot") markBotReadIfVisible(active.id);
+          if (!taskId && event.payload.role === "bot") markBotReadIfVisible(active.id);
         }
         if (
           isRunTerminalEvent(event) ||
@@ -401,7 +396,7 @@ export function useThreadSync({
       const left = snapshotRef.current;
       if (left?.botId === active.id && !left.groupId) queryClient.setQueryData(threadKey, left);
     };
-  }, [active?.id, markBotReadIfVisible, notifyBrowserForEvent]);
+  }, [active?.id, taskId, markBotReadIfVisible, notifyBrowserForEvent]);
 
   useEffect(() => {
     if (!groupId || !activeGroup) return;

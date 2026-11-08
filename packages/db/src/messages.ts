@@ -2,16 +2,37 @@ import type { MessageBlock } from "@rakazo/contracts";
 import type { Prisma, PrismaClient } from "./client.js";
 import { withTransactionRetry } from "./transaction-retry.js";
 
+/** A group's pending queue is private to delivery, including from other member runtimes. */
+export function undeliveredSteeringFilter(botId?: string): Prisma.SteeringMessageWhereInput {
+  return {
+    AND: [
+      ...(botId ? [{ OR: [{ botId }, { message: { thread: { groupId: { not: null } } } }] }] : []),
+      { OR: [{ cancelledAt: { not: null } }, { claimedAt: null }] },
+    ],
+  };
+}
+
 /** Group turns use channel inputs and their own outputs, never private thread history. */
-export function loadRunHistoryMessages(
+export async function loadRunHistoryMessages(
   prisma: PrismaClient,
-  run: { id: string; threadId: string },
+  run: { id: string; threadId: string; botId?: string },
   limit: number,
   channelId?: string,
 ) {
-  return prisma.message.findMany({
+  const rows = await prisma.message.findMany({
     where: {
       threadId: run.threadId,
+      // Pending input belongs only in the claim callback, where edits and cancellation
+      // serialize with consumption. Tombstones keep cancelled text out of later turns.
+      ...(run.botId
+        ? {
+            NOT: {
+              steeringMessages: {
+                some: undeliveredSteeringFilter(run.botId),
+              },
+            },
+          }
+        : {}),
       ...(channelId
         ? {
             OR: [
@@ -37,10 +58,28 @@ export function loadRunHistoryMessages(
       createdAt: true,
       replyToMessageId: true,
       replyQuote: true,
-      replyTo: { select: { id: true, threadId: true, role: true, botId: true, blocks: true } },
+      replyTo: {
+        select: {
+          id: true,
+          threadId: true,
+          role: true,
+          botId: true,
+          blocks: true,
+          steeringMessages: {
+            where: undeliveredSteeringFilter(run.botId),
+            select: { id: true },
+            take: 1,
+          },
+        },
+      },
       clientNonce: true,
     },
   });
+  return rows.map((message) =>
+    message.replyTo?.steeringMessages?.length
+      ? { ...message, replyTo: null, replyQuote: null }
+      : message,
+  );
 }
 
 /** Marks the bot message that keeps the reply text of a run that failed partway through it. */

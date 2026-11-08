@@ -118,9 +118,12 @@ async function assertOwnedBots(
       userId: actor.userId,
       archivedAt: null,
     },
-    select: { id: true, name: true, color: true, avatarSet: true },
+    select: { id: true, name: true, color: true, avatarSet: true, botKind: true },
   });
   if (bots.length !== unique.length) throw new IsolationError();
+  if (bots.some((bot) => bot.botKind === "roleplay")) {
+    throw new IsolationError("Roleplay bots use individual stories and cannot join groups yet");
+  }
   const botsById = new Map(bots.map((bot) => [bot.id, bot]));
   return unique.map((botId) => {
     const bot = botsById.get(botId);

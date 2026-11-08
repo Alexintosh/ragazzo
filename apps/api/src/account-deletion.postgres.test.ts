@@ -20,18 +20,24 @@ import type { PrismaClient, SpaceKeyRecord, SpaceKeyStore } from "@rakazo/db";
 import {
   asSystem,
   ContentKeyRing,
+  claimSpacesLeavingWithAccount,
   computerHomeKey,
   computerScopeKey,
   createDb,
+  deleteSpaceLeavingWithAccount,
   LocalKeyProvider,
   legacyTeamHomeKey,
   lockSpaceForContentCreation,
   runAsSystem,
+  runAsTenant,
   SpaceDeletionInProgressError,
 } from "@rakazo/db";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { MemoryObjectStorage } from "../../../packages/adapters/src/object-storage.test-support.js";
 import { deleteAccountContent } from "./account-deletion.js";
+import { assertNativeSetupAdmission } from "./native-setup-admission.js";
+import { nativeSetupOwners } from "./native-setup-owners.js";
+import { deleteSpaceWithContent } from "./space-deletion.js";
 
 const databaseUrl = process.env.DATABASE_URL;
 const describePostgres =
@@ -56,7 +62,10 @@ describePostgres("account deletion on bot computers (PostgreSQL)", () => {
     userId: "test",
     signal: new AbortController().signal,
   };
-  const deleteAccount = (userId: string) =>
+  const deleteAccount = (
+    userId: string,
+    nativeSetupCleanup?: (owners: Array<{ spaceId: string; userId: string }>) => Promise<void>,
+  ) =>
     runAsSystem("account deletion test", () =>
       deleteAccountContent(
         {
@@ -66,6 +75,7 @@ describePostgres("account deletion on bot computers (PostgreSQL)", () => {
           jobs: { cancel: vi.fn() } as unknown as JobPublisher,
           artifacts: { remove: vi.fn() } as unknown as ArtifactStore,
           dataDir: root,
+          nativeSetupCleanup,
         },
         userId,
       ),
@@ -245,6 +255,339 @@ describePostgres("account deletion on bot computers (PostgreSQL)", () => {
     }
   }
 
+  it("retains account content when scoped native setup cleanup is uncertain", async () => {
+    const cleanup = vi.fn(async (_owners: Array<{ spaceId: string; userId: string }>) => {
+      await expect(
+        prisma.$transaction((tx) =>
+          assertNativeSetupAdmission(tx, { spaceId: ids.sharedSpace, userId: ids.leaver }),
+        ),
+      ).rejects.toThrow();
+      await prisma.$transaction((tx) =>
+        assertNativeSetupAdmission(tx, { spaceId: ids.sharedSpace, userId: ids.stayer }),
+      );
+      throw new Error("setup cleanup uncertain");
+    });
+    await expect(deleteAccount(ids.leaver, cleanup)).rejects.toThrow("setup cleanup uncertain");
+    expect(cleanup).toHaveBeenCalledWith(
+      expect.arrayContaining([
+        { spaceId: ids.personalSpace, userId: ids.leaver },
+        { spaceId: ids.sharedSpace, userId: ids.leaver },
+        { spaceId: ids.soloSpace, userId: ids.leaver },
+      ]),
+    );
+    expect(cleanup.mock.calls[0]![0]).toHaveLength(3);
+    expect(sandbox.destroyed).toEqual([]);
+    expect(await system.bot.count({ where: { userId: ids.leaver } })).toBe(4);
+  });
+
+  it("claims the Space before setup cleanup and retains its bots on uncertain acknowledgement", async () => {
+    await system.space.update({
+      where: { id: ids.soloSpace },
+      data: { createdByUserId: ids.leaver },
+    });
+    const cleanup = vi.fn(async (owners: Array<{ spaceId: string; userId: string }>) => {
+      expect(owners).toEqual([{ spaceId: ids.soloSpace, userId: ids.leaver }]);
+      expect(
+        (await system.space.findUniqueOrThrow({ where: { id: ids.soloSpace } })).deletionClaimId,
+      ).not.toBeNull();
+      await expect(
+        prisma.$transaction((tx) =>
+          assertNativeSetupAdmission(tx, { spaceId: ids.soloSpace, userId: ids.leaver }),
+        ),
+      ).rejects.toThrow(SpaceDeletionInProgressError);
+      throw new Error("setup cleanup uncertain");
+    });
+    await expect(
+      runAsSystem("Space setup deletion test", () =>
+        deleteSpaceWithContent(
+          {
+            prisma,
+            sandbox: sandbox as unknown as SandboxProvider,
+            home,
+            jobs: { cancel: vi.fn() } as unknown as JobPublisher,
+            artifacts: { remove: vi.fn() } as unknown as ArtifactStore,
+            dataDir: root,
+            nativeSetupCleanup: cleanup,
+          },
+          { spaceId: ids.sharedSpace, userId: ids.leaver },
+          ids.soloSpace,
+        ),
+      ),
+    ).rejects.toThrow("setup cleanup uncertain");
+    expect(cleanup).toHaveBeenCalledOnce();
+    expect(sandbox.destroyed).toEqual([]);
+    expect(await system.bot.findUnique({ where: { id: ids.soloBot } })).not.toBeNull();
+  });
+
+  it("includes registered and local-only setup after their owners leave membership", async () => {
+    await system.space.update({
+      where: { id: ids.soloSpace },
+      data: { createdByUserId: ids.leaver },
+    });
+    await system.spaceMember.create({
+      data: {
+        id: `${ids.soloSpace}-departed`,
+        spaceId: ids.soloSpace,
+        organizationId: ids.sharedOrg,
+        userId: ids.stayer,
+        role: "member",
+        createdAt: new Date(),
+      },
+    });
+    // No bot, computer or membership is required to retain a local setup owner.
+    await system.nativeSetupOwner.create({
+      data: { spaceId: ids.soloSpace, userId: ids.stayer },
+    });
+    await system.spaceMember.delete({ where: { id: `${ids.soloSpace}-departed` } });
+    expect(await nativeSetupOwners(system, { spaceId: ids.soloSpace })).toContainEqual({
+      spaceId: ids.soloSpace,
+      userId: ids.stayer,
+    });
+    expect(
+      await runAsTenant({ spaceId: ids.soloSpace, userId: ids.leaver }, () =>
+        prisma.nativeSetupOwner.findMany({ where: { spaceId: ids.soloSpace } }),
+      ),
+    ).toEqual([]);
+    await expect(
+      runAsTenant({ spaceId: ids.soloSpace, userId: ids.leaver }, () =>
+        prisma.nativeSetupOwner.upsert({
+          where: { spaceId_userId: { spaceId: ids.soloSpace, userId: ids.stayer } },
+          create: { spaceId: ids.soloSpace, userId: ids.stayer },
+          update: {},
+        }),
+      ),
+    ).rejects.toThrow();
+    await system.registeredHost.create({
+      data: {
+        id: `departed-host-${suffix}`,
+        spaceId: ids.soloSpace,
+        userId: ids.stayer,
+        name: "Departed host",
+        endpoint: "https://host.example.test",
+        ciphertext: "fake-ciphertext",
+      },
+    });
+    const cleanup = vi.fn(async () => {
+      throw new Error("cleanup uncertain");
+    });
+    await expect(
+      runAsSystem("former-owner Space cleanup test", () =>
+        deleteSpaceWithContent(
+          {
+            prisma,
+            sandbox: sandbox as unknown as SandboxProvider,
+            home,
+            jobs: { cancel: vi.fn() } as unknown as JobPublisher,
+            artifacts: { remove: vi.fn() } as unknown as ArtifactStore,
+            dataDir: root,
+            nativeSetupCleanup: cleanup,
+          },
+          { spaceId: ids.sharedSpace, userId: ids.leaver },
+          ids.soloSpace,
+        ),
+      ),
+    ).rejects.toThrow("cleanup uncertain");
+    expect(cleanup).toHaveBeenCalledWith([
+      { spaceId: ids.soloSpace, userId: ids.leaver },
+      { spaceId: ids.soloSpace, userId: ids.stayer },
+    ]);
+    // A registered former owner remains discoverable even without a durable local record.
+    await system.nativeSetupOwner.deleteMany({ where: { userId: ids.stayer } });
+    expect(await nativeSetupOwners(system, { spaceId: ids.soloSpace })).toContainEqual({
+      spaceId: ids.soloSpace,
+      userId: ids.stayer,
+    });
+  });
+
+  it("cleans departed account owners without membership and former owners only before actual Space deletion", async () => {
+    await system.spaceMember.deleteMany({
+      where: { spaceId: ids.sharedSpace, userId: ids.leaver },
+    });
+    await system.nativeSetupOwner.createMany({
+      data: [
+        { spaceId: ids.sharedSpace, userId: ids.leaver },
+        { spaceId: ids.soloSpace, userId: ids.stayer },
+      ],
+    });
+    const cleanup = vi.fn(async (owners: Array<{ spaceId: string; userId: string }>) => {
+      if (owners.some((owner) => owner.userId === ids.stayer))
+        throw new Error("former-owner cleanup uncertain");
+    });
+    await expect(deleteAccount(ids.leaver, cleanup)).rejects.toThrow(
+      "former-owner cleanup uncertain",
+    );
+    expect(cleanup.mock.calls[0]![0]).toContainEqual({
+      spaceId: ids.sharedSpace,
+      userId: ids.leaver,
+    });
+    expect(cleanup.mock.calls[0]![0].every((owner) => owner.userId === ids.leaver)).toBe(true);
+    expect(cleanup).toHaveBeenLastCalledWith([{ spaceId: ids.soloSpace, userId: ids.stayer }]);
+    expect(await system.space.findUnique({ where: { id: ids.soloSpace } })).not.toBeNull();
+    expect(await system.nativeSetupOwner.count({ where: { spaceId: ids.soloSpace } })).toBe(1);
+    cleanup.mockImplementation(async () => {});
+    await deleteAccount(ids.leaver, cleanup);
+    expect(await system.space.findUnique({ where: { id: ids.soloSpace } })).toBeNull();
+    expect(await system.nativeSetupOwner.count({ where: { spaceId: ids.soloSpace } })).toBe(0);
+  });
+
+  it("keeps the final cleanup decision after a former owner's revocation loses its acknowledgement", async () => {
+    await system.nativeSetupOwner.create({
+      data: { spaceId: ids.soloSpace, userId: ids.stayer },
+    });
+    let loseAcknowledgement = true;
+    const tombstone = path.join(root, "former-owner-setup-revoked");
+    const cleanup = vi.fn(async (owners: Array<{ spaceId: string; userId: string }>) => {
+      if (!owners.some((owner) => owner.userId === ids.stayer)) return;
+      // A host's persistent revocation survives the API transaction/request failing.
+      await writeFile(tombstone, "revoked");
+      expect(
+        (await system.space.findUniqueOrThrow({ where: { id: ids.soloSpace } }))
+          .deletionCleanupStartedAt,
+      ).toBeInstanceOf(Date);
+      if (loseAcknowledgement) throw new Error("revocation acknowledgement lost");
+    });
+
+    await expect(deleteAccount(ids.leaver, cleanup)).rejects.toThrow(
+      "revocation acknowledgement lost",
+    );
+    expect(await readdir(root)).toContain("former-owner-setup-revoked");
+    const decision = await system.space.findUniqueOrThrow({ where: { id: ids.soloSpace } });
+    expect(decision.deletionClaimId).toBe(`account-deletion:${ids.leaver}`);
+    expect(decision.deletionCleanupStartedAt).toBeInstanceOf(Date);
+
+    // Direct writes model older APIs that have no application-level admission check.
+    await expect(
+      system.spaceMember.create({
+        data: {
+          id: `${ids.soloSpace}-late-join`,
+          spaceId: ids.soloSpace,
+          organizationId: ids.sharedOrg,
+          userId: ids.stayer,
+          role: "member",
+          createdAt: new Date(),
+        },
+      }),
+    ).rejects.toThrow("Space deletion cleanup has started");
+    await expect(
+      system.$executeRaw`
+        UPDATE space_members SET "userId" = ${ids.stayer}
+        WHERE "spaceId" = ${ids.soloSpace} AND "userId" = ${ids.leaver}
+      `,
+    ).rejects.toThrow("Space deletion cleanup has started");
+    await expect(
+      system.$executeRaw`
+        UPDATE space_members SET "spaceId" = ${ids.soloSpace}
+        WHERE "spaceId" = ${ids.sharedSpace} AND "userId" = ${ids.stayer}
+      `,
+    ).rejects.toThrow("Space deletion cleanup has started");
+    await expect(
+      system.space.update({
+        where: { id: ids.soloSpace },
+        data: { deletingAt: null, deletionClaimId: null },
+      }),
+    ).rejects.toThrow("Space cleanup decision cannot be reversed");
+    await expect(
+      system.space.update({
+        where: { id: ids.soloSpace },
+        data: { deletionCleanupStartedAt: null },
+      }),
+    ).rejects.toThrow("Space cleanup decision cannot be reversed");
+    await expect(
+      system.space.update({
+        where: { id: ids.soloSpace },
+        data: { deletionClaimId: "another-deletion" },
+      }),
+    ).rejects.toThrow("Space cleanup decision cannot be reversed");
+
+    loseAcknowledgement = false;
+    await deleteAccount(ids.leaver, cleanup);
+    expect(cleanup).toHaveBeenLastCalledWith([{ spaceId: ids.soloSpace, userId: ids.stayer }]);
+    expect(await system.space.findUnique({ where: { id: ids.soloSpace } })).toBeNull();
+    expect(await system.nativeSetupOwner.count({ where: { spaceId: ids.soloSpace } })).toBe(0);
+    expect(await readdir(root)).toContain("former-owner-setup-revoked");
+    expect(await system.space.findUnique({ where: { id: ids.sharedSpace } })).not.toBeNull();
+  });
+
+  it("serializes the cleanup marker with an uncommitted membership and retains the committed join", async () => {
+    await runAsSystem("concurrent account claim test", () =>
+      claimSpacesLeavingWithAccount(prisma, ids.leaver),
+    );
+    await system.bot.deleteMany({ where: { spaceId: ids.soloSpace } });
+    await system.computer.deleteMany({ where: { spaceId: ids.soloSpace } });
+    await system.$transaction(async (joining) => {
+      await joining.spaceMember.create({
+        data: {
+          id: `${ids.soloSpace}-joining`,
+          spaceId: ids.soloSpace,
+          organizationId: ids.sharedOrg,
+          userId: ids.stayer,
+          role: "member",
+          createdAt: new Date(),
+        },
+      });
+      // The FK's KEY SHARE alone would allow this non-key update. Admission's
+      // SHARE lock keeps the cleanup decision behind the membership commit.
+      await expect(
+        system.$transaction(async (deciding) => {
+          await deciding.$executeRawUnsafe("SET LOCAL lock_timeout = '100ms'");
+          await deciding.space.update({
+            where: { id: ids.soloSpace },
+            data: { deletionCleanupStartedAt: new Date() },
+          });
+        }),
+      ).rejects.toThrow("lock timeout");
+    });
+    const cleanup = vi.fn(async () => {});
+    expect(
+      await runAsSystem("retain committed pre-cleanup join test", () =>
+        deleteSpaceLeavingWithAccount(
+          prisma,
+          { spaceId: ids.soloSpace, userId: ids.leaver },
+          cleanup,
+        ),
+      ),
+    ).toBeNull();
+    expect(cleanup).not.toHaveBeenCalled();
+    expect(await system.space.findUnique({ where: { id: ids.soloSpace } })).toMatchObject({
+      deletingAt: null,
+      deletionClaimId: null,
+      deletionCleanupStartedAt: null,
+    });
+  });
+
+  it("commits membership admission closure before the setup cleanup callback", async () => {
+    await runAsSystem("account claim test", () =>
+      claimSpacesLeavingWithAccount(prisma, ids.leaver),
+    );
+    await system.bot.deleteMany({ where: { spaceId: ids.soloSpace } });
+    await system.computer.deleteMany({ where: { spaceId: ids.soloSpace } });
+    let join: Promise<unknown> | undefined;
+    await runAsSystem("locked setup teardown test", () =>
+      deleteSpaceLeavingWithAccount(
+        prisma,
+        { spaceId: ids.soloSpace, userId: ids.leaver },
+        async () => {
+          // Another connection sees the committed fence while external cleanup runs.
+          join = system.$transaction(async (tx) => {
+            await tx.$executeRawUnsafe("SET LOCAL lock_timeout = '100ms'");
+            await tx.spaceMember.create({
+              data: {
+                id: `${ids.soloSpace}-concurrent-join`,
+                spaceId: ids.soloSpace,
+                organizationId: ids.sharedOrg,
+                userId: ids.stayer,
+                role: "member",
+                createdAt: new Date(),
+              },
+            });
+          });
+          await expect(join).rejects.toThrow("Space deletion cleanup has started");
+        },
+      ),
+    );
+    expect(await system.space.findUnique({ where: { id: ids.soloSpace } })).toBeNull();
+  });
+
   it("deletes every computer of the account and its own spaces, and only its folders elsewhere", async () => {
     const legacyKey = legacyTeamHomeKey(ids.sharedSpace);
     const legacyStorage = (
@@ -377,6 +720,7 @@ describePostgres("account deletion on bot computers (PostgreSQL)", () => {
   });
 
   it("releases its claim on a space someone joined before a failed attempt", async () => {
+    const cleanup = vi.fn(async (_owners: Array<{ spaceId: string; userId: string }>) => {});
     sandbox.failDestroy.add(`sb-dedicated-${suffix}`);
     sandbox.beforeDestroy = async (providerRef) => {
       if (providerRef !== `sb-dedicated-${suffix}`) return;
@@ -393,10 +737,16 @@ describePostgres("account deletion on bot computers (PostgreSQL)", () => {
         },
       });
     };
-    await expect(deleteAccount(ids.leaver)).rejects.toThrow("provider unavailable");
+    await expect(deleteAccount(ids.leaver, cleanup)).rejects.toThrow("provider unavailable");
     sandbox.failDestroy.clear();
 
-    await deleteAccount(ids.leaver);
+    await system.nativeSetupOwner.create({ data: { spaceId: ids.soloSpace, userId: ids.stayer } });
+    await deleteAccount(ids.leaver, cleanup);
+    expect(
+      cleanup.mock.calls
+        .flatMap(([owners]) => owners)
+        .every((owner) => owner.userId === ids.leaver),
+    ).toBe(true);
 
     expect(await system.space.findUnique({ where: { id: ids.soloSpace } })).toMatchObject({
       deletingAt: null,

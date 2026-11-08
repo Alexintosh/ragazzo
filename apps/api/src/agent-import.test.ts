@@ -110,6 +110,14 @@ const input = AgentImportCreateInput.parse({
 });
 
 describe("after the import commits", () => {
+  it("rejects existing destinations so an import cannot replace a roleplay character", () => {
+    expect(
+      AgentImportCreateInput.safeParse({
+        ...input,
+        destination: { kind: "existing", botId: bot.id, replaceInstructions: true },
+      }).success,
+    ).toBe(false);
+  });
   it("reports success even when a notice or refresh fails", async () => {
     const announceRoutine = vi.fn(async () => {
       throw new Error("events are down");

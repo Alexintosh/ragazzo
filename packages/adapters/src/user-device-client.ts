@@ -48,7 +48,7 @@ export function startUserDeviceClient(options: UserDeviceClientOptions) {
     if (stopped) return;
     stopped = true;
     clearTimeout(reconnectTimer);
-    runner.close();
+    void runner.close().catch(() => undefined);
     socket?.terminate();
   }
 

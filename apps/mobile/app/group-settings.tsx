@@ -80,6 +80,16 @@ export default function GroupSettingsScreen() {
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
       >
+        <NativeActionButton
+          label={t("Conversation work")}
+          prominence="plain"
+          onPress={() => router.push({ pathname: "/conversation-work", params: { groupId } })}
+        />
+        <NativeActionButton
+          label={t("Files")}
+          prominence="plain"
+          onPress={() => router.push({ pathname: "/conversation-files", params: { groupId } })}
+        />
         <Text style={{ color: tokens.mutedForeground, fontSize: 14 }}>{t("Name")}</Text>
         <TextInput
           value={name}

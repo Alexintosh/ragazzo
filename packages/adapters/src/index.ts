@@ -41,6 +41,13 @@ export * from "./cloud-agent-provider-env.js";
 export * from "./cloud-agent-service.js";
 export * from "./cloud-agent-tools.js";
 export * from "./cloud-agent-tools-select.js";
+export type { CodexTransport } from "./codex-runtime.js";
+export {
+  CodexAgentRuntime,
+  CodexAgentRuntime as NativeAgentRuntime,
+  HostCodexTransport,
+  readCodexCheckpoint,
+} from "./codex-runtime.js";
 export * from "./composio-catalog-cache.js";
 export * from "./composio-connector.js";
 export * from "./composio-fake.js";
@@ -83,6 +90,17 @@ export * from "./home.js";
 export * from "./home-object-store.js";
 export { HonchoMemoryProvider } from "./honcho-memory-provider.js";
 export * from "./host-aware-sandbox.js";
+export type { HostCodexStatus } from "./host-codex-protocol.js";
+export {
+  HostComputerUnavailableError,
+  isNativeCodexCleanupFailedError,
+  NATIVE_CODEX_CLEANUP_FAILED_MESSAGE,
+} from "./host-computer-errors.js";
+export { HOST_COMPUTER_MAX_FILE_BYTES } from "./host-computer-protocol.js";
+export * from "./host-computer-sandbox.js";
+export { startHostComputerServer } from "./host-computer-server.js";
+export * from "./host-directories.js";
+export * from "./host-project-directory.js";
 export * from "./http-decisions.js";
 export * from "./infisical-secret-store.js";
 export * from "./installed-connectors.js";
@@ -117,6 +135,8 @@ export * from "./model-credit-reconciler.js";
 export * from "./model-roles.js";
 export * from "./model-selection.js";
 export * from "./model-vision.js";
+export * from "./native-setup.js";
+export * from "./native-setup-transport.js";
 export * from "./none-sandbox.js";
 export * from "./novita-sandbox.js";
 export * from "./novita-template.js";
@@ -148,9 +168,13 @@ export * from "./purchase-service.js";
 export * from "./push-token-store.js";
 export * from "./railway-sandbox.js";
 export * from "./realtime.js";
+export * from "./registered-host-revocation.js";
+export * from "./registered-hosts.js";
 export * from "./release-watch.js";
 export * from "./remote-mcp.js";
 export * from "./resend-email.js";
+export * from "./roleplay-runtime.js";
+export * from "./roleplay-spontaneous.js";
 export * from "./routine-watch.js";
 export * from "./run-secret.js";
 export * from "./run-wakeup.js";
@@ -196,3 +220,4 @@ export * from "./web-tools.js";
 export * from "./farming-control-risk-automation.js";
 
 export * from "./farming-control-opportunity-automation.js";
+export * from "./workflows.js";

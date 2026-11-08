@@ -22,6 +22,10 @@ export function ActivitySection({
   const router = useRouter();
   const botsById = useMemo(() => new Map(bots.map((bot) => [bot.id, bot])), [bots]);
   const openRun = (run: RunActivityRow) => {
+    if (run.taskId) {
+      router.push({ pathname: "/task-conversation", params: { taskId: run.taskId } });
+      return;
+    }
     if (run.groupId) {
       router.push({
         pathname: "/group-thread",

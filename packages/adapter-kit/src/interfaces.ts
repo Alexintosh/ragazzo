@@ -95,6 +95,8 @@ import type {
 } from "./types.js";
 
 export interface SandboxProvider {
+  /** Host mutations participate in the same durable native write coordinator. */
+  readonly nativeWriteScopes?: boolean;
   /** True when every running minute is billed, so the active-lifetime cap applies. */
   billsWhileRunning?(computer: Pick<ComputerRef, "kind">): boolean;
   describe(): AdapterDescriptor<SandboxCapabilities>;
@@ -122,6 +124,8 @@ export interface SandboxProvider {
       homePath: string;
       providerRef?: string;
       providerKind?: ComputerRef["kind"];
+      executionTarget?: "default" | "docker" | "host";
+      registeredHostId?: string | null;
       /**
        * When the saved workspace a replacement would restore was read from the computer. A
        * provider that can only bring `providerRef` back from an older snapshot of its own
@@ -135,7 +139,9 @@ export interface SandboxProvider {
    * The kind provision() would return now, without starting anything. Only providers that
    * choose between kinds at provision time implement it.
    */
-  provisionKind?(): Promise<ComputerRef["kind"]>;
+  provisionKind?(placement?: {
+    executionTarget?: "default" | "docker" | "host";
+  }): Promise<ComputerRef["kind"]>;
   /**
    * Read-only probe that never starts or resumes anything. Resolves true only when the provider
    * reports this exact reference running, and false only when it reports it not running or gone;

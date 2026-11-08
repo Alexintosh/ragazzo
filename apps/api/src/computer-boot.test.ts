@@ -39,7 +39,7 @@ const actor = {
 function routerDeps(prisma: PrismaClient) {
   return {
     prisma,
-    jobs: { enqueue: vi.fn() },
+    jobs: { enqueue: vi.fn().mockResolvedValue(undefined) },
     env: {
       defaultProvider: "fake",
       defaultModel: "fake-model",
@@ -51,8 +51,10 @@ function routerDeps(prisma: PrismaClient) {
   } as unknown as RouterDeps;
 }
 
-async function boot(prisma: PrismaClient) {
-  const handler = new RPCHandler(createRouter(routerDeps(prisma)), {
+async function boot(prisma: PrismaClient, sandbox?: Partial<RouterDeps["sandbox"]>) {
+  const deps = routerDeps(prisma);
+  if (sandbox) deps.sandbox = sandbox as RouterDeps["sandbox"];
+  const handler = new RPCHandler(createRouter(deps), {
     clientInterceptors: [onError((error, { path }) => handleRpcError(error, path))],
   });
   const { response } = await handler.handle(
@@ -79,6 +81,57 @@ beforeEach(() => {
 });
 
 describe("computer boot", () => {
+  it.each(["dedicated", "team"])(
+    "reprovisions a persisted running %s computer when the host lost its instance",
+    async (scope) => {
+      const isRunning = vi.fn().mockResolvedValue(false);
+      lifecycle.provisionComputer.mockRejectedValue(new Error("stop after provisioning"));
+      const prisma = {
+        bot: {
+          findFirst: vi.fn().mockResolvedValue({
+            ...stoppedBot,
+            computer: {
+              ...stoppedBot.computer,
+              state: "running",
+              kind: "desktop",
+              providerRef: "host:fixture",
+              scope,
+            },
+          }),
+        },
+      } as unknown as PrismaClient;
+      await boot(prisma, { isRunning });
+      expect(isRunning).toHaveBeenCalledOnce();
+      expect(lifecycle.provisionComputer).toHaveBeenCalledOnce();
+    },
+  );
+
+  it("keeps a confirmed running private computer without reprovisioning", async () => {
+    const isRunning = vi.fn().mockResolvedValue(true);
+    const prisma = {
+      bot: {
+        findFirst: vi.fn().mockResolvedValue({
+          ...stoppedBot,
+          computer: {
+            ...stoppedBot.computer,
+            state: "running",
+            kind: "desktop",
+            providerRef: "host:fixture",
+            scope: "dedicated",
+            homeRevision: "empty",
+            controlHolder: "none",
+          },
+        }),
+      },
+      computerExecutionLease: { findUnique: vi.fn().mockResolvedValue(null) },
+    } as unknown as PrismaClient;
+    const response = await boot(prisma, { isRunning });
+    expect(response?.status).toBe(200);
+    expect(isRunning).toHaveBeenCalledOnce();
+    expect(lifecycle.provisionComputer).not.toHaveBeenCalled();
+    expect(lifecycle.acquireComputerExecutionLease).not.toHaveBeenCalled();
+  });
+
   it.each([false, true])("uses claimless lease acquisition when busy=%s", async (busy) => {
     lifecycle.acquireComputerExecutionLease.mockImplementation(lifecycle.realAcquire!);
     lifecycle.provisionComputer.mockRejectedValue(new Error("stop after the lease"));

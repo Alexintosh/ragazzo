@@ -71,8 +71,16 @@ async function handle(handler: RouterHandler, ...args: Parameters<RouterHandler[
 
 describe("account preferences", () => {
   function preferencesDeps(avatarStyle: string, timezone: string | null = null) {
-    const update = vi.fn().mockResolvedValue({});
-    const user = { email: "user@rakazo.test", name: "Test User", avatarStyle, timezone };
+    const user = {
+      email: "user@rakazo.test",
+      name: "Test User",
+      avatarStyle,
+      timezone,
+      roleplayEnabled: false,
+    };
+    const update = vi.fn(async ({ data }: { data: Partial<typeof user> }) =>
+      Object.assign(user, data),
+    );
     const updateMany = vi.fn(
       async ({ where, data }: { where: { timezone: null }; data: { timezone: string } }) => {
         if (user.timezone !== where.timezone) return { count: 0 };
@@ -100,12 +108,12 @@ describe("account preferences", () => {
       },
       dataDir: "/tmp/rakazo-router-test",
     } as unknown as RouterDeps;
-    const actor = {
+    const actor: Actor = {
       spaceId: "workspace-1",
       userId: "user-1",
       email: "user@rakazo.test",
       isDeploymentOwner: true,
-    } satisfies Actor;
+    };
     return { update, updateMany, deps, actor, handler: new RPCHandler(createRouter(deps)) };
   }
 
@@ -363,6 +371,29 @@ describe("account preferences", () => {
       where: { id: "user-1" },
       data: { timezone: "Pacific/Auckland" },
     });
+  });
+
+  it("saves roleplay for the authenticated account and returns the saved value", async () => {
+    const setup = preferencesDeps("organic");
+    setup.actor.isDeploymentOwner = false;
+    for (const roleplayEnabled of [true, false]) {
+      const response = await updatePreferences(setup, { roleplayEnabled, userId: "another-user" });
+      expect(response.status).toBe(200);
+      expect(setup.update).toHaveBeenLastCalledWith({
+        where: { id: "user-1" },
+        data: { roleplayEnabled },
+      });
+      await expect(response.json()).resolves.toMatchObject({ json: { roleplayEnabled } });
+    }
+  });
+
+  it("rejects invalid roleplay preferences without writing", async () => {
+    const setup = preferencesDeps("organic");
+    for (const roleplayEnabled of ["true", 1, null]) {
+      const response = await updatePreferences(setup, { roleplayEnabled });
+      expect(response.status).toBeGreaterThanOrEqual(400);
+    }
+    expect(setup.update).not.toHaveBeenCalled();
   });
 
   it.each([null, "Europe/London"])(
@@ -3797,6 +3828,7 @@ describe("computer screen url", () => {
   const callScreenUrl = async (
     connectScreen: () => Promise<unknown>,
     updateMany = vi.fn().mockResolvedValue({ count: 1 }),
+    computerPatch: Record<string, unknown> = {},
   ) => {
     const endRun = vi.fn().mockResolvedValue(1);
     const prisma = {
@@ -3805,7 +3837,7 @@ describe("computer screen url", () => {
           id: "bot-1",
           screenGeneration: 2,
           thread: { id: "thread-1" },
-          computer: computerRow,
+          computer: { ...computerRow, ...computerPatch },
         }),
       },
       computer: { updateMany },
@@ -3879,10 +3911,46 @@ describe("computer screen url", () => {
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({ json: { url: null } });
     expect(updateMany).toHaveBeenCalledWith({
-      where: { id: "computer-1", providerRef: "sandbox-ref-1" },
+      where: { id: "computer-1", providerRef: "sandbox-ref-1", state: "running" },
       data: { state: "stopped", providerRef: null },
     });
     expect(endRun.mock.calls.map(([, , reason]) => reason)).toEqual(["gone"]);
+  });
+
+  it("waits for a booting host before requesting its browser preview", async () => {
+    const connectScreen = vi.fn();
+    const { response, updateMany } = await callScreenUrl(connectScreen, undefined, {
+      kind: "desktop",
+      state: "booting",
+    });
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({ json: { url: null } });
+    expect(connectScreen).not.toHaveBeenCalled();
+    expect(updateMany).not.toHaveBeenCalled();
+  });
+
+  it("does not clear a newer computer lifecycle after a delayed missing-provider response", async () => {
+    const stamp = new Date("2026-01-01T00:00:00Z");
+    const updateMany = vi.fn().mockResolvedValue({ count: 0 });
+    const { response, endRun } = await callScreenUrl(
+      async () => {
+        throw Object.assign(new Error("Local computer stopped"), { name: "SandboxNotFoundError" });
+      },
+      updateMany,
+      { kind: "desktop", updatedAt: stamp },
+    );
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({ json: { url: null } });
+    expect(updateMany).toHaveBeenCalledWith({
+      where: {
+        id: "computer-1",
+        providerRef: "sandbox-ref-1",
+        state: "running",
+        updatedAt: stamp,
+      },
+      data: { state: "stopped", providerRef: null },
+    });
+    expect(endRun).not.toHaveBeenCalled();
   });
 
   it("keeps a transport blip an error and leaves the row alone", async () => {
@@ -4044,7 +4112,7 @@ describe("computer terminal and file transfer", () => {
 
     await expect(call("boot", {})).resolves.toMatchObject({ status: 409 });
     expect(prisma.computer.updateMany).toHaveBeenCalledWith({
-      where: { id: "computer-1", providerRef: "sandbox-ref-1" },
+      where: { id: "computer-1", providerRef: "sandbox-ref-1", state: "running" },
       data: { state: "stopped", providerRef: null },
     });
     expect(findUniqueOrThrow).toHaveBeenCalledWith({ where: { id: "computer-1" } });
@@ -4092,7 +4160,7 @@ describe("computer terminal and file transfer", () => {
       body: { json: { url: null } },
     });
     expect(gone.prisma.computer.updateMany).toHaveBeenCalledWith({
-      where: { id: "computer-1", providerRef: "sandbox-ref-1" },
+      where: { id: "computer-1", providerRef: "sandbox-ref-1", state: "running" },
       data: { state: "stopped", providerRef: null },
     });
 
@@ -5570,6 +5638,20 @@ describe("bot intro run", () => {
     expect(enqueue).toHaveBeenCalledExactlyOnceWith(
       expect.objectContaining({ payload: { runId: "record-2" } }),
     );
+  });
+
+  it("queues a native introduction with native questions and profile tools", async () => {
+    const { create, enqueue, deps } = introDeps({ hasCredential: false });
+    await enqueueBotIntroRun(deps, actor, { ...bot, runtimeKind: "codex" });
+    const [taskCall] = create.mock.calls as Array<[{ data: { prompt?: string } }]>;
+    expect(taskCall?.[0].data.prompt).toBe(
+      botIntroPrompt({
+        userName: "Ada Lovelace",
+        spaceName: null,
+        disabledBuiltinTools: ["ask_user"],
+      }),
+    );
+    expect(enqueue).toHaveBeenCalledOnce();
   });
 
   it("leaves a placeholder account name out of the intro", async () => {
@@ -9041,6 +9123,19 @@ describe("boards.tickets.list", () => {
 });
 
 describe("export.bot", () => {
+  it("rejects exporting a roleplay bot as an operational agent", async () => {
+    const deps = {
+      prisma: { bot: { findFirst: vi.fn().mockResolvedValue({ id: "rp", botKind: "roleplay" }) } },
+      env: {
+        webOrigin: "http://127.0.0.1:5173",
+        screenProxySecret: "fake-test-secret",
+        sandboxProvider: "docker",
+      },
+      dataDir: "/tmp/rakazo-router-test",
+    } as unknown as RouterDeps;
+    const client = createRouterClient(createRouter(deps), { context: { actor } as never });
+    await expect(client.export.bot({ botId: "rp" })).rejects.toThrow("cannot be exported");
+  });
   const actor = {
     spaceId: "workspace-1",
     userId: "user-1",

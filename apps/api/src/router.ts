@@ -1,4 +1,5 @@
 import type {
+  AdapterContext,
   AgentHomeStore,
   ArtifactStore,
   JobPublisher,
@@ -30,7 +31,15 @@ import type {
   verifyModelServesAgents,
 } from "@rakazo/adapters";
 import type { Auth } from "@rakazo/auth";
-import type { NavLink } from "@rakazo/contracts";
+import type {
+  HostDirectoriesInput,
+  HostDirectoriesView,
+  NativeExecutionStatus,
+  NativeSetupInput,
+  NativeSetupView,
+  NavLink,
+  RuntimeModels,
+} from "@rakazo/contracts";
 import type { BoardEvents, PrismaClient, ThreadEvents } from "@rakazo/db";
 import type { BillingService } from "./billing.js";
 import type { FarmingControlService } from "./farming-control.js";
@@ -43,14 +52,18 @@ import { connectionsRoutes } from "./routes/connections.js";
 import { contentRoutes } from "./routes/content.js";
 import { createRouterContext } from "./routes/context.js";
 import { farmingControlRoutes } from "./routes/farming-control.js";
+import { hostsRoutes } from "./routes/hosts.js";
 import { mcpRoutes } from "./routes/mcp.js";
 import { memoryRoutes } from "./routes/memory.js";
 import { messagingRoutes } from "./routes/messaging.js";
 import { modelsRoutes } from "./routes/models.js";
+import { nativeSetupRoutes } from "./routes/native-setup.js";
 import { paymentWalletRoutes } from "./routes/payment-wallet.js";
 import { routinesRoutes } from "./routes/routines.js";
 import { spacesRoutes } from "./routes/spaces.js";
+import { tasksRoutes } from "./routes/tasks.js";
 import { threadsRoutes } from "./routes/threads.js";
+import { workflowsRoutes } from "./routes/workflows.js";
 import type { VoiceDeps } from "./voice.js";
 
 export { nextConnectionLabel } from "./model-credentials.js";
@@ -63,12 +76,32 @@ export interface RouterDeps {
   farmingControlRiskAutomationEnabled?: boolean;
   farmingControlOpportunitiesEnabled?: boolean;
   farmingControlOpportunityRefreshEnabled?: boolean;
+  hostProjectDirectory?: (
+    input: { hostId: string | null; path: string },
+    context: AdapterContext,
+  ) => Promise<string>;
+  hostDirectories?: (
+    input: HostDirectoriesInput,
+    context: AdapterContext,
+  ) => Promise<HostDirectoriesView>;
+  nativeSetup?: (input: NativeSetupInput, context: AdapterContext) => Promise<NativeSetupView>;
+  nativeSetupCleanup?: (owners: Array<{ spaceId: string; userId: string }>) => Promise<void>;
   pushTokens: PushTokenStore;
   analytics?: ProductAnalytics;
   cloudAgent?: CloudAgentConnection | null;
   /** The deployment's wallet provider; absent hides purchases. */
   paymentWallet?: PaymentWalletProvider | null;
   prisma: PrismaClient;
+  nativeRuntimeStatus?: (
+    botId: string,
+    threadId: string,
+    context: AdapterContext,
+  ) => Promise<NativeExecutionStatus>;
+  nativeRuntimeModels?: (
+    botId: string,
+    threadId: string,
+    context: AdapterContext,
+  ) => Promise<RuntimeModels>;
   events: ThreadEvents;
   boardEvents: BoardEvents;
   ticketChanges: TicketChangeNotifier;
@@ -141,6 +174,9 @@ export interface RouterDeps {
     integrationsCatalogUrl?: string;
     mcpAllowPrivateEndpoint?: boolean;
     desktopHostChoiceEnabled?: boolean;
+    /** An authenticated host bridge is configured; this does not grant local consent. */
+    nativeHostConfigured?: boolean;
+    /** Whether MCP stdio servers can run, and the commands they may launch. */
     mcpStdioEnabled?: boolean;
     mcpStdioAllowedCommands?: string[];
   };
@@ -157,6 +193,10 @@ export function createRouter(deps: RouterDeps) {
     ...modelsRoutes(ctx),
     ...botsRoutes(ctx),
     ...threadsRoutes(ctx),
+    ...tasksRoutes(ctx),
+    ...workflowsRoutes(ctx),
+    ...hostsRoutes(ctx),
+    ...nativeSetupRoutes(ctx),
     ...computerRoutes(ctx),
     ...memoryRoutes(ctx),
     ...routinesRoutes(ctx),

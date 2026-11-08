@@ -7,6 +7,10 @@ import {
   SandboxUnresponsiveError,
   VoiceAccountError,
 } from "@rakazo/adapter-kit";
+import {
+  HostComputerUnavailableError,
+  NATIVE_CODEX_CLEANUP_FAILED_MESSAGE,
+} from "@rakazo/adapters";
 import { MODEL_IMAGE_INPUT_ERROR } from "@rakazo/core";
 import { IsolationError } from "@rakazo/db";
 import { createLogger, createTestSink, installLogger } from "@rakazo/logging";
@@ -139,6 +143,39 @@ describe("logUnexpectedRpcError", () => {
     ]);
   });
 
+  it.each(["boot", "screenUrl"])(
+    "returns an unreachable host during %s as HTTP 503 without leaking its address",
+    async (procedure) => {
+      installLogger(createLogger({ service: "rakazo-api", level: "off", sinks: [] }));
+      const unavailable = new HostComputerUnavailableError({
+        cause: Object.assign(new Error("connect ECONNREFUSED private-host.example:1234"), {
+          code: "ECONNREFUSED",
+        }),
+      });
+      const rpc = new RPCHandler(
+        {
+          [procedure]: os.handler(() => {
+            throw unavailable;
+          }),
+        },
+        { clientInterceptors: [onError((error, { path }) => handleRpcError(error, path))] },
+      );
+      const { response } = await rpc.handle(
+        new Request(`http://localhost/rpc/${procedure}`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({}),
+        }),
+        { prefix: "/rpc", context: {} },
+      );
+      expect(response?.status).toBe(503);
+      const body = await response!.text();
+      expect(body).toContain("SERVICE_UNAVAILABLE");
+      expect(body).toContain(unavailable.message);
+      expect(body).not.toContain("private-host.example");
+      expect(body).not.toContain("ECONNREFUSED");
+    },
+  );
   it("returns an unreachable computer provider as a retryable 503 without an error report", () => {
     const sink = createTestSink();
     installLogger(createLogger({ service: "rakazo-api", sinks: [sink] }));
@@ -267,5 +304,59 @@ describe("logUnexpectedRpcError", () => {
     expect(sink.events.map((event) => [event.level, event.message])).toEqual([
       ["warn", "rpc read not found"],
     ]);
+  });
+
+  it.each(["stop", "clear"])(
+    "sends uncertain native cleanup during %s as HTTP 409 with the static message",
+    async (procedure) => {
+      const rpc = new RPCHandler(
+        {
+          [procedure]: os.handler(() => {
+            throw new Error(NATIVE_CODEX_CLEANUP_FAILED_MESSAGE);
+          }),
+        },
+        { clientInterceptors: [onError((error, { path }) => handleRpcError(error, path))] },
+      );
+      const { response } = await rpc.handle(
+        new Request(`http://localhost/rpc/${procedure}`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({}),
+        }),
+        { prefix: "/rpc", context: {} },
+      );
+
+      expect(response?.status).toBe(409);
+      expect(await response?.json()).toMatchObject({
+        json: { code: "CONFLICT", message: NATIVE_CODEX_CLEANUP_FAILED_MESSAGE },
+      });
+    },
+  );
+
+  it("keeps native cleanup near matches opaque on the RPC wire", async () => {
+    installLogger(createLogger({ service: "rakazo-api", level: "off", sinks: [] }));
+    const message = `${NATIVE_CODEX_CLEANUP_FAILED_MESSAGE}: private detail`;
+    const rpc = new RPCHandler(
+      {
+        stop: os.handler(() => {
+          throw new Error(message);
+        }),
+      },
+      { clientInterceptors: [onError((error, { path }) => handleRpcError(error, path))] },
+    );
+    const { response } = await rpc.handle(
+      new Request("http://localhost/rpc/stop", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({}),
+      }),
+      { prefix: "/rpc", context: {} },
+    );
+
+    expect(response?.status).toBe(500);
+    const body = await response?.text();
+    expect(body).toContain("INTERNAL_SERVER_ERROR");
+    expect(body).not.toContain(message);
+    expect(body).not.toContain("private detail");
   });
 });

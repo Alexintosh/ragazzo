@@ -46,6 +46,9 @@ async function provideComputerImage(docker: Docker, image: string, context: stri
     );
     return;
   }
+  if (process.env.SANDBOX_AUTO_BUILD_IMAGE === "false") {
+    throw new Error("The computer image is missing and automatic image builds are disabled.");
+  }
   // Every Rakazo build path tags the stock image rakazo/computer. Any other name may be a custom
   // build, such as a Brave image, which a stock build must not replace. dockerode's tar packer
   // crashes the process on a context file it cannot read.

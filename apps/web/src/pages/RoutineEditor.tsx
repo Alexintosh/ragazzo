@@ -57,6 +57,7 @@ import {
   thinkingLevelLabel,
 } from "../lib/model-catalog";
 import { rpc } from "../lib/rpc";
+import { RoutineCalendar } from "./RoutineCalendar";
 import { RoutineRunHistory } from "./RoutineRunHistory";
 import { RoutineSchedule } from "./RoutineSchedule";
 
@@ -253,9 +254,20 @@ export function RoutineList({
   onStop: () => void;
 }) {
   const { t } = useLingui();
+  const [calendarOpen, setCalendarOpen] = useState(false);
   return (
     <div>
       <div className="mb-2 flex justify-end">
+        {routines.length ? (
+          <Button
+            variant="ghost"
+            size="xs"
+            aria-expanded={calendarOpen}
+            onClick={() => setCalendarOpen((open) => !open)}
+          >
+            <Trans>Calendar</Trans>
+          </Button>
+        ) : null}
         <Button
           variant="secondary"
           size="icon-sm"
@@ -267,6 +279,7 @@ export function RoutineList({
           <Plus strokeWidth={1.9} />
         </Button>
       </div>
+      {calendarOpen ? <RoutineCalendar routines={routines} onEdit={onEdit} /> : null}
       {routines.map((routine) => (
         <RoutineListRow
           key={routine.id}

@@ -36,16 +36,20 @@ function formatAttachmentSkip(item: { name: string; reason: string }): string {
 export function useThreadAttachments({
   botId,
   groupId,
+  taskId,
   readOnly,
   uploadConfig,
+  attachmentsEnabled = true,
 }: {
   botId?: string;
   groupId?: string;
+  taskId?: string;
   readOnly: boolean;
+  attachmentsEnabled?: boolean;
   uploadConfig?: { maxUploadSizeBytes?: number; maxAttachmentsPerMessage?: number };
 }) {
   const { t } = useI18n();
-  const threadKey = groupId ?? botId;
+  const threadKey = taskId ?? groupId ?? botId;
   const [pendingAttachments, setPendingAttachments] = useState<PendingAttachment[]>([]);
   const [attachmentNotice, setAttachmentNotice] = useState<string | null>(null);
   const activePendingAttachments = attachmentsForThread(pendingAttachments, threadKey);
@@ -62,7 +66,7 @@ export function useThreadAttachments({
   ];
 
   function attachFrom(source: string) {
-    if (importingShare.current) return;
+    if (readOnly || !attachmentsEnabled || importingShare.current) return;
     if (source === "library") void addAttachments(pickFromLibrary);
     else if (source === "camera") void addAttachments(takePhoto);
     else if (source === "file") void addAttachments(pickDocuments);
@@ -78,14 +82,14 @@ export function useThreadAttachments({
       skipped: Array<{ name: string; reason: string }>;
     }>,
   ) {
-    const targetKey = groupId ?? botId;
-    if (!targetKey) return;
+    const targetKey = taskId ?? groupId ?? botId;
+    if (!targetKey || readOnly || !attachmentsEnabled) return;
     const result = await picker(
       activePendingAttachments.length,
       attachmentMaxBytes(uploadConfig),
       attachmentMaxCount(uploadConfig),
     );
-    if ((groupId ?? botId) !== targetKey) return;
+    if ((taskId ?? groupId ?? botId) !== targetKey) return;
     // Two drops can overlap, so the room left is settled against the draft as it
     // is now, not as it was when this read began.
     const room = Math.max(
@@ -127,7 +131,7 @@ export function useThreadAttachments({
       );
     },
     {
-      enabled: !readOnly && Boolean(groupId ?? botId),
+      enabled: attachmentsEnabled && !readOnly && Boolean(taskId ?? groupId ?? botId),
       maxBytes: attachmentMaxBytes(uploadConfig),
       maxFiles: attachmentMaxCount(uploadConfig),
     },

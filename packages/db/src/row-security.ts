@@ -120,6 +120,8 @@ export const ROW_SECURITY_MODELS: ReadonlySet<string> = new Set([
   "Bot",
   "Run",
   "Task",
+  "Workflow",
+  "WorkflowRun",
   "Routine",
   "Connection",
   "McpServer",
@@ -128,7 +130,11 @@ export const ROW_SECURITY_MODELS: ReadonlySet<string> = new Set([
   "ModelOAuthSession",
   "BotMcpServer",
   "Computer",
+  "RegisteredHost",
+  "RegisteredHostCleanup",
+  "NativeSetupOwner",
   "ComputerRun",
+  "NativeExecutionReservation",
   "Board",
   "Ticket",
   "TicketComment",
@@ -158,7 +164,7 @@ export const ROW_SECURITY_MODELS: ReadonlySet<string> = new Set([
  * generation stay open to a connection that does not claim it, which is the
  * previous release while it runs beside this one during a deploy.
  */
-const RLS_VERSION = "2";
+const RLS_VERSION = "3";
 
 type Settings = [spaceId: string, userId: string, bypass: "on" | "off", version: string];
 

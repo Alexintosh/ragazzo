@@ -28,7 +28,7 @@ const botFor = (role: (typeof FARMING_CONTROL_ROLES)[number]) => ({
 });
 
 describe("Farming Control specialist grants", () => {
-  it("offers only role-specific fixed reads, never arbitrary paths or HTTP inputs", () => {
+  it("offers role-specific fixed reads and authorized source refresh, never arbitrary paths or HTTP inputs", () => {
     expect(farmingControlToolsForRole("tax").map((tool) => tool.name)).toEqual([
       "farming_control_accounting",
     ]);
@@ -46,6 +46,12 @@ describe("Farming Control specialist grants", () => {
           tool.name === "farming_control_opportunity_publish"
         ) {
           expect(role).toBe("opportunities");
+          expect(tool.readOnly).toBe(false);
+          expect(tool.inputSchema).toMatchObject({ additionalProperties: false });
+          continue;
+        }
+        if (tool.name === "farming_control_source_refresh") {
+          expect(["coordinator", "opportunities"]).toContain(role);
           expect(tool.readOnly).toBe(false);
           expect(tool.inputSchema).toMatchObject({ additionalProperties: false });
           continue;

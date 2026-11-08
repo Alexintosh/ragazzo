@@ -10,6 +10,7 @@ export const COMPUTER_ALLOWANCE_USED_ERROR = "This month's computer allowance is
 export const RUN_TRIGGERS = [
   "user",
   "routine",
+  "roleplay_spontaneous",
   "resume",
   "follow_up",
   "reaction",
@@ -89,6 +90,7 @@ export type RoutineHistory = z.infer<typeof RoutineHistorySchema>;
 
 export const RunActivityRowSchema = z.object({
   runId: Id,
+  taskId: Id.optional(),
   botId: Id,
   botName: z.string(),
   groupId: Id.nullable(),

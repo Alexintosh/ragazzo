@@ -1,3 +1,4 @@
+import type { OAuthCredential } from "@earendil-works/pi-ai";
 import { getSupportedThinkingLevels } from "@earendil-works/pi-ai";
 import type { ModelConnectInput, ModelCredential, ThinkingLevel } from "@rakazo/contracts";
 import {
@@ -15,7 +16,12 @@ import { modelIdSupportsImages, updateModelImageCapabilities } from "./model-vis
 import { normalizeOpenAiCompatibleBaseUrl } from "./openai-compatible-url.js";
 import { modelCredentialAuthKind } from "./pi-catalog-availability.js";
 import type { StoredModelSecret } from "./pi-oauth.js";
-import { CHATGPT_OAUTH_PROVIDER, parseModelSecret, serializeModelSecret } from "./pi-oauth.js";
+import {
+  CHATGPT_OAUTH_PROVIDER,
+  modelTimeouts,
+  parseModelSecret,
+  serializeModelSecret,
+} from "./pi-oauth.js";
 import {
   OPENAI_COMPATIBLE_PROVIDER_ID,
   openAiCompatibleModel,
@@ -66,6 +72,10 @@ export function buildModelConnectPlaintext(
   const inherited = previous?.kind === "api_key" ? previous : undefined;
   const cacheCapabilities = input.cacheCapabilities ?? inherited?.cacheCapabilities;
   const contextWindow = input.contextWindow ?? inherited?.contextWindow;
+  const timeouts = {
+    streamTimeoutMs: connectMaxTokens(input.streamTimeoutMs, previous?.streamTimeoutMs),
+    streamIdleTimeoutMs: connectMaxTokens(input.streamIdleTimeoutMs, previous?.streamIdleTimeoutMs),
+  };
   const limits = {
     ...(cacheCapabilities !== undefined ? { cacheCapabilities } : {}),
     ...(contextWindow !== undefined ? { contextWindow } : {}),
@@ -130,6 +140,7 @@ export function buildModelConnectPlaintext(
       input.cacheCapabilities ?? compatiblePrevious?.cacheCapabilities;
     const secret: StoredModelSecret = {
       kind: "openai_compatible",
+      ...modelTimeouts(timeouts),
       baseUrl: prepared.baseUrl,
       ...(input.apiProtocol !== undefined || compatiblePrevious?.apiProtocol !== undefined
         ? { apiProtocol: input.apiProtocol ?? compatiblePrevious?.apiProtocol }
@@ -176,6 +187,7 @@ export function buildModelConnectPlaintext(
       key: apiKey,
       ...(maxTokens !== undefined ? { maxTokens } : {}),
       ...limits,
+      ...modelTimeouts(timeouts),
       ...routing,
     });
   }
@@ -188,11 +200,15 @@ export function buildModelConnectPlaintext(
       key: previous.key,
       ...(maxTokens !== undefined ? { maxTokens } : {}),
       ...limits,
+      ...modelTimeouts(timeouts),
       ...routing,
     });
   }
   if (previous?.kind === "oauth") {
-    const limit = maxTokens !== undefined ? { maxTokens } : {};
+    const limit = {
+      ...(maxTokens !== undefined ? { maxTokens } : {}),
+      ...modelTimeouts(timeouts),
+    };
     return serializeModelSecret(
       previous.reconnectRequired
         ? { kind: "oauth", reconnectRequired: true, ...limit }
@@ -203,6 +219,20 @@ export function buildModelConnectPlaintext(
     throw new Error(CHATGPT_SUBSCRIPTION_REQUIRED_MESSAGE);
   }
   throw new Error("API key must contain at least 8 characters");
+}
+
+/** A renewed sign-in keeps the connection's settings while replacing its OAuth tokens. */
+export function buildModelOAuthPlaintext(
+  credential: OAuthCredential,
+  previousPlaintext?: string,
+): string {
+  const previous = tryParseModelSecret(previousPlaintext);
+  return serializeModelSecret({
+    kind: "oauth",
+    credential,
+    ...(previous?.maxTokens !== undefined ? { maxTokens: previous.maxTokens } : {}),
+    ...modelTimeouts(previous ?? {}),
+  });
 }
 
 const CHATGPT_SUBSCRIPTION_REQUIRED_MESSAGE =
@@ -297,6 +327,7 @@ export function modelCredentialDto(
     return {
       ...credential,
       authKind: modelCredentialAuthKind(parsed),
+      ...modelTimeouts(parsed),
       ...(parsed.kind === "oauth" && parsed.reconnectRequired ? { reconnectRequired: true } : {}),
       ...(parsed.maxTokens !== undefined ? { maxTokens: parsed.maxTokens } : {}),
       ...(parsed.kind !== "oauth"
@@ -321,6 +352,7 @@ export function modelCredentialDto(
   return {
     ...compatibleCredential,
     authKind: "openai_compatible",
+    ...modelTimeouts(parsed),
     supportsImages:
       parsed.visionModelIds !== undefined
         ? modelIdSupportsImages(parsed.visionModelIds, row.defaultModel)

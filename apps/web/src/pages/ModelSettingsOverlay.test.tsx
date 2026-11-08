@@ -1490,3 +1490,79 @@ it("shows what a disconnect left, not a read sent before it", async () => {
     await view.unmount();
   }
 });
+
+it("loads, presets, and saves timeouts for the managed connection", async () => {
+  models.credentials.mockResolvedValue([
+    {
+      ...deepseekCredential,
+      streamTimeoutMs: 240000,
+      streamIdleTimeoutMs: 300000,
+    },
+  ]);
+  const view = await renderSettings();
+  try {
+    await manage();
+    const headers = view.container.querySelector<HTMLInputElement>(
+      'input[aria-label="Time to response headers (ms)"]',
+    );
+    const idle = view.container.querySelector<HTMLInputElement>(
+      'input[aria-label="Stream inactivity (ms)"]',
+    );
+    if (!headers || !idle) throw new Error("Missing request timeouts");
+    expect(headers.value).toBe("240000");
+    expect(idle.value).toBe("300000");
+    await click(buttons(view.container, "Slow local inference (15 min)")[0]);
+    expect(headers.value).toBe("900000");
+    expect(idle.value).toBe("900000");
+    await click(buttons(view.container, "Save").find((entry) => entry.textContent === "Save"));
+    expect(models.connect).toHaveBeenCalledWith(
+      expect.objectContaining({
+        credentialId: deepseekCredential.id,
+        streamTimeoutMs: 900000,
+        streamIdleTimeoutMs: 900000,
+      }),
+    );
+  } finally {
+    await view.unmount();
+  }
+});
+
+it("rejects invalid timeout bounds and clears overrides to server defaults", async () => {
+  models.credentials.mockResolvedValue([
+    {
+      ...deepseekCredential,
+      streamTimeoutMs: 240000,
+      streamIdleTimeoutMs: 300000,
+    },
+  ]);
+  const view = await renderSettings();
+  try {
+    await manage();
+    const headers = view.container.querySelector<HTMLInputElement>(
+      'input[aria-label="Time to response headers (ms)"]',
+    );
+    const idle = view.container.querySelector<HTMLInputElement>(
+      'input[aria-label="Stream inactivity (ms)"]',
+    );
+    if (!headers || !idle) throw new Error("Missing request timeouts");
+    for (const value of ["0", "-1", "1.5", "2147483648"]) {
+      await typeInto(headers, value);
+      await click(buttons(view.container, "Save").find((entry) => entry.textContent === "Save"));
+      expect(models.connect).not.toHaveBeenCalled();
+      expect(view.container.textContent).toContain(
+        "Enter a whole number from 1 to 2147483647 for request timeouts",
+      );
+    }
+    await typeInto(headers, "");
+    await typeInto(idle, "");
+    await click(buttons(view.container, "Save").find((entry) => entry.textContent === "Save"));
+    expect(models.connect).toHaveBeenCalledWith(
+      expect.objectContaining({
+        streamTimeoutMs: null,
+        streamIdleTimeoutMs: null,
+      }),
+    );
+  } finally {
+    await view.unmount();
+  }
+});

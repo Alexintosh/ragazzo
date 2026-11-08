@@ -263,7 +263,9 @@ export class PiAgentRuntime implements AgentRuntime {
         resumeHost = host;
         const tools = toAgentTools(toolDefs, host);
         const seenSteeringIds: string[] = [];
-        const initialSteering = request.claimSteering ? await request.claimSteering([]) : [];
+        const initialSteering = request.claimSteering
+          ? await request.claimSteering([], !request.turnCheckpoint)
+          : [];
         let hasCurrentImages = Boolean(
           request.currentRunRequiresImageInput ||
             (request.currentTurnImages?.length && !request.currentTurnImageFileFallback) ||
@@ -410,6 +412,7 @@ export class PiAgentRuntime implements AgentRuntime {
                     },
                   ),
                 target.config.cacheCapabilities?.retentionMode,
+                target.config,
               ),
               setThinking,
             );
@@ -1053,7 +1056,8 @@ function withoutSteeringMessages(
   steering: AgentSteeringMessage[],
 ): AgentRunRequest["history"] {
   if (steering.length === 0) return history;
-  const result = [...history];
+  const ids = new Set(steering.map((item) => item.messageId));
+  const result = history.filter((message) => !message.id || !ids.has(message.id));
   let beforeIndex = result.length - 1;
   for (let steeringIndex = steering.length - 1; steeringIndex >= 0; steeringIndex -= 1) {
     const steeringMessage = steering[steeringIndex];
@@ -1061,9 +1065,8 @@ function withoutSteeringMessages(
       const message = result[index];
       if (
         message?.role !== "user" ||
-        (message.id
-          ? message.id !== steeringMessage?.messageId
-          : message.content !== (steeringMessage?.historyText ?? steeringMessage?.text))
+        message.id ||
+        message.content !== (steeringMessage?.historyText ?? steeringMessage?.text)
       ) {
         continue;
       }

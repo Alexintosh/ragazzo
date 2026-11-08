@@ -764,16 +764,11 @@ export function useComputerControls({
     ) : null;
   const computerPreviewScreen =
     !computerOpen &&
-    computer?.kind !== "desktop" &&
     computer?.state === "running" &&
     Boolean(embeddedScreenUrl) &&
     !computerScreenError;
   const showingRecoveryHint =
-    !computerOpen &&
-    computer?.kind !== "desktop" &&
-    !computerPreviewScreen &&
-    !computerScreenError &&
-    showComputerRecoveryHint;
+    !computerOpen && !computerPreviewScreen && !computerScreenError && showComputerRecoveryHint;
 
   return {
     computerBot,

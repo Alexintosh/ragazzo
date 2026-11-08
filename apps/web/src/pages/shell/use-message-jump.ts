@@ -10,7 +10,7 @@ import type { Panel } from "../../lib/right-panel-state";
 import type { createSpaceRpc } from "../../lib/rpc";
 import type { ThreadState } from "./use-thread-state";
 
-type JumpTarget = { botId?: string; groupId?: string; messageId: string };
+type JumpTarget = { botId?: string; groupId?: string; taskId?: string; messageId: string };
 
 /**
  * Opening a chat at a message: search hits and deep links (`?m=`, `?routine=`), reply quotes,
@@ -25,6 +25,7 @@ export function useMessageJump({
   active,
   inGroup,
   groupId,
+  taskId,
   activeBotId,
   activeGroupId,
   searchParams,
@@ -42,6 +43,7 @@ export function useMessageJump({
   active: Bot | undefined;
   inGroup: boolean;
   groupId: string | undefined;
+  taskId?: string;
   activeBotId: RefObject<string | undefined>;
   activeGroupId: RefObject<string | undefined>;
   searchParams: URLSearchParams;
@@ -63,6 +65,8 @@ export function useMessageJump({
     messageScroll,
     pinnedAroundRef,
   } = thread;
+  const taskIdRef = useRef(taskId);
+  taskIdRef.current = taskId;
   const jumpGeneration = useRef(0);
   const [scrollRequest, setScrollRequest] = useState<{
     messageId: string;
@@ -72,7 +76,7 @@ export function useMessageJump({
   const initiallyScrolledThread = useRef<string | null>(null);
 
   async function jumpToMessage(target: JumpTarget) {
-    const threadTarget = searchHitThreadTarget(target);
+    const threadTarget = target.taskId ? { taskId: target.taskId } : searchHitThreadTarget(target);
     const epoch = historyEpoch.current;
     jumpGeneration.current += 1;
     const jumpId = jumpGeneration.current;
@@ -83,7 +87,12 @@ export function useMessageJump({
     // The epoch check drops a jump that raced a conversation clear (or a bot switch): applying
     // the fetched page would pin deleted messages that every later refresh keeps restoring.
     // jumpId drops an older jump that finished after a newer click.
-    if (epoch !== historyEpoch.current || jumpId !== jumpGeneration.current) return;
+    if (
+      epoch !== historyEpoch.current ||
+      jumpId !== jumpGeneration.current ||
+      target.taskId !== taskIdRef.current
+    )
+      return;
     if (target.groupId && activeGroupId.current !== target.groupId) return;
     if (target.botId && activeBotId.current !== target.botId) return;
     // A reply folded under its peer marker counts: the transcript expands the marker to show it.
@@ -109,7 +118,7 @@ export function useMessageJump({
       messages: targetInPage ? page.messages : snap.messages,
       olderCursor: targetInPage ? page.olderCursor : snap.olderCursor,
     });
-    if (threadTarget.botId) {
+    if ("botId" in threadTarget && threadTarget.botId) {
       commitComputer(snap.computer ?? null);
       // Don't block parent-scroll on routines metadata; a list failure must not abort the jump.
       void fetchFresh(
@@ -155,6 +164,14 @@ export function useMessageJump({
   useEffect(() => {
     const messageId = searchParams.get("m");
     const routineId = searchParams.get("routine");
+    if (taskId && messageId) {
+      void jumpToMessage({ taskId, messageId }).finally(() => {
+        const next = new URLSearchParams(searchParams);
+        next.delete("m");
+        setSearchParams(next, { replace: true });
+      });
+      return;
+    }
     if (inGroup && groupId && messageId) {
       void jumpToMessage({ groupId, messageId }).finally(() => {
         // Keep expandedHistoryThread; only strip the jump URL so refresh does not remount.
@@ -184,7 +201,16 @@ export function useMessageJump({
         setSearchParams(next, { replace: true });
       });
     }
-  }, [active?.id, groupId, inGroup, routines, routinesBotId, searchParams, setSearchParams]);
+  }, [
+    active?.id,
+    groupId,
+    taskId,
+    inGroup,
+    routines,
+    routinesBotId,
+    searchParams,
+    setSearchParams,
+  ]);
 
   const transcriptRef = useRef(transcript);
   useLayoutEffect(() => {
@@ -221,6 +247,11 @@ export function useMessageJump({
       // Cancel any in-flight around-fetch so it cannot overwrite this scroll.
       jumpGeneration.current += 1;
       setScrollRequest({ messageId, nonce: jumpGeneration.current });
+      return;
+    }
+    const taskId = taskIdRef.current;
+    if (taskId) {
+      void jumpToMessageRef.current({ taskId, messageId }).catch(() => undefined);
       return;
     }
     const groupId = activeGroupId.current;

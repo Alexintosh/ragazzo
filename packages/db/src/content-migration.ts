@@ -13,12 +13,14 @@ export type ContentMigrationMode = "encrypt" | "reencrypt" | "decrypt";
 
 interface TableSpec {
   model: keyof typeof ENCRYPTED_MODELS;
-  delegate: "message" | "event" | "memoryDocument" | "memoryRevision" | "thread";
+  delegate: "bot" | "message" | "event" | "memoryDocument" | "memoryRevision" | "thread";
   column: string;
   json: boolean;
   /** Preserve @updatedAt so a migration does not reorder recently edited documents. */
   updatedAt?: boolean;
-  scan: (cursor: string, limit: number) => Prisma.Sql;
+  scan: (cursor: string, limit: number, spaceIds?: readonly string[]) => Prisma.Sql;
+  /** Ownership expression usable while locking a row in this table. */
+  spaceId: Prisma.Sql;
   writePlaintext: (id: string, value: unknown) => Prisma.Sql;
 }
 
@@ -32,15 +34,41 @@ interface ScannedRow {
 
 const TABLES: TableSpec[] = [
   {
+    model: "Bot",
+    delegate: "bot",
+    column: "roleplayCharacter",
+    json: true,
+    updatedAt: true,
+    scan: (cursor, limit, spaceIds) => Prisma.sql`
+      SELECT id, "roleplayCharacter" AS value, "spaceId", "userId" AS owner FROM bots
+      WHERE id > ${cursor} ${spaceFilter(Prisma.sql`"spaceId"`, spaceIds)} AND "roleplayCharacter" IS NOT NULL ORDER BY id LIMIT ${limit}`,
+    spaceId: Prisma.sql`"spaceId"`,
+    writePlaintext: (id, value) =>
+      Prisma.sql`UPDATE bots SET "roleplayCharacter" = ${JSON.stringify(value)}::jsonb WHERE id = ${id}`,
+  },
+  {
+    model: "Thread",
+    delegate: "thread",
+    column: "roleplayState",
+    json: true,
+    scan: (cursor, limit, spaceIds) => Prisma.sql`
+      SELECT id, "roleplayState" AS value, "spaceId", "userId" AS owner FROM threads
+      WHERE id > ${cursor} ${spaceFilter(Prisma.sql`"spaceId"`, spaceIds)} AND "roleplayState" IS NOT NULL ORDER BY id LIMIT ${limit}`,
+    spaceId: Prisma.sql`"spaceId"`,
+    writePlaintext: (id, value) =>
+      Prisma.sql`UPDATE threads SET "roleplayState" = ${JSON.stringify(value)}::jsonb WHERE id = ${id}`,
+  },
+  {
     model: "Message",
     delegate: "message",
     column: "blocks",
     json: true,
-    scan: (cursor, limit) => Prisma.sql`
+    scan: (cursor, limit, spaceIds) => Prisma.sql`
       SELECT m.id, m.blocks AS value, t."spaceId", m."threadId" AS owner,
         m."searchTokens" IS NOT NULL AS tokens
       FROM messages m JOIN threads t ON t.id = m."threadId"
-      WHERE m.id > ${cursor} ORDER BY m.id LIMIT ${limit}`,
+      WHERE m.id > ${cursor} ${spaceFilter(Prisma.sql`t."spaceId"`, spaceIds)} ORDER BY m.id LIMIT ${limit}`,
+    spaceId: Prisma.sql`(SELECT "spaceId" FROM threads WHERE id = messages."threadId")`,
     writePlaintext: (id, value) =>
       Prisma.sql`UPDATE messages SET blocks = ${JSON.stringify(value)}::jsonb, "searchTokens" = NULL WHERE id = ${id}`,
   },
@@ -49,9 +77,10 @@ const TABLES: TableSpec[] = [
     delegate: "event",
     column: "payload",
     json: true,
-    scan: (cursor, limit) => Prisma.sql`
+    scan: (cursor, limit, spaceIds) => Prisma.sql`
       SELECT id, payload AS value, "spaceId", "threadId" AS owner FROM events
-      WHERE id > ${cursor} ORDER BY id LIMIT ${limit}`,
+      WHERE id > ${cursor} ${spaceFilter(Prisma.sql`"spaceId"`, spaceIds)} ORDER BY id LIMIT ${limit}`,
+    spaceId: Prisma.sql`"spaceId"`,
     writePlaintext: (id, value) =>
       Prisma.sql`UPDATE events SET payload = ${JSON.stringify(value)}::jsonb WHERE id = ${id}`,
   },
@@ -61,9 +90,10 @@ const TABLES: TableSpec[] = [
     column: "content",
     json: false,
     updatedAt: true,
-    scan: (cursor, limit) => Prisma.sql`
+    scan: (cursor, limit, spaceIds) => Prisma.sql`
       SELECT id, content AS value, "spaceId", "userId" AS owner FROM memory_documents
-      WHERE id > ${cursor} ORDER BY id LIMIT ${limit}`,
+      WHERE id > ${cursor} ${spaceFilter(Prisma.sql`"spaceId"`, spaceIds)} ORDER BY id LIMIT ${limit}`,
+    spaceId: Prisma.sql`"spaceId"`,
     writePlaintext: (id, value) =>
       Prisma.sql`UPDATE memory_documents SET content = ${value as string} WHERE id = ${id}`,
   },
@@ -72,10 +102,11 @@ const TABLES: TableSpec[] = [
     delegate: "memoryRevision",
     column: "content",
     json: false,
-    scan: (cursor, limit) => Prisma.sql`
+    scan: (cursor, limit, spaceIds) => Prisma.sql`
       SELECT r.id, r.content AS value, d."spaceId", r."documentId" AS owner
       FROM memory_revisions r JOIN memory_documents d ON d.id = r."documentId"
-      WHERE r.id > ${cursor} ORDER BY r.id LIMIT ${limit}`,
+      WHERE r.id > ${cursor} ${spaceFilter(Prisma.sql`d."spaceId"`, spaceIds)} ORDER BY r.id LIMIT ${limit}`,
+    spaceId: Prisma.sql`(SELECT "spaceId" FROM memory_documents WHERE id = memory_revisions."documentId")`,
     writePlaintext: (id, value) =>
       Prisma.sql`UPDATE memory_revisions SET content = ${value as string} WHERE id = ${id}`,
   },
@@ -84,13 +115,21 @@ const TABLES: TableSpec[] = [
     delegate: "thread",
     column: "historyCompactionSummary",
     json: false,
-    scan: (cursor, limit) => Prisma.sql`
+    scan: (cursor, limit, spaceIds) => Prisma.sql`
       SELECT id, "historyCompactionSummary" AS value, "spaceId", "userId" AS owner FROM threads
-      WHERE id > ${cursor} AND "historyCompactionSummary" IS NOT NULL ORDER BY id LIMIT ${limit}`,
+      WHERE id > ${cursor} ${spaceFilter(Prisma.sql`"spaceId"`, spaceIds)} AND "historyCompactionSummary" IS NOT NULL ORDER BY id LIMIT ${limit}`,
+    spaceId: Prisma.sql`"spaceId"`,
     writePlaintext: (id, value) =>
       Prisma.sql`UPDATE threads SET "historyCompactionSummary" = ${value as string} WHERE id = ${id}`,
   },
 ];
+
+/** Undefined is database-wide; an explicitly empty scope matches nothing. */
+function spaceFilter(column: Prisma.Sql, spaceIds?: readonly string[]): Prisma.Sql {
+  if (spaceIds === undefined) return Prisma.empty;
+  if (spaceIds.length === 0) return Prisma.sql`AND FALSE`;
+  return Prisma.sql`AND ${column} IN (${Prisma.join(spaceIds)})`;
+}
 
 function keyIds(table: TableSpec, value: unknown): string[] {
   if (table.json) return jsonKeyIds(value);
@@ -129,6 +168,8 @@ export async function migrateContent(
   prisma: PrismaClient,
   options: {
     mode: ContentMigrationMode;
+    /** Restrict all content and key changes to these spaces. Empty means no rows. */
+    spaceIds?: readonly string[];
     batchSize?: number;
     dryRun?: boolean;
     signal?: AbortSignal;
@@ -144,7 +185,9 @@ export async function migrateContent(
     let cursor = "";
     while (true) {
       options.signal?.throwIfAborted();
-      const batch = await prisma.$queryRaw<ScannedRow[]>(table.scan(cursor, batchSize));
+      const batch = await prisma.$queryRaw<ScannedRow[]>(
+        table.scan(cursor, batchSize, options.spaceIds),
+      );
       if (!batch.length) break;
       cursor = batch.at(-1)!.id;
       progress.scanned += batch.length;
@@ -157,7 +200,8 @@ export async function migrateContent(
           });
         if (await needsWork(table, row, options.mode, encryption.ring)) ids.push(row.id);
       }
-      if (ids.length && !options.dryRun) await rewrite(prisma, table, ids, options.mode);
+      if (ids.length && !options.dryRun)
+        await rewrite(prisma, table, ids, options.mode, options.spaceIds);
       progress.updated += ids.length;
       options.report?.({ ...progress });
       if (batch.length < batchSize) break;
@@ -172,17 +216,19 @@ async function rewrite(
   table: TableSpec,
   ids: string[],
   mode: ContentMigrationMode,
+  spaceIds?: readonly string[],
 ) {
   const name = ENCRYPTED_MODELS[table.model]!.table;
   await prisma.$transaction(
     async (tx) => {
-      await tx.$queryRaw(
-        Prisma.sql`SELECT id FROM ${Prisma.raw(`"${name}"`)} WHERE id IN (${Prisma.join(ids)}) ORDER BY id FOR UPDATE`,
+      const locked = await tx.$queryRaw<Array<{ id: string }>>(
+        Prisma.sql`SELECT id FROM ${Prisma.raw(`"${name}"`)} WHERE id IN (${Prisma.join(ids)}) ${spaceFilter(table.spaceId, spaceIds)} ORDER BY id FOR UPDATE`,
       );
+      if (!locked.length) return;
       const delegate = Reflect.get(tx, table.delegate);
       const rows = (await Reflect.apply(delegate.findMany, delegate, [
         {
-          where: { id: { in: ids } },
+          where: { id: { in: locked.map((row) => row.id) } },
           select: {
             id: true,
             [table.column]: true,
@@ -214,14 +260,14 @@ async function rewrite(
 }
 
 /**
- * Re-wraps every space key under the provider's active master key. Each new
+ * Re-wraps space keys under the provider's active master key (all spaces by default). Each new
  * wrap is unwrapped and compared before it replaces the old one, and the
  * replacement is a compare-and-set, so a failure leaves the old wrap in place.
  */
 export async function rewrapSpaceKeys(
   prisma: PrismaClient,
   ring: ContentKeyRing,
-  options: { dryRun?: boolean; signal?: AbortSignal } = {},
+  options: { dryRun?: boolean; signal?: AbortSignal; spaceIds?: readonly string[] } = {},
 ): Promise<{ rewrapped: number; current: number }> {
   const active = ring.provider.activeKeyId();
   const counts = { rewrapped: 0, current: 0 };
@@ -229,7 +275,10 @@ export async function rewrapSpaceKeys(
   while (true) {
     options.signal?.throwIfAborted();
     const batch = await prisma.spaceKey.findMany({
-      where: { id: { gt: cursor } },
+      where: {
+        id: { gt: cursor },
+        ...(options.spaceIds === undefined ? {} : { spaceId: { in: [...options.spaceIds] } }),
+      },
       orderBy: { id: "asc" },
       take: 200,
     });
@@ -248,7 +297,12 @@ export async function rewrapSpaceKeys(
         throw new Error("Re-wrapped space key did not round-trip");
       if (!options.dryRun)
         await prisma.spaceKey.updateMany({
-          where: { id: record.id, masterKeyId: record.masterKeyId, wrappedKey: record.wrappedKey },
+          where: {
+            id: record.id,
+            spaceId: record.spaceId,
+            masterKeyId: record.masterKeyId,
+            wrappedKey: record.wrappedKey,
+          },
           data: wrapped,
         });
       counts.rewrapped += 1;
@@ -257,18 +311,23 @@ export async function rewrapSpaceKeys(
   return counts;
 }
 
-/** Adds a new data key version to every space; older versions keep decrypting. */
+/** Adds a new data key version to selected spaces (all by default); older versions keep decrypting. */
 export async function rotateSpaceDataKeys(
   prisma: PrismaClient,
   ring: ContentKeyRing,
-  options: { signal?: AbortSignal } = {},
+  options: { signal?: AbortSignal; spaceIds?: readonly string[] } = {},
 ): Promise<number> {
   let cursor = "";
   let rotated = 0;
   while (true) {
     options.signal?.throwIfAborted();
     const spaces = await prisma.space.findMany({
-      where: { id: { gt: cursor } },
+      where: {
+        id: {
+          gt: cursor,
+          ...(options.spaceIds === undefined ? {} : { in: [...options.spaceIds] }),
+        },
+      },
       orderBy: { id: "asc" },
       select: { id: true },
       take: 200,
@@ -306,8 +365,12 @@ export async function contentEncryptionStatus(
     UNION ALL
     SELECT 'memory_revisions', count(*), count(*) FILTER (WHERE content NOT LIKE 'rkz1:%') FROM memory_revisions
     UNION ALL
-    SELECT 'threads', count(*) FILTER (WHERE "historyCompactionSummary" IS NOT NULL),
-      count(*) FILTER (WHERE "historyCompactionSummary" NOT LIKE 'rkz1:%') FROM threads
+    SELECT 'threads', count(*) FILTER (WHERE "historyCompactionSummary" IS NOT NULL OR "roleplayState" IS NOT NULL),
+      count(*) FILTER (WHERE "historyCompactionSummary" NOT LIKE 'rkz1:%' OR
+        ("roleplayState" IS NOT NULL AND NOT jsonb_exists("roleplayState", '$sealed'))) FROM threads
+    UNION ALL
+    SELECT 'bots', count(*) FILTER (WHERE "roleplayCharacter" IS NOT NULL),
+      count(*) FILTER (WHERE "roleplayCharacter" IS NOT NULL AND NOT jsonb_exists("roleplayCharacter", '$sealed')) FROM bots
   `;
   const keys = await prisma.spaceKey.groupBy({ by: ["masterKeyId"], _count: { _all: true } });
   return {

@@ -53,7 +53,7 @@ async function computePreview(mimeType: string, file: File): Promise<PreviewCont
 }
 
 export default function ArtifactDetailScreen() {
-  const { artifactId } = useLocalSearchParams<{ artifactId: string }>();
+  const { artifactId, taskId } = useLocalSearchParams<{ artifactId: string; taskId?: string }>();
   const navigation = useNavigation();
   const router = useRouter();
   const headerInset = useFloatingHeaderInset();
@@ -135,7 +135,12 @@ export default function ArtifactDetailScreen() {
   }, [artifactId, content, router, t, versions]);
 
   // The full-screen viewer fetches through the thread the artifact belongs to.
-  const imageTarget = content.status === "ready" ? artifactThreadTarget(content.artifact) : null;
+  const imageTarget =
+    content.status === "ready"
+      ? taskId
+        ? { taskId }
+        : artifactThreadTarget(content.artifact)
+      : null;
   const openImage =
     content.status === "ready" && imageTarget
       ? () =>

@@ -547,6 +547,36 @@ describe("the status-only probe", () => {
   });
 });
 
+it("omits browser Origin only for confined host viewer resources while retaining provider handshake Origin", () => {
+  const browser = {
+    origin: "null",
+    cookie: "app-session=private",
+    authorization: "Bearer private",
+  };
+  const host = {
+    protocol: "http:" as const,
+    hostname: "host.docker.internal",
+    port: 49152,
+    headers: { authorization: "Bearer fake-host-token" },
+  };
+  const prefix = `/browser-screen/${"ab".repeat(32)}/`;
+  for (const resource of ["embed.html", "frame", "input"]) {
+    expect(safeProxyHeaders(browser, { ...host, path: `${prefix}${resource}` })).toEqual({
+      authorization: "Bearer fake-host-token",
+    });
+  }
+  for (const resource of [
+    "/websockify",
+    "/computer",
+    "/browser-screen/invalid/input",
+    `${prefix}input/extra`,
+  ]) {
+    expect(safeProxyHeaders(browser, { ...host, path: resource })).toEqual({
+      origin: "http://host.docker.internal:49152",
+      authorization: "Bearer fake-host-token",
+    });
+  }
+});
 /**
  * Tells data this process sends to `port` from anything else, by watching every socket the
  * process itself connects: a local tool probing the port runs in another process, so its

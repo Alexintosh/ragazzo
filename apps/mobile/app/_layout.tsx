@@ -426,6 +426,10 @@ function LayoutContent() {
                       }}
                     />
                     <Stack.Screen
+                      name="new-bot"
+                      options={{ ...glassHeaderOptions(t("New bot")), presentation: "modal" }}
+                    />
+                    <Stack.Screen
                       name="new-group"
                       options={{
                         title: t("New group chat"),
@@ -469,6 +473,23 @@ function LayoutContent() {
                         animation: chatAnimation,
                         ...chatRouteHeader(route, t, { split, inboxHidden, foldActive }),
                       })}
+                    />
+                    <Stack.Screen name="workflows" options={glassHeaderOptions(t("Workflows"))} />
+                    <Stack.Screen
+                      name="conversation-work"
+                      options={glassHeaderOptions(t("Conversation work"))}
+                    />
+                    <Stack.Screen
+                      name="task-conversation"
+                      options={glassHeaderOptions(t("Task"))}
+                    />
+                    <Stack.Screen
+                      name="conversation-files"
+                      options={glassHeaderOptions(t("Conversation files"))}
+                    />
+                    <Stack.Screen
+                      name="routine-calendar"
+                      options={glassHeaderOptions(t("Routine calendar"))}
                     />
                     <Stack.Screen name="routines" options={glassHeaderOptions(t("Routines"))} />
                     <Stack.Screen name="routine" options={glassHeaderOptions(t("Routine"))} />

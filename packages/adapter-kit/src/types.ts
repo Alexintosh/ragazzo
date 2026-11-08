@@ -19,6 +19,8 @@ export interface AdapterContext {
   keepScreenWarm?: boolean;
   /** When releasing a screen after cancel, also stop orphaned browser work on that screen. */
   cancelRunWork?: boolean;
+  /** Recovery requires acknowledged cleanup; transport failures must remain failures. */
+  requireRunCleanup?: boolean;
   signal: AbortSignal;
   /** Connected external accounts available to this run, including their owning connector. */
   connectedConnections?: ConnectedConnector[];
@@ -97,6 +99,9 @@ export interface WorkspaceExportLimits {
 }
 
 export interface ComputerRef {
+  scope?: "team" | "dedicated";
+  registeredHostId?: string | null;
+  executionTarget?: "default" | "docker" | "host";
   id: string;
   botId: string;
   kind: SandboxKind;
@@ -250,6 +255,8 @@ export interface SnapshotRef {
 }
 
 export interface SandboxCapabilities {
+  /** Graphical actions are confined to an owned browser, never the host's personal desktop. */
+  browserOnly?: boolean;
   graphical: boolean;
   pty: boolean;
   snapshots: boolean;
@@ -492,12 +499,16 @@ export interface AgentRunModel {
   acceptsImages?: boolean;
   /** Maximum number of image inputs the model connection accepts in one request. */
   maxImagesPerPrompt?: number;
+  /** Wait for response headers before failing a model request. */
+  streamTimeoutMs?: number;
+  /** Wait for activity before failing an open model stream. */
+  streamIdleTimeoutMs?: number;
   /** Maximum completion tokens sent to the model endpoint. */
   maxTokens?: number;
   /** Generic connection context window, overriding catalog limits when configured. */
   contextWindow?: number;
   /** Preferred thinking effort for reasoning models; clamped to the model’s supported set. */
-  thinkingLevel?: "off" | "minimal" | "low" | "medium" | "high" | "xhigh" | "max" | null;
+  thinkingLevel?: "off" | "minimal" | "low" | "medium" | "high" | "xhigh" | "max" | "ultra" | null;
   /** In-process OAuth credential from the encrypted store for this run. */
   oauth?: {
     credential: AgentModelOAuthCredential;
@@ -515,6 +526,23 @@ export type AgentContextStrategy = "current" | "retrieval" | "snapshots" | "cach
 export const DEFAULT_CONTEXT_STRATEGY: AgentContextStrategy = "retrieval";
 
 export interface AgentRunRequest {
+  /** A runtime-produced file, read within that runtime's authorized filesystem boundary. */
+  onOutputFile?: (file: { id: string; path: string; bytes: Uint8Array }) => Promise<void>;
+  /** Native harness configuration. Credentials and provider session IDs stay on the host. */
+  nativeRuntime?: {
+    executionTarget: "host";
+    permission: "workspace" | "full";
+    projectPath: string;
+    /** Existing strict child directory; native sandbox must enforce this write boundary. */
+    writeSubdirectory?: string;
+    computerKey: string;
+    historyGeneration: number;
+    /** Server-derived authorized transcript scope; never supplied by the model or client. */
+    contextScope?: string;
+    runtimeGeneration?: number;
+    /** Trusted persisted intro answer authorizing a new native execution after strict cleanup. */
+    introAnswer?: string;
+  };
   /** Awaited producer-side accounting, independent of event-consumer cancellation. */
   onUsage?: (event: Extract<AgentRuntimeEvent, { type: "usage" }>) => void | Promise<void>;
   contextStrategy?: AgentContextStrategy;
@@ -579,7 +607,9 @@ export interface AgentRunRequest {
   /** Called after a tool returns; implementations must not persist raw result contents. */
   onToolCompleted?: (completion: AgentToolCompletion) => Promise<void> | void;
   /** Atomically claim durable user steering at the runtime's next safe turn boundary. */
-  claimSteering?: (seenIds: string[]) => Promise<AgentSteeringMessage[]>;
+  claimSteering?: (seenIds: string[], initial?: boolean) => Promise<AgentSteeringMessage[]>;
+  /** Return claimed input that the provider explicitly did not submit to the durable queue. */
+  deferSteering?: (ids: string[]) => Promise<void>;
 }
 
 export interface ScriptedTurn {
@@ -660,6 +690,7 @@ export type AgentRuntimeEvent =
     }
   | {
       type: "ask";
+      nativeApproval?: boolean;
       executionId?: string;
       text: string;
       detail?: string;
@@ -689,6 +720,8 @@ export type AgentRuntimeEvent =
   | { type: "done"; text?: string };
 
 export interface AgentRuntimeCapabilities {
+  /** Direct image input support; model-specific runtimes leave this unset. */
+  images?: boolean;
   streaming: boolean;
   compaction: boolean;
   tools: boolean;
@@ -822,6 +855,8 @@ export interface NotificationMessage {
   body: string;
   botId: string;
   threadId: string;
+  /** Task conversation that owns threadId. */
+  taskId?: string;
   /** Group chat that owns threadId, so a tap does not open the bot's direct thread. */
   groupId?: string;
   /** Unread chats to show on the app icon, when the sender knows them. */

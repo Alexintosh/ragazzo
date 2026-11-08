@@ -1330,3 +1330,120 @@ it("accepts file drops in transparent padding only during file drags", () => {
   dispatchDrag(window, "dragend", dataTransfer);
   expect(fieldset.classList.contains("pointer-events-none")).toBe(true);
 });
+
+it("queues plain text with draft recovery and leaves ordinary send available", async () => {
+  const onQueue = vi.fn<NonNullable<ComponentProps<typeof Composer>["onQueue"]>>(async () => false);
+  const onSend = vi.fn<ComponentProps<typeof Composer>["onSend"]>(async () => true);
+  const textarea = renderComposer(onSend, { running: true, onQueue });
+  type(textarea, "work for later");
+  const queueButton = [...container!.querySelectorAll("button")].find(
+    (button) => button.textContent === "Queue",
+  )!;
+  await act(async () => queueButton.click());
+  expect(onQueue).toHaveBeenCalledWith("work for later", expect.any(String));
+  expect(onSend).not.toHaveBeenCalled();
+  expect(textarea.value).toBe("work for later");
+  await act(async () =>
+    container!.querySelector<HTMLButtonElement>('button[aria-label="Send"]')!.click(),
+  );
+  expect(onSend).toHaveBeenCalledOnce();
+  expect(onSend.mock.calls[0]?.[2]).not.toBe(onQueue.mock.calls[0]?.[1]);
+});
+
+it("disables text-only queue submissions when a reply or attachment is armed", () => {
+  const textarea = renderComposer(async () => true, { running: true, onQueue: async () => true });
+  type(textarea, "next");
+  const queueButton = () =>
+    [...container!.querySelectorAll("button")].find((button) => button.textContent === "Queue")!;
+  expect(queueButton().disabled).toBe(false);
+  rerenderComposer({
+    pendingAttachments: [
+      { id: "file", threadKey: "bot:bot-1", file: new File(["x"], "notes.txt") },
+    ],
+  });
+  expect(queueButton().disabled).toBe(true);
+});
+
+it("first-task suggestions populate a persistent draft without sending or changing setup", () => {
+  const onSend = vi.fn(async () => true);
+  const setup = vi.fn();
+  const textarea = renderComposer(onSend, { firstTask: "codex", onFirstTaskSetup: setup });
+  const suggestion = [...container!.querySelectorAll("button")].find(
+    (button) => button.textContent === "Explore this project",
+  );
+  act(() => suggestion!.click());
+  expect(textarea.value).toContain("without changing files");
+  expect(localStorage.getItem("rakazo.composerDraft.bot:bot-1")).toBe(textarea.value);
+  expect(onSend).not.toHaveBeenCalled();
+  expect(setup).not.toHaveBeenCalled();
+  expect(container!.querySelector('[data-testid="first-task-suggestions"]')).toBeNull();
+});
+
+it("first-task guidance never replaces an existing draft", () => {
+  localStorage.setItem("rakazo.composerDraft.bot:bot-1", "My unfinished task");
+  const textarea = renderComposer(
+    vi.fn(async () => true),
+    { firstTask: "pi" },
+  );
+  expect(textarea.value).toBe("My unfinished task");
+  expect(container!.querySelector('[data-testid="first-task-suggestions"]')).toBeNull();
+});
+
+describe("text-only composer", () => {
+  it("removes the picker and blocks file drops", () => {
+    const onAttachmentPick = vi.fn(() => true);
+    renderComposer(async () => true, {
+      attachmentsEnabled: false,
+      onAttachmentPick,
+    });
+    expect(container!.querySelector('input[type="file"]')).toBeNull();
+    expect(container!.querySelector('button[aria-label="Attach file"]')).toBeNull();
+    const event = new Event("drop", { bubbles: true, cancelable: true });
+    Object.defineProperty(event, "dataTransfer", {
+      value: {
+        types: ["Files"],
+        items: [],
+        files: [new File(["content"], "agent.zip")],
+      },
+    });
+    act(() => container!.querySelector("fieldset")!.dispatchEvent(event));
+    expect(event.defaultPrevented).toBe(true);
+    expect(onAttachmentPick).not.toHaveBeenCalled();
+    expect(container!.textContent).not.toContain("Import agent");
+  });
+
+  it("keeps pasted text while discarding accompanying files", () => {
+    const onAttachmentPick = vi.fn(() => true);
+    const textarea = renderComposer(async () => true, {
+      attachmentsEnabled: false,
+      onAttachmentPick,
+    });
+    type(textarea, "before after");
+    textarea.setSelectionRange(7, 7);
+    const event = new Event("paste", { bubbles: true, cancelable: true });
+    Object.defineProperty(event, "clipboardData", {
+      value: {
+        files: [new File(["content"], "image.png", { type: "image/png" })],
+        getData: () => "pasted ",
+      },
+    });
+    act(() => textarea.dispatchEvent(event));
+    expect(textarea.value).toBe("before pasted after");
+    expect(onAttachmentPick).not.toHaveBeenCalled();
+  });
+
+  it("leaves ordinary text paste to the browser", () => {
+    const onAttachmentPick = vi.fn(() => true);
+    const textarea = renderComposer(async () => true, {
+      attachmentsEnabled: false,
+      onAttachmentPick,
+    });
+    const event = new Event("paste", { bubbles: true, cancelable: true });
+    Object.defineProperty(event, "clipboardData", {
+      value: { files: [], getData: () => "plain text" },
+    });
+    act(() => textarea.dispatchEvent(event));
+    expect(event.defaultPrevented).toBe(false);
+    expect(onAttachmentPick).not.toHaveBeenCalled();
+  });
+});

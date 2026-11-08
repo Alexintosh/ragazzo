@@ -1,5 +1,6 @@
 import * as z from "zod";
 import { Id, IsoDate } from "./ids.js";
+import { BotKindSchema, RoleplayCharacterSchema } from "./roleplay.js";
 
 /**
  * A whole account as one zip, to move between Rakazo installs (Cloud to self-hosted and back).
@@ -54,6 +55,8 @@ export const AccountExportRecordSchema = z.discriminatedUnion("type", [
   }),
   z.object({
     type: z.literal("bot"),
+    botKind: BotKindSchema.optional(),
+    roleplayCharacter: RoleplayCharacterSchema.nullable().optional(),
     id: Id,
     name: z.string(),
     description: z.string(),

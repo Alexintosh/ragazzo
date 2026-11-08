@@ -20,9 +20,15 @@ import { useMemo, useState } from "react";
 import { ModelPreflightFeedback } from "../../components/ModelConnectionPreflightNotice";
 import { ModelHeadersEditor } from "../../components/ModelHeadersEditor";
 
+import { RequestTimeoutFields } from "./request-timeout-fields";
+
 import type { ModelSettingsState } from "./use-model-settings";
 
 export function CompatibleModelFields({
+  streamTimeoutMs,
+  setStreamTimeoutMs,
+  streamIdleTimeoutMs,
+  setStreamIdleTimeoutMs,
   resetOpenAiCompatibleProbe,
   headerRows,
   setHeaderRows,
@@ -62,6 +68,10 @@ export function CompatibleModelFields({
   updateBaseUrl,
 }: Pick<
   ModelSettingsState,
+  | "streamTimeoutMs"
+  | "setStreamTimeoutMs"
+  | "streamIdleTimeoutMs"
+  | "setStreamIdleTimeoutMs"
   | "resetOpenAiCompatibleProbe"
   | "headerRows"
   | "setHeaderRows"
@@ -317,6 +327,17 @@ export function CompatibleModelFields({
         }}
         maxImagesLabel={t`Maximum images per request`}
       >
+        <RequestTimeoutFields
+          streamTimeoutMs={streamTimeoutMs}
+          streamIdleTimeoutMs={streamIdleTimeoutMs}
+          disabled={busy}
+          onChange={(headers, idle) => {
+            selectionRevisionRef.current += 1;
+            setStreamTimeoutMs(headers);
+            setStreamIdleTimeoutMs(idle);
+            setNotice(null);
+          }}
+        />
         <ModelHeadersEditor
           rows={headerRows}
           savedNames={savedHeaderEndpointMatches ? credential?.headerNames : []}

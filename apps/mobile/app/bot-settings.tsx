@@ -1,10 +1,17 @@
-import type { Bot, BotAvatarSet, ComputerMode, ThinkingLevel } from "@rakazo/contracts";
+import type {
+  Bot,
+  BotAvatarSet,
+  ComputerMode,
+  NativeExecutionStatus,
+  ThinkingLevel,
+} from "@rakazo/contracts";
 import {
   BOT_AVATAR_SHAPE_COUNT,
   BOT_COLORS,
   BOT_DESCRIPTION_MAX_LENGTH,
   BOT_INSTRUCTIONS_MAX_LENGTH,
   BOT_NAME_MAX_LENGTH,
+  NativeRuntimeCapabilities,
   resolveBotAvatarSet,
 } from "@rakazo/contracts";
 import {
@@ -37,9 +44,15 @@ import { glassHeaderOptions } from "../components/glass-title";
 import type { MenuPickerChoice } from "../components/menu-picker";
 import { MenuPicker, MenuPickerMenu } from "../components/menu-picker";
 import { NativeActionButton } from "../components/native-action-button";
+import { NativeRuntimeSetup } from "../components/native-runtime-setup";
 import { NativeSwitch } from "../components/native-switch";
 import { NativeSymbol } from "../components/native-symbol";
 import { ProfileEditDialog } from "../components/profile-edit-dialog";
+import { RegisteredHostPicker } from "../components/registered-host-picker";
+import { RoleplayRelationshipDebug } from "../components/roleplay-relationship-debug";
+import type { RoleplaySettingsHandle } from "../components/roleplay-settings";
+import { RoleplaySettings } from "../components/roleplay-settings";
+import { RoleplayStoryMode } from "../components/roleplay-story-mode";
 import { Chevron } from "../components/row-accessories";
 import type { MobileMe, MobileModel, MobileModelCredential } from "../lib/api";
 import { rpc } from "../lib/api";
@@ -59,6 +72,7 @@ import { native, useMobileTokens } from "../lib/native";
 import { createQueuedSave } from "../lib/queued-save";
 import { useSideInsets } from "../lib/side-insets";
 import { thinkingLevelLabel } from "../lib/thinking-level";
+import { useSandboxProvider } from "../lib/use-sandbox-provider";
 import { errorText } from "../lib/user-error";
 import { stopVoicePlayback } from "../lib/voice";
 
@@ -66,6 +80,12 @@ export default function BotSettingsScreen() {
   const sideInsets = useSideInsets();
   const tokens = useMobileTokens();
   const { t } = useI18n();
+  const environment = useSandboxProvider();
+  const dockerHint = environment.failed
+    ? t("Could not check Docker availability.")
+    : environment.loading
+      ? t("Checking Docker availability…")
+      : t("Docker is not enabled on this deployment.");
   const router = useRouter();
   const {
     botId,
@@ -79,6 +99,17 @@ export default function BotSettingsScreen() {
   const [description, setDescription] = useState("");
   const [instructions, setInstructions] = useState("");
   const [color, setColor] = useState<string>(BOT_COLORS[0]);
+  const [runtimeStatus, setRuntimeStatus] = useState<NativeExecutionStatus | null>(null);
+  const [runtimeStatusError, setRuntimeStatusError] = useState<string | null>(null);
+  const [runtimeStatusLoading, setRuntimeStatusLoading] = useState(false);
+  const [runtimeStatusRevision, setRuntimeStatusRevision] = useState(0);
+  const [runtimeKind, setRuntimeKind] = useState<Bot["runtimeKind"]>("pi");
+  const [executionTarget, setExecutionTarget] = useState<Bot["executionTarget"]>("default");
+  const [runtimePermission, setRuntimePermission] = useState<Bot["runtimePermission"]>("workspace");
+  const [projectPath, setProjectPath] = useState("");
+  const [registeredHostId, setRegisteredHostId] = useState<string | null>(null);
+  const executionContextRef = useRef({ botId, runtimeKind, executionTarget, registeredHostId });
+  executionContextRef.current = { botId, runtimeKind, executionTarget, registeredHostId };
   const [computerMode, setComputerMode] = useState<ComputerMode>("team");
   const [avatarSet, setAvatarSet] = useState<BotAvatarSet>("organic");
   const [avatarOpen, setAvatarOpen] = useState(false);
@@ -102,6 +133,15 @@ export default function BotSettingsScreen() {
   const voiceChoice = useRef(0);
   const [voiceError, setVoiceError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  const roleplaySettingsRef = useRef<RoleplaySettingsHandle>(null);
+  const [roleplaySettingsState, setRoleplaySettingsState] = useState({
+    dirty: false,
+    pending: false,
+  });
+
+  useEffect(() => {
+    setRoleplaySettingsState({ dirty: false, pending: false });
+  }, [botId]);
 
   const crossSpaceSave = useMemo(
     () =>
@@ -166,6 +206,11 @@ export default function BotSettingsScreen() {
         setColor(next.color);
         setAvatarSet(resolveBotAvatarSet(next.avatarSet));
         setComputerMode(next.computerMode);
+        setRuntimeKind(next.runtimeKind ?? "pi");
+        setExecutionTarget(next.executionTarget ?? "default");
+        setRuntimePermission(next.runtimePermission ?? "workspace");
+        setProjectPath(next.projectPath ?? "");
+        setRegisteredHostId(next.registeredHostId ?? null);
         setModelKey(
           next.modelProvider && next.modelId
             ? modelOptionKey(next.modelProvider, next.modelId)
@@ -181,6 +226,26 @@ export default function BotSettingsScreen() {
       })
       .catch((err) => setError(errorText(err, t("Could not load bot"))));
   }, [botId, crossSpaceSave, fleetSave, notifySave, nameSave]);
+
+  useEffect(() => {
+    if (runtimeKind === "pi" || !botId) return;
+    let cancelled = false;
+    setRuntimeStatusLoading(true);
+    setRuntimeStatusError(null);
+    void rpc("bots/executionStatus", { botId })
+      .then((status) => {
+        if (!cancelled) setRuntimeStatus(status);
+      })
+      .catch((error) => {
+        if (!cancelled) setRuntimeStatusError(errorText(error, t("Could not check runtime")));
+      })
+      .finally(() => {
+        if (!cancelled) setRuntimeStatusLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [botId, runtimeKind, runtimeStatusRevision, t]);
 
   useEffect(() => {
     void Promise.all([rpc("me"), rpc("models/list"), rpc("models/credentials")])
@@ -351,7 +416,9 @@ export default function BotSettingsScreen() {
   }
 
   async function save() {
-    if (!botId || !bot || pending) return;
+    if (!botId || !bot || pending || roleplaySettingsState.pending) return;
+    // Saving other settings must also commit any character draft before leaving the screen.
+    if (roleplaySettingsRef.current && !(await roleplaySettingsRef.current.save())) return;
     setPending(true);
     setError(null);
     try {
@@ -382,17 +449,49 @@ export default function BotSettingsScreen() {
         (selected?.provider ?? null) !== (bot.modelProvider ?? null) ||
         (selected?.modelId ?? null) !== (bot.modelId ?? null);
       const thinkingChanged = (thinkingLevel || null) !== (bot.thinkingLevel ?? null);
-      if (modelChanged) {
+      if (runtimeKind === "pi" && modelChanged) {
         input.modelProvider = selected?.provider ?? null;
         input.modelId = selected?.modelId ?? null;
       }
-      if (modelMetaReady && (modelChanged || thinkingChanged)) {
+      if (runtimeKind === "pi" && modelMetaReady && (modelChanged || thinkingChanged)) {
         input.thinkingLevel = thinkingOptions.length
           ? ((thinkingLevel || null) as ThinkingLevel | null)
           : null;
       }
       if (autoSpeak !== bot.autoSpeak) input.autoSpeak = autoSpeak;
-      if (computerMode !== bot.computerMode) {
+      let executionBot = bot;
+      if (
+        runtimeKind !== (bot.runtimeKind ?? "pi") ||
+        executionTarget !== (bot.executionTarget ?? "default") ||
+        runtimePermission !== (bot.runtimePermission ?? "workspace") ||
+        (registeredHostId ?? null) !== (bot.registeredHostId ?? null) ||
+        (projectPath || null) !== (bot.projectPath ?? null)
+      ) {
+        const updated = await rpc("bots/setExecution", {
+          botId,
+          runtimeKind,
+          executionTarget,
+          runtimePermission,
+          projectPath: projectPath || null,
+          registeredHostId,
+        });
+        executionBot = updated;
+        setBot(updated);
+        // Accept the canonical path even if a later save fails. An in-flight
+        // edit on another host or to another path still belongs to the user.
+        const current = executionContextRef.current;
+        if (
+          current.botId === botId &&
+          current.runtimeKind === runtimeKind &&
+          current.executionTarget === executionTarget &&
+          current.registeredHostId === registeredHostId
+        ) {
+          setProjectPath((currentPath) =>
+            currentPath === projectPath ? (updated.projectPath ?? "") : currentPath,
+          );
+        }
+      }
+      if (computerMode !== executionBot.computerMode) {
         await rpc(
           "bots/setComputer",
           { botId, mode: computerMode },
@@ -427,6 +526,11 @@ export default function BotSettingsScreen() {
     (description.trim() !== (bot.description ?? "") ||
       instructions !== (bot.instructions ?? "") ||
       color !== bot.color ||
+      runtimeKind !== (bot.runtimeKind ?? "pi") ||
+      executionTarget !== (bot.executionTarget ?? "default") ||
+      runtimePermission !== (bot.runtimePermission ?? "workspace") ||
+      (projectPath || null) !== (bot.projectPath ?? null) ||
+      (registeredHostId ?? null) !== (bot.registeredHostId ?? null) ||
       avatarSet !== resolveBotAvatarSet(bot.avatarSet) ||
       computerMode !== bot.computerMode ||
       autoSpeak !== bot.autoSpeak ||
@@ -537,141 +641,43 @@ export default function BotSettingsScreen() {
             }}
           />
         </View>
-        <View style={{ marginTop: 24 }}>
-          <SettingsGroup label={t("Notifications")}>
-            <View style={styles.row}>
-              <Text style={[styles.rowLabel, { color: tokens.foreground }]}>
-                {t("When it finishes or needs input")}
-              </Text>
-              <NativeSwitch
-                accessibilityLabel={t("When it finishes or needs input")}
-                value={notifyOnFinish}
-                onValueChange={(value) => notifySave.update(value)}
+        {bot?.botKind === "roleplay" ? (
+          bot.roleplayCharacter ? (
+            <>
+              <RoleplayStoryMode key={`story-${bot.id}`} botId={bot.id} refreshKey={bot.status} />
+              <RoleplaySettings
+                key={bot.id}
+                ref={roleplaySettingsRef}
+                botId={bot.id}
+                character={bot.roleplayCharacter}
+                disabled={pending}
+                onStateChange={setRoleplaySettingsState}
+                onSave={async (roleplayCharacter, expectedRoleplayCharacter) => {
+                  const updated = await rpc("bots/update", {
+                    botId: bot.id,
+                    roleplayCharacter,
+                    expectedRoleplayCharacter,
+                  });
+                  if (executionContextRef.current.botId === bot.id) setBot(updated);
+                  return updated.roleplayCharacter ?? roleplayCharacter;
+                }}
               />
-            </View>
-          </SettingsGroup>
-        </View>
-        {botId ? <BotContextCards key={botId} botId={botId} /> : null}
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={t("Advanced")}
-          accessibilityState={{ expanded: advancedOpen }}
-          onPress={() => setAdvancedOpen((open) => !open)}
-          style={{
-            marginTop: 24,
-            minHeight: 44,
-            flexDirection: "row",
-            alignItems: "center",
-            justifyContent: "space-between",
-          }}
-        >
-          <Text style={[styles.sectionHeading, { color: tokens.mutedForeground }]}>
-            {t("Advanced")}
-          </Text>
-          <Chevron expanded={advancedOpen} />
-        </Pressable>
-        {advancedOpen ? (
-          <View
-            style={{ gap: 24, marginTop: 24 }}
-            onLayout={(event) => {
-              modelY.current = event.nativeEvent.layout.y;
-              if (focus === "model" || pickedModel !== undefined)
-                scrollRef.current?.scrollTo({ y: modelY.current, animated: true });
-            }}
-          >
-            <SettingsGroup label={t("Model")}>
-              <MenuPicker
-                plain
-                choices={modelChoices}
-                label={t("Model")}
-                showLabel={false}
-                onChange={selectModel}
-                onPress={
-                  modelChoices.length > MODEL_SEARCH_THRESHOLD
-                    ? () =>
-                        router.push({
-                          pathname: "/bot-model",
-                          params: { botId, value: selectedModelKey },
-                        })
-                    : undefined
+              <RoleplayRelationshipDebug
+                key={bot.id}
+                onLoad={() => rpc("bots/roleplayRelationship", { botId: bot.id })}
+                onSave={(state) =>
+                  rpc("bots/updateRoleplayRelationship", {
+                    botId: bot.id,
+                    relationship: state.relationship,
+                    historyGeneration: state.historyGeneration,
+                    expectedRevision: state.revision,
+                  })
                 }
-                value={selectedModelKey}
               />
-              {thinkingOptions.length ? (
-                <MenuPicker
-                  plain
-                  choices={thinkingChoices}
-                  label={t("Thinking")}
-                  onChange={setThinkingLevel}
-                  value={thinkingLevel}
-                />
-              ) : null}
-            </SettingsGroup>
-            {modelMetaError ? (
-              <Text style={{ color: tokens.mutedForeground, marginTop: 12, fontSize: 13 }}>
-                {modelMetaError}
-              </Text>
-            ) : null}
-
-            <SettingsGroup label={t("Computer")}>
-              <ComputerModePicker plain value={computerMode} onChange={setComputerMode} />
-            </SettingsGroup>
-            <SettingsGroup label={t("Voice")}>
-              <View style={styles.row}>
-                <Text style={[styles.rowLabel, { color: tokens.foreground }]}>
-                  {t("Read replies aloud")}
-                </Text>
-                <NativeSwitch
-                  accessibilityLabel={t("Read replies aloud")}
-                  onValueChange={setAutoSpeak}
-                  value={autoSpeak}
-                />
-              </View>
-              {deviceVoiceEnabled ? (
-                voiceError ? (
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel={t("Device voice")}
-                    accessibilityValue={{ text: voiceError }}
-                    onPress={() => void retryDeviceVoices()}
-                  >
-                    {voiceRow}
-                  </Pressable>
-                ) : (
-                  voiceRow
-                )
-              ) : null}
-            </SettingsGroup>
-            <SettingsGroup label={t("Permissions")}>
-              <View style={styles.row}>
-                <Text style={[styles.rowLabel, { color: tokens.foreground }]}>
-                  {t("Allow cross-space bot communication")}
-                </Text>
-                <NativeSwitch
-                  accessibilityLabel={t("Allow cross-space bot communication")}
-                  value={crossSpaceCommunication}
-                  onValueChange={(value) => {
-                    if (!botId) return;
-                    setError(null);
-                    crossSpaceSave.update(value);
-                  }}
-                />
-              </View>
-              <View style={styles.row}>
-                <Text style={[styles.rowLabel, { color: tokens.foreground }]}>
-                  {t("Manage the bots it creates")}
-                </Text>
-                <NativeSwitch
-                  accessibilityLabel={t("Manage the bots it creates")}
-                  onValueChange={(value) => {
-                    if (!botId) return;
-                    setError(null);
-                    fleetSave.update(value);
-                  }}
-                  value={fleetManagement}
-                />
-              </View>
-            </SettingsGroup>
+            </>
+          ) : null
+        ) : (
+          <View style={{ marginTop: 16 }}>
             <View>
               <View
                 style={{
@@ -748,6 +754,275 @@ export default function BotSettingsScreen() {
                 backgroundColor={native.fill}
               />
             </View>
+          </View>
+        )}
+        <View style={{ marginTop: 24 }}>
+          <SettingsGroup label={t("Notifications")}>
+            <View style={styles.row}>
+              <Text style={[styles.rowLabel, { color: tokens.foreground }]}>
+                {t("When it finishes or needs input")}
+              </Text>
+              <NativeSwitch
+                accessibilityLabel={t("When it finishes or needs input")}
+                value={notifyOnFinish}
+                onValueChange={(value) => notifySave.update(value)}
+              />
+            </View>
+          </SettingsGroup>
+        </View>
+        {botId && bot?.botKind !== "roleplay" ? (
+          <BotContextCards key={botId} botId={botId} />
+        ) : null}
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={t("Advanced")}
+          accessibilityState={{ expanded: advancedOpen }}
+          onPress={() => setAdvancedOpen((open) => !open)}
+          style={{
+            marginTop: 24,
+            minHeight: 44,
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "space-between",
+          }}
+        >
+          <Text style={[styles.sectionHeading, { color: tokens.mutedForeground }]}>
+            {t("Advanced")}
+          </Text>
+          <Chevron expanded={advancedOpen} />
+        </Pressable>
+        {advancedOpen ? (
+          <View
+            style={{ gap: 24, marginTop: 24 }}
+            onLayout={(event) => {
+              modelY.current = event.nativeEvent.layout.y;
+              if (focus === "model" || pickedModel !== undefined)
+                scrollRef.current?.scrollTo({ y: modelY.current, animated: true });
+            }}
+          >
+            {bot?.botKind !== "roleplay" ? (
+              <SettingsGroup label={t("Runtime")}>
+                <MenuPicker
+                  plain
+                  showLabel={false}
+                  label={t("Runtime")}
+                  value={runtimeKind}
+                  choices={[
+                    { key: "pi", label: "Pi" },
+                    ...Object.entries(NativeRuntimeCapabilities).map(([key, capability]) => ({
+                      key,
+                      label: capability.label,
+                    })),
+                  ]}
+                  onChange={(value) => {
+                    const kind = value as Bot["runtimeKind"];
+                    setRuntimeKind(kind);
+                    if (kind !== "pi") {
+                      if (executionTarget !== "host") setComputerMode("dedicated");
+                      setExecutionTarget("host");
+                    } else {
+                      setRuntimePermission("workspace");
+                      setProjectPath("");
+                    }
+                  }}
+                />
+                <MenuPicker
+                  plain
+                  label={t("Execution target")}
+                  value={executionTarget}
+                  choices={
+                    runtimeKind !== "pi"
+                      ? [{ key: "host", label: t("Host") }]
+                      : [
+                          { key: "default", label: t("Deployment default") },
+                          {
+                            key: "docker",
+                            label: "Docker",
+                            disabled: !environment.dockerAvailable,
+                          },
+                          { key: "host", label: t("Host") },
+                        ]
+                  }
+                  onChange={(value) => {
+                    if (value === "docker" && !environment.dockerAvailable) return;
+                    setExecutionTarget(value as Bot["executionTarget"]);
+                    if (value !== "host") setRegisteredHostId(null);
+                    if (value !== executionTarget) setComputerMode("dedicated");
+                  }}
+                />
+                {runtimeKind === "pi" && !environment.dockerAvailable ? (
+                  <Text style={{ color: tokens.mutedForeground, fontSize: 12 }}>{dockerHint}</Text>
+                ) : null}
+                {executionTarget === "host" && bot ? (
+                  <RegisteredHostPicker
+                    spaceId={bot.spaceId}
+                    value={registeredHostId}
+                    onChange={setRegisteredHostId}
+                  />
+                ) : null}
+                {runtimeKind !== "pi" ? (
+                  <>
+                    <TextInput
+                      accessibilityLabel={t("Project folder")}
+                      placeholder={t("Absolute path on host")}
+                      placeholderTextColor={tokens.mutedForeground}
+                      style={{ color: tokens.foreground, minHeight: 44, fontSize: 14 }}
+                      value={projectPath}
+                      onChangeText={setProjectPath}
+                      autoCapitalize="none"
+                      autoCorrect={false}
+                    />
+                    <MenuPicker
+                      plain
+                      label={t("Access")}
+                      value={runtimePermission}
+                      choices={[
+                        {
+                          key: "workspace",
+                          label: t("Workspace"),
+                          disabled: runtimeKind !== "codex",
+                        },
+                        { key: "full", label: t("Full access") },
+                      ]}
+                      onChange={(value) => setRuntimePermission(value as Bot["runtimePermission"])}
+                    />
+                  </>
+                ) : null}
+                {runtimeKind !== "pi" ? (
+                  <>
+                    {bot ? (
+                      <NativeRuntimeSetup
+                        spaceId={bot.spaceId}
+                        kind={runtimeKind}
+                        hostId={registeredHostId}
+                      />
+                    ) : null}
+                    <Text
+                      accessibilityRole="text"
+                      style={{ color: tokens.mutedForeground, fontSize: 12 }}
+                    >
+                      {runtimeStatusError ??
+                        (runtimeStatusLoading
+                          ? t("Checking runtime…")
+                          : runtimeStatus?.reason === "host-unavailable"
+                            ? t("Start the host with host access enabled.")
+                            : runtimeStatus?.reason === "cli-unavailable"
+                              ? t("Install the runtime on the host.")
+                              : runtimeStatus?.reason === "login-required" ||
+                                  !runtimeStatus?.authenticated
+                                ? t("Sign in to the runtime on the host.")
+                                : !runtimeStatus?.available
+                                  ? t("Runtime unavailable")
+                                  : t("Runtime ready"))}
+                    </Text>
+                    <NativeActionButton
+                      label={t("Refresh")}
+                      disabled={runtimeStatusLoading}
+                      onPress={() => setRuntimeStatusRevision((value) => value + 1)}
+                    />
+                  </>
+                ) : null}
+              </SettingsGroup>
+            ) : null}
+            {runtimeKind === "pi" ? (
+              <SettingsGroup label={t("Model")}>
+                <MenuPicker
+                  plain
+                  choices={modelChoices}
+                  label={t("Model")}
+                  showLabel={false}
+                  onChange={selectModel}
+                  onPress={
+                    modelChoices.length > MODEL_SEARCH_THRESHOLD
+                      ? () =>
+                          router.push({
+                            pathname: "/bot-model",
+                            params: { botId, value: selectedModelKey },
+                          })
+                      : undefined
+                  }
+                  value={selectedModelKey}
+                />
+                {thinkingOptions.length ? (
+                  <MenuPicker
+                    plain
+                    choices={thinkingChoices}
+                    label={t("Thinking")}
+                    onChange={setThinkingLevel}
+                    value={thinkingLevel}
+                  />
+                ) : null}
+              </SettingsGroup>
+            ) : null}
+            {runtimeKind === "pi" && modelMetaError ? (
+              <Text style={{ color: tokens.mutedForeground, marginTop: 12, fontSize: 13 }}>
+                {modelMetaError}
+              </Text>
+            ) : null}
+
+            {bot?.botKind !== "roleplay" ? (
+              <SettingsGroup label={t("Computer")}>
+                <ComputerModePicker plain value={computerMode} onChange={setComputerMode} />
+              </SettingsGroup>
+            ) : null}
+            <SettingsGroup label={t("Voice")}>
+              <View style={styles.row}>
+                <Text style={[styles.rowLabel, { color: tokens.foreground }]}>
+                  {t("Read replies aloud")}
+                </Text>
+                <NativeSwitch
+                  accessibilityLabel={t("Read replies aloud")}
+                  onValueChange={setAutoSpeak}
+                  value={autoSpeak}
+                />
+              </View>
+              {deviceVoiceEnabled ? (
+                voiceError ? (
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={t("Device voice")}
+                    accessibilityValue={{ text: voiceError }}
+                    onPress={() => void retryDeviceVoices()}
+                  >
+                    {voiceRow}
+                  </Pressable>
+                ) : (
+                  voiceRow
+                )
+              ) : null}
+            </SettingsGroup>
+            {bot?.botKind !== "roleplay" ? (
+              <SettingsGroup label={t("Permissions")}>
+                <View style={styles.row}>
+                  <Text style={[styles.rowLabel, { color: tokens.foreground }]}>
+                    {t("Allow cross-space bot communication")}
+                  </Text>
+                  <NativeSwitch
+                    accessibilityLabel={t("Allow cross-space bot communication")}
+                    value={crossSpaceCommunication}
+                    onValueChange={(value) => {
+                      if (!botId) return;
+                      setError(null);
+                      crossSpaceSave.update(value);
+                    }}
+                  />
+                </View>
+                <View style={styles.row}>
+                  <Text style={[styles.rowLabel, { color: tokens.foreground }]}>
+                    {t("Manage the bots it creates")}
+                  </Text>
+                  <NativeSwitch
+                    accessibilityLabel={t("Manage the bots it creates")}
+                    onValueChange={(value) => {
+                      if (!botId) return;
+                      setError(null);
+                      fleetSave.update(value);
+                    }}
+                    value={fleetManagement}
+                  />
+                </View>
+              </SettingsGroup>
+            ) : null}
             <SettingsGroup label={t("How other bots see it")}>
               <GrowingTextInput
                 label={t("How other bots see it")}
@@ -809,7 +1084,7 @@ export default function BotSettingsScreen() {
         {error ? <Text style={{ color: tokens.destructive, marginTop: 16 }}>{error}</Text> : null}
         {dirty ? (
           <NativeActionButton
-            disabled={!name.trim() || pending || !bot}
+            disabled={!name.trim() || pending || roleplaySettingsState.pending || !bot}
             label={pending ? t("Saving…") : t("Save")}
             onPress={() => void save()}
             style={{ marginTop: 24 }}

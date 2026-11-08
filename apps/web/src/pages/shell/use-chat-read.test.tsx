@@ -9,7 +9,7 @@ import { useChatRead } from "./use-chat-read";
 
 type Request = {
   kind: "markRead" | "markUnread";
-  input: { botId?: string; groupId?: string; messageId?: string };
+  input: { botId?: string; groupId?: string; taskId?: string; messageId?: string };
   resolve: () => void;
   reject: (error: Error) => void;
 };
@@ -43,13 +43,14 @@ const rpc = {
   threads: { markRead: request("markRead"), markUnread: request("markUnread") },
 } as unknown as ReturnType<typeof createSpaceRpc>;
 
-function Harness({ active, group }: { active?: Bot; group?: Group }) {
+function Harness({ active, group, taskId }: { active?: Bot; group?: Group; taskId?: string }) {
   const [bots, setBots] = useState([botA, botB]);
   const [groups, setGroups] = useState([groupG]);
   const read = useChatRead({
     rpc,
     active,
     groupId: group?.id,
+    taskId,
     activeGroup: group,
     setBots,
     setGroups,
@@ -64,7 +65,7 @@ async function flush() {
   });
 }
 
-async function open(chat: { active?: Bot; group?: Group }) {
+async function open(chat: { active?: Bot; group?: Group; taskId?: string }) {
   act(() => root.render(<Harness {...chat} />));
   await flush();
 }
@@ -245,4 +246,27 @@ describe("useChatRead Mark as Unread", () => {
     await flush();
     expect(sent()).toHaveLength(2);
   });
+});
+
+it("marks task visits and unread boundaries without clearing the main bot conversation", async () => {
+  await open({ active: botA, taskId: "task-one" });
+  expect(requests[0]!.input).toEqual({ taskId: "task-one" });
+  await settle(0);
+  expect(latest.bots.find((bot) => bot.id === botA.id)!.unread).toBe(true);
+  let marking!: Promise<void>;
+  act(() => {
+    marking = latest.read.markTaskUnread("task-message");
+  });
+  await flush();
+  expect(requests[1]!.input).toEqual({ taskId: "task-one", messageId: "task-message" });
+  await act(async () => {
+    requests[1]!.resolve();
+    await marking;
+  });
+  expect(latest.read.markedUnreadMessageId).toBe("task-message");
+  await focus();
+  expect(requests).toHaveLength(2);
+  await open({ active: botA, taskId: "task-two" });
+  expect(requests[2]!.input).toEqual({ taskId: "task-two" });
+  expect(latest.read.markedUnreadMessageId).toBeUndefined();
 });

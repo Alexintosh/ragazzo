@@ -1,4 +1,5 @@
--- The previous release no longer reads these.
+-- deferred
+-- The previous local release still reads these while deployments overlap.
 ALTER TABLE "bots" DROP COLUMN "title";
 ALTER TABLE "bots" DROP COLUMN "selfUpdateInstructions";
 

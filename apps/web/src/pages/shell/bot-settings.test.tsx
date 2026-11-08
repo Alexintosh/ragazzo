@@ -10,6 +10,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../../lib/rpc", () => {
   const rpc = {
+    hosts: { list: vi.fn(async () => []) },
+    bots: { executionStatus: vi.fn(async () => ({ available: true, authenticated: true })) },
     voice: { voices: vi.fn(async () => []) },
     models: {
       credentials: vi.fn(async () => []),
@@ -30,6 +32,12 @@ vi.mock("@lingui/react/macro", () => {
   return { useLingui: () => ({ t }), Trans: ({ children }: { children: ReactNode }) => children };
 });
 vi.mock("@rakazo/ui-web", () => ({
+  Dialog: ({ open, children }: { open: boolean; children: ReactNode }) => (open ? children : null),
+  DialogContent: ({ children }: { children: ReactNode }) => children,
+  DialogHeader: ({ children }: { children: ReactNode }) => children,
+  DialogTitle: ({ children }: { children: ReactNode }) => children,
+  DialogDescription: ({ children }: { children: ReactNode }) => children,
+  DialogFooter: ({ children }: { children: ReactNode }) => children,
   Button: ({
     variant: _variant,
     size: _size,
@@ -164,7 +172,10 @@ async function submitToolName(input: HTMLSelectElement, value: string) {
   await flush();
 }
 
-async function renderSettings(onSave: (patch: SavePatch) => Promise<void>, currentBot = bot) {
+async function renderSettings(
+  onSave: ComponentProps<typeof BotSettings>["onSave"],
+  currentBot = bot,
+) {
   await act(async () => {
     root.render(
       <QueryClientProvider client={queryClient}>
@@ -491,4 +502,171 @@ it("keeps cross-space communication off until explicitly enabled", async () => {
   await act(async () => toggle?.click());
   await flush();
   expect(onSave).toHaveBeenCalledWith({ crossSpaceCommunication: true });
+});
+
+it("keeps Pi defaults and offers only host execution for Codex", async () => {
+  const onSave = vi.fn(async (_patch: SavePatch) => undefined);
+  await renderSettings(onSave);
+  expect(container.querySelector<HTMLSelectElement>('[id$="-runtime"]')?.value).toBe("pi");
+  expect(container.querySelector<HTMLInputElement>('[id$="-project"]')).toBeNull();
+  await submitToolName(container.querySelector<HTMLSelectElement>('[id$="-runtime"]')!, "codex");
+  const target = container.querySelector<HTMLSelectElement>('[id$="-target"]')!;
+  expect([...target.options].map((option) => option.value)).toEqual(["host"]);
+  expect(container.querySelector('label[for$="-model"]')).toBeNull();
+  const project = container.querySelector<HTMLInputElement>('[id$="-project"]')!;
+  await act(async () => setField(project, "/tmp/project"));
+  await submitToolName(container.querySelector<HTMLSelectElement>('[id$="-permission"]')!, "full");
+  await act(async () =>
+    [...container.querySelectorAll("button")]
+      .find((button) => button.textContent === "Save")!
+      .click(),
+  );
+  await flush();
+  expect(onSave).toHaveBeenCalledWith(
+    expect.objectContaining({
+      runtimeKind: "codex",
+      executionTarget: "host",
+      runtimePermission: "full",
+      projectPath: "/tmp/project",
+    }),
+    expect.any(Function),
+  );
+  expect(onSave.mock.calls.at(-1)![0]).not.toHaveProperty("modelProvider");
+  expect(onSave.mock.calls.at(-1)![0]).not.toHaveProperty("modelId");
+  expect(onSave.mock.calls.at(-1)![0]).not.toHaveProperty("thinkingLevel");
+});
+
+it("clears Codex-only settings when switching back to Pi", async () => {
+  const onSave = vi.fn(async (_patch: SavePatch) => undefined);
+  await renderSettings(onSave, {
+    ...bot,
+    runtimeKind: "codex",
+    executionTarget: "host",
+    runtimePermission: "full",
+    projectPath: "/tmp/project",
+  });
+  await submitToolName(container.querySelector<HTMLSelectElement>('[id$="-runtime"]')!, "pi");
+  expect(container.querySelector('[id$="-permission"]')).toBeNull();
+  expect(container.querySelector('[id$="-project"]')).toBeNull();
+  await act(async () =>
+    [...container.querySelectorAll("button")]
+      .find((button) => button.textContent === "Save")!
+      .click(),
+  );
+  await flush();
+  expect(onSave).toHaveBeenCalledWith(
+    expect.objectContaining({
+      runtimeKind: "pi",
+      runtimePermission: "workspace",
+      projectPath: null,
+    }),
+    expect.any(Function),
+  );
+});
+
+describe("canonical project folder saves", () => {
+  const nativeBot = {
+    ...bot,
+    runtimeKind: "codex" as const,
+    executionTarget: "host" as const,
+    runtimePermission: "workspace" as const,
+    projectPath: "/project/old",
+    registeredHostId: "host-original",
+  };
+  const canonicalBot = {
+    ...nativeBot,
+    projectPath: "/private/tmp/project",
+    updatedAt: "2026-09-02T00:00:00.000Z",
+  };
+  const save = async () => {
+    await act(async () =>
+      [...container.querySelectorAll("button")]
+        .find((button) => button.textContent === "Save")!
+        .click(),
+    );
+    await flush();
+  };
+
+  it.each([false, true])(
+    "accepts the canonical path before a later save failure: %s",
+    async (fail) => {
+      const onSave = vi.fn<ComponentProps<typeof BotSettings>["onSave"]>(
+        async (_patch, accepted) => {
+          accepted?.(canonicalBot);
+          if (fail) throw new Error("Profile save failed");
+        },
+      );
+      await renderSettings(onSave, nativeBot);
+      const project = container.querySelector<HTMLInputElement>('[id$="-project"]')!;
+      await act(async () => setField(project, "/tmp/project"));
+      await save();
+      expect(project.value).toBe("/private/tmp/project");
+      await renderSettings(onSave, canonicalBot);
+      expect(project.value).toBe("/private/tmp/project");
+      await act(async () =>
+        container.querySelector<HTMLButtonElement>('[id$="-auto-speak"]')!.click(),
+      );
+      await save();
+      expect(onSave.mock.calls.at(-1)?.[0].projectPath).toBe("/private/tmp/project");
+    },
+  );
+
+  it.each(["path", "host", "permission"])("preserves an in-flight %s edit", async (edit) => {
+    let acknowledge!: (bot: Bot) => void;
+    let finish!: () => void;
+    const onSave = vi.fn<ComponentProps<typeof BotSettings>["onSave"]>(async (_patch, accepted) => {
+      acknowledge = accepted!;
+      await new Promise<void>((resolve) => {
+        finish = resolve;
+      });
+    });
+    await renderSettings(onSave, nativeBot);
+    const project = container.querySelector<HTMLInputElement>('[id$="-project"]')!;
+    await act(async () => setField(project, "/tmp/project"));
+    await save();
+    if (edit === "path") await act(async () => setField(project, "/another/project"));
+    else if (edit === "host")
+      await submitToolName(container.querySelector<HTMLSelectElement>('[id$="-host"]')!, "");
+    else
+      await submitToolName(
+        container.querySelector<HTMLSelectElement>('[id$="-permission"]')!,
+        "full",
+      );
+    await act(async () => {
+      acknowledge(canonicalBot);
+      finish();
+    });
+    expect(container.querySelector<HTMLInputElement>('[id$="-project"]')!.value).toBe(
+      edit === "path"
+        ? "/another/project"
+        : edit === "host"
+          ? "/tmp/project"
+          : "/private/tmp/project",
+    );
+    if (edit === "permission")
+      expect(container.querySelector<HTMLSelectElement>('[id$="-permission"]')!.value).toBe("full");
+  });
+});
+
+describe("Roleplay settings", () => {
+  it("keeps model setup while hiding agent, computer, tools, permissions and instructions", async () => {
+    await renderSettings(async () => undefined, {
+      ...bot,
+      botKind: "roleplay",
+      runtimeKind: "pi",
+      executionTarget: "docker",
+      roleplayCharacter: {
+        name: "Aster",
+        description: "A quiet archivist",
+      } as NonNullable<Bot["roleplayCharacter"]>,
+    });
+    expect(container.textContent).toContain("Character");
+    expect(container.textContent).toContain("A quiet archivist");
+    expect(container.textContent).toContain("Model");
+    expect(container.textContent).not.toContain("Agent and environment");
+    expect(container.textContent).not.toContain("Computer");
+    expect(container.textContent).not.toContain("Permissions");
+    expect(container.querySelector('[data-testid="bot-settings-tools"]')).toBeNull();
+    expect(container.querySelector('[aria-label="Instructions"]')).toBeNull();
+  });
 });

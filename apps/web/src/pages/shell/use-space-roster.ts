@@ -245,6 +245,7 @@ export function useSpaceBootstrap({
   startChat,
   botId,
   groupId,
+  taskId,
   chat,
   navigate,
   redirectKeepingOverlay,
@@ -259,6 +260,7 @@ export function useSpaceBootstrap({
   startChat: ChatTarget | undefined;
   botId: string | undefined;
   groupId: string | undefined;
+  taskId?: string;
   chat: ChatTarget | undefined;
   navigate: Navigation["navigate"];
   redirectKeepingOverlay: Navigation["redirectKeepingOverlay"];
@@ -288,6 +290,8 @@ export function useSpaceBootstrap({
     preserveRouteRef,
     refreshBots,
   } = roster;
+  const taskIdRef = useRef(taskId);
+  taskIdRef.current = taskId;
   const { snapshotRef, commitSnapshot, setRoutines, setRoutinesBotId, bootstrappedThread } = thread;
   // Until the route names the chat reopened from cache, that chat stands in for it.
   const routeChat = botId || groupId || preserveRouteRef.current ? undefined : startChat;
@@ -329,7 +333,15 @@ export function useSpaceBootstrap({
       const { me, chat, ...lists } = state;
       const previous = queryClient.getQueryData(spaceSeedKey(userId ?? null, me.spaceId));
       if (!previous) return;
-      saveSeed(seedOnLeave(previous, { ...lists, me }, chat, snapshotRef.current), chat);
+      saveSeed(
+        seedOnLeave(
+          previous,
+          { ...lists, me },
+          chat,
+          taskIdRef.current ? null : snapshotRef.current,
+        ),
+        chat,
+      );
     };
   }, []);
 
@@ -372,7 +384,7 @@ export function useSpaceBootstrap({
           setInitialBotsLoaded(true);
         }
         // A seeded shell already loads its chat live; this older copy must not replace it.
-        if (!seed && !groupId && bootstrap.thread) {
+        if (!seed && !groupId && !taskIdRef.current && bootstrap.thread) {
           bootstrappedThread.current = bootstrap.thread;
           commitSnapshot(bootstrap.thread);
           commitComputer(bootstrap.thread.computer ?? null);

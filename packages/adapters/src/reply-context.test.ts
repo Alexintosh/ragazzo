@@ -30,12 +30,44 @@ describe("reply context", () => {
     expect(findFirst).toHaveBeenCalledWith({
       where: { id: "user-reply", threadId: "thread-1" },
       select: expect.objectContaining({
-        replyTo: { select: { id: true, threadId: true, role: true, botId: true, blocks: true } },
+        replyTo: {
+          select: expect.objectContaining({
+            id: true,
+            threadId: true,
+            role: true,
+            botId: true,
+            blocks: true,
+          }),
+        },
       }),
     });
     expect(context).toContain('"messageId":"message-first"');
     expect(context).toContain('"role":"assistant"');
     expect(context).toContain("Test message 1/3: Hello!");
+  });
+
+  it("masks both target text and selected quote for pending or cancelled queue input", async () => {
+    const { prisma, findFirst } = harness(
+      { ...target, steeringMessages: [{ id: "queued" }] },
+      "cancelled instruction",
+    );
+    expect(await loadReplyContext(prisma, "thread-1", "user-reply", "bot-1")).toBeUndefined();
+    expect(findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          NOT: {
+            steeringMessages: {
+              some: {
+                AND: [
+                  { OR: [{ botId: "bot-1" }, { message: { thread: { groupId: { not: null } } } }] },
+                  { OR: [{ cancelledAt: { not: null } }, { claimedAt: null }] },
+                ],
+              },
+            },
+          },
+        }),
+      }),
+    );
   });
 
   it("does not add context without a source or a surviving reply target", async () => {

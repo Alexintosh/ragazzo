@@ -200,6 +200,23 @@ export function resolveDockerSocketPath(
 
 app.get("/health", (c) => c.json({ ok: true, image: COMPUTER_IMAGE }));
 
+// Read-only readiness for launchers: never build an image or create a computer here.
+app.get("/readiness", async (c) => {
+  if (!hasValidBearerToken(c.req.header("authorization"), supervisorToken)) {
+    return c.json({ error: "unauthorized" }, 401);
+  }
+  try {
+    await docker.ping();
+    await docker.getImage(COMPUTER_IMAGE).inspect();
+    return c.json({ ok: true, image: COMPUTER_IMAGE });
+  } catch {
+    return c.json(
+      { ok: false, error: "Docker or the configured computer image is unavailable" },
+      503,
+    );
+  }
+});
+
 app.use("/computers", async (c, next) => {
   if (!hasValidBearerToken(c.req.header("authorization"), supervisorToken)) {
     return c.json({ error: "unauthorized" }, 401);

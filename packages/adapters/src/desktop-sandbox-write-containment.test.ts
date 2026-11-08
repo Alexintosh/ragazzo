@@ -45,7 +45,7 @@ vi.mock("node:fs/promises", async (importOriginal) => {
   };
 });
 
-const { DesktopSandboxProvider } = await import("./desktop-sandbox.js");
+const { DesktopSandboxProvider, openContainedWorkspaceFile } = await import("./desktop-sandbox.js");
 
 const ctx = {
   operationId: "operation",
@@ -80,6 +80,24 @@ async function pathExists(target: string) {
 }
 
 describe("desktop sandbox write containment without O_NOFOLLOW", () => {
+  it("refuses create-only downloads when their canonical home was replaced by a symlink", async () => {
+    const { root, computer } = await fixture("download-root-swap");
+    const downloads = path.join(computer.providerRef, "Downloads");
+    const outside = path.join(root, "outside-downloads");
+    await mkdir(outside);
+    await symlink(outside, downloads);
+    await expect(
+      openContainedWorkspaceFile(
+        downloads,
+        path.join(downloads, "report.txt"),
+        0o600,
+        true,
+        downloads,
+      ),
+    ).rejects.toThrow("Path escapes");
+    expect(await pathExists(path.join(outside, "report.txt"))).toBe(false);
+  });
+
   it("rejects an existing final symlink without changing its outside target", async () => {
     const { root, desktop, computer } = await fixture("static-link");
     const outside = path.join(root, "outside.txt");

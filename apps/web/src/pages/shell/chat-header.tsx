@@ -1,8 +1,10 @@
 import { useLingui } from "@lingui/react/macro";
 import type { Bot, Group, ThreadSnapshot } from "@rakazo/contracts";
 import { BotAvatar, Button, GroupAvatar } from "@rakazo/ui-web";
-import { Menu, Phone } from "lucide-react";
+import { Files, Menu, Phone } from "lucide-react";
 import { IconTooltip } from "../../components/IconTooltip";
+import { BotModelPicker } from "./bot-model-picker";
+import { RoleplayStoryMode } from "./roleplay-story-mode";
 
 /** The floating header over the transcript: navigation, the chat's name and call. */
 export function ChatHeader({
@@ -16,7 +18,11 @@ export function ChatHeader({
   onOpenNavigation,
   onTogglePanel,
   onCall,
+  onOpenFiles,
+  onModelSaved,
 }: {
+  onOpenFiles?: () => void;
+  onModelSaved?: (bot: Bot) => void;
   inGroup: boolean;
   active: Bot | undefined;
   activeGroup: Group | undefined;
@@ -31,7 +37,7 @@ export function ChatHeader({
   const { t } = useLingui();
   return (
     <div className="pointer-events-none absolute inset-x-0 top-0 z-10 grid grid-cols-[1fr_minmax(0,auto)_1fr] items-center gap-2 px-3 py-[13px] md:px-[22px] [&_button]:pointer-events-auto">
-      <div className="flex items-center">
+      <div className="flex min-w-0 items-center">
         <Button
           variant="floating"
           size="icon-lg"
@@ -41,6 +47,11 @@ export function ChatHeader({
         >
           <Menu strokeWidth={1.7} className="size-[19px]" />
         </Button>
+        {!inGroup && active ? (
+          <div className="pointer-events-auto absolute start-3 top-16 max-w-[calc(100%_-_1.5rem)] md:static md:max-w-full">
+            <BotModelPicker bot={active} onSaved={onModelSaved} />
+          </div>
+        ) : null}
       </div>
       <Button
         variant="floating"
@@ -69,7 +80,28 @@ export function ChatHeader({
         </span>
       </Button>
       <div className="flex items-center justify-self-end gap-2">
-        {phoneCallsEnabled && !inGroup && active ? (
+        {!inGroup && active?.botKind === "roleplay" ? (
+          <RoleplayStoryMode
+            key={active.id}
+            botId={active.id}
+            compact
+            refreshKey={activeSnapshot}
+          />
+        ) : null}
+        {onOpenFiles && (active || activeGroup) ? (
+          <IconTooltip label={t`Conversation files`}>
+            <Button
+              variant="floating"
+              size="icon-lg"
+              aria-label={t`Conversation files`}
+              onClick={onOpenFiles}
+              className="app-no-drag"
+            >
+              <Files strokeWidth={1.6} className="size-[18px]" />
+            </Button>
+          </IconTooltip>
+        ) : null}
+        {phoneCallsEnabled && !inGroup && active && active.botKind !== "roleplay" ? (
           <IconTooltip label={inCall ? t`Open call` : t`Call`}>
             <Button
               variant="floating"

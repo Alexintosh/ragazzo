@@ -88,7 +88,7 @@ function visible(scope: HistoryScope, myChats = false, targetThreadId?: string):
   return Prisma.sql`
     t.id = ${scope.threadId} AND t."spaceId" = ${scope.spaceId}
     AND t."userId" = ${scope.userId}
-    AND (t."botId" = ${scope.botId} OR (t."botId" IS NULL AND EXISTS (
+    AND (t."botId" = ${scope.botId} OR t."taskBotId" = ${scope.botId} OR (t."botId" IS NULL AND EXISTS (
       SELECT 1 FROM chat_groups g JOIN chat_group_members member ON member."groupId" = g.id
       WHERE g.id = t."groupId" AND g."spaceId" = ${scope.spaceId} AND g."userId" = ${scope.userId}
         AND g."archivedAt" IS NULL AND member."botId" = ${scope.botId}
@@ -96,6 +96,9 @@ function visible(scope: HistoryScope, myChats = false, targetThreadId?: string):
     AND EXISTS (SELECT 1 FROM bots b WHERE b.id = ${scope.botId}
       AND b."spaceId" = ${scope.spaceId} AND b."userId" = ${scope.userId}
       AND b."archivedAt" IS NULL)
+    AND NOT EXISTS (SELECT 1 FROM steering_messages pending
+      WHERE pending."messageId" = m.id AND (pending."botId" = ${scope.botId} OR t."groupId" IS NOT NULL)
+        AND (pending."cancelledAt" IS NOT NULL OR pending."claimedAt" IS NULL))
     ${
       channel
         ? Prisma.sql`AND (

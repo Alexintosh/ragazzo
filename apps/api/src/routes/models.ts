@@ -1,7 +1,9 @@
 import { ORPCError } from "@orpc/server";
 import { SecretStoreUnavailableError } from "@rakazo/adapter-kit";
 import {
+  buildModelOAuthPlaintext,
   listPiCatalog,
+  loadStoredModelSecret,
   ModelSignInError,
   modelCredentialDto,
   oauthCredentialEmail,
@@ -11,7 +13,6 @@ import {
   providerCatalogCache,
   resolveMemberMainModel,
   selectDefaultCredentialId,
-  serializeModelSecret,
   storedOpenAiCompatibleProbeHeaders,
   storedOpenAiCompatibleProbeKey,
   UNAVAILABLE_MODEL_FOR_AUTH_MESSAGE,
@@ -351,13 +352,24 @@ export function modelsRoutes(ctx: RouterContext) {
               login.provider,
               login.credentialId,
             );
+            const previous = target
+              ? await loadStoredModelSecret(
+                  deps.prisma,
+                  deps.secrets,
+                  context.actor.userId,
+                  target.secretId,
+                )
+              : undefined;
             return persistModelCredential(
               deps,
               context.actor,
               {
                 provider: login.provider,
                 credentialId: target?.id ?? null,
-                plaintext: serializeModelSecret({ kind: "oauth", credential: login.credential }),
+                plaintext: buildModelOAuthPlaintext(
+                  login.credential,
+                  previous?.status === "loaded" ? previous.plaintext : undefined,
+                ),
                 // A second account is told apart by the email it signed in with.
                 label:
                   oauthCredentialEmail(login.credential) ??

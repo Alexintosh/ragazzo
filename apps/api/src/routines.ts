@@ -13,6 +13,25 @@ import { IsolationError } from "@rakazo/db";
 import type { RouterDeps } from "./router.js";
 import type { RouterContext } from "./routes/context.js";
 
+/** RP uses the ordinary timer only; operational trigger capabilities stay unavailable. */
+export function assertRoleplayRoutine(
+  botKind: string,
+  input: {
+    watch?: unknown;
+    webhookEnabled?: boolean;
+    githubEnabled?: boolean;
+    messageProvider?: string | null;
+  },
+): void {
+  if (
+    botKind === "roleplay" &&
+    (input.watch != null || input.webhookEnabled || input.githubEnabled || input.messageProvider)
+  )
+    throw new ORPCError("BAD_REQUEST", {
+      message: "Roleplay routines support scheduled messages only",
+    });
+}
+
 export function assertRoutineSchedule(input: CreateRoutineInput): void {
   if (hasMixedOneShotSchedule(input.crons)) {
     throw new ORPCError("BAD_REQUEST", {
@@ -169,7 +188,8 @@ export async function routineTestTarget(
   if (!routine) throw new IsolationError();
   const bot = await repos.getBot(actor, routine.botId);
   if (!bot.thread) throw new IsolationError();
-  return { routine, botId: bot.id, threadId: bot.thread.id };
+  assertRoleplayRoutine(bot.botKind, routine);
+  return { routine, botKind: bot.botKind, botId: bot.id, threadId: bot.thread.id };
 }
 
 /**

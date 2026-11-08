@@ -231,13 +231,23 @@ export function openScreenCapability(
     const target = new URL(payload.url);
     if (target.protocol !== "https:" && target.protocol !== "http:") return null;
     const port = Number(target.port || (target.protocol === "https:" ? 443 : 80));
+    const hostViewer = target.pathname.match(/^\/browser-screen\/([A-Za-z0-9_-]+)\/embed\.html$/);
+    const hostGateway = hostViewer && target.hostname === "host.docker.internal";
     if (
       target.protocol === "http:" &&
-      (!isAllowedTargetName(target.hostname) || port < 1024 || port > 65535)
+      ((!isAllowedTargetName(target.hostname) && !hostGateway) || port < 1024 || port > 65535)
     )
       return null;
     const interactive = match[1] === "control";
     const requestedPath = `${match[4] || target.pathname || "/"}${match[5] || ""}`;
+    // A host screen carries the host bridge's credential. Keep that credential inside this
+    // viewer session: a capability must never be rewritten into a generic host command route.
+    if (hostViewer) {
+      const requested = new URL(requestedPath, "http://screen.invalid");
+      const prefix = `/browser-screen/${hostViewer[1]}/`;
+      const allowed = ["embed.html", "frame", ...(interactive ? ["input"] : [])];
+      if (!allowed.some((resource) => requested.pathname === `${prefix}${resource}`)) return null;
+    }
     return {
       scope,
       expiresAt,

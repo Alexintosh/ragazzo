@@ -19,12 +19,24 @@ export type ComputerKeyInput = {
   /** The bot owner's user id. A team computer is shared only by one user's bots in a space. */
   userId: string;
   botId?: string;
+  executionTarget?: "default" | "docker" | "host";
+  registeredHostId?: string | null;
 };
 
+function hostSuffix(input: ComputerKeyInput) {
+  return input.registeredHostId ? `:registered:${input.registeredHostId}` : "";
+}
+
 export function computerScopeKey(input: ComputerKeyInput) {
-  if (input.mode === "team") return `team:${input.spaceId}:${input.userId}`;
+  if (input.mode === "team") {
+    const target =
+      input.executionTarget && input.executionTarget !== "default"
+        ? `:${input.executionTarget}`
+        : "";
+    return `team:${input.spaceId}:${input.userId}${target}${hostSuffix(input)}`;
+  }
   if (!input.botId) throw new Error("Dedicated computers require a bot id");
-  return `bot:${input.botId}`;
+  return `bot:${input.botId}${input.executionTarget && input.executionTarget !== "default" ? `:${input.executionTarget}` : ""}${hostSuffix(input)}`;
 }
 
 /**
@@ -36,13 +48,19 @@ export function computerScopeKey(input: ComputerKeyInput) {
 export function computerHomeKey(input: ComputerKeyInput) {
   if (input.mode === "team") {
     const digest = createHash("sha256")
-      .update(`${input.spaceId}:${input.userId}`)
+      .update(
+        `${input.spaceId}:${input.userId}${input.executionTarget && input.executionTarget !== "default" ? `:${input.executionTarget}` : ""}${hostSuffix(input)}`,
+      )
       .digest("hex")
       .slice(0, 32);
     return `team-${digest}`;
   }
   if (!input.botId) throw new Error("Dedicated computers require a bot id");
-  return input.botId;
+  return input.registeredHostId
+    ? `host-${createHash("sha256").update(`${input.botId}:${input.registeredHostId}`).digest("hex").slice(0, 32)}`
+    : input.executionTarget && input.executionTarget !== "default"
+      ? `${input.botId}-${input.executionTarget}`
+      : input.botId;
 }
 
 /** The home of a space's one Team Computer from before each person got their own. */
@@ -230,6 +248,8 @@ function upsertComputerRecord(
     userId: string;
     botId?: string;
     kind: string;
+    executionTarget?: "default" | "docker" | "host";
+    registeredHostId?: string | null;
   },
   scopeKey: string,
 ) {
@@ -242,6 +262,8 @@ function upsertComputerRecord(
       scopeKey,
       homeKey: computerHomeKey(input),
       kind: input.kind,
+      executionTarget: input.executionTarget ?? "default",
+      registeredHostId: input.registeredHostId ?? null,
     },
     update: {},
   });
@@ -255,6 +277,8 @@ async function ensureComputerRecordWithQuota(
     userId: string;
     botId?: string;
     kind: string;
+    executionTarget?: "default" | "docker" | "host";
+    registeredHostId?: string | null;
   },
   limit: number,
   scopeKey: string,
@@ -292,6 +316,8 @@ export async function ensureComputerRecord(
     userId: string;
     botId?: string;
     kind: string;
+    executionTarget?: "default" | "docker" | "host";
+    registeredHostId?: string | null;
   },
 ) {
   const limit = resolveMaxComputersPerUser();

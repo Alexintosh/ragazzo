@@ -5,6 +5,7 @@ import type {
   BotAvatarSet,
   ComputerMode,
   ModelCatalogEntry,
+  RoleplayCharacter,
   ThinkingLevel,
 } from "@rakazo/contracts";
 import {
@@ -46,9 +47,14 @@ import { botProfilePatch } from "../../lib/bot-profile-patch";
 import { thinkingLevelLabel } from "../../lib/model-catalog";
 import { lazyComponent } from "../../lib/preload-recovery";
 import { useSpaceQueries } from "../../lib/query";
+import { useSpaceRpc } from "../../lib/space-rpc";
 import { errorText } from "../../lib/user-error";
 import { AvatarStudioPopover } from "./avatar-studio-popover";
+import { BotRuntimeSettings, BotRuntimeStatus } from "./bot-runtime-settings";
 import { ChatModelPicker } from "./chat-model-picker";
+import { RoleplayRelationshipDebug } from "./roleplay-relationship-debug";
+import { RoleplaySettings } from "./roleplay-settings";
+import { RoleplayStoryMode } from "./roleplay-story-mode";
 
 const ScratchpadSection = lazyComponent(() =>
   import("../ScratchpadSection").then((module) => module.ScratchpadSection),
@@ -69,6 +75,11 @@ function advancedValues(bot: Bot) {
     bot.memoryScope,
     bot.autoSpeak,
     bot.voiceId ?? "",
+    bot.runtimeKind ?? "pi",
+    bot.executionTarget ?? "default",
+    bot.runtimePermission ?? "workspace",
+    bot.projectPath ?? null,
+    bot.registeredHostId ?? null,
   ] as const;
 }
 
@@ -124,24 +135,34 @@ export function BotSettings({
   /** Unused: the skill sections read and save the shared cached skill list. */
   onSkillsChange?: (skills: AgentSkillCatalogEntry[]) => void;
   memoryProviderConfigured: boolean;
-  onSave: (patch: {
-    name?: string;
-    description?: string;
-    instructions?: string;
-    color?: string;
-    avatarSet?: BotAvatarSet;
-    notifyOnFinish?: boolean;
-    computerMode?: ComputerMode;
-    memoryScope?: "isolated" | "shared" | null;
-    autoSpeak?: boolean;
-    fleetManagement?: boolean;
-    crossSpaceCommunication?: boolean;
-    voiceId?: string | null;
-    modelProvider?: string | null;
-    modelId?: string | null;
-    thinkingLevel?: ThinkingLevel | null;
-    disabledBuiltinTools?: string[];
-  }) => Promise<void>;
+  onSave: (
+    patch: {
+      name?: string;
+      description?: string;
+      instructions?: string;
+      color?: string;
+      avatarSet?: BotAvatarSet;
+      notifyOnFinish?: boolean;
+      runtimeKind?: Bot["runtimeKind"];
+      executionTarget?: Bot["executionTarget"];
+      registeredHostId?: string | null;
+      runtimePermission?: Bot["runtimePermission"];
+      projectPath?: string | null;
+      computerMode?: ComputerMode;
+      memoryScope?: "isolated" | "shared" | null;
+      autoSpeak?: boolean;
+      fleetManagement?: boolean;
+      crossSpaceCommunication?: boolean;
+      voiceId?: string | null;
+      modelProvider?: string | null;
+      modelId?: string | null;
+      thinkingLevel?: ThinkingLevel | null;
+      disabledBuiltinTools?: string[];
+      roleplayCharacter?: RoleplayCharacter;
+      expectedRoleplayCharacter?: RoleplayCharacter;
+    },
+    onExecutionSaved?: (bot: Bot) => void,
+  ) => Promise<void>;
   onExport: () => Promise<void>;
   onClear: () => void;
 }) {
@@ -171,6 +192,13 @@ export function BotSettings({
     notifyOnFinish: bot.notifyOnFinish ?? true,
   });
   const automaticRevision = useRef({ color: 0, avatarSet: 0, notifyOnFinish: 0 });
+  const [runtime, setRuntime] = useState({
+    runtimeKind: bot.runtimeKind ?? "pi",
+    executionTarget: bot.executionTarget ?? "default",
+    runtimePermission: bot.runtimePermission ?? "workspace",
+    projectPath: bot.projectPath ?? null,
+    registeredHostId: bot.registeredHostId ?? null,
+  });
   const [computerMode, setComputerMode] = useState(bot.computerMode);
   const [memoryScope, setMemoryScope] = useState(bot.memoryScope);
   const [autoSpeak, setAutoSpeak] = useState(bot.autoSpeak);
@@ -205,6 +233,7 @@ export function BotSettings({
   }, [bot.disabledBuiltinTools]);
   // Shared with the model and voice settings, so a revisit paints at once and refreshes behind.
   const queries = useSpaceQueries();
+  const rpc = useSpaceRpc();
   const refresh = { refetchOnMount: "always" } as const;
   const voices = useQuery({ ...queries.voice.voices.queryOptions({ input: {} }), ...refresh }).data;
   const credentialsQuery = useQuery({ ...queries.models.credentials.queryOptions(), ...refresh });
@@ -227,6 +256,11 @@ export function BotSettings({
     memoryScope,
     autoSpeak,
     voiceId,
+    runtime.runtimeKind,
+    runtime.executionTarget,
+    runtime.runtimePermission,
+    runtime.projectPath,
+    runtime.registeredHostId,
   ]);
   const dirty =
     name.trim() !== savedNameRef.current.trim() ||
@@ -280,6 +314,15 @@ export function BotSettings({
     if (memoryScope === saved[3]) setMemoryScope(next[3]);
     if (autoSpeak === saved[4]) setAutoSpeak(next[4]);
     if (voiceId === saved[5]) setVoiceId(next[5]);
+    setRuntime((current) => ({
+      runtimeKind: current.runtimeKind === saved[6] ? next[6] : current.runtimeKind,
+      executionTarget: current.executionTarget === saved[7] ? next[7] : current.executionTarget,
+      runtimePermission:
+        current.runtimePermission === saved[8] ? next[8] : current.runtimePermission,
+      projectPath: current.projectPath === saved[9] ? next[9] : current.projectPath,
+      registeredHostId:
+        current.registeredHostId === saved[10] ? next[10] : current.registeredHostId,
+    }));
     setSavedAdvanced(JSON.stringify(next));
   }, [bot]);
 
@@ -373,13 +416,19 @@ export function BotSettings({
           ? { avatarSet: nextAvatarSet }
           : {}),
         notifyOnFinish: nextNotify,
+        ...runtime,
         computerMode,
         memoryScope,
         autoSpeak,
         voiceId: voiceId || null,
-        modelProvider: selected?.provider ?? null,
-        modelId: selected?.modelId ?? null,
-        ...(modelMetaReady &&
+        ...(runtime.runtimeKind === "pi"
+          ? {
+              modelProvider: selected?.provider ?? null,
+              modelId: selected?.modelId ?? null,
+            }
+          : {}),
+        ...(runtime.runtimeKind === "pi" &&
+        modelMetaReady &&
         (thinkingOptions.length > 0 ||
           (selected?.provider ?? null) !== bot.modelProvider ||
           (selected?.modelId ?? null) !== bot.modelId)
@@ -392,6 +441,41 @@ export function BotSettings({
       };
       const requestedTools = patchOverrides?.disabledBuiltinTools;
       const baseTools = patchOverrides?.baseDisabledBuiltinTools ?? [];
+      let savedRuntime = runtime;
+      const executionChanged =
+        JSON.stringify(JSON.parse(advancedSnapshot).slice(6)) !==
+        JSON.stringify(JSON.parse(savedAdvanced).slice(6));
+      const acceptExecution = (updated: Bot) => {
+        savedRuntime = {
+          runtimeKind: updated.runtimeKind ?? "pi",
+          executionTarget: updated.executionTarget ?? "default",
+          runtimePermission: updated.runtimePermission ?? "workspace",
+          projectPath: updated.projectPath ?? null,
+          registeredHostId: updated.registeredHostId ?? null,
+        };
+        // A later profile/computer save may fail. Keep the execution write as the
+        // baseline immediately, and never submit its original alias on a retry.
+        Object.assign(patch, savedRuntime);
+        setSavedAdvanced((current) =>
+          JSON.stringify([...JSON.parse(current).slice(0, 6), ...advancedValues(updated).slice(6)]),
+        );
+        setRuntime((current) => {
+          if (
+            current.runtimeKind !== runtime.runtimeKind ||
+            current.executionTarget !== runtime.executionTarget ||
+            current.registeredHostId !== runtime.registeredHostId ||
+            current.projectPath !== runtime.projectPath
+          )
+            return current;
+          return {
+            ...savedRuntime,
+            runtimePermission:
+              current.runtimePermission === runtime.runtimePermission
+                ? savedRuntime.runtimePermission
+                : current.runtimePermission,
+          };
+        });
+      };
       // Preserve this edit's additions/removals against any refreshed server list.
       // Retry if a refresh arrives while the request is in flight.
       for (;;) {
@@ -409,10 +493,12 @@ export function BotSettings({
                 ),
               ];
         // Unrelated saves omit the list, preserving changes from other sessions.
-        await onSave({
+        const savePatch = {
           ...patch,
           ...(nextTools !== undefined ? { disabledBuiltinTools: nextTools } : {}),
-        });
+        };
+        if (executionChanged) await onSave(savePatch, acceptExecution);
+        else await onSave(savePatch);
         if (nextTools === undefined) break;
         if (
           serverTools !== serverDisabledToolsRef.current &&
@@ -430,7 +516,19 @@ export function BotSettings({
       if (nextName) savedNameRef.current = nextName;
       savedDescriptionRef.current = nextDescription;
       setSavedAdvanced(
-        JSON.stringify([modelKey, thinkingLevel, computerMode, memoryScope, autoSpeak, voiceId]),
+        JSON.stringify([
+          modelKey,
+          thinkingLevel,
+          computerMode,
+          memoryScope,
+          autoSpeak,
+          voiceId,
+          savedRuntime.runtimeKind,
+          savedRuntime.executionTarget,
+          savedRuntime.runtimePermission,
+          savedRuntime.projectPath,
+          savedRuntime.registeredHostId,
+        ]),
       );
     } catch (err) {
       if (
@@ -538,14 +636,21 @@ export function BotSettings({
           }}
         />
       </div>
-      <Tabs value={tab} onValueChange={(next) => onTabChange?.(next as BotPanelTab)}>
+      <Tabs
+        value={bot.botKind === "roleplay" ? "settings" : tab}
+        onValueChange={(next) => onTabChange?.(next as BotPanelTab)}
+      >
         <TabsList className="w-full">
-          <TabsTrigger value="computer">
-            <Trans>Computer</Trans>
-          </TabsTrigger>
-          <TabsTrigger value="routines">
-            <Trans>Routines</Trans>
-          </TabsTrigger>
+          {bot.botKind !== "roleplay" ? (
+            <>
+              <TabsTrigger value="computer">
+                <Trans>Computer</Trans>
+              </TabsTrigger>
+              <TabsTrigger value="routines">
+                <Trans>Routines</Trans>
+              </TabsTrigger>
+            </>
+          ) : null}
           <TabsTrigger value="settings">
             <Trans>Advanced</Trans>
           </TabsTrigger>
@@ -583,103 +688,163 @@ export function BotSettings({
               />
             </div>
           </section>
-          <ErrorBoundary fallback={<SectionLoadFailed />}>
-            <Suspense fallback={null}>
-              <ScratchpadSection botId={bot.id} />
-            </Suspense>
-          </ErrorBoundary>
-          <ErrorBoundary fallback={<SectionLoadFailed />}>
-            <Suspense fallback={null}>
-              <KnowledgeSection botId={bot.id} />
-            </Suspense>
-          </ErrorBoundary>
+          {bot.botKind !== "roleplay" ? (
+            <>
+              <ErrorBoundary fallback={<SectionLoadFailed />}>
+                <Suspense fallback={null}>
+                  <ScratchpadSection botId={bot.id} />
+                </Suspense>
+              </ErrorBoundary>
+              <ErrorBoundary fallback={<SectionLoadFailed />}>
+                <Suspense fallback={null}>
+                  <KnowledgeSection botId={bot.id} />
+                </Suspense>
+              </ErrorBoundary>
+            </>
+          ) : null}
           <div className="space-y-6 pt-6">
-            <div ref={modelRef}>
-              <div className="mb-2 flex items-center justify-between text-xs font-medium text-muted-foreground pe-1">
-                <Trans>Model</Trans>
-                {onOpenConnections ? (
-                  <Button
-                    variant="ghost"
-                    size="icon-xs"
-                    aria-label={t`Model connections`}
-                    onClick={onOpenConnections}
-                  >
-                    <Settings className="size-4" />
-                  </Button>
+            {bot.botKind === "roleplay" ? (
+              bot.roleplayCharacter ? (
+                <>
+                  <RoleplayStoryMode
+                    key={`story-${bot.id}`}
+                    botId={bot.id}
+                    refreshKey={bot.status}
+                  />
+                  <RoleplaySettings
+                    botId={bot.id}
+                    character={bot.roleplayCharacter}
+                    status={bot.status}
+                    onSave={(roleplayCharacter, expectedRoleplayCharacter) =>
+                      onSave({ roleplayCharacter, expectedRoleplayCharacter })
+                    }
+                  />
+                  <RoleplayRelationshipDebug
+                    key={bot.id}
+                    onLoad={() => rpc.bots.roleplayRelationship({ botId: bot.id })}
+                    onSave={(state) =>
+                      rpc.bots.updateRoleplayRelationship({
+                        botId: bot.id,
+                        relationship: state.relationship,
+                        historyGeneration: state.historyGeneration,
+                        expectedRevision: state.revision,
+                      })
+                    }
+                  />
+                </>
+              ) : null
+            ) : (
+              <InstructionSettings key={bot.id} bot={bot} />
+            )}
+
+            {bot.botKind !== "roleplay" ? (
+              <SettingsGroup label={t`Agent and environment`}>
+                <BotRuntimeSettings
+                  value={runtime}
+                  onChange={(value) => {
+                    setRuntime({ ...value, registeredHostId: value.registeredHostId ?? null });
+                    if (
+                      value.executionTarget !== runtime.executionTarget &&
+                      value.executionTarget !== "default"
+                    )
+                      setComputerMode("dedicated");
+                  }}
+                />
+                {["codex", "claude", "acp"].includes(runtime.runtimeKind ?? "pi") ? (
+                  <BotRuntimeStatus botId={bot.id} />
                 ) : null}
-              </div>
-              <div className="rounded-xl bg-muted/50 p-4 space-y-3">
-                <div className="flex min-h-11 items-center justify-between gap-3">
-                  <label htmlFor={`${ids}-model`} className="sr-only">
-                    <Trans>Model</Trans>
-                  </label>
-                  <div className="min-w-0 w-full [&>div]:mt-0 [&>button]:mt-0">
-                    <ChatModelPicker
-                      id={`${ids}-model`}
-                      choices={modelChoices}
-                      value={selectedModelKey}
-                      onChange={(key) => {
-                        setModelKey(key);
-                        setThinkingLevel("");
-                      }}
-                    />
-                  </div>
-                </div>
-                {thinkingOptions.length ? (
-                  <label
-                    htmlFor={`${ids}-thinking`}
-                    className="flex min-h-11 items-center justify-between gap-3 text-sm text-foreground"
-                  >
-                    <Trans>Thinking</Trans>
-                    <NativeSelect
-                      id={`${ids}-thinking`}
-                      className="max-w-2/3"
-                      value={thinkingLevel}
-                      onChange={(event) => setThinkingLevel(event.target.value)}
+              </SettingsGroup>
+            ) : null}
+            {runtime.runtimeKind === "pi" ? (
+              <div ref={modelRef}>
+                <div className="mb-2 flex items-center justify-between text-xs font-medium text-muted-foreground pe-1">
+                  <Trans>Model</Trans>
+                  {onOpenConnections ? (
+                    <Button
+                      variant="ghost"
+                      size="icon-xs"
+                      aria-label={t`Model connections`}
+                      onClick={onOpenConnections}
                     >
-                      <NativeSelectOption value="">
-                        {t`Default (${thinkingLevelLabel(defaultThinkingLevel)})`}
-                      </NativeSelectOption>
-                      {thinkingOptions.map((level) => (
-                        <NativeSelectOption key={level} value={level}>
-                          {thinkingLevelLabel(level)}
-                        </NativeSelectOption>
-                      ))}
-                    </NativeSelect>
-                  </label>
-                ) : null}
-              </div>
-            </div>
-            <SettingsGroup label={t`Computer`} plain>
-              <ComputerModePicker value={computerMode} onChange={setComputerMode} />
-              {memoryProviderConfigured ? (
-                <div className="mt-4 text-sm text-foreground">
-                  <Trans>Memory scope</Trans>
-                  <div className="mt-2 flex gap-2">
-                    {(
-                      [
-                        { value: null, label: t`Inherit default` },
-                        { value: "isolated" as const, label: t`Isolated` },
-                        { value: "shared" as const, label: t`Shared` },
-                      ] satisfies Array<{ value: "isolated" | "shared" | null; label: string }>
-                    ).map((option) => (
-                      <Toggle
-                        key={option.label}
-                        variant="outline"
-                        size="sm"
-                        pressed={memoryScope === option.value}
-                        onPressedChange={(pressed) => {
-                          if (pressed) setMemoryScope(option.value);
-                        }}
-                        className="flex-1 aria-pressed:border-foreground/40 aria-pressed:text-foreground"
-                      >
-                        {option.label}
-                      </Toggle>
-                    ))}
-                  </div>
+                      <Settings className="size-4" />
+                    </Button>
+                  ) : null}
                 </div>
-              ) : null}
-            </SettingsGroup>
+                <div className="rounded-xl bg-muted/50 p-4 space-y-3">
+                  <div className="flex min-h-11 items-center justify-between gap-3">
+                    <label htmlFor={`${ids}-model`} className="sr-only">
+                      <Trans>Model</Trans>
+                    </label>
+                    <div className="min-w-0 w-full [&>div]:mt-0 [&>button]:mt-0">
+                      <ChatModelPicker
+                        id={`${ids}-model`}
+                        choices={modelChoices}
+                        value={selectedModelKey}
+                        onChange={(key) => {
+                          setModelKey(key);
+                          setThinkingLevel("");
+                        }}
+                      />
+                    </div>
+                  </div>
+                  {thinkingOptions.length ? (
+                    <label
+                      htmlFor={`${ids}-thinking`}
+                      className="flex min-h-11 items-center justify-between gap-3 text-sm text-foreground"
+                    >
+                      <Trans>Thinking</Trans>
+                      <NativeSelect
+                        id={`${ids}-thinking`}
+                        className="max-w-2/3"
+                        value={thinkingLevel}
+                        onChange={(event) => setThinkingLevel(event.target.value)}
+                      >
+                        <NativeSelectOption value="">
+                          {t`Default (${thinkingLevelLabel(defaultThinkingLevel)})`}
+                        </NativeSelectOption>
+                        {thinkingOptions.map((level) => (
+                          <NativeSelectOption key={level} value={level}>
+                            {thinkingLevelLabel(level)}
+                          </NativeSelectOption>
+                        ))}
+                      </NativeSelect>
+                    </label>
+                  ) : null}
+                </div>
+              </div>
+            ) : null}
+            {bot.botKind !== "roleplay" ? (
+              <SettingsGroup label={t`Computer`}>
+                <ComputerModePicker value={computerMode} onChange={setComputerMode} />
+                {memoryProviderConfigured ? (
+                  <div className="mt-4 text-sm text-foreground">
+                    <Trans>Memory scope</Trans>
+                    <div className="mt-2 flex gap-2">
+                      {(
+                        [
+                          { value: null, label: t`Inherit default` },
+                          { value: "isolated" as const, label: t`Isolated` },
+                          { value: "shared" as const, label: t`Shared` },
+                        ] satisfies Array<{ value: "isolated" | "shared" | null; label: string }>
+                      ).map((option) => (
+                        <Toggle
+                          key={option.label}
+                          variant="outline"
+                          size="sm"
+                          pressed={memoryScope === option.value}
+                          onPressedChange={(pressed) => {
+                            if (pressed) setMemoryScope(option.value);
+                          }}
+                          className="flex-1 aria-pressed:border-foreground/40 aria-pressed:text-foreground"
+                        >
+                          {option.label}
+                        </Toggle>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+              </SettingsGroup>
+            ) : null}
             <SettingsGroup label={t`Voice`}>
               <label
                 htmlFor={`${ids}-auto-speak`}
@@ -716,96 +881,106 @@ export function BotSettings({
                 </label>
               ) : null}
             </SettingsGroup>
-            <SettingsGroup label={t`Permissions`}>
-              <div className="flex min-h-11 items-center justify-between gap-3 text-sm">
-                <label htmlFor={`${ids}-cross-space`} className={rowLabelClass}>
-                  <Trans>Allow cross-space bot communication</Trans>
-                </label>
-                <Switch
-                  id={`${ids}-cross-space`}
-                  checked={crossSpaceCommunication}
-                  disabled={saving}
-                  onCheckedChange={(checked) => {
-                    setCrossSpaceCommunication(checked);
-                    void enqueueSave({ crossSpaceCommunication: checked });
-                  }}
-                />
-              </div>
-              <div className="flex min-h-11 items-center justify-between gap-3 text-sm">
-                <label htmlFor={`${ids}-fleet-management`} className={rowLabelClass}>
-                  <Trans>Manage the bots it creates</Trans>
-                </label>
-                <Switch
-                  id={`${ids}-fleet-management`}
-                  checked={fleetManagement}
-                  disabled={saving}
-                  onCheckedChange={(checked) => {
-                    setFleetManagement(checked);
-                    void enqueueSave({ fleetManagement: checked });
-                  }}
-                />
-              </div>
-            </SettingsGroup>
-            <InstructionSettings key={bot.id} bot={bot} />
-            <SettingsGroup label={t`How other bots see it`} plain>
-              <Textarea
-                id={`${ids}-description`}
-                aria-label={t`How other bots see it`}
-                value={description}
-                maxLength={BOT_DESCRIPTION_MAX_LENGTH}
-                onChange={(e) => setDescription(e.target.value)}
-                onBlur={() => void enqueueSave()}
-                placeholder={t`What this bot is for`}
-                rows={2}
-                className="min-h-16 resize-none field-sizing-content"
-              />
-            </SettingsGroup>
-            <SettingsGroup label={t`Tools`} plain>
-              <section data-testid="bot-settings-tools">
-                <div className="space-y-2 [&>*]:mt-0">
-                  <div>
-                    <NativeSelect
-                      id={`${ids}-disabled-tools`}
-                      aria-label={t`Disable a tool`}
-                      value=""
-                      onChange={(event) => disableBuiltinTool(event.target.value)}
-                      className="w-full"
-                    >
-                      <NativeSelectOption value="">{t`Disable a tool`}</NativeSelectOption>
-                      {BUILTIN_TOOL_NAMES.filter(
-                        (name) => !disabledBuiltinTools.includes(name),
-                      ).map((name) => (
-                        <NativeSelectOption key={name} value={name}>
-                          {humanizeTool(name)}
-                        </NativeSelectOption>
-                      ))}
-                    </NativeSelect>
-                  </div>
-                  {disabledBuiltinTools.map((toolName) => (
-                    <div
-                      key={toolName}
-                      className="flex min-h-11 items-center justify-between gap-3 text-sm"
-                    >
-                      <span>{humanizeTool(toolName)}</span>
-                      <Button
-                        id={`${ids}-disabled-${toolName}`}
-                        variant="ghost"
-                        size="icon-xs"
-                        aria-label={t`Enable ${humanizeTool(toolName)}`}
-                        title={t`Enable ${humanizeTool(toolName)}`}
-                        onClick={() => {
-                          const next = disabledBuiltinTools.filter((entry) => entry !== toolName);
-                          setDisabledBuiltinTools(next);
-                          void enqueueSave({ disabledBuiltinTools: next });
-                        }}
-                      >
-                        <X className="size-4" />
-                      </Button>
-                    </div>
-                  ))}
+            {bot.botKind !== "roleplay" ? (
+              <SettingsGroup label={t`Permissions`}>
+                <div className="flex min-h-11 items-center justify-between gap-3 text-sm">
+                  <label htmlFor={`${ids}-cross-space`} className={rowLabelClass}>
+                    <Trans>Allow cross-space bot communication</Trans>
+                  </label>
+                  <Switch
+                    id={`${ids}-cross-space`}
+                    checked={crossSpaceCommunication}
+                    disabled={saving}
+                    onCheckedChange={(checked) => {
+                      setCrossSpaceCommunication(checked);
+                      void enqueueSave({ crossSpaceCommunication: checked });
+                    }}
+                  />
                 </div>
-              </section>
+                <div className="flex min-h-11 items-center justify-between gap-3 text-sm">
+                  <label htmlFor={`${ids}-fleet-management`} className={rowLabelClass}>
+                    <Trans>Manage the bots it creates</Trans>
+                  </label>
+                  <Switch
+                    id={`${ids}-fleet-management`}
+                    checked={fleetManagement}
+                    disabled={saving}
+                    onCheckedChange={(checked) => {
+                      setFleetManagement(checked);
+                      void enqueueSave({ fleetManagement: checked });
+                    }}
+                  />
+                </div>
+              </SettingsGroup>
+            ) : null}
+            <SettingsGroup label={t`Description`}>
+              <label htmlFor={`${ids}-description`} className="block text-xs text-muted-foreground">
+                <Trans>How other bots see it</Trans>
+                <Textarea
+                  id={`${ids}-description`}
+                  aria-label={t`Description`}
+                  value={description}
+                  maxLength={BOT_DESCRIPTION_MAX_LENGTH}
+                  onChange={(e) => setDescription(e.target.value)}
+                  onBlur={() => void enqueueSave()}
+                  placeholder={t`What this bot is for`}
+                  rows={2}
+                  className="mt-2 min-h-16 resize-none field-sizing-content border-0 bg-transparent p-0 text-foreground shadow-none"
+                />
+              </label>
             </SettingsGroup>
+            {bot.botKind !== "roleplay" ? (
+              <>
+                <SettingsGroup label={t`Tools`}>
+                  <section data-testid="bot-settings-tools">
+                    <div className="space-y-2 [&>*]:mt-0">
+                      <div>
+                        <NativeSelect
+                          id={`${ids}-disabled-tools`}
+                          aria-label={t`Disable a tool`}
+                          value=""
+                          onChange={(event) => disableBuiltinTool(event.target.value)}
+                          className="w-full"
+                        >
+                          <NativeSelectOption value="">{t`Disable a tool`}</NativeSelectOption>
+                          {BUILTIN_TOOL_NAMES.filter(
+                            (name) => !disabledBuiltinTools.includes(name),
+                          ).map((name) => (
+                            <NativeSelectOption key={name} value={name}>
+                              {humanizeTool(name)}
+                            </NativeSelectOption>
+                          ))}
+                        </NativeSelect>
+                      </div>
+                      {disabledBuiltinTools.map((toolName) => (
+                        <div
+                          key={toolName}
+                          className="flex min-h-11 items-center justify-between gap-3 text-sm"
+                        >
+                          <span>{humanizeTool(toolName)}</span>
+                          <Button
+                            id={`${ids}-disabled-${toolName}`}
+                            variant="ghost"
+                            size="icon-xs"
+                            aria-label={t`Enable ${humanizeTool(toolName)}`}
+                            title={t`Enable ${humanizeTool(toolName)}`}
+                            onClick={() => {
+                              const next = disabledBuiltinTools.filter(
+                                (entry) => entry !== toolName,
+                              );
+                              setDisabledBuiltinTools(next);
+                              void enqueueSave({ disabledBuiltinTools: next });
+                            }}
+                          >
+                            <X className="size-4" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  </section>
+                </SettingsGroup>
+              </>
+            ) : null}
             <div className="overflow-hidden rounded-xl bg-muted/50 px-4">
               <button
                 type="button"

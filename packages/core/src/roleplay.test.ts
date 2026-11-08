@@ -1,0 +1,327 @@
+import type { RoleplayCharacter, RoleplayLorebookEntry } from "@rakazo/contracts";
+import { describe, expect, it } from "vitest";
+import {
+  boundedRoleplayImage,
+  buildRoleplayPrompt,
+  createRoleplayMetadataFilter,
+  ROLEPLAY_CHAT_INSTRUCTION,
+  ROLEPLAY_NARRATIVE_INSTRUCTION,
+  roleplayMacros,
+  roleplayMemoryWindow,
+  roleplayMessageTokens,
+  roleplayStoryState,
+  roleplayTokens,
+  roleplayTranscriptMetadata,
+  selectRoleplayLore,
+  stripRoleplayMetadata,
+} from "./roleplay.js";
+import { buildRoleplayRelationshipContext } from "./roleplay-continuity.js";
+
+const entry = (overrides: Partial<RoleplayLorebookEntry> = {}): RoleplayLorebookEntry => ({
+  keys: ["forest"],
+  secondaryKeys: [],
+  content: "The forest is ancient.",
+  enabled: true,
+  constant: false,
+  selective: false,
+  caseSensitive: false,
+  insertionOrder: 0,
+  position: "before_char",
+  ...overrides,
+});
+const character: RoleplayCharacter = {
+  name: "Aria",
+  description: "A wandering cartographer.",
+  personality: "Curious",
+  scenario: "{{char}} meets {{user}} by the gate.",
+  exampleDialogue: "{{char}}: Follow the stars.",
+  firstMessage: "The map unfolds.",
+  systemPrompt: "Use descriptive dialogue.",
+  postHistoryInstructions: "Stay in scene.",
+  alternateGreetings: [],
+  lorebook: {
+    name: "World",
+    description: "",
+    scanDepth: 2,
+    tokenBudget: 200,
+    entries: [entry()],
+  },
+};
+const scope = { threadId: "story-a", botId: "aria", historyGeneration: 0 };
+
+describe("roleplay prompt engine", () => {
+  it("includes relationship guidance with continuity and after optional story facts are removed", () => {
+    const relationshipState = { warmth: 100, intimacy: 40, love: 0 };
+    const guidance = buildRoleplayRelationshipContext(relationshipState);
+    for (const state of [
+      {
+        continuity: {
+          scene: "",
+          relationship: "",
+          sharedDetails: [],
+          openThreads: [],
+          callbacks: [],
+          relationshipState,
+        },
+      },
+      { relationshipState },
+    ]) {
+      const request = buildRoleplayPrompt({
+        character: { ...character, conversationStyle: "chat" },
+        history: [],
+        prompt: "Hi",
+        ...state,
+      });
+      expect(request.instructions).toContain(guidance);
+    }
+  });
+  it("selects chat instruction only explicitly and keeps continuity separate from examples", () => {
+    const continuity = {
+      scene: "Still messaging",
+      relationship: "New acquaintances",
+      sharedDetails: ["Player prefers tea"],
+      openThreads: ["A cafe was suggested, not agreed"],
+      callbacks: [],
+    };
+    const legacy = buildRoleplayPrompt({ character, history: [], prompt: "Hi" });
+    const narrative = buildRoleplayPrompt({
+      character: { ...character, conversationStyle: "narrative" },
+      history: [],
+      prompt: "Hi",
+    });
+    const chat = buildRoleplayPrompt({
+      character: { ...character, conversationStyle: "chat" },
+      history: [],
+      prompt: "Hi",
+      continuity,
+    });
+    expect(legacy.instructions).toBe(narrative.instructions);
+    expect(legacy.instructions.startsWith(ROLEPLAY_NARRATIVE_INSTRUCTION)).toBe(true);
+    expect(legacy.instructions).not.toContain(ROLEPLAY_CHAT_INSTRUCTION);
+    expect(chat.instructions).toContain(ROLEPLAY_CHAT_INSTRUCTION);
+    expect(chat.instructions).toContain(JSON.stringify(continuity));
+    expect(legacy.instructions).not.toContain(JSON.stringify(continuity));
+    expect(roleplayTokens(chat.instructions)).toBeGreaterThan(roleplayTokens(legacy.instructions));
+  });
+  it("keeps character, scene, example dialogue and narrative history distinct", () => {
+    const history = [{ seq: 1, role: "assistant" as const, content: "Welcome to the forest." }];
+    const prompt = buildRoleplayPrompt({
+      character,
+      history,
+      prompt: "I enter.",
+      summary: "We agreed to travel together.",
+    });
+    expect(prompt.history).toEqual(history);
+    expect(prompt.instructions).toContain("Aria meets Player by the gate.");
+    expect(prompt.instructions).toContain(
+      "Example dialogue (style examples, not events in this story):\nAria: Follow the stars.",
+    );
+    expect(prompt.instructions).toContain("We agreed to travel together.");
+    expect(prompt.instructions.indexOf("The forest is ancient.")).toBeLessThan(
+      prompt.instructions.indexOf("Character:\nAria"),
+    );
+    expect(prompt.prompt).toBe("I enter.");
+  });
+
+  it("supports literal, case-sensitive, constant and selective lore without recursive triggers", () => {
+    const book = {
+      ...character,
+      lorebook: {
+        ...character.lorebook!,
+        entries: [
+          entry({ keys: ["Forest"], caseSensitive: true }),
+          entry({ content: "A moonstone lies here.", constant: true, insertionOrder: 1 }),
+          entry({ keys: ["moonstone"], content: "Should not recurse", insertionOrder: 2 }),
+          entry({
+            selective: true,
+            secondaryKeys: ["night"],
+            content: "At night owls gather.",
+            position: "after_char",
+            insertionOrder: 3,
+          }),
+          entry({ constant: true, enabled: false, content: "Disabled" }),
+          entry({ keys: [".*"], content: "Regex is never evaluated" }),
+        ],
+      },
+    };
+    const selected = selectRoleplayLore(book, [
+      { seq: 0, role: "user", content: "The forest at night" },
+    ]);
+    expect(selected.activeEntries).toEqual([1, 3]);
+    expect(selected.after).toEqual(["At night owls gather."]);
+  });
+
+  it("uses scan depth, stable insertion order and a shared bounded lore budget", () => {
+    const book = {
+      ...character,
+      lorebook: {
+        ...character.lorebook!,
+        scanDepth: 1,
+        tokenBudget: 10,
+        entries: [
+          entry({ constant: true, content: "123456789", insertionOrder: 2 }),
+          entry({ content: "old lore", insertionOrder: 0 }),
+          entry({ constant: true, content: "abcdefghij", insertionOrder: 1 }),
+          entry({
+            constant: true,
+            content: "This will not fit inside the remaining budget.",
+            insertionOrder: 3,
+          }),
+        ],
+      },
+    };
+    const selected = selectRoleplayLore(book, [
+      { seq: 0, role: "user", content: "forest" },
+      { seq: 1, role: "assistant", content: "a gate" },
+    ]);
+    expect(selected.activeEntries).toEqual([2, 0]);
+    expect(selected.tokens).toBeLessThanOrEqual(10);
+    expect(selectRoleplayLore(book, [], "Player", 0).activeEntries).toEqual([]);
+  });
+
+  it("does not interpret macro scripts or expand arbitrary variables", () => {
+    expect(roleplayMacros("{{char}} {{user}} {{exec::rm -rf /}} {{secret}}", "Aria")).toBe(
+      "Aria Player {{exec::rm -rf /}} {{secret}}",
+    );
+  });
+});
+
+describe("story memory isolation", () => {
+  it("preserves legacy state when continuity is absent or independently invalid", () => {
+    const state = {
+      ...roleplayStoryState(null, scope),
+      summary: "An established event",
+      summarizedUpToSeq: 3,
+      turnCount: 2,
+      retainedInputs: [{ seq: 2, role: "user" as const, content: "A queued input" }],
+    };
+    expect(roleplayStoryState(state, scope)).toEqual(state);
+    for (const continuity of [null, {}, { scene: "x".repeat(801) }]) {
+      expect(roleplayStoryState({ ...state, continuity }, scope)).toEqual(state);
+    }
+    const continuity = {
+      scene: "A cafe",
+      relationship: "Friends",
+      sharedDetails: ["Tea"],
+      openThreads: [],
+      callbacks: [],
+    };
+    const restored = roleplayStoryState({ ...state, continuity }, scope);
+    expect(restored.continuity).toEqual(continuity);
+    continuity.sharedDetails.push("Later mutation");
+    expect(restored.continuity?.sharedDetails).toEqual(["Tea"]);
+    for (const changed of [{ threadId: "story-b" }, { botId: "other" }, { historyGeneration: 1 }])
+      expect(roleplayStoryState(restored, { ...scope, ...changed }).continuity).toBeUndefined();
+  });
+  it("accepts only the exact bot, thread and history generation", () => {
+    const state = {
+      ...roleplayStoryState(null, scope),
+      summary: "Private story event",
+      summarizedUpToSeq: 4,
+      turnCount: 2,
+    };
+    expect(roleplayStoryState(state, scope).summary).toBe("Private story event");
+    for (const changed of [{ threadId: "story-b" }, { botId: "other" }, { historyGeneration: 1 }])
+      expect(roleplayStoryState(state, { ...scope, ...changed }).summary).toBe("");
+    expect(roleplayStoryState({ ...state, summary: "x".repeat(16_001) }, scope).summary).toBe("");
+  });
+
+  it("retains recent dialogue verbatim and explicitly identifies older memory input", () => {
+    const history = Array.from({ length: 5 }, (_, seq) => ({
+      seq,
+      role: "user" as const,
+      content: `Turn ${seq}: ${"x".repeat(30)}`,
+    }));
+    const window = roleplayMemoryWindow(history, 45);
+    expect(window.older.concat(window.recent)).toEqual(history);
+    expect(window.recent.map((message) => message.seq)).toEqual([3, 4]);
+    expect(
+      window.recent.reduce((sum, message) => sum + roleplayTokens(message.content) + 8, 0),
+    ).toBeLessThanOrEqual(45);
+    expect(roleplayMemoryWindow(history, 0).older).toEqual(history);
+  });
+});
+
+it("places original input and history dating in system context without changing dialogue", () => {
+  const history = [
+    { seq: 1, role: "user" as const, content: "Tomorrow?", createdAt: "2026-10-27T12:00:00Z" },
+    { seq: 2, role: "assistant" as const, content: "Sure.", createdAt: "2026-10-27T12:00:05Z" },
+  ];
+  const currentInputs = [
+    {
+      seq: 3,
+      role: "user" as const,
+      content: "Actually Friday.",
+      createdAt: "2026-10-28T12:00:00Z",
+    },
+  ];
+  const request = buildRoleplayPrompt({
+    character,
+    history,
+    currentInputs,
+    prompt: currentInputs[0]!.content,
+    temporal: { now: "2026-10-29T12:00:00Z", timezone: "Europe/Lisbon" },
+  });
+  expect(request.history).toEqual(history);
+  expect(request.prompt).toBe("Actually Friday.");
+  const metadata = roleplayTranscriptMetadata(history, currentInputs);
+  expect(request.instructions.split("\n\n")).toContain(metadata);
+  expect(JSON.parse(metadata.split("\n")[1]!)).toEqual({
+    history: history.map(({ seq, role, createdAt }, index) => ({
+      position: index + 1,
+      seq,
+      role,
+      createdAt,
+    })),
+    currentInputs: [{ position: 1, seq: 3, role: "user", createdAt: "2026-10-28T12:00:00Z" }],
+  });
+  expect(JSON.stringify(request)).not.toContain("[Message createdAt:");
+});
+
+it("keeps bounded actual image metadata outside dialogue and accounts for it in memory fitting", () => {
+  const image = { description: "A fox beneath a bridge" };
+  const message = { seq: 2, role: "assistant" as const, content: "Our next stop.", image };
+  const request = buildRoleplayPrompt({ character, history: [message], prompt: "Continue." });
+  expect(request.history[0]?.content).toBe("Our next stop.");
+  expect(JSON.parse(roleplayTranscriptMetadata([message]).split("\n")[1]!)).toEqual({
+    history: [{ position: 1, seq: 2, role: "assistant", image }],
+    currentInputs: [],
+  });
+  expect(request.instructions).toContain(image.description);
+  expect(JSON.stringify(request)).not.toContain("[Shared image:");
+  const cost =
+    roleplayMessageTokens(message) + roleplayTokens(roleplayTranscriptMetadata([message]));
+  expect(roleplayMemoryWindow([message], cost).recent).toEqual([message]);
+  expect(roleplayMemoryWindow([message], cost - 1).older).toEqual([message]);
+  expect(boundedRoleplayImage({ description: "森".repeat(900) })?.description).toHaveLength(800);
+  for (const value of [null, {}, { description: 42 }, { description: " " }])
+    expect(boundedRoleplayImage(value)).toBeUndefined();
+});
+
+it("removes only known image wrappers across streaming boundaries and preserves user quotations", () => {
+  const description = "A fox [beside] the bridge";
+  const wrapper = `[Shared image: ${description}]`;
+  const raw = `The fox waits. ${wrapper} Continue?`;
+  for (let split = 0; split <= raw.length; split++) {
+    const filter = createRoleplayMetadataFilter([], [description]);
+    expect(filter.push(raw.slice(0, split)) + filter.push(raw.slice(split)) + filter.finish()).toBe(
+      "The fox waits.  Continue?",
+    );
+  }
+  const filter = createRoleplayMetadataFilter([], [description]);
+  expect([...raw].map((char) => filter.push(char)).join("") + filter.finish()).toBe(
+    "The fox waits.  Continue?",
+  );
+  expect(stripRoleplayMetadata("Hello [Shared image: A fox", [], [description])).toBe("Hello ");
+  const user = { content: `Please quote ${wrapper}` };
+  expect(stripRoleplayMetadata(user.content, [user], [description])).toBe(user.content);
+  for (const text of [
+    "[Shared image: Another picture]",
+    "[Shared image: note]",
+    "[hello]",
+    "Trailing [",
+    "Trailing [S",
+    "Trailing [Shared",
+  ])
+    expect(stripRoleplayMetadata(text, [], [description])).toBe(text);
+});

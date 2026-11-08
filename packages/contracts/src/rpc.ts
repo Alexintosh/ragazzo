@@ -47,6 +47,12 @@ import {
   VaultRevealed,
   VaultRevealInput,
 } from "./bot-secrets.js";
+import { ConversationFilesSchema } from "./conversation-files.js";
+import {
+  ConversationTaskSchema,
+  StoppedConversationRunSchema,
+  TaskWriteSubdirectorySchema,
+} from "./conversation-tasks.js";
 import {
   AccountItemSchema,
   ActionApprovalRuleSchema,
@@ -107,6 +113,7 @@ import {
   ModelCredentialSchema,
   ModelCreditAmountSchema,
   ModelOAuthBeginSchema,
+  NativeExecutionStatusSchema,
   OPENAI_COMPATIBLE_PROVIDER_ID,
   PluginMarketplaceCatalogSchema,
   PluginPartSchema,
@@ -124,6 +131,7 @@ import {
   ServerUpdateRequestSchema,
   ServerUpdateRunSchema,
   ServerUpdateStatusSchema,
+  SetBotExecutionInput,
   SignupSurveySchema,
   SkillPlaybookSchema,
   SpaceAvailabilitySchema,
@@ -166,8 +174,16 @@ import {
 } from "./integration-settings.js";
 import { ModelHeadersSchema } from "./model-headers.js";
 import { ModelRoleSchema, ModelRoleUpdateSchema, ModelRoleViewSchema } from "./model-roles.js";
+import { NativeSetupInput, NativeSetupViewSchema } from "./native-setup.js";
 import { PaymentWalletStatusSchema } from "./payments.js";
 import { MessageReactionSchema } from "./reactions.js";
+import {
+  HostDirectoriesInput,
+  HostDirectoriesViewSchema,
+  RegisteredHostSchema,
+  RegisterHostInput,
+} from "./registered-hosts.js";
+import { RoleplayRelationshipDebugSchema, RoleplayRelationshipSchema } from "./roleplay.js";
 import { RoutineWatchSchema } from "./routine-watch.js";
 import {
   ROUTINE_HISTORY_PAGE_SIZE,
@@ -175,9 +191,13 @@ import {
   RoutineRunCursorSchema,
   RunsListOutputSchema,
 } from "./runs.js";
+import { RuntimeModelsSchema, SetRuntimeModelInput } from "./runtime-models.js";
 import { SearchQueryOutputSchema } from "./search.js";
 import { SecurityEventListInputSchema, SecurityEventSchema } from "./security-events.js";
 import { SettingsScopeSchema, SpaceSettingSchema, settingsScopeInput } from "./settings-scope.js";
+import { QueueTextSchema, ThreadQueueSchema } from "./thread-queue.js";
+
+import { SaveWorkflowInput, WorkflowRunSchema, WorkflowSchema } from "./workflow.js";
 
 const botId = z.object({ botId: Id });
 const groupId = z.object({ groupId: Id });
@@ -186,18 +206,24 @@ const threadTarget = z
   .object({
     botId: Id.optional(),
     groupId: Id.optional(),
+    taskId: Id.optional(),
   })
   .superRefine((input, ctx) => {
-    const hasBot = Boolean(input.botId);
-    const hasGroup = Boolean(input.groupId);
-    if (hasBot === hasGroup) {
+    if ([input.botId, input.groupId, input.taskId].filter(Boolean).length !== 1) {
       ctx.addIssue({
         code: "custom",
-        message: "Provide exactly one of botId or groupId",
+        message: "Provide exactly one of botId, groupId or taskId",
         path: ["botId"],
       });
     }
   });
+
+const queueTarget = threadTarget
+  .safeExtend({ recipientBotId: Id.optional() })
+  .refine(
+    (input) => !input.groupId || Boolean(input.recipientBotId),
+    "Choose a recipient for this group queue",
+  );
 
 const structuredMentionTarget = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("bot"), id: Id }),
@@ -338,10 +364,15 @@ export const appContract = {
           .object({
             avatarStyle: AvatarStyleSchema.optional(),
             timezone: TimeZoneSchema.nullable().optional(),
+            roleplayEnabled: z.boolean().optional(),
           })
-          .refine((input) => input.avatarStyle !== undefined || input.timezone !== undefined, {
-            message: "Nothing to update",
-          }),
+          .refine(
+            (input) =>
+              input.avatarStyle !== undefined ||
+              input.timezone !== undefined ||
+              input.roleplayEnabled !== undefined,
+            { message: "Nothing to update" },
+          ),
       )
       .output(MeSchema),
     /** Saves a detected timezone only while none is saved, so it never replaces a choice. */
@@ -486,6 +517,54 @@ export const appContract = {
     list: oc.output(z.array(BotSchema)),
     listArchived: oc.output(z.array(BotSchema)),
     get: oc.input(botId).output(BotSchema),
+    roleplayMedia: oc.input(botId).output(
+      z.object({
+        artifacts: z.array(ArtifactSchema),
+        storyMode: z.boolean(),
+        scene: z.string(),
+        historyGeneration: z.number().int().nonnegative(),
+        revision: z.string(),
+      }),
+    ),
+    updateRoleplayStoryMode: oc
+      .input(
+        z.object({
+          botId: Id,
+          enabled: z.boolean(),
+          historyGeneration: z.number().int().nonnegative(),
+          expectedRevision: z.string().min(1).max(128),
+        }),
+      )
+      .output(
+        z.object({
+          artifacts: z.array(ArtifactSchema),
+          storyMode: z.boolean(),
+          scene: z.string(),
+          historyGeneration: z.number().int().nonnegative(),
+          revision: z.string(),
+        }),
+      ),
+    importRoleplayMedia: oc
+      .input(
+        z.object({
+          botId: Id,
+          url: z.url().max(4096),
+          name: z.string().trim().min(1).max(200).optional(),
+          description: z.string().max(800).optional(),
+        }),
+      )
+      .output(ArtifactSchema),
+    roleplayRelationship: oc.input(botId).output(RoleplayRelationshipDebugSchema),
+    updateRoleplayRelationship: oc
+      .input(
+        z.object({
+          botId: Id,
+          relationship: RoleplayRelationshipSchema,
+          historyGeneration: z.number().int().min(0),
+          expectedRevision: z.string().min(1).max(128),
+        }),
+      )
+      .output(RoleplayRelationshipDebugSchema),
     create: oc.input(CreateBotInput).output(BotSchema),
     importPreview: oc.input(AgentImportPreviewInput).output(AgentImportPlanSchema),
     importCreate: oc.input(AgentImportCreateInput).output(BotSchema),
@@ -503,6 +582,10 @@ export const appContract = {
         }),
       )
       .output(BotSchema),
+    executionStatus: oc.input(botId).output(NativeExecutionStatusSchema),
+    runtimeModels: oc.input(botId).output(RuntimeModelsSchema),
+    setRuntimeModel: oc.input(SetRuntimeModelInput).output(BotSchema),
+    setExecution: oc.input(SetBotExecutionInput).output(BotSchema),
     setComputer: oc.input(z.object({ botId: Id, mode: ComputerModeSchema })).output(BotSchema),
     archive: oc.input(botId).output(z.object({ ok: z.literal(true) })),
     restore: oc.input(botId).output(z.object({ ok: z.literal(true) })),
@@ -585,6 +668,48 @@ export const appContract = {
       )
       .output(z.object({ ok: z.literal(true), runIds: z.array(Id).optional() })),
     stop: oc.input(threadTarget).output(z.object({ ok: z.literal(true) })),
+    queue: oc.input(queueTarget).output(ThreadQueueSchema),
+    enqueue: oc
+      .input(
+        queueTarget.safeExtend({
+          text: QueueTextSchema,
+          clientNonce: z.string().min(1).max(200).optional(),
+        }),
+      )
+      .output(ThreadQueueSchema),
+    updateQueued: oc
+      .input(
+        queueTarget.safeExtend({
+          id: Id,
+          revision: z.number().int().nonnegative(),
+          text: QueueTextSchema,
+        }),
+      )
+      .output(ThreadQueueSchema),
+    cancelQueued: oc
+      .input(
+        queueTarget.safeExtend({
+          id: Id,
+          revision: z.number().int().nonnegative(),
+        }),
+      )
+      .output(ThreadQueueSchema),
+    reorderQueued: oc
+      .input(
+        queueTarget.safeExtend({
+          ids: z.array(Id).max(200),
+          revision: z.number().int().nonnegative(),
+        }),
+      )
+      .output(ThreadQueueSchema),
+    steerQueued: oc
+      .input(
+        queueTarget.safeExtend({
+          id: Id,
+          revision: z.number().int().nonnegative(),
+        }),
+      )
+      .output(ThreadQueueSchema),
     followUp: oc
       .input(
         threadTarget.safeExtend({
@@ -684,6 +809,104 @@ export const appContract = {
     markUnread: oc
       .input(threadTarget.and(z.object({ messageId: Id.optional() })))
       .output(z.object({ ok: z.literal(true) })),
+  },
+  workflows: {
+    list: oc.input(z.object({})).output(z.object({ workflows: z.array(WorkflowSchema) })),
+    get: oc.input(z.object({ workflowId: Id })).output(WorkflowSchema),
+    save: oc.input(SaveWorkflowInput).output(WorkflowSchema),
+    start: oc
+      .input(
+        z.object({
+          workflowId: Id,
+          revision: z.number().int().positive(),
+          clientNonce: z.string().min(1).max(100),
+        }),
+      )
+      .output(WorkflowRunSchema),
+    runs: oc
+      .input(z.object({ workflowId: Id }))
+      .output(z.object({ runs: z.array(WorkflowRunSchema) })),
+    run: oc.input(z.object({ runId: Id })).output(WorkflowRunSchema),
+    cancel: oc
+      .input(z.object({ runId: Id, revision: z.number().int().positive() }))
+      .output(WorkflowRunSchema),
+    recover: oc
+      .input(
+        z.object({
+          runId: Id,
+          nodeId: z.string(),
+          revision: z.number().int().positive(),
+          clientNonce: z.string().min(1).max(100),
+          text: z.string().trim().min(1).max(16000).optional(),
+        }),
+      )
+      .output(WorkflowRunSchema),
+  },
+  tasks: {
+    get: oc.input(z.object({ taskId: Id })).output(ConversationTaskSchema),
+    list: oc
+      .input(z.object({ botId: Id.optional(), groupId: Id.optional(), cursor: Id.optional() }))
+      .output(z.object({ tasks: z.array(ConversationTaskSchema), nextCursor: Id.nullable() })),
+    stopped: oc
+      .input(threadTarget)
+      .output(z.object({ runs: z.array(StoppedConversationRunSchema) })),
+    create: oc
+      .input(
+        z
+          .object({
+            botId: Id,
+            text: QueueTextSchema,
+            clientNonce: z.string().min(1).max(200),
+            originBotId: Id.optional(),
+            originGroupId: Id.optional(),
+          })
+          .strict()
+          .refine((input) => !(input.originBotId && input.originGroupId), "Choose one origin"),
+      )
+      .output(ConversationTaskSchema),
+    createScoped: oc
+      .input(
+        z
+          .object({
+            botId: Id,
+            text: QueueTextSchema,
+            clientNonce: z.string().min(1).max(200),
+            originBotId: Id.optional(),
+            originGroupId: Id.optional(),
+            writeSubdirectory: TaskWriteSubdirectorySchema,
+          })
+          .refine((input) => !(input.originBotId && input.originGroupId), "Choose one origin"),
+      )
+      .output(ConversationTaskSchema),
+    recover: oc
+      .input(
+        z.object({
+          runId: Id,
+          botId: Id,
+          clientNonce: z.string().min(1).max(200),
+          text: QueueTextSchema.optional(),
+        }),
+      )
+      .output(ConversationTaskSchema),
+    startQueued: oc
+      .input(
+        queueTarget.safeExtend({
+          id: Id,
+          revision: z.number().int().nonnegative(),
+          clientNonce: z.string().min(1).max(200),
+        }),
+      )
+      .output(ConversationTaskSchema),
+  },
+  nativeSetup: {
+    request: oc.input(NativeSetupInput).output(NativeSetupViewSchema),
+  },
+  hosts: {
+    directories: oc.input(HostDirectoriesInput).output(HostDirectoriesViewSchema),
+    list: oc.output(z.array(RegisteredHostSchema)),
+    register: oc.input(RegisterHostInput).output(RegisteredHostSchema),
+    revoke: oc.input(z.object({ hostId: Id })).output(RegisteredHostSchema),
+    check: oc.input(z.object({ hostId: Id })).output(RegisteredHostSchema),
   },
   computer: {
     status: oc.input(botId).output(ComputerStatusSchema),
@@ -1247,6 +1470,7 @@ export const appContract = {
       .output(z.array(SpaceSettingSchema)),
   },
   artifacts: {
+    listConversation: oc.input(threadTarget).output(ConversationFilesSchema),
     list: oc.input(botId).output(z.array(ArtifactSchema)),
     listSpace: oc
       .input(

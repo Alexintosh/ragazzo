@@ -13,6 +13,10 @@ msgstr ""
 "Language-Team: \n"
 "Plural-Forms: \n"
 
+#: src/pages/shell/registered-host-picker.tsx
+msgid " (revoked)"
+msgstr ""
+
 #: src/pages/shell/sidebar-roster.tsx
 msgid " (unread)"
 msgstr " (읽지 않음)"
@@ -96,6 +100,12 @@ msgstr "{0} 연결"
 msgid "{0} default"
 msgstr ""
 
+#. placeholder {0}: files.data.storage.files
+#. placeholder {1}: formatFileBytes(files.data.storage.bytes)
+#: src/pages/shell/conversation-files-panel.tsx
+msgid "{0} files · {1} stored, including versions"
+msgstr ""
+
 #. placeholder {0}: parts.amount
 #: src/components/ArtifactFileCard.tsx
 msgid "{0} GB"
@@ -140,6 +150,11 @@ msgstr ""
 #: src/components/ArtifactFileCard.tsx
 msgid "{0} TB"
 msgstr "{0} TB"
+
+#. placeholder {0}: file.versionCount
+#: src/pages/shell/conversation-files-panel.tsx
+msgid "{0} versions"
+msgstr ""
 
 #. placeholder {0}: bot.name
 #: src/pages/ExternalConversationSettings.tsx
@@ -217,6 +232,11 @@ msgstr ""
 #: src/lib/relative-time.ts
 msgid "{hours}h ago"
 msgstr "{hours}시간 전"
+
+#. placeholder {0}: index + 1
+#: src/pages/shell/roleplay-settings.tsx
+msgid "{label} {0}"
+msgstr ""
 
 #: src/components/markdown-copy.tsx
 msgid "{label}, empty"
@@ -437,6 +457,14 @@ msgstr "구독 인증 정보가 안전하게 저장되어 있습니다."
 msgid "About {label}"
 msgstr "{label} 정보"
 
+#: src/pages/shell/project-folder-picker.tsx
+msgid "Absolute path on host"
+msgstr ""
+
+#: src/pages/shell/bot-runtime-settings.tsx
+msgid "Access"
+msgstr ""
+
 #: src/pages/McpServersOverlay.tsx
 msgid "Access token (optional)"
 msgstr "액세스 토큰(선택 사항)"
@@ -552,6 +580,14 @@ msgstr ""
 msgid "Add custom"
 msgstr ""
 
+#: src/pages/Workflows.tsx
+msgid "Add dependency"
+msgstr ""
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Add entry"
+msgstr ""
+
 #: src/pages/ModelRoleSettings.tsx
 msgid "Add fallback"
 msgstr "대체 모델 추가"
@@ -567,6 +603,14 @@ msgstr "헤더 추가"
 #: src/pages/ScratchpadSection.tsx
 msgid "Add item"
 msgstr "항목 추가"
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Add key"
+msgstr ""
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Add lorebook"
+msgstr ""
 
 #: src/components/integrations/IntegrationSetup.tsx
 msgid "Add MCP server"
@@ -597,6 +641,10 @@ msgstr ""
 msgid "Add skills"
 msgstr ""
 
+#: src/pages/Workflows.tsx
+msgid "Add step"
+msgstr ""
+
 #: src/components/teach/SkillDraftCard.tsx
 msgid "Add to routine"
 msgstr "자동 실행에 추가"
@@ -612,6 +660,10 @@ msgstr "워크스페이스 추가"
 #: src/components/integrations/plugin-marketplace.tsx
 #: src/pages/PluginsOverlay.tsx
 msgid "Added"
+msgstr ""
+
+#: src/pages/shell/roleplay-images.tsx
+msgid "Adding image…"
 msgstr ""
 
 #: src/components/integrations/plugin-marketplace.tsx
@@ -634,6 +686,19 @@ msgstr "고급 설정"
 #: src/pages/RoutineEditor.tsx
 msgid "Advanced..."
 msgstr "고급..."
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "After character"
+msgstr ""
+
+#: src/pages/shell/bot-runtime-settings.tsx
+msgid "Agent"
+msgstr ""
+
+#: src/pages/shell/bot-panel.tsx
+#: src/pages/shell/create-bot-dialog.tsx
+msgid "Agent and environment"
+msgstr ""
 
 #: src/pages/McpServersOverlay.tsx
 msgid "Agents:"
@@ -711,6 +776,10 @@ msgstr "이미 계정이 있나요?"
 
 #: src/pages/ExternalConversationSettings.tsx
 msgid "Always act"
+msgstr ""
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Always active"
 msgstr ""
 
 #: src/components/AskCard.tsx
@@ -835,6 +904,10 @@ msgstr "승인"
 msgid "Approve"
 msgstr "승인"
 
+#: src/pages/shell/native-runtime-setup.tsx
+msgid "Approve in the host terminal"
+msgstr ""
+
 #: src/pages/shell/message-cards.tsx
 msgid "Approve this server to let your agent use its tools."
 msgstr "이 서버를 승인하면 Bot이 제공되는 도구를 사용할 수 있습니다."
@@ -896,6 +969,7 @@ msgstr "파일 첨부"
 
 #: src/pages/shell/chat-context.tsx
 #: src/pages/shell/chat-shared.ts
+#: src/pages/shell/conversation-files-panel.tsx
 msgid "Attachment"
 msgstr "첨부 파일"
 
@@ -977,9 +1051,17 @@ msgstr "아바타 스튜디오"
 msgid "Back"
 msgstr "뒤로"
 
+#: src/pages/Workflows.tsx
+msgid "Back to chats"
+msgstr ""
+
 #: src/pages/Auth.tsx
 msgid "Back to sign in"
 msgstr "로그인으로 돌아가기"
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Balanced"
+msgstr "균형 있게"
 
 #: src/pages/memory-providers/ConnectionModeFields.tsx
 msgid "Base URL"
@@ -998,6 +1080,10 @@ msgstr ""
 #: src/pages/PluginsOverlay.tsx
 msgid "Bearer token"
 msgstr "Bearer 토큰"
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Before character"
+msgstr ""
 
 #: src/pages/settings-nav.ts
 msgid "Billing"
@@ -1035,8 +1121,10 @@ msgstr "Bot"
 #: src/pages/MessagingSettingsPanel.tsx
 #: src/pages/Shell.tsx
 #: src/pages/shell/avatar-studio-popover.tsx
+#: src/pages/shell/conversation-tasks.tsx
 #: src/pages/shell/message-view.tsx
 #: src/pages/SpaceSearch.tsx
+#: src/pages/Workflows.tsx
 msgid "Bot"
 msgstr "봇"
 
@@ -1044,6 +1132,10 @@ msgstr "봇"
 #: src/lib/browser-notifications.ts
 msgid "Bot"
 msgstr "Bot"
+
+#: src/pages/Shell.tsx
+msgid "Bot conversation"
+msgstr ""
 
 #: src/components/teach/TeachRecordingChrome.tsx
 msgid "Bot is watching, not acting"
@@ -1086,7 +1178,12 @@ msgid "Brain label"
 msgstr ""
 
 #: src/components/integrations/skills-dialog.tsx
+#: src/pages/shell/project-folder-picker.tsx
 msgid "Browse"
+msgstr ""
+
+#: src/pages/shell/project-folder-picker.tsx
+msgid "Browse folders in the host home directory."
 msgstr ""
 
 #: src/pages/PluginsOverlay.tsx
@@ -1097,6 +1194,14 @@ msgstr ""
 #: src/pages/shell/agent-import.tsx
 msgid "Built-in"
 msgstr "기본 제공"
+
+#: src/pages/RoutineEditor.tsx
+msgid "Calendar"
+msgstr ""
+
+#: src/pages/RoutineCalendar.tsx
+msgid "Calendar view"
+msgstr ""
 
 #: src/pages/shell/chat-header.tsx
 msgid "Call"
@@ -1152,6 +1257,8 @@ msgstr "이미지를 읽을 수 없음"
 #: src/pages/PluginSubmissionsPanel.tsx
 #: src/pages/shell/create-bot-dialog.tsx
 #: src/pages/shell/dialogs.tsx
+#: src/pages/shell/project-folder-picker.tsx
+#: src/pages/shell/thread-queue.tsx
 #: src/pages/SpaceSettingOverrides.tsx
 msgid "Cancel"
 msgstr "취소"
@@ -1167,6 +1274,10 @@ msgstr "새 그룹 만들기 취소"
 #: src/pages/shell/chat-context.tsx
 msgid "Cancel reply"
 msgstr "답장 취소"
+
+#: src/pages/shell/native-runtime-setup.tsx
+msgid "Cancel setup"
+msgstr ""
 
 #: src/pages/BillingSettingsPanel.tsx
 msgid "Canceled"
@@ -1189,6 +1300,10 @@ msgstr "변경할 규칙"
 msgid "Card view"
 msgstr ""
 
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Case sensitive"
+msgstr ""
+
 #: src/pages/ModelRoleSettings.tsx
 msgid "Change {name}"
 msgstr "{name} 변경"
@@ -1205,13 +1320,49 @@ msgstr "모델 변경"
 msgid "Change password"
 msgstr "비밀번호 변경"
 
+#: src/pages/shell/roleplay-relationship-debug.tsx
+msgid "Changes affect this conversation."
+msgstr "변경 사항은 이 대화에 적용됩니다."
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Changes apply to the next reply. Story history and memory are kept."
+msgstr ""
+
 #: src/pages/AccountSettingsOverlay.tsx
 msgid "Changing…"
 msgstr "변경 중…"
 
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Character"
+msgstr ""
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Character content must be at most 1 MB."
+msgstr ""
+
+#: src/pages/shell/create-bot-dialog.tsx
+msgid "Character JSON"
+msgstr ""
+
+#: src/pages/shell/create-bot-dialog.tsx
+msgid "Character JSON contains invalid or oversized fields."
+msgstr ""
+
+#: src/pages/shell/create-bot-dialog.tsx
+msgid "Character JSON must be 1 MB or smaller."
+msgstr ""
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Character name"
+msgstr ""
+
 #: src/pages/shell/message-cards.tsx
 msgid "Chart failed to render: {error}"
 msgstr "차트를 표시하지 못했습니다: {error}"
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Chat"
+msgstr "채팅"
 
 #: src/pages/shell/composer-mentions.tsx
 msgid "Chat Settings"
@@ -1228,6 +1379,10 @@ msgstr ""
 #: src/lib/identity-display.ts
 msgid "Chats"
 msgstr "채팅"
+
+#: src/pages/shell/registered-host-picker.tsx
+msgid "Check"
+msgstr ""
 
 #: src/components/ComputersUnavailableHint.tsx
 #: src/pages/HostComputerPrompt.tsx
@@ -1255,6 +1410,10 @@ msgstr "확인해 주세요."
 msgid "Check the API key or sign-in, then test again."
 msgstr "API 키 또는 로그인을 확인한 뒤 다시 테스트하세요."
 
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Check the highlighted fields."
+msgstr ""
+
 #: src/lib/model-connection-preflight.ts
 msgid "Check the server URL and network, then test again."
 msgstr "서버 URL과 네트워크를 확인한 뒤 다시 테스트하세요."
@@ -1279,11 +1438,24 @@ msgstr ""
 msgid "Checking connection…"
 msgstr "연결 확인 중…"
 
+#: src/pages/shell/bot-runtime-settings.tsx
+msgid "Checking Docker availability…"
+msgstr ""
+
+#: src/pages/shell/bot-runtime-settings.tsx
+msgid "Checking runtime…"
+msgstr ""
+
 #: src/components/ComputersUnavailableHint.tsx
 #: src/components/DesktopUpdates.tsx
 #: src/pages/HostComputerPrompt.tsx
 msgid "Checking…"
 msgstr "확인 중…"
+
+#: src/pages/Shell.tsx
+#: src/pages/shell/conversation-tasks.tsx
+msgid "Choose a bot"
+msgstr "봇 선택"
 
 #: src/pages/shell/avatar-studio-popover.tsx
 msgid "Choose a bot shape, color, or upload an image"
@@ -1302,6 +1474,10 @@ msgstr "새 비밀번호 선택"
 msgid "Choose a provider"
 msgstr ""
 
+#: src/pages/shell/create-bot-dialog.tsx
+msgid "Choose a valid character JSON file."
+msgstr ""
+
 #: src/pages/shell/agent-import.tsx
 msgid "Choose backup"
 msgstr "백업 선택"
@@ -1318,6 +1494,10 @@ msgstr "폴더 선택"
 #: src/components/ModelCredits.tsx
 #: src/components/SubscriptionGate.tsx
 msgid "Choose how to use Rakazo"
+msgstr ""
+
+#: src/pages/shell/composer.tsx
+msgid "Choose runtime and model"
 msgstr ""
 
 #: src/lib/localized-provider-hint.ts
@@ -1346,6 +1526,10 @@ msgstr ""
 #: src/pages/shell/dialogs.tsx
 msgid "Clearing…"
 msgstr "비우는 중…"
+
+#: src/pages/shell/native-runtime-setup.tsx
+msgid "CLI unavailable"
+msgstr ""
 
 #: src/components/ErrorBoundary.tsx
 #: src/pages/KnowledgeSection.tsx
@@ -1536,6 +1720,10 @@ msgstr "컴퓨터가 꺼져 있습니다. SANDBOX_PROVIDER=docker와 SANDBOX_SUP
 msgid "Configure a plugin catalog on the server to connect apps."
 msgstr ""
 
+#: src/pages/shell/native-runtime-setup.tsx
+msgid "Configure the ACP command in the host’s private native-providers.json file."
+msgstr ""
+
 #: src/pages/McpServersOverlay.tsx
 msgid "Configured servers"
 msgstr "연결된 서버"
@@ -1674,6 +1862,10 @@ msgstr ""
 msgid "Contains code to run"
 msgstr "실행할 코드 포함"
 
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Content"
+msgstr ""
+
 #: src/pages/model-settings/compatible-model-fields.tsx
 #: src/pages/Onboarding.tsx
 msgid "Context limit"
@@ -1694,6 +1886,14 @@ msgstr "계속"
 msgid "Continue in Background"
 msgstr ""
 
+#: src/pages/shell/native-runtime-setup.tsx
+msgid "Continue in the host browser."
+msgstr ""
+
+#: src/pages/shell/native-runtime-setup.tsx
+msgid "Continue sign-in"
+msgstr ""
+
 #: src/components/ModelCredits.tsx
 msgid "Continue to checkout"
 msgstr ""
@@ -1702,6 +1902,19 @@ msgstr ""
 #: src/pages/Auth.tsx
 msgid "Continue with {0}"
 msgstr "{0}(으)로 계속"
+
+#: src/pages/shell/computer-overlay.tsx
+msgid "Conversation"
+msgstr ""
+
+#: src/pages/shell/chat-header.tsx
+#: src/pages/shell/conversation-files-panel.tsx
+msgid "Conversation files"
+msgstr ""
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Conversation style"
+msgstr "대화 스타일"
 
 #: src/pages/MessagingSettingsPanel.tsx
 msgid "Conversations"
@@ -1753,6 +1966,10 @@ msgstr "비용"
 msgid "Could not add"
 msgstr "추가하지 못했습니다."
 
+#: src/pages/shell/roleplay-images.tsx
+msgid "Could not add image"
+msgstr ""
+
 #: src/pages/McpServersOverlay.tsx
 msgid "Could not add MCP server"
 msgstr "MCP 서버를 추가하지 못했습니다."
@@ -1783,6 +2000,18 @@ msgstr "비밀번호를 변경할 수 없습니다"
 
 #: src/components/integrations/space-availability.tsx
 msgid "Could not change where this is available"
+msgstr ""
+
+#: src/pages/shell/bot-runtime-settings.tsx
+msgid "Could not check Docker availability."
+msgstr ""
+
+#: src/pages/shell/bot-runtime-settings.tsx
+msgid "Could not check runtime"
+msgstr ""
+
+#: src/pages/shell/native-runtime-setup.tsx
+msgid "Could not check runtime setup"
 msgstr ""
 
 #: src/lib/model-connection-preflight.ts
@@ -1932,8 +2161,16 @@ msgstr "{0}을 다운로드하지 못했습니다. 다시 시도해 주세요."
 msgid "Could not download {name}. Try again."
 msgstr "{name}을 다운로드하지 못했습니다. 다시 시도해 주세요."
 
+#: src/pages/shell/conversation-files-panel.tsx
+msgid "Could not download file."
+msgstr ""
+
 #: src/components/integrations/plugin-marketplace.tsx
 msgid "Could not enable tools"
+msgstr ""
+
+#: src/pages/shell/create-bot-dialog.tsx
+msgid "Could not import character JSON"
 msgstr ""
 
 #: src/pages/PluginsOverlay.tsx
@@ -1975,6 +2212,14 @@ msgstr ""
 msgid "Could not load credentials."
 msgstr ""
 
+#: src/pages/shell/conversation-files-panel.tsx
+msgid "Could not load files."
+msgstr ""
+
+#: src/pages/shell/registered-host-picker.tsx
+msgid "Could not load hosts"
+msgstr ""
+
 #: src/pages/PluginsOverlay.tsx
 msgid "Could not load integrations"
 msgstr "연동 목록을 불러오지 못했습니다."
@@ -1988,6 +2233,15 @@ msgstr "MCP 서버 목록을 불러오지 못했습니다."
 msgid "Could not load model settings"
 msgstr "AI 모델 설정을 불러오지 못했습니다."
 
+#: src/pages/shell/bot-model-picker.tsx
+msgid "Could not load models"
+msgstr ""
+
+#: src/pages/shell/roleplay-relationship-debug.tsx
+msgid "Could not load relationship"
+msgstr "관계를 불러올 수 없습니다"
+
+#: src/pages/RoutineCalendar.tsx
 #: src/pages/RoutineRunHistory.tsx
 msgid "Could not load run history"
 msgstr "실행 기록을 불러오지 못했습니다"
@@ -2001,6 +2255,14 @@ msgstr "로그인 옵션을 불러올 수 없습니다"
 #: src/pages/KnowledgeSection.tsx
 msgid "Could not load skill"
 msgstr "스킬을 불러오지 못했습니다"
+
+#: src/pages/shell/roleplay-story-mode.tsx
+msgid "Could not load story mode"
+msgstr ""
+
+#: src/pages/Shell.tsx
+msgid "Could not load task"
+msgstr ""
 
 #: src/pages/Artifacts.tsx
 msgid "Could not load this artifact."
@@ -2027,6 +2289,10 @@ msgstr "로그아웃하지 못했습니다. 다시 시도해 주세요."
 #: src/pages/Onboarding.tsx
 #: src/pages/Paywall.tsx
 msgid "Could not open billing"
+msgstr ""
+
+#: src/pages/shell/project-folder-picker.tsx
+msgid "Could not open folder. Check the path and host access."
 msgstr ""
 
 #: src/pages/VoiceSettingsOverlay.tsx
@@ -2132,13 +2398,22 @@ msgstr "저장하지 못했습니다."
 msgid "Could not save Auto Review"
 msgstr "자동 검토를 저장할 수 없습니다"
 
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Could not save character"
+msgstr ""
+
 #: src/pages/GroupPanel.tsx
 msgid "Could not save group"
 msgstr "그룹을 저장하지 못했습니다."
 
 #: src/pages/Onboarding.tsx
+#: src/pages/shell/bot-model-picker.tsx
 msgid "Could not save model"
 msgstr "AI 모델을 저장하지 못했습니다."
+
+#: src/pages/shell/roleplay-relationship-debug.tsx
+msgid "Could not save relationship"
+msgstr "관계를 저장할 수 없습니다"
 
 #: src/pages/shell/use-routine-editor.ts
 msgid "Could not save routine"
@@ -2242,6 +2517,10 @@ msgstr ""
 msgid "Could not update computer"
 msgstr "컴퓨터를 업데이트할 수 없습니다"
 
+#: src/pages/shell/registered-host-picker.tsx
+msgid "Could not update host"
+msgstr ""
+
 #: src/pages/AccountSettingsOverlay.tsx
 msgid "Could not update name"
 msgstr "이름을 업데이트하지 못했습니다"
@@ -2249,6 +2528,10 @@ msgstr "이름을 업데이트하지 못했습니다"
 #: src/pages/shell/use-composer-actions.ts
 msgid "Could not update reaction"
 msgstr "반응을 업데이트할 수 없습니다"
+
+#: src/pages/shell/roleplay-story-mode.tsx
+msgid "Could not update story mode"
+msgstr ""
 
 #: src/pages/MemorySettingsOverlay.tsx
 msgid "Could not update the default memory scope"
@@ -2273,6 +2556,10 @@ msgstr ""
 #: src/pages/MessagingSettingsPanel.tsx
 msgid "Couldn't update messaging settings"
 msgstr "메시징 설정을 업데이트할 수 없습니다"
+
+#: src/pages/AccountSettingsOverlay.tsx
+msgid "Couldn't update roleplay settings"
+msgstr ""
 
 #: src/pages/AccountSettingsOverlay.tsx
 msgid "Couldn't update your timezone"
@@ -2398,6 +2685,10 @@ msgstr ""
 msgid "day"
 msgstr "일"
 
+#: src/pages/RoutineCalendar.tsx
+msgid "Day"
+msgstr ""
+
 #: src/pages/shell/message-cards.tsx
 msgid "Day-to-day work"
 msgstr ""
@@ -2416,14 +2707,21 @@ msgstr "거절"
 #: src/pages/ModelRoleSettings.tsx
 #: src/pages/Onboarding.tsx
 #: src/pages/shell/avatar-studio-popover.tsx
+#: src/pages/shell/bot-model-picker.tsx
 msgid "Default"
 msgstr "기본값"
 
 #. placeholder {0}: thinkingLevelLabel(defaultThinkingLevel)
+#. placeholder {0}: thinkingLevelLabel(effective.defaultThinkingLevel)
 #: src/pages/RoutineEditor.tsx
+#: src/pages/shell/bot-model-picker.tsx
 #: src/pages/shell/bot-panel.tsx
 msgid "Default ({0})"
 msgstr "기본값 ({0})"
+
+#: src/pages/shell/bot-runtime-settings.tsx
+msgid "Default environment"
+msgstr ""
 
 #: src/pages/shell/agent-import.tsx
 msgid "Default from Hermes"
@@ -2491,6 +2789,10 @@ msgstr "섹션 삭제"
 msgid "Delete space"
 msgstr ""
 
+#: src/pages/Workflows.tsx
+msgid "Delete step"
+msgstr ""
+
 #: src/pages/SpaceSettingOverrides.tsx
 msgid "Delete this Space's credentials?"
 msgstr "이 스페이스의 자격 증명을 삭제할까요?"
@@ -2519,6 +2821,9 @@ msgstr "거부"
 
 #: src/pages/Board.tsx
 #: src/pages/shell/agent-import.tsx
+#: src/pages/shell/bot-panel.tsx
+#: src/pages/shell/roleplay-images.tsx
+#: src/pages/shell/roleplay-settings.tsx
 msgid "Description"
 msgstr "설명"
 
@@ -2543,6 +2848,14 @@ msgstr "세부 정보"
 msgid "Developer"
 msgstr ""
 
+#: src/pages/shell/native-runtime-setup.tsx
+msgid "Device code"
+msgstr ""
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Dialogue examples"
+msgstr ""
+
 #: src/lib/dictation.ts
 msgid "Dictation ended unexpectedly."
 msgstr ""
@@ -2560,8 +2873,16 @@ msgid "Disable a tool"
 msgstr "도구 비활성화"
 
 #: src/pages/PluginsOverlay.tsx
+#: src/pages/shell/roleplay-settings.tsx
 msgid "Disabled"
 msgstr "비활성화됨"
+
+#: src/pages/shell/conversation-tasks.tsx
+#: src/pages/shell/roleplay-relationship-debug.tsx
+#: src/pages/shell/roleplay-settings.tsx
+#: src/pages/shell/thread-queue.tsx
+msgid "Discard"
+msgstr ""
 
 #: src/components/composer/HoldToTalk.tsx
 msgid "Discard recording"
@@ -2626,9 +2947,17 @@ msgstr "Docker"
 msgid "Docker is configured but computers are not responding. Confirm the sandbox supervisor is running, then recreate the stack after changing .env."
 msgstr ""
 
+#: src/pages/shell/bot-runtime-settings.tsx
+msgid "Docker is not enabled on this deployment."
+msgstr ""
+
 #: src/pages/HostComputerPrompt.tsx
 msgid "Docker limits access to your computer for added security. Using {hostLabel} lets bots work with your local files and tools."
 msgstr "Docker는 보안을 위해 컴퓨터 접근을 제한합니다. {hostLabel}에서는 Bot이 로컬 파일과 도구로 작업할 수 있습니다."
+
+#: src/pages/shell/bot-runtime-settings.tsx
+msgid "Docker sandbox"
+msgstr ""
 
 #: src/components/SidebarFooter.tsx
 msgid "Docs"
@@ -2658,11 +2987,14 @@ msgstr ""
 
 #: src/pages/Artifacts.tsx
 #: src/pages/KnowledgeSection.tsx
+#: src/pages/shell/conversation-files-panel.tsx
 msgid "Download"
 msgstr ""
 
+#. placeholder {0}: file.name
 #. placeholder {0}: props.name
 #: src/components/ArtifactFileCard.tsx
+#: src/pages/shell/conversation-files-panel.tsx
 msgid "Download {0}"
 msgstr "{0} 다운로드"
 
@@ -2697,6 +3029,7 @@ msgstr "각 이름은 한 번만 사용할 수 있습니다."
 #: src/components/AskCard.tsx
 #: src/pages/AccountSettingsOverlay.tsx
 #: src/pages/McpServersOverlay.tsx
+#: src/pages/shell/thread-queue.tsx
 msgid "Edit"
 msgstr "편집"
 
@@ -2711,6 +3044,18 @@ msgstr "이름 편집"
 #: src/pages/BotContextMenu.tsx
 msgid "Edit Profile"
 msgstr "Bot 정보 수정"
+
+#: src/pages/shell/thread-queue.tsx
+msgid "Edit queued message"
+msgstr ""
+
+#: src/pages/Workflows.tsx
+msgid "Edit workflow"
+msgstr ""
+
+#: src/pages/shell/bot-model-picker.tsx
+msgid "Effort"
+msgstr ""
 
 #: src/pages/Auth.tsx
 msgid "Email"
@@ -2733,6 +3078,11 @@ msgstr "이메일 인증이 필요합니다"
 msgid "Enable {0}"
 msgstr "{0} 활성화"
 
+#: src/pages/shell/roleplay-images.tsx
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Enabled"
+msgstr ""
+
 #: src/pages/BillingSettingsPanel.tsx
 msgid "Ends {day}"
 msgstr ""
@@ -2741,13 +3091,33 @@ msgstr ""
 msgid "Engage when... Ignore..."
 msgstr ""
 
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Enter a character name (1–500 characters)."
+msgstr ""
+
 #: src/lib/user-error.ts
 msgid "Enter a password"
 msgstr "비밀번호를 입력하세요"
 
+#: src/pages/shell/project-folder-picker.tsx
+msgid "Enter a path to find other folders."
+msgstr ""
+
 #: src/lib/user-error.ts
 msgid "Enter a valid email"
 msgstr "올바른 이메일을 입력하세요"
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Enter a whole number from -100000 to 100000."
+msgstr ""
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Enter a whole number from 0 to 100."
+msgstr ""
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Enter a whole number from 0 to 32768."
+msgstr ""
 
 #: src/pages/model-settings/use-model-settings.ts
 #: src/pages/Onboarding.tsx
@@ -2760,6 +3130,14 @@ msgid "Enter a whole number from 1 to {MAX_MODEL_MAX_TOKENS} for maximum output 
 msgstr "최대 출력 토큰 수는 1에서 {MAX_MODEL_MAX_TOKENS} 사이의 정수로 입력하세요."
 
 #: src/pages/model-settings/use-model-settings.ts
+msgid "Enter a whole number from 1 to {MAX_MODEL_TIMEOUT_MS} for request timeouts, or leave blank to use server defaults."
+msgstr ""
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Enter a whole number from 1 to 100."
+msgstr ""
+
+#: src/pages/model-settings/use-model-settings.ts
 #: src/pages/Onboarding.tsx
 msgid "Enter a whole number from 1 to 1000 for the image limit."
 msgstr "이미지 한도는 1에서 1000 사이의 정수로 입력하세요."
@@ -2767,6 +3145,15 @@ msgstr "이미지 한도는 1에서 1000 사이의 정수로 입력하세요."
 #: src/lib/model-connection-preflight.ts
 msgid "Enter an API key before testing."
 msgstr "테스트하기 전에 API 키를 입력하세요."
+
+#: src/pages/shell/roleplay-relationship-debug.tsx
+msgid "Enter whole numbers from 0 to 100."
+msgstr "0부터 100까지의 정수를 입력하세요."
+
+#. placeholder {0}: index + 1
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Entry {0}"
+msgstr ""
 
 #: src/pages/McpServersOverlay.tsx
 msgid "Environment variables"
@@ -2865,6 +3252,14 @@ msgstr "표 확장"
 msgid "expired"
 msgstr "만료됨"
 
+#: src/pages/shell/composer.tsx
+msgid "Explore this project"
+msgstr ""
+
+#: src/pages/shell/composer.tsx
+msgid "Explore this project and explain its architecture. Suggest a useful first task without changing files."
+msgstr ""
+
 #: src/pages/shell/bot-panel.tsx
 msgid "Export"
 msgstr "내보내기"
@@ -2927,6 +3322,7 @@ msgid "Fields to compare, e.g. id, modifiedTime (optional)"
 msgstr "비교할 필드, 예: id, modifiedTime (선택 사항)"
 
 #: src/pages/McpServersOverlay.tsx
+#: src/pages/shell/conversation-files-panel.tsx
 #: src/pages/SpaceSearch.tsx
 msgid "File"
 msgstr "파일"
@@ -2987,6 +3383,14 @@ msgstr "완료되었습니다."
 msgid "Finishing MCP connection…"
 msgstr "MCP 연결을 마무리하는 중…"
 
+#: src/pages/shell/roleplay-settings.tsx
+msgid "First message"
+msgstr ""
+
+#: src/pages/shell/project-folder-picker.tsx
+msgid "Folder path"
+msgstr ""
+
 #: src/pages/Auth.tsx
 msgid "Forgot password?"
 msgstr "비밀번호를 잊으셨나요?"
@@ -2999,6 +3403,15 @@ msgstr "무료"
 #: src/pages/shell/shell-sidebar.tsx
 msgid "Free plan ends {day}"
 msgstr "무료 플랜이 {day}에 종료됩니다"
+
+#: src/pages/shell/roleplay-images.tsx
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Frequency"
+msgstr "빈도"
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Frequent"
+msgstr "자주"
 
 #: src/lib/cron.ts
 msgid "Friday"
@@ -3018,6 +3431,10 @@ msgstr ""
 msgid "From GitHub"
 msgstr ""
 
+#: src/pages/shell/bot-runtime-settings.tsx
+msgid "Full access"
+msgstr ""
+
 #: src/pages/WindowChrome.tsx
 msgid "Fullscreen"
 msgstr "전체 화면"
@@ -3031,6 +3448,14 @@ msgstr "게이트웨이 ID"
 #: src/pages/SettingsOverlay.tsx
 msgid "General"
 msgstr "일반"
+
+#: src/pages/shell/conversation-files-panel.tsx
+msgid "Generated"
+msgstr ""
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Gentle"
+msgstr "적게"
 
 #: src/components/InviteDialog.tsx
 msgid "Get a free month for each friend who starts a trial."
@@ -3108,6 +3533,14 @@ msgstr "헤더"
 msgid "Hear a sample"
 msgstr "샘플 듣기"
 
+#: src/pages/shell/composer.tsx
+msgid "Help me plan a project. Ask what I want to achieve and turn it into concrete next steps."
+msgstr ""
+
+#: src/pages/shell/composer.tsx
+msgid "Help me research a topic. Ask what I need to decide, then gather evidence and cite your sources."
+msgstr ""
+
 #: src/pages/VoiceSettingsOverlay.tsx
 msgid "Hi, this is how I'll sound when I read replies out loud."
 msgstr "안녕하세요. 답변을 소리 내어 읽을 때 이런 목소리로 들립니다."
@@ -3147,6 +3580,30 @@ msgstr ""
 msgid "Hold to talk, release to send"
 msgstr ""
 
+#: src/pages/shell/project-folder-picker.tsx
+msgid "Home"
+msgstr ""
+
+#: src/pages/shell/registered-host-picker.tsx
+msgid "Host"
+msgstr ""
+
+#: src/pages/shell/bot-runtime-settings.tsx
+msgid "Host machine"
+msgstr ""
+
+#: src/pages/shell/registered-host-picker.tsx
+msgid "Host name"
+msgstr ""
+
+#: src/pages/shell/registered-host-picker.tsx
+msgid "Host token"
+msgstr ""
+
+#: src/pages/shell/registered-host-picker.tsx
+msgid "Host URL"
+msgstr ""
+
 #: src/lib/cron.ts
 msgid "hour"
 msgstr "시간"
@@ -3180,6 +3637,10 @@ msgstr "완료 확인 방법"
 msgid "How will you use Rakazo?"
 msgstr ""
 
+#: src/pages/shell/registered-host-picker.tsx
+msgid "I trust this host to run commands and access project files."
+msgstr ""
+
 #: src/pages/shell/computer-release-actions.tsx
 msgid "I’m done"
 msgstr "조작 끝내기"
@@ -3196,6 +3657,10 @@ msgstr "샘플이 들렸다면 음성 설정이 완료되었습니다."
 msgid "Ignore"
 msgstr ""
 
+#: src/pages/shell/roleplay-images.tsx
+msgid "Image"
+msgstr ""
+
 #. js-lingui-explicit-id
 #: src/lib/run-error.ts
 msgid "Image input is not configured for this model."
@@ -3209,6 +3674,19 @@ msgstr "이 모델에는 이미지 입력이 설정되어 있지 않습니다."
 msgid "Image upload area"
 msgstr "이미지 업로드 영역"
 
+#: src/pages/shell/roleplay-images.tsx
+msgid "Image URL"
+msgstr ""
+
+#: src/pages/shell/roleplay-images.tsx
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Images"
+msgstr ""
+
+#: src/pages/shell/roleplay-images.tsx
+msgid "Import"
+msgstr ""
+
 #: src/components/AccountDataSettings.tsx
 #: src/pages/shell/agent-import.tsx
 msgid "Import an agent"
@@ -3217,6 +3695,18 @@ msgstr "에이전트 가져오기"
 #: src/components/AccountDataSettings.tsx
 msgid "Import data"
 msgstr "데이터 가져오기"
+
+#: src/pages/shell/roleplay-images.tsx
+msgid "Import from URL"
+msgstr ""
+
+#: src/pages/shell/create-bot-dialog.tsx
+msgid "Import warnings"
+msgstr ""
+
+#: src/pages/shell/create-bot-dialog.tsx
+msgid "Importing…"
+msgstr ""
 
 #: src/lib/ticket-status.ts
 msgid "In progress"
@@ -3258,6 +3748,14 @@ msgstr "입력"
 msgid "Inputs"
 msgstr "입력값"
 
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Insertion order"
+msgstr ""
+
+#: src/pages/shell/bot-runtime-settings.tsx
+msgid "Install the runtime on the host."
+msgstr ""
+
 #: src/components/SidebarFooter.tsx
 msgid "Install update"
 msgstr "업데이트 설치"
@@ -3281,6 +3779,7 @@ msgstr "지침 기록"
 #: src/components/AskCard.tsx
 #: src/components/InstructionSettings.tsx
 #: src/pages/shell/agent-import.tsx
+#: src/pages/Workflows.tsx
 msgid "Instructions"
 msgstr "지침"
 
@@ -3317,6 +3816,10 @@ msgstr "간격 숫자"
 #: src/pages/RoutineSchedule.tsx
 msgid "Interval unit"
 msgstr "간격 단위"
+
+#: src/pages/shell/roleplay-relationship-debug.tsx
+msgid "Intimacy"
+msgstr "친밀감"
 
 #: src/lib/user-error.ts
 msgid "Invalid code"
@@ -3386,6 +3889,10 @@ msgstr "마지막 확인 {0}: 변경됨"
 msgid "Last check {0}: no changes"
 msgstr "마지막 확인 {0}: 변경 없음"
 
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Late-night messages"
+msgstr "심야 메시지"
+
 #: src/components/DesktopUpdates.tsx
 msgid "Later"
 msgstr ""
@@ -3393,6 +3900,10 @@ msgstr ""
 #: src/pages/MessagingSettingsPanel.tsx
 msgid "Leave"
 msgstr "나가기"
+
+#: src/pages/model-settings/request-timeout-fields.tsx
+msgid "Leave blank to use server defaults."
+msgstr ""
 
 #: src/components/ComputerDeviceSettings.tsx
 msgid "Let bots use this computer"
@@ -3456,9 +3967,21 @@ msgstr "이전 실행 불러오기"
 msgid "Load web images automatically"
 msgstr "웹 이미지 자동으로 불러오기"
 
+#: src/pages/Workflows.tsx
+msgid "Loading"
+msgstr ""
+
 #: src/pages/ActivityList.tsx
 msgid "Loading activity…"
 msgstr "활동을 불러오는 중…"
+
+#: src/pages/shell/conversation-files-panel.tsx
+msgid "Loading files…"
+msgstr ""
+
+#: src/pages/shell/project-folder-picker.tsx
+msgid "Loading folders…"
+msgstr ""
 
 #: src/pages/PluginsOverlay.tsx
 msgid "Loading integrations…"
@@ -3472,6 +3995,10 @@ msgstr "기억 설정을 불러오는 중…"
 #: src/pages/ModelSettingsOverlay.tsx
 msgid "Loading model catalog…"
 msgstr "모델 목록을 불러오는 중…"
+
+#: src/pages/shell/bot-model-picker.tsx
+msgid "Loading models…"
+msgstr ""
 
 #: src/pages/PluginsOverlay.tsx
 msgid "Loading plugins…"
@@ -3492,7 +4019,9 @@ msgstr "음성 서비스를 불러오는 중…"
 #: src/pages/IntegrationSetup.tsx
 #: src/pages/PeerMessagesOverlay.tsx
 #: src/pages/PluginSubmissionsPanel.tsx
+#: src/pages/RoutineCalendar.tsx
 #: src/pages/RoutineRunHistory.tsx
+#: src/pages/shell/roleplay-relationship-debug.tsx
 #: src/pages/shell/transcript.tsx
 msgid "Loading…"
 msgstr "불러오는 중…"
@@ -3505,6 +4034,10 @@ msgstr "로컬 접근을 허용하면 Bot이 묻지 않고 명령을 실행할 �
 msgid "Local computer access requires the latest desktop app."
 msgstr ""
 
+#: src/pages/shell/registered-host-picker.tsx
+msgid "Local host"
+msgstr ""
+
 #: src/components/ModelCredits.tsx
 #: src/components/SidebarFooter.tsx
 #: src/pages/Paywall.tsx
@@ -3514,6 +4047,22 @@ msgstr "로그아웃"
 #: src/pages/shell/agent-import.tsx
 msgid "Looks like it contains a key"
 msgstr "키가 포함된 것 같습니다"
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Lorebook"
+msgstr ""
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Lorebook description"
+msgstr ""
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Lorebook name"
+msgstr ""
+
+#: src/pages/shell/roleplay-relationship-debug.tsx
+msgid "Love"
+msgstr "사랑"
 
 #: src/lib/ticket-priority.ts
 #: src/pages/model-settings/compatible-model-fields.tsx
@@ -3772,6 +4321,7 @@ msgstr "모드"
 #: src/pages/Onboarding.tsx
 #: src/pages/RoutineEditor.tsx
 #: src/pages/shell/agent-import.tsx
+#: src/pages/shell/bot-model-picker.tsx
 #: src/pages/shell/bot-panel.tsx
 msgid "Model"
 msgstr "모델"
@@ -3779,6 +4329,10 @@ msgstr "모델"
 #: src/lib/model-connection-preflight.ts
 msgid "Model \"{modelId}\" was not listed."
 msgstr "\"{modelId}\" 모델이 목록에 없습니다."
+
+#: src/pages/shell/bot-model-picker.tsx
+msgid "Model and effort"
+msgstr ""
 
 #: src/pages/shell/bot-panel.tsx
 msgid "Model connections"
@@ -3791,8 +4345,13 @@ msgstr "모델 ID"
 
 #: src/pages/model-settings/model-picker.tsx
 #: src/pages/model-settings/role-model-picker.tsx
+#: src/pages/shell/bot-model-picker.tsx
 msgid "Model options"
 msgstr "모델 선택지"
+
+#: src/pages/shell/bot-model-picker.tsx
+msgid "Model selection unavailable"
+msgstr ""
 
 #: src/pages/ModelSettingsOverlay.tsx
 #: src/pages/settings-nav.ts
@@ -3821,6 +4380,10 @@ msgstr "월요일"
 msgid "month"
 msgstr ""
 
+#: src/pages/RoutineCalendar.tsx
+msgid "Month"
+msgstr ""
+
 #: src/lib/cron.ts
 msgid "Monthly"
 msgstr "매월"
@@ -3846,7 +4409,12 @@ msgstr ""
 msgid "More computer actions"
 msgstr "컴퓨터 작업 더보기"
 
+#: src/pages/RoutineCalendar.tsx
+msgid "More occurrences. Choose a shorter period."
+msgstr ""
+
 #: src/pages/ModelRoleSettings.tsx
+#: src/pages/shell/thread-queue.tsx
 msgid "Move down"
 msgstr "아래로 이동"
 
@@ -3859,6 +4427,7 @@ msgid "Move to"
 msgstr "섹션으로 이동"
 
 #: src/pages/ModelRoleSettings.tsx
+#: src/pages/shell/thread-queue.tsx
 msgid "Move up"
 msgstr "위로 이동"
 
@@ -3901,6 +4470,14 @@ msgstr "이 루틴의 이름을 정하세요"
 
 #: src/pages/shell/create-bot-dialog.tsx
 msgid "Name your Bot"
+msgstr ""
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Narrative"
+msgstr "서사"
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Narrative instructions"
 msgstr ""
 
 #: src/lib/roster-status.ts
@@ -3984,13 +4561,25 @@ msgstr "새 스킬"
 msgid "New space"
 msgstr "새 스페이스"
 
+#: src/pages/shell/conversation-tasks.tsx
+msgid "New task"
+msgstr ""
+
 #: src/pages/Board.tsx
 msgid "New ticket"
+msgstr ""
+
+#: src/pages/Workflows.tsx
+msgid "New workflow"
 msgstr ""
 
 #: src/components/markdown-copy.tsx
 msgid "Next page"
 msgstr "다음 페이지"
+
+#: src/pages/RoutineCalendar.tsx
+msgid "Next period"
+msgstr ""
 
 #: src/pages/SettingsOverlay.tsx
 msgid "Next settings sections"
@@ -4017,6 +4606,18 @@ msgstr "인증 없음"
 msgid "No bots match"
 msgstr ""
 
+#: src/pages/shell/conversation-files-panel.tsx
+msgid "No files found."
+msgstr ""
+
+#: src/pages/shell/conversation-files-panel.tsx
+msgid "No files yet."
+msgstr ""
+
+#: src/pages/shell/project-folder-picker.tsx
+msgid "No folders"
+msgstr ""
+
 #: src/components/AskCard.tsx
 msgid "No longer active"
 msgstr "이미 종료된 요청입니다"
@@ -4032,6 +4633,7 @@ msgstr ""
 #: src/pages/model-settings/compatible-model-fields.tsx
 #: src/pages/model-settings/model-picker.tsx
 #: src/pages/model-settings/role-model-picker.tsx
+#: src/pages/shell/bot-model-picker.tsx
 #: src/pages/shell/chat-model-picker.tsx
 msgid "No matching models"
 msgstr "일치하는 모델 없음"
@@ -4105,6 +4707,10 @@ msgstr "트리거 없음"
 
 #: src/lib/ticket-priority.ts
 msgid "Normal"
+msgstr ""
+
+#: src/pages/shell/roleplay-images.tsx
+msgid "Normal chat: turns between images"
 msgstr ""
 
 #: src/pages/shell/agent-import.tsx
@@ -4191,6 +4797,10 @@ msgstr "OAuth 만료됨"
 msgid "Offline"
 msgstr ""
 
+#: src/pages/shell/conversation-tasks.tsx
+msgid "Older tasks"
+msgstr ""
+
 #: src/pages/model-settings/connection-controls.tsx
 #: src/pages/Onboarding.tsx
 msgid "Ollama API key"
@@ -4227,6 +4837,7 @@ msgstr ""
 #: src/pages/shell/computer-panel.tsx
 #: src/pages/shell/import-setup-card.tsx
 #: src/pages/shell/message-view.tsx
+#: src/pages/shell/project-folder-picker.tsx
 msgid "Open"
 msgstr "열기"
 
@@ -4269,6 +4880,14 @@ msgstr "전체 창으로 열기"
 #: src/pages/shell/chat-header.tsx
 msgid "Open navigation"
 msgstr "메뉴 열기"
+
+#: src/pages/shell/conversation-tasks.tsx
+msgid "Open recovery"
+msgstr ""
+
+#: src/pages/Workflows.tsx
+msgid "Open task"
+msgstr ""
 
 #: src/pages/ScratchpadSection.tsx
 msgid "Open work"
@@ -4426,6 +5045,10 @@ msgstr "페르소나"
 msgid "Personal"
 msgstr ""
 
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Personality"
+msgstr ""
+
 #: src/components/call/VoiceChatCard.tsx
 msgid "Phone call"
 msgstr ""
@@ -4459,6 +5082,10 @@ msgstr "고정"
 msgid "Pinned"
 msgstr "고정됨"
 
+#: src/pages/shell/composer.tsx
+msgid "Plan a project"
+msgstr ""
+
 #: src/components/ArtifactFileCard.tsx
 msgid "Play {name}"
 msgstr "{name} 재생"
@@ -4484,6 +5111,10 @@ msgstr ""
 msgid "Plugins"
 msgstr ""
 
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Position"
+msgstr ""
+
 #: src/pages/RoutineEditor.tsx
 msgid "Post \"No changes\" in chat"
 msgstr "채팅에 “변경 없음” 게시"
@@ -4492,9 +5123,21 @@ msgstr "채팅에 “변경 없음” 게시"
 msgid "POST to"
 msgstr "POST 대상"
 
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Post-history instructions"
+msgstr ""
+
 #: src/pages/AccountSettingsOverlay.tsx
 msgid "Preferences"
 msgstr "환경설정"
+
+#: src/pages/shell/native-runtime-setup.tsx
+msgid "Prepare install"
+msgstr ""
+
+#: src/pages/shell/native-runtime-setup.tsx
+msgid "Prepare sign-in"
+msgstr ""
 
 #: src/components/ApprovalRulePreview.tsx
 #: src/components/ApprovalRulesSettings.tsx
@@ -4516,8 +5159,16 @@ msgstr ""
 msgid "Previous page"
 msgstr "이전 페이지"
 
+#: src/pages/RoutineCalendar.tsx
+msgid "Previous period"
+msgstr ""
+
 #: src/pages/SettingsOverlay.tsx
 msgid "Previous settings sections"
+msgstr ""
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Primary keys"
 msgstr ""
 
 #: src/pages/Board.tsx
@@ -4540,6 +5191,14 @@ msgstr ""
 msgid "Program: {name}"
 msgstr "프로그램: {name}"
 
+#: src/pages/shell/project-folder-picker.tsx
+msgid "Project folder"
+msgstr ""
+
+#: src/pages/shell/conversation-tasks.tsx
+msgid "Project subdirectory"
+msgstr ""
+
 #: src/components/teach/TeachRecordingChrome.tsx
 msgid "Protected input"
 msgstr ""
@@ -4558,7 +5217,20 @@ msgstr "서비스"
 msgid "Pull request"
 msgstr "풀 리퀘스트"
 
+#: src/pages/shell/composer.tsx
+msgid "Queue"
+msgstr ""
+
+#: src/pages/Shell.tsx
+msgid "Queue for"
+msgstr ""
+
+#: src/pages/Shell.tsx
+msgid "Queue recipient"
+msgstr ""
+
 #: src/pages/ActivityList.tsx
+#: src/pages/shell/thread-queue.tsx
 msgid "Queued"
 msgstr "대기 중"
 
@@ -4597,6 +5269,7 @@ msgstr ""
 
 #: src/pages/model-settings/compatible-model-fields.tsx
 #: src/pages/Onboarding.tsx
+#: src/pages/shell/bot-model-picker.tsx
 msgid "Reasoning effort"
 msgstr "추론 강도"
 
@@ -4652,6 +5325,14 @@ msgstr "컴퓨터 복구"
 msgid "Recover computer?"
 msgstr "컴퓨터를 복구할까요?"
 
+#: src/pages/shell/conversation-tasks.tsx
+msgid "Recover or reassign"
+msgstr ""
+
+#: src/pages/Workflows.tsx
+msgid "Recover step"
+msgstr ""
+
 #. placeholder {0}: update.name
 #: src/components/ComputerUpdateProgress.tsx
 msgid "Recovering {0}’s Computer"
@@ -4664,6 +5345,10 @@ msgstr ""
 #: src/components/ComputerMaintenanceActions.tsx
 msgid "Recovering…"
 msgstr "복구 중…"
+
+#: src/pages/shell/conversation-tasks.tsx
+msgid "Recovery"
+msgstr ""
 
 #: src/components/ComputerUpdateProgress.tsx
 msgid "Recovery failed"
@@ -4697,6 +5382,8 @@ msgstr "리디렉션 URI"
 #: src/App.tsx
 #: src/components/ErrorBoundary.tsx
 #: src/components/ModelCredits.tsx
+#: src/pages/shell/bot-model-picker.tsx
+#: src/pages/shell/bot-runtime-settings.tsx
 msgid "Refresh"
 msgstr "새로고침"
 
@@ -4711,6 +5398,14 @@ msgstr "화면 새로고침"
 #: src/components/teach/TeachComputerOverlay.tsx
 msgid "Refreshing…"
 msgstr "새로고침 중…"
+
+#: src/pages/shell/registered-host-picker.tsx
+msgid "Register"
+msgstr ""
+
+#: src/pages/shell/registered-host-picker.tsx
+msgid "Register host"
+msgstr ""
 
 #: src/lib/user-error.ts
 msgid "Registration is closed"
@@ -4732,6 +5427,10 @@ msgstr ""
 #: src/pages/PluginSubmissionsPanel.tsx
 msgid "Rejecting…"
 msgstr ""
+
+#: src/pages/shell/roleplay-relationship-debug.tsx
+msgid "Relationship debug"
+msgstr "관계 디버그"
 
 #: src/pages/shell/computer-release-actions.tsx
 msgid "Release control"
@@ -4766,6 +5465,11 @@ msgstr "{0} 삭제"
 msgid "Remove {0} from the group"
 msgstr ""
 
+#. placeholder {0}: index + 1
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Remove {label} {0}"
+msgstr ""
+
 #: src/components/VaultSettings.tsx
 msgid "Remove {secretName}? Bots will no longer be able to use it."
 msgstr "{secretName}을(를) 제거할까요? 봇이 더 이상 사용할 수 없습니다."
@@ -4777,6 +5481,14 @@ msgstr "{site} 삭제"
 #: src/pages/RoutineEditor.tsx
 msgid "Remove change trigger"
 msgstr "변경 트리거 제거"
+
+#: src/pages/Workflows.tsx
+msgid "Remove dependency"
+msgstr ""
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Remove entry"
+msgstr ""
 
 #: src/components/integrations/plugin-marketplace.tsx
 #: src/pages/KnowledgeSection.tsx
@@ -4792,6 +5504,14 @@ msgstr ""
 #: src/components/ModelHeadersEditor.tsx
 msgid "Remove header"
 msgstr "헤더 삭제"
+
+#: src/pages/shell/roleplay-images.tsx
+msgid "Remove image"
+msgstr ""
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Remove lorebook"
+msgstr ""
 
 #: src/pages/RoutineEditor.tsx
 msgid "Remove message trigger"
@@ -4872,12 +5592,24 @@ msgstr ""
 msgid "Request a new code"
 msgstr "새 코드를 요청하세요"
 
+#: src/pages/model-settings/request-timeout-fields.tsx
+msgid "Request timeouts"
+msgstr ""
+
 #: src/pages/MessagingSettingsPanel.tsx
 msgid "Requests"
 msgstr ""
 
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Require secondary match"
+msgstr ""
+
 #: src/pages/shell/message-cards.tsx
 msgid "Research & writing"
+msgstr ""
+
+#: src/pages/shell/composer.tsx
+msgid "Research a topic"
 msgstr ""
 
 #: src/components/ComputerMaintenanceActions.tsx
@@ -4950,6 +5682,9 @@ msgstr ""
 #: src/pages/ModelRoleSettings.tsx
 #: src/pages/PluginsOverlay.tsx
 #: src/pages/PluginSubmissionsPanel.tsx
+#: src/pages/RoutineCalendar.tsx
+#: src/pages/shell/conversation-files-panel.tsx
+#: src/pages/shell/roleplay-story-mode.tsx
 #: src/pages/SpaceSettingOverrides.tsx
 msgid "Retry"
 msgstr "다시 시도"
@@ -4977,9 +5712,30 @@ msgstr "Rakazo로 돌아가기"
 msgid "Review provider settings and test again."
 msgstr "서비스 설정을 확인한 뒤 다시 테스트하세요."
 
+#: src/pages/shell/composer.tsx
+msgid "Review the code"
+msgstr ""
+
+#: src/pages/shell/composer.tsx
+msgid "Review this project's code for concrete bugs. Explain your findings before making changes."
+msgstr ""
+
 #: src/pages/MessagingSettingsPanel.tsx
+#: src/pages/shell/registered-host-picker.tsx
 msgid "Revoke"
 msgstr "연결 해제"
+
+#: src/pages/shell/create-bot-dialog.tsx
+msgid "Roleplay"
+msgstr ""
+
+#: src/pages/AccountSettingsOverlay.tsx
+msgid "Roleplay bots"
+msgstr ""
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Roleplay settings"
+msgstr ""
 
 #: src/pages/ExternalConversationSettings.tsx
 msgid "Room guidance"
@@ -4996,6 +5752,10 @@ msgstr "key 교체"
 msgid "Routine"
 msgstr "자동 실행"
 
+#: src/pages/RoutineCalendar.tsx
+msgid "Routine calendar"
+msgstr ""
+
 #: src/pages/shell/agent-import.tsx
 #: src/pages/shell/bot-panel.tsx
 msgid "Routines"
@@ -5009,6 +5769,18 @@ msgstr ""
 msgid "Row"
 msgstr "행"
 
+#: src/pages/Workflows.tsx
+msgid "Run"
+msgstr ""
+
+#: src/pages/Workflows.tsx
+msgid "Run after"
+msgstr ""
+
+#: src/pages/Workflows.tsx
+msgid "Run after…"
+msgstr ""
+
 #: src/pages/RoutineEditor.tsx
 msgid "Run at"
 msgstr "실행 시간"
@@ -5016,6 +5788,10 @@ msgstr "실행 시간"
 #: src/pages/RoutineRunHistory.tsx
 msgid "Run history"
 msgstr "실행 기록"
+
+#: src/pages/shell/bot-runtime-settings.tsx
+msgid "Run on"
+msgstr ""
 
 #: src/pages/shell/use-routine-editor.ts
 msgid "Run time must be in the future."
@@ -5037,11 +5813,25 @@ msgid "Running…"
 msgstr "실행 중…"
 
 #: src/pages/AccountSettingsOverlay.tsx
+#: src/pages/Workflows.tsx
 msgid "Runs"
 msgstr "실행"
 
 #: src/pages/RoutineEditor.tsx
 msgid "Runs when this bot receives a verified message from this provider."
+msgstr ""
+
+#: src/pages/shell/bot-model-picker.tsx
+msgid "Runtime default"
+msgstr ""
+
+#: src/pages/shell/bot-runtime-settings.tsx
+#: src/pages/shell/native-runtime-setup.tsx
+msgid "Runtime ready"
+msgstr ""
+
+#: src/pages/shell/bot-runtime-settings.tsx
+msgid "Runtime unavailable"
 msgstr ""
 
 #: src/pages/PluginsOverlay.tsx
@@ -5067,8 +5857,15 @@ msgstr "토요일"
 #: src/pages/RoutineEditor.tsx
 #: src/pages/shell/bot-panel.tsx
 #: src/pages/shell/dialogs.tsx
+#: src/pages/shell/thread-queue.tsx
+#: src/pages/Workflows.tsx
 msgid "Save"
 msgstr "저장"
+
+#: src/pages/shell/roleplay-relationship-debug.tsx
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Save changes"
+msgstr ""
 
 #: src/components/VaultSettings.tsx
 msgid "Save credential"
@@ -5104,6 +5901,10 @@ msgstr "저장되었습니다."
 msgid "Saved. Rotate to reveal."
 msgstr "저장되었습니다. key를 교체하면 표시됩니다."
 
+#: src/pages/shell/bot-model-picker.tsx
+msgid "Saving model…"
+msgstr ""
+
 #: src/components/ComputerUpdateProgress.tsx
 msgid "Saving your workspace"
 msgstr ""
@@ -5122,12 +5923,30 @@ msgstr ""
 #: src/pages/ModelSettingsOverlay.tsx
 #: src/pages/RoutineEditor.tsx
 #: src/pages/shell/dialogs.tsx
+#: src/pages/shell/roleplay-relationship-debug.tsx
+#: src/pages/shell/roleplay-settings.tsx
 msgid "Saving…"
 msgstr "저장 중…"
 
 #: src/lib/call-session.ts
 msgid "Say yes or no, or answer in a sentence."
 msgstr "예 또는 아니요로 답하거나 문장으로 답해 주세요."
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Scan depth"
+msgstr ""
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Scenario"
+msgstr ""
+
+#: src/pages/shell/roleplay-images.tsx
+msgid "Scene"
+msgstr ""
+
+#: src/pages/RoutineCalendar.tsx
+msgid "Scheduled"
+msgstr ""
 
 #: src/components/ModelCredits.tsx
 msgid "Scheduled routines"
@@ -5171,6 +5990,10 @@ msgstr ""
 msgid "Search by domain"
 msgstr ""
 
+#: src/pages/shell/conversation-files-panel.tsx
+msgid "Search files"
+msgstr ""
+
 #: src/components/integrations/IntegrationSetup.tsx
 msgid "Search integrations.sh"
 msgstr ""
@@ -5178,6 +6001,7 @@ msgstr ""
 #: src/pages/model-settings/compatible-model-fields.tsx
 #: src/pages/model-settings/model-picker.tsx
 #: src/pages/model-settings/role-model-picker.tsx
+#: src/pages/shell/bot-model-picker.tsx
 #: src/pages/shell/chat-model-picker.tsx
 msgid "Search models"
 msgstr "모델 검색"
@@ -5199,6 +6023,10 @@ msgstr ""
 #: src/pages/SpaceSearch.tsx
 msgid "Searching…"
 msgstr "검색 중…"
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Secondary keys"
+msgstr ""
 
 #: src/pages/AccountSettingsOverlay.tsx
 msgid "Security"
@@ -5272,6 +6100,10 @@ msgstr "Sentry 알림"
 msgid "Serenity endpoint is required."
 msgstr ""
 
+#: src/pages/model-settings/request-timeout-fields.tsx
+msgid "Server default"
+msgstr ""
+
 #: src/pages/McpServersOverlay.tsx
 msgid "Server name"
 msgstr "서버 이름"
@@ -5283,6 +6115,10 @@ msgstr "서버 이름"
 #: src/pages/VoiceSettingsOverlay.tsx
 msgid "Server URL"
 msgstr "서버 URL"
+
+#: src/pages/shell/native-runtime-setup.tsx
+msgid "Set up runtime"
+msgstr ""
 
 #: src/components/call/CallCard.tsx
 #: src/components/SidebarFooter.tsx
@@ -5308,13 +6144,30 @@ msgstr "설정: 일반"
 msgid "Settings: Usage"
 msgstr "설정: 사용량"
 
+#: src/pages/shell/native-runtime-setup.tsx
+msgid "Setup cancelled"
+msgstr ""
+
 #: src/pages/shell/import-setup-card.tsx
+#: src/pages/shell/native-runtime-setup.tsx
 msgid "Setup complete"
 msgstr "설정 완료"
+
+#: src/pages/shell/native-runtime-setup.tsx
+msgid "Setup expired"
+msgstr ""
+
+#: src/pages/shell/native-runtime-setup.tsx
+msgid "Setup failed"
+msgstr ""
 
 #: src/pages/model-settings/compatible-model-fields.tsx
 msgid "Setup help"
 msgstr "설정 도움말"
+
+#: src/pages/shell/native-runtime-setup.tsx
+msgid "Setup running"
+msgstr ""
 
 #: src/pages/shell/avatar-studio-popover.tsx
 msgid "Shape"
@@ -5348,6 +6201,15 @@ msgstr ""
 
 #: src/pages/Artifacts.tsx
 msgid "Show list"
+msgstr ""
+
+#: src/pages/shell/conversation-files-panel.tsx
+msgid "Show message"
+msgstr ""
+
+#. placeholder {0}: file.name
+#: src/pages/shell/conversation-files-panel.tsx
+msgid "Show message for {0}"
 msgstr ""
 
 #: src/pages/KnowledgeSection.tsx
@@ -5405,6 +6267,10 @@ msgstr "<0>{0}</0>에서 로그인한 다음 코드를 여기에 붙여넣으세
 msgid "Sign in to Rakazo"
 msgstr "Rakazo 로그인"
 
+#: src/pages/shell/bot-runtime-settings.tsx
+msgid "Sign in to the runtime on the host."
+msgstr ""
+
 #: src/lib/user-error.ts
 msgid "Sign in to your existing account to link SSO"
 msgstr "SSO를 연결하려면 기존 계정에 로그인하세요"
@@ -5424,6 +6290,10 @@ msgstr "가입하기"
 
 #: src/components/integrations/plugin-marketplace.tsx
 msgid "Sign-in cancelled. Try again."
+msgstr ""
+
+#: src/pages/shell/native-runtime-setup.tsx
+msgid "Sign-in required"
 msgstr ""
 
 #: src/components/VaultSettings.tsx
@@ -5480,6 +6350,10 @@ msgstr ""
 msgid "Slide up to lock"
 msgstr ""
 
+#: src/pages/model-settings/request-timeout-fields.tsx
+msgid "Slow local inference (15 min)"
+msgstr ""
+
 #: src/components/integrations/skills-dialog.tsx
 #: src/pages/PluginsOverlay.tsx
 msgid "Some plugins could not be loaded."
@@ -5518,11 +6392,16 @@ msgstr "{column} 기준 정렬됨, 오름차순"
 msgid "Sorted by {column}, descending"
 msgstr "{column} 기준 정렬됨, 내림차순"
 
+#: src/pages/shell/conversation-tasks.tsx
+msgid "Source conversation"
+msgstr ""
+
 #: src/lib/identity-display.ts
 #: src/pages/SettingsOverlay.tsx
 msgid "Space"
 msgstr "스페이스"
 
+#: src/pages/shell/bot-model-picker.tsx
 #: src/pages/shell/bot-panel.tsx
 msgid "Space default"
 msgstr "스페이스 기본값"
@@ -5547,6 +6426,14 @@ msgstr ""
 msgid "Speech model"
 msgstr "음성 모델"
 
+#: src/pages/shell/roleplay-images.tsx
+msgid "Spontaneous images"
+msgstr ""
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Spontaneous messages"
+msgstr "자발적인 메시지"
+
 #: src/lib/user-error.ts
 msgid "SSO is temporarily unavailable. Try again."
 msgstr "SSO를 일시적으로 사용할 수 없습니다. 다시 시도하세요."
@@ -5560,9 +6447,25 @@ msgstr ""
 msgid "Start {trialDays}-day free trial"
 msgstr "{trialDays}일 무료 체험 시작"
 
+#: src/pages/shell/thread-queue.tsx
+msgid "Start as task"
+msgstr ""
+
 #: src/components/teach/TeachComputerOverlay.tsx
 msgid "Start recording"
 msgstr "작업 녹화 시작"
+
+#: src/pages/shell/conversation-tasks.tsx
+msgid "Start recovery"
+msgstr ""
+
+#: src/pages/shell/conversation-tasks.tsx
+msgid "Start task"
+msgstr ""
+
+#: src/pages/shell/bot-runtime-settings.tsx
+msgid "Start the host with host access enabled."
+msgstr ""
 
 #: src/pages/ActivityList.tsx
 msgid "Starting"
@@ -5575,9 +6478,34 @@ msgstr "시작 중"
 msgid "Starting…"
 msgstr "시작하는 중…"
 
+#: src/pages/shell/conversation-tasks.tsx
+msgid "Starts a new execution. Earlier actions may already have taken effect. Review the instructions to avoid repeating them."
+msgstr ""
+
 #: src/pages/ActivityList.tsx
 #: src/pages/Board.tsx
 msgid "Status"
+msgstr ""
+
+#: src/pages/shell/thread-queue.tsx
+msgid "Steer"
+msgstr ""
+
+#. placeholder {0}: current.nodes.length + 1
+#: src/pages/Workflows.tsx
+msgid "Step {0}"
+msgstr ""
+
+#: src/pages/Workflows.tsx
+msgid "Step dependencies"
+msgstr ""
+
+#: src/pages/Workflows.tsx
+msgid "Step details"
+msgstr ""
+
+#: src/pages/Workflows.tsx
+msgid "Step name"
 msgstr ""
 
 #: src/components/teach/SkillDraftCard.tsx
@@ -5588,6 +6516,7 @@ msgstr "실행 단계"
 #: src/pages/shell/composer.tsx
 #: src/pages/shell/computer-overlay.tsx
 #: src/pages/shell/message-view.tsx
+#: src/pages/Workflows.tsx
 msgid "Stop"
 msgstr "중지"
 
@@ -5603,10 +6532,18 @@ msgstr "읽기 중지"
 msgid "Stop teaching"
 msgstr "가르치기 종료"
 
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Stop the current reply before saving character changes."
+msgstr ""
+
 #. js-lingui-explicit-id
 #: src/lib/browser-notifications.ts
 msgid "Stopped."
 msgstr "중지되었습니다."
+
+#: src/pages/shell/registered-host-picker.tsx
+msgid "Stopping work"
+msgstr ""
 
 #: src/components/ComputerMaintenanceActions.tsx
 msgid "Stopping…"
@@ -5615,6 +6552,22 @@ msgstr ""
 #: src/pages/McpServersOverlay.tsx
 msgid "Stored encrypted"
 msgstr "암호화해 저장"
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Story"
+msgstr ""
+
+#: src/pages/shell/roleplay-story-mode.tsx
+msgid "Story mode"
+msgstr ""
+
+#: src/pages/shell/roleplay-images.tsx
+msgid "Story mode: turns between images"
+msgstr ""
+
+#: src/pages/model-settings/request-timeout-fields.tsx
+msgid "Stream inactivity (ms)"
+msgstr ""
 
 #: src/pages/AccountSettingsOverlay.tsx
 msgid "Stream replies"
@@ -5681,6 +6634,10 @@ msgstr "전환 중…"
 msgid "System"
 msgstr "시스템"
 
+#: src/pages/shell/roleplay-settings.tsx
+msgid "System prompt"
+msgstr ""
+
 #: src/components/markdown-copy.tsx
 msgid "Table"
 msgstr "표"
@@ -5688,6 +6645,22 @@ msgstr "표"
 #: src/pages/shell/computer-overlay.tsx
 msgid "Take control"
 msgstr "제어권 가져오기"
+
+#: src/pages/shell/conversation-tasks.tsx
+msgid "Task"
+msgstr ""
+
+#: src/pages/shell/conversation-tasks.tsx
+msgid "Task bot"
+msgstr ""
+
+#: src/pages/shell/conversation-tasks.tsx
+msgid "Task instructions"
+msgstr ""
+
+#: src/pages/shell/conversation-tasks.tsx
+msgid "Tasks"
+msgstr ""
 
 #: src/components/teach/TeachComputerOverlay.tsx
 msgid "Teach a task"
@@ -5754,6 +6727,10 @@ msgstr ""
 #: src/lib/model-connection-preflight.ts
 msgid "The connection timed out."
 msgstr "연결 시간이 초과되었습니다."
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "The first message is used when a story starts or is reset."
+msgstr ""
 
 #. js-lingui-explicit-id
 #: src/lib/run-error.ts
@@ -5875,6 +6852,14 @@ msgstr "이 대화는 모델이 처리하기에 너무 깁니다. 다시 시도�
 msgid "This deletes all {0} versions of this artifact. This can't be undone."
 msgstr ""
 
+#: src/pages/Workflows.tsx
+msgid "This dependency would create a cycle."
+msgstr ""
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "This field exceeds the character limit."
+msgstr ""
+
 #: src/components/ArtifactFileCard.tsx
 msgid "This file is not valid UTF-8 text."
 msgstr ""
@@ -5886,6 +6871,10 @@ msgstr "이미 사용된 가져오기입니다. 파일을 다시 선택하세요
 #: src/pages/HostComputerPrompt.tsx
 msgid "this Mac"
 msgstr "이 Mac"
+
+#: src/pages/shell/thread-queue.tsx
+msgid "This message has left the queue."
+msgstr ""
 
 #. js-lingui-explicit-id
 #: src/lib/run-error.ts
@@ -5957,6 +6946,10 @@ msgstr "목요일"
 msgid "Time of day"
 msgstr "실행 시각"
 
+#: src/pages/model-settings/request-timeout-fields.tsx
+msgid "Time to response headers (ms)"
+msgstr ""
+
 #: src/pages/AccountSettingsOverlay.tsx
 msgid "Timezone"
 msgstr ""
@@ -5987,9 +6980,14 @@ msgid "To:"
 msgstr "받는 사람:"
 
 #: src/pages/Artifacts.tsx
+#: src/pages/RoutineCalendar.tsx
 #: src/pages/shell/chat-context.tsx
 msgid "Today"
 msgstr "오늘"
+
+#: src/pages/shell/roleplay-settings.tsx
+msgid "Token budget"
+msgstr ""
 
 #: src/pages/AccountSettingsOverlay.tsx
 msgid "Tokens"
@@ -6059,6 +7057,7 @@ msgstr "신뢰할 수 있는 사이트"
 
 #: src/pages/ActivityList.tsx
 #: src/pages/Onboarding.tsx
+#: src/pages/Shell.tsx
 msgid "Try again"
 msgstr "다시 시도"
 
@@ -6082,10 +7081,19 @@ msgstr ""
 msgid "Type your answer"
 msgstr "답변을 입력하세요"
 
+#. js-lingui-explicit-id
+#: src/lib/model-catalog.ts
+msgid "Ultra"
+msgstr ""
+
 #: src/pages/BotContextMenu.tsx
 #: src/pages/Shell.tsx
 msgid "Unassigned"
 msgstr "섹션 없음"
+
+#: src/pages/shell/registered-host-picker.tsx
+msgid "Unavailable host"
+msgstr ""
 
 #: src/components/AskCard.tsx
 msgid "Undo"
@@ -6111,6 +7119,10 @@ msgstr "고정 해제"
 #: src/pages/shell/use-composer-actions.ts
 msgid "Unsupported file type: {0}"
 msgstr "지원하지 않는 파일 형식: {0}"
+
+#: src/pages/shell/project-folder-picker.tsx
+msgid "Up"
+msgstr ""
 
 #: src/components/DesktopUpdates.tsx
 msgid "Up to date"
@@ -6177,6 +7189,10 @@ msgstr ""
 msgid "Upload"
 msgstr "업로드"
 
+#: src/pages/shell/roleplay-images.tsx
+msgid "Upload image"
+msgstr ""
+
 #: src/lib/ticket-priority.ts
 msgid "Urgent"
 msgstr ""
@@ -6220,6 +7236,10 @@ msgstr "기본값 사용"
 #: src/pages/SpaceSettingOverrides.tsx
 msgid "Use defaults for {label}"
 msgstr "{label}에 기본값 사용"
+
+#: src/pages/shell/project-folder-picker.tsx
+msgid "Use folder"
+msgstr ""
 
 #: src/components/integrations/plugin-marketplace.tsx
 msgid "Use in this bot"
@@ -6301,6 +7321,10 @@ msgstr ""
 msgid "View all"
 msgstr ""
 
+#: src/pages/RoutineCalendar.tsx
+msgid "View chat"
+msgstr "채팅 보기"
+
 #: src/components/integrations/plugin-marketplace.tsx
 msgid "View source"
 msgstr ""
@@ -6320,6 +7344,18 @@ msgstr ""
 msgid "Wait a moment and test again."
 msgstr "잠시 기다린 뒤 다시 테스트하세요."
 
+#: src/pages/shell/thread-queue.tsx
+msgid "Waiting for approval"
+msgstr ""
+
+#: src/pages/shell/thread-queue.tsx
+msgid "Waiting for computer"
+msgstr ""
+
+#: src/pages/shell/thread-queue.tsx
+msgid "Waiting for current work"
+msgstr ""
+
 #: src/lib/roster-status.ts
 msgid "Waiting in line…"
 msgstr "줄에서 기다리는 중…"
@@ -6331,6 +7367,10 @@ msgstr "기다리는 중…"
 #: src/pages/settings-nav.ts
 msgid "Wallet"
 msgstr ""
+
+#: src/pages/shell/roleplay-relationship-debug.tsx
+msgid "Warmth"
+msgstr "따뜻함"
 
 #: src/components/ModelCredits.tsx
 msgid "Web, desktop and mobile"
@@ -6354,6 +7394,10 @@ msgstr "수요일"
 
 #: src/lib/billing.ts
 msgid "week"
+msgstr ""
+
+#: src/pages/RoutineCalendar.tsx
+msgid "Week"
 msgstr ""
 
 #: src/lib/cron.ts
@@ -6438,6 +7482,23 @@ msgstr ""
 msgid "Work"
 msgstr ""
 
+#: src/pages/Workflows.tsx
+msgid "Workflow"
+msgstr ""
+
+#: src/pages/Workflows.tsx
+msgid "Workflow canvas"
+msgstr ""
+
+#: src/pages/Workflows.tsx
+msgid "Workflow name"
+msgstr ""
+
+#: src/components/SidebarFooter.tsx
+#: src/pages/Workflows.tsx
+msgid "Workflows"
+msgstr ""
+
 #: src/pages/shell/agent-import.tsx
 msgid "Working instructions"
 msgstr "작업 지침"
@@ -6454,7 +7515,12 @@ msgid "Works with your ChatGPT or Claude plan."
 msgstr "ChatGPT 또는 Claude 요금제로 사용할 수 있습니다."
 
 #: src/pages/memory-providers/HonchoSettingsForm.tsx
+#: src/pages/shell/bot-runtime-settings.tsx
 msgid "Workspace"
+msgstr ""
+
+#: src/pages/shell/conversation-tasks.tsx
+msgid "Write scope"
 msgstr ""
 
 #: src/lib/billing.ts

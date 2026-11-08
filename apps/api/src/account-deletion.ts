@@ -9,8 +9,10 @@ import {
   claimSpacesLeavingWithAccount,
   deleteSpaceLeavingWithAccount,
   recordComputerRunEnd,
+  runAsSystem,
 } from "@rakazo/db";
 import { getLogger } from "@rakazo/logging";
+import { nativeSetupOwners } from "./native-setup-owners.js";
 import type { SpaceDeletionDeps } from "./space-deletion.js";
 
 /**
@@ -27,7 +29,22 @@ export async function deleteAccountContent(deps: SpaceDeletionDeps, userId: stri
     ...(botId ? { botId } : {}),
     signal: new AbortController().signal,
   });
+  if (deps.nativeSetupCleanup) {
+    // Commit before enumerating registrations; host admission takes this same row lock.
+    await runAsSystem("account native setup admission fence", () =>
+      deps.prisma.user.update({
+        where: { id: userId },
+        data: { nativeSetupDisabledAt: new Date() },
+      }),
+    );
+  }
   const leaving = await claimSpacesLeavingWithAccount(deps.prisma, userId);
+  if (deps.nativeSetupCleanup) {
+    const owners = await runAsSystem("account runtime setup teardown owners", () =>
+      nativeSetupOwners(deps.prisma, { userId }),
+    );
+    await deps.nativeSetupCleanup(owners);
+  }
   const bots = await deps.prisma.bot.findMany({
     where: { OR: [{ userId }, { spaceId: { in: leaving } }] },
     select: {
@@ -95,7 +112,19 @@ export async function deleteAccountContent(deps: SpaceDeletionDeps, userId: stri
   );
 
   for (const spaceId of leaving) {
-    const deleted = await deleteSpaceLeavingWithAccount(deps.prisma, { spaceId, userId });
+    const deleted = await deleteSpaceLeavingWithAccount(
+      deps.prisma,
+      { spaceId, userId },
+      deps.nativeSetupCleanup
+        ? async () => {
+            const owners = await runAsSystem("account Space runtime setup teardown owners", () =>
+              nativeSetupOwners(deps.prisma, { spaceId }),
+            );
+            const formerOwners = owners.filter((owner) => owner.userId !== userId);
+            if (formerOwners.length) await deps.nativeSetupCleanup!(formerOwners);
+          }
+        : undefined,
+    );
     if (!deleted) continue;
     const cleanup = await Promise.allSettled(
       deleted.artifactKeys.map((storageKey) => deps.artifacts.remove(storageKey, context(spaceId))),

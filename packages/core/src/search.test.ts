@@ -213,6 +213,10 @@ describe("search helpers", () => {
   it("uses groupId for group search message jumps", () => {
     expect(searchHitThreadTarget({ groupId: "group-1" })).toEqual({ groupId: "group-1" });
     expect(searchHitThreadTarget({ botId: "bot-1" })).toEqual({ botId: "bot-1" });
+    expect(searchHitThreadTarget({ botId: "bot-1", taskId: "task-1" })).toEqual({
+      taskId: "task-1",
+    });
+    expect(() => searchHitThreadTarget({ groupId: "group-1", taskId: "task-1" })).toThrow();
   });
 
   it("rejects ambiguous search hit targets", () => {

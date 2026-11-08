@@ -40,6 +40,10 @@ function space(overrides: Partial<InboxSpace> = {}): InboxSpace {
 
 const bot: MobileBot = {
   id: "bot-1",
+  runtimeKind: "pi",
+  executionTarget: "default",
+  runtimePermission: "workspace",
+  projectPath: null,
   name: "Helper",
   preview: "",
   color: "gray",

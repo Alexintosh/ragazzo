@@ -11,6 +11,7 @@ import {
 import { tmpdir } from "node:os";
 import path from "node:path";
 import type { ComputerRef, ProcessEvent } from "@rakazo/adapter-kit";
+import { SandboxUnavailableError } from "@rakazo/adapter-kit";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   checkpointComputerWorkspace,
@@ -19,6 +20,9 @@ import {
 } from "./computer-workspace.js";
 import { win32NtRelativeAvailable } from "./desktop-sandbox-win32-path.js";
 import { LocalAgentHomeStore } from "./home.js";
+import { HostCodexBroker } from "./host-codex-broker.js";
+import { HostComputerUnavailableError } from "./host-computer-errors.js";
+import type { HostComputerRequest } from "./host-computer-protocol.js";
 import { hostComputerDeadlineMs } from "./host-computer-protocol.js";
 import { HostComputerSandbox } from "./host-computer-sandbox.js";
 import { startHostComputerServer } from "./host-computer-server.js";
@@ -38,6 +42,148 @@ const nodeEnv: Record<string, string> = process.versions.electron
   ? { ELECTRON_RUN_AS_NODE: "1" }
   : {};
 
+describe("unreachable host computer transport", () => {
+  const connectionFailure = (code: string) =>
+    new TypeError("fetch failed", {
+      cause: Object.assign(new Error("connection failed"), { code }),
+    });
+  const readRequest: HostComputerRequest = { method: "isRunning", botId: "test-bot" };
+
+  const setupRequests: HostComputerRequest[] = [
+    { method: "provision", botId: "test-bot" },
+    { method: "prepare", botId: "test-bot" },
+    {
+      method: "workspaceDirectories",
+      botId: "test-bot",
+      directories: { action: "ensure", paths: ["shared", "bots/bot"] },
+    },
+    {
+      method: "browserScreen",
+      botId: "test-bot",
+      scope: { botId: "bot", spaceId: "space", userId: "user", mode: "dedicated" },
+      interactive: false,
+    },
+    ...[false, true].map((interactive) => ({
+      method: "browserControl" as const,
+      botId: "test-bot",
+      scope: { botId: "bot", spaceId: "space", userId: "user", mode: "dedicated" as const },
+      interactive,
+      controlToken: "control",
+    })),
+  ];
+  it.each(setupRequests)("reports an offline host during $method setup", async (input) => {
+    const request = vi
+      .spyOn(globalThis, "fetch")
+      .mockRejectedValue(connectionFailure("ECONNREFUSED"));
+    try {
+      const client = new HostComputerSandbox("http://127.0.0.1:12345", token);
+      await expect(collect(client.request(input, context))).rejects.toBeInstanceOf(
+        HostComputerUnavailableError,
+      );
+    } finally {
+      request.mockRestore();
+    }
+  });
+
+  it.each(["ECONNREFUSED", "ENOTFOUND", "EAI_AGAIN", "ENETUNREACH", "EHOSTUNREACH"])(
+    "reports %s before setup as an unavailable computer",
+    async (code) => {
+      const failure = connectionFailure(code);
+      const request = vi.spyOn(globalThis, "fetch").mockRejectedValue(failure);
+      try {
+        const client = new HostComputerSandbox("http://127.0.0.1:12345", token);
+        const result = collect(client.request(readRequest, context));
+        await expect(result).rejects.toBeInstanceOf(HostComputerUnavailableError);
+        await expect(result).rejects.toBeInstanceOf(SandboxUnavailableError);
+        await expect(result).rejects.toMatchObject({
+          cause: failure,
+          message:
+            "Host computer unavailable. Check the host connection and enable host access locally.",
+        });
+        expect(request).toHaveBeenCalledOnce();
+      } finally {
+        request.mockRestore();
+      }
+    },
+  );
+
+  it.each(["ECONNRESET", "ETIMEDOUT", "UND_ERR_SOCKET"])(
+    "preserves uncertain %s failures",
+    async (code) => {
+      const failure = connectionFailure(code);
+      const request = vi.spyOn(globalThis, "fetch").mockRejectedValue(failure);
+      try {
+        const client = new HostComputerSandbox("http://127.0.0.1:12345", token);
+        await expect(collect(client.request(readRequest, context))).rejects.toBe(failure);
+      } finally {
+        request.mockRestore();
+      }
+    },
+  );
+
+  it("preserves native and command transport failures", async () => {
+    const failure = connectionFailure("ECONNREFUSED");
+    const request = vi.spyOn(globalThis, "fetch").mockRejectedValue(failure);
+    try {
+      const client = new HostComputerSandbox("http://127.0.0.1:12345", token);
+      await expect(
+        collect(
+          client.request(
+            { method: "codexAbort", botId: "bot", runId: "run", threadId: "thread" },
+            context,
+          ),
+        ),
+      ).rejects.toBe(failure);
+      await expect(
+        collect(
+          client.request(
+            { method: "execute", botId: "bot", command: { argv: ["command"] } },
+            context,
+          ),
+        ),
+      ).rejects.toBe(failure);
+    } finally {
+      request.mockRestore();
+    }
+  });
+
+  it("preserves a failure after the host accepted the request", async () => {
+    const failure = connectionFailure("ECONNREFUSED");
+    const response = new Response(
+      new ReadableStream({
+        start(stream) {
+          stream.error(failure);
+        },
+      }),
+    );
+    const request = vi.spyOn(globalThis, "fetch").mockResolvedValue(response);
+    try {
+      const client = new HostComputerSandbox("http://127.0.0.1:12345", token);
+      await expect(collect(client.request(readRequest, context))).rejects.toBe(failure);
+    } finally {
+      request.mockRestore();
+    }
+  });
+
+  it("does not mistake a credential-validation connection failure for an offline host", async () => {
+    const failure = connectionFailure("ECONNREFUSED");
+    const request = vi.spyOn(globalThis, "fetch");
+    try {
+      const client = new HostComputerSandbox(async () => ({
+        url: "http://127.0.0.1:12345",
+        token,
+        validate: async () => {
+          throw failure;
+        },
+      }));
+      await expect(collect(client.request(readRequest, context))).rejects.toBe(failure);
+      expect(request).not.toHaveBeenCalled();
+    } finally {
+      request.mockRestore();
+    }
+  });
+});
+
 describe("native host computer transport", () => {
   let root: string;
   let server: Awaited<ReturnType<typeof startHostComputerServer>>;
@@ -46,7 +192,12 @@ describe("native host computer transport", () => {
   let computer: ComputerRef;
   beforeEach(async () => {
     root = await realpath(await mkdtemp(path.join(tmpdir(), "rakazo-host-test-")));
-    server = await startHostComputerServer({ root, token, hostname: "127.0.0.1" });
+    server = await startHostComputerServer({
+      root,
+      token,
+      hostname: "127.0.0.1",
+      writeScopeRoot: path.join(root, "write-scopes"),
+    });
     url = `http://127.0.0.1:${server.port}`;
     client = new HostComputerSandbox(url, token);
     server.setEnabled(true);
@@ -56,6 +207,88 @@ describe("native host computer transport", () => {
     await server.close();
     await rm(root, { recursive: true, force: true, maxRetries: 20, retryDelay: 50 });
   });
+
+  it("rejects an older host's ordinary acknowledgement for strict recovery cleanup", async () => {
+    const request = vi.spyOn(client, "request").mockImplementation(async function* <T>() {
+      yield null as T;
+    });
+    try {
+      await expect(
+        client.cancelRunWork(computer, "computer-id", "run", {
+          ...context,
+          requireRunCleanup: true,
+        }),
+      ).rejects.toThrow("cleanup failed");
+    } finally {
+      request.mockRestore();
+    }
+  });
+
+  it("propagates strict cleanup and refuses an unresolved native journal", async () => {
+    await mkdir(path.join(root, "native-codex"), { recursive: true });
+    await writeFile(
+      path.join(root, "native-codex", "unresolved.run"),
+      JSON.stringify({ state: "started" }),
+    );
+    await expect(
+      client.cancelRunWork(computer, "computer-id", "unknown-run", {
+        ...context,
+        requireRunCleanup: true,
+      }),
+    ).rejects.toThrow("cleanup failed");
+    await rm(path.join(root, "native-codex", "unresolved.run"));
+    const stop = vi.spyOn(HostCodexBroker.prototype, "stopBot").mockResolvedValue(undefined);
+    try {
+      await client.cancelRunWork(computer, "computer-id", "verified-run", {
+        ...context,
+        requireRunCleanup: true,
+      });
+      expect(stop).toHaveBeenCalledWith(computer.botId, "verified-run", true);
+    } finally {
+      stop.mockRestore();
+    }
+  });
+
+  it.each(["codexAbort", "cancelRunWork", "stop", "destroy"])(
+    "awaits native teardown before acknowledging %s",
+    async (method) => {
+      const releases: Array<() => void> = [];
+      const release = () => {
+        for (const resolve of releases.splice(0)) resolve();
+      };
+      // Observing thenable adoption proves dispatch awaits teardown without relying
+      // on network timing to infer that a response has not arrived yet.
+      const waiting = vi.fn((resolve: () => void) => {
+        releases.push(resolve);
+      });
+      // biome-ignore lint/suspicious/noThenProperty: This intentional thenable observes await adoption.
+      const pending = { then: waiting } as unknown as Promise<void>;
+      const spy = vi
+        .spyOn(HostCodexBroker.prototype, method === "codexAbort" ? "abort" : "stopBot")
+        .mockReturnValue(pending);
+      try {
+        const response = await fetch(`${url}/computer`, {
+          method: "POST",
+          headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+          body: JSON.stringify({
+            method,
+            botId: computer.botId,
+            threadId: "thread-a",
+            runId: "run-a",
+            targetRunId: "run-a",
+          }),
+        });
+        await vi.waitFor(() =>
+          expect(waiting).toHaveBeenCalledTimes(method === "codexAbort" ? 1 : 3),
+        );
+        release();
+        expect(await response.text()).toContain('{"done":true}');
+      } finally {
+        release();
+        spy.mockRestore();
+      }
+    },
+  );
 
   it.skipIf(process.platform !== "win32")(
     "uses the running runtime for Windows native handles",
@@ -373,7 +606,8 @@ describe("native host computer transport", () => {
           .trim(),
       );
       expect(result.at(-1)).toEqual({ type: "exit", code: 0 });
-      expect(processExists(pid)).toBe(true);
+      // Host commands clean their background writers before releasing the write fence.
+      await expect.poll(() => processExists(pid)).toBe(false);
       if (action === "revoke") server.setEnabled(false);
       else await client.cancelRunWork(computer, "computer-id", "background-run", context);
       await expect.poll(() => processExists(pid)).toBe(false);
@@ -452,7 +686,7 @@ describe("native host computer transport", () => {
     },
   );
 
-  it("cancels the host process on client abort and rejects graphical operations", async () => {
+  it("cancels the host process on client abort and requires an owned context for browser preview", async () => {
     const controller = new AbortController();
     let pid = 0;
     let ready!: () => void;
@@ -479,8 +713,10 @@ describe("native host computer transport", () => {
     controller.abort();
     await rejected;
     await expect.poll(() => processExists(pid)).toBe(false);
-    await expect(client.connectScreen()).rejects.toThrow("unavailable");
-    expect(client.describe().capabilities.graphical).toBe(false);
+    await expect(
+      client.connectScreen(computer, { view: "stream" }, { ...context, botId: undefined }),
+    ).rejects.toThrow("owned bot context");
+    expect(client.describe().capabilities).toMatchObject({ graphical: true, browserOnly: true });
   });
 });
 

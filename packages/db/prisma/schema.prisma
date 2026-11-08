@@ -22,6 +22,9 @@ model AiDataConsent {
 }
 
 model User {
+  workflows Workflow[]
+  /// Durable admission fence while account deletion tears down native setup processes.
+  nativeSetupDisabledAt DateTime?
   aiDataConsents AiDataConsent[]
   id                          String                       @id
   name                        String
@@ -33,6 +36,8 @@ model User {
   avatarStyle                 String                       @default("organic")
   /// IANA timezone such as "Pacific/Auckland". Null until set; bots then get UTC only.
   timezone                    String?
+  /// Enables dedicated roleplay conversations for this account.
+  roleplayEnabled             Boolean                      @default(false)
   marketingEmailOptOutAt      DateTime?
   sessions                    Session[]
   accounts                    Account[]
@@ -353,6 +358,7 @@ model Member {
 }
 
 model Space {
+  workflows Workflow[]
   aiDataConsents              AiDataConsent[]
   id                          String                       @id
   organizationId              String
@@ -364,6 +370,8 @@ model Space {
   createdAt                   DateTime                     @default(now())
   deletingAt                  DateTime?
   deletionClaimId             String?
+  /// Final account-deletion decision; membership admission stays closed after cleanup may run.
+  deletionCleanupStartedAt    DateTime?
   memberships                 SpaceMember[]
   bots                        Bot[]
   botSections                 BotSection[]
@@ -637,7 +645,54 @@ model SpaceVoicePreference {
   @@map("space_voice_preferences")
 }
 
+model RegisteredHost {
+  id String @id
+  spaceId String
+  userId String
+  name String
+  endpoint String
+  ciphertext String
+  revokedAt DateTime?
+  revocationPending Boolean @default(false)
+  revocationAttemptedAt DateTime?
+  healthStatus String @default("unchecked")
+  healthCheckedAt DateTime?
+  createdAt DateTime @default(now())
+  @@index([spaceId, userId, createdAt])
+  @@map("registered_hosts")
+}
+
+// Setup can outlive membership and may never create a bot or registered host.
+model NativeSetupOwner {
+  spaceId String
+  userId String
+  createdAt DateTime @default(now())
+  @@id([spaceId, userId])
+  @@index([userId])
+  @@map("native_setup_owners")
+}
+
+// Durable teardown receipt: survives task/run deletion and worker restarts.
+model RegisteredHostCleanup {
+  id String @id @default(cuid())
+  hostId String
+  spaceId String
+  userId String
+  runId String
+  computerId String
+  computerKey String
+  targetRunId String
+  createdAt DateTime @default(now())
+  attemptedAt DateTime?
+  completedAt DateTime?
+  @@unique([hostId, runId, computerId])
+  @@index([hostId, completedAt])
+  @@map("registered_host_cleanup")
+}
+
 model Bot {
+  botKind String @default("agent")
+  roleplayCharacter Json?
   screenGeneration Int @default(0)
   id                String            @id @default(cuid())
   spaceId           String
@@ -663,6 +718,7 @@ model Bot {
   createdAt         DateTime          @default(now())
   updatedAt         DateTime          @updatedAt
   thread            Thread?
+  taskThreads       Thread[] @relation("TaskBotThreads")
   computerId        String?
   computer          Computer?         @relation(fields: [computerId], references: [id], onDelete: SetNull)
   computerSwitching Boolean           @default(false)
@@ -671,6 +727,12 @@ model Bot {
   modelProvider     String?
   modelId           String?
   thinkingLevel     String?
+  runtimeKind       String @default("pi")
+  runtimeGeneration Int @default(0)
+  registeredHostId String?
+  executionTarget   String @default("default")
+  runtimePermission String @default("workspace")
+  projectPath       String?
   disabledBuiltinTools String[] @default([])
   webhookSecretId   String?
   teamChatAmbientEnabled Boolean @default(false)
@@ -773,11 +835,14 @@ model ChatGroupMember {
 }
 
 model Thread {
+  roleplayState Json?
   id                          String     @id @default(cuid())
   spaceId                     String
   space                       Space      @relation(fields: [spaceId], references: [id], onDelete: Cascade)
   botId                       String?    @unique
   bot                         Bot?       @relation(fields: [botId], references: [id], onDelete: Cascade)
+  taskBotId                   String?
+  taskBot                     Bot? @relation("TaskBotThreads", fields: [taskBotId], references: [id], onDelete: Cascade)
   groupId                     String?    @unique
   group                       ChatGroup? @relation(fields: [groupId], references: [id], onDelete: Cascade)
   externalConversationId      String?    @unique
@@ -799,6 +864,7 @@ model Thread {
   routines                    Routine[]
 
   @@index([spaceId])
+  @@index([taskBotId])
   @@index([spaceId, userId])
   @@map("threads")
 }
@@ -851,6 +917,44 @@ model Event {
   @@map("events")
 }
 
+model Workflow {
+  space Space @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id String @id @default(cuid())
+  spaceId String
+  userId String
+  name String
+  revision Int @default(1)
+  graph Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  runs WorkflowRun[]
+  @@index([spaceId, userId, updatedAt])
+  @@map("workflows")
+}
+
+model WorkflowRun {
+  id String @id @default(cuid())
+  workflowId String
+  workflow Workflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  spaceId String
+  userId String
+  name String
+  revision Int @default(1)
+  cancelPending Boolean @default(false)
+  definitionRevision Int
+  graph Json
+  nodes Json
+  status String
+  clientNonce String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@unique([spaceId, userId, clientNonce])
+  @@index([status, updatedAt, id])
+  @@index([workflowId, createdAt])
+  @@map("workflow_runs")
+}
+
 model Task {
   id        String   @id @default(cuid())
   spaceId   String
@@ -862,12 +966,36 @@ model Task {
   userId    String
   prompt    String
   status    String
+  /// A user-created task owns a separate conversation; ordinary turn tasks remain unchanged.
+  conversation Boolean @default(false)
+  writeSubdirectory String?
+  originThreadId String?
+  recoveryOfRunId String? @unique
+  sourceQueuedInputId String? @unique
+  clientNonce String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   runs      Run[]
 
   @@index([spaceId, botId])
+  @@unique([spaceId, clientNonce])
+  @@index([originThreadId])
   @@map("tasks")
+}
+
+model NativeExecutionReservation {
+  runId String @id
+  hostKey String
+  writeRoot String?
+  ownerFence Int
+  expiresAt DateTime
+  computerId String?
+  computerKey String?
+  hostId String?
+  active Boolean @default(false)
+
+  @@index([hostKey, expiresAt])
+  @@map("native_execution_reservations")
 }
 
 model Run {
@@ -895,6 +1023,11 @@ model Run {
   leaseExpiresAt       DateTime?
   checkpoint           String?
   clientNonce          String?
+  /// Native process identity is retained after private turn checkpoints are cleared.
+  nativeExecutionRunId String?
+  nativeComputerId     String?
+  nativeComputerKey    String?
+  nativeHostId         String?
   sourceMessageId      String?
   sourceMessage        Message?          @relation("RunSourceMessage", fields: [sourceMessageId], references: [id], onDelete: SetNull)
   routineId            String?
@@ -951,6 +1084,12 @@ model SteeringMessage {
   modelId       String?
   thinkingLevel String?
   claimedAt DateTime?
+  /// Explicit queued input waits for its own continuation; legacy input steers the active turn.
+  deliveryMode String @default("steer")
+  /// Null keeps the original message sequence, including writes from older releases.
+  queuePosition Int?
+  /// Retain cancelled input so future history cannot reinterpret it as an instruction.
+  cancelledAt DateTime?
   createdAt DateTime @default(now())
 
   @@unique([messageId, botId])
@@ -1365,6 +1504,8 @@ model Computer {
   homeStorageKey          String?
   homeStorageRevision     String?
   kind                    String
+  registeredHostId String?
+  executionTarget         String @default("default")
   providerRef             String?
   state                   String                   @default("stopped")
   controlHolder           String                   @default("none")
@@ -1448,6 +1589,8 @@ model Artifact {
   groupId    String?
   group      ChatGroup? @relation(fields: [groupId], references: [id], onDelete: Cascade)
   userId     String
+  /// Conversation that owns an upload before a run claims it.
+  uploadThreadId String?
   runId      String?
   name       String
   description String?
@@ -1470,6 +1613,7 @@ model Artifact {
   @@index([groupId])
   @@index([rootArtifactId])
   // artifacts_family_version_key is raw SQL: Prisma cannot express COALESCE indexes.
+  @@index([uploadThreadId])
   @@map("artifacts")
 }
 

@@ -56,18 +56,21 @@ async function findArtifactMessages(
   actor: Actor,
   artifacts: Array<{ id: string; targetId: string }>,
   target: "bot" | "group",
-): Promise<Map<string, { id: string; seq: number }>> {
+): Promise<Map<string, { id: string; seq: number; taskId?: string | null }>> {
   if (artifacts.length === 0) return new Map();
-  const targetColumn = target === "bot" ? Prisma.sql`t."botId"` : Prisma.sql`t."groupId"`;
+  const targetColumn =
+    target === "bot" ? Prisma.sql`COALESCE(t."botId", t."taskBotId")` : Prisma.sql`t."groupId"`;
   const candidates = Prisma.join(
     artifacts.map(({ id, targetId }) => Prisma.sql`(${id}, ${targetId})`),
   );
-  const rows = await prisma.$queryRaw<Array<{ artifactId: string; id: string; seq: number }>>(
+  const rows = await prisma.$queryRaw<
+    Array<{ artifactId: string; id: string; seq: number; taskId?: string | null }>
+  >(
     Prisma.sql`
-      SELECT candidate."artifactId", message.id, message.seq
+      SELECT candidate."artifactId", message.id, message.seq, message."taskId"
       FROM (VALUES ${candidates}) AS candidate("artifactId", "targetId")
       CROSS JOIN LATERAL (
-        SELECT m.id, m.seq
+        SELECT m.id, m.seq, (SELECT task.id FROM tasks task WHERE task."threadId" = t.id AND task.conversation = true LIMIT 1) AS "taskId"
         FROM messages m
         INNER JOIN threads t ON t.id = m."threadId"
         WHERE t."spaceId" = ${actor.spaceId}
@@ -79,7 +82,7 @@ async function findArtifactMessages(
       ) message
     `,
   );
-  return new Map(rows.map(({ artifactId, id, seq }) => [artifactId, { id, seq }]));
+  return new Map(rows.map(({ artifactId, id, seq, taskId }) => [artifactId, { id, seq, taskId }]));
 }
 
 export async function querySpaceSearch(
@@ -103,6 +106,7 @@ export async function querySpaceSearch(
       hit.kind,
       hit.botId ?? "",
       hit.groupId ?? "",
+      hit.taskId ?? "",
       hit.messageId ?? "",
       hit.artifactId ?? "",
       hit.routineId ?? "",
@@ -210,6 +214,7 @@ export async function querySpaceSearch(
       contentHits,
       {
         kind: "file",
+        ...(message.taskId ? { taskId: message.taskId } : {}),
         botId: artifact.botId,
         botName: artifact.bot.name,
         title: artifact.name,
@@ -306,12 +311,14 @@ export async function querySpaceSearch(
           blocks: Prisma.JsonValue;
           botId: string;
           botName: string;
+          taskId?: string | null;
         }>
       >`
-      SELECT m.id, m."threadId", m.seq, m.blocks, b.id AS "botId", b.name AS "botName"
+      SELECT m.id, m."threadId", m.seq, m.blocks, b.id AS "botId", b.name AS "botName", task.id AS "taskId"
       FROM messages m
       INNER JOIN threads t ON t.id = m."threadId"
-      INNER JOIN bots b ON b.id = t."botId"
+      INNER JOIN bots b ON b.id = COALESCE(t."botId", t."taskBotId")
+      LEFT JOIN tasks task ON task."threadId" = t.id AND task.conversation = true
       WHERE t."spaceId" = ${actor.spaceId}
         AND t."userId" = ${actor.userId}
         AND b."archivedAt" IS NULL
@@ -323,6 +330,7 @@ export async function querySpaceSearch(
     for (const row of messageRows) {
       pushMessageHits(row.blocks as MessageBlock[], {
         botId: row.botId,
+        ...(row.taskId ? { taskId: row.taskId } : {}),
         botName: row.botName,
         messageId: row.id,
         seq: row.seq,
@@ -379,6 +387,7 @@ function pushMessageHits(
   blocks: MessageBlock[],
   ctx: {
     botId?: string;
+    taskId?: string;
     botName?: string;
     groupId?: string;
     groupName?: string;
@@ -391,7 +400,7 @@ function pushMessageHits(
   // Discriminate on groupId (not name): empty group names must still target the group.
   const destination = ctx.groupId
     ? { groupId: ctx.groupId, groupName: ctx.groupName ?? "" }
-    : { botId: ctx.botId!, botName: ctx.botName! };
+    : { botId: ctx.botId!, botName: ctx.botName!, ...(ctx.taskId ? { taskId: ctx.taskId } : {}) };
   const title = ctx.groupId ? (ctx.groupName ?? "") : (ctx.botName ?? "");
   let messageHit = false;
   for (const block of blocks) {

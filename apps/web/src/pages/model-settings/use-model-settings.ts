@@ -10,6 +10,7 @@ import {
   isCloudflareModelProvider,
   MAX_MODEL_CONTEXT_WINDOW,
   MAX_MODEL_MAX_TOKENS,
+  MAX_MODEL_TIMEOUT_MS,
   modelHeadersInput,
   OPENAI_COMPATIBLE_PROVIDER_ID,
   openAiCompatibleProbeSuccessMessage,
@@ -103,6 +104,8 @@ export function useModelSettings(onClose: () => void, scope: SettingsScope) {
   const [accountId, setAccountId] = useState("");
   const [gatewayId, setGatewayId] = useState("");
   const [baseUrl, setBaseUrl] = useState("");
+  const [streamTimeoutMs, setStreamTimeoutMs] = useState("");
+  const [streamIdleTimeoutMs, setStreamIdleTimeoutMs] = useState("");
   const [headerRows, setHeaderRows] = useState<ModelHeaderRow[] | null>(null);
   const [reasoning, setReasoning] = useState(false);
   const [thinkingLevel, setThinkingLevel] = useState<ThinkingLevel | null>(null);
@@ -224,6 +227,8 @@ export function useModelSettings(onClose: () => void, scope: SettingsScope) {
   function applyFields(fields: ConnectionFormFields) {
     setEnabledModelIds(fields.enabledModelIds);
     setBaseUrl(fields.baseUrl);
+    setStreamTimeoutMs(fields.streamTimeoutMs);
+    setStreamIdleTimeoutMs(fields.streamIdleTimeoutMs);
     setReasoning(fields.reasoning);
     setThinkingLevel(fields.thinkingLevel);
     setMaxTokens(fields.maxTokens);
@@ -333,6 +338,8 @@ export function useModelSettings(onClose: () => void, scope: SettingsScope) {
     !isOpenAiCompatible &&
     Boolean(credential) &&
     (maxTokens.trim() !== connectionMaxTokensField(provider, credential?.maxTokens) ||
+      streamTimeoutMs.trim() !== String(credential?.streamTimeoutMs ?? "") ||
+      streamIdleTimeoutMs.trim() !== String(credential?.streamIdleTimeoutMs ?? "") ||
       (isCloudflare &&
         (accountId.trim() !== (credential?.accountId ?? "") ||
           gatewayId.trim() !== (credential?.gatewayId ?? ""))));
@@ -524,6 +531,8 @@ export function useModelSettings(onClose: () => void, scope: SettingsScope) {
         enabledModelIds,
         baseUrl,
         headerRows,
+        streamTimeoutMs,
+        streamIdleTimeoutMs,
         reasoning,
         thinkingLevel,
         maxTokens,
@@ -542,11 +551,13 @@ export function useModelSettings(onClose: () => void, scope: SettingsScope) {
     if (request.status === "incomplete") return;
     if (request.status === "invalid") {
       setError(
-        request.field === "maxTokens"
-          ? t`Enter a whole number from 1 to ${MAX_MODEL_MAX_TOKENS} for maximum output tokens.`
-          : request.field === "maxImagesPerPrompt"
-            ? t`Enter a whole number from 1 to 1000 for the image limit.`
-            : t`Enter a whole number from 1 to ${MAX_MODEL_CONTEXT_WINDOW} for the context limit.`,
+        request.field === "streamTimeoutMs" || request.field === "streamIdleTimeoutMs"
+          ? t`Enter a whole number from 1 to ${MAX_MODEL_TIMEOUT_MS} for request timeouts, or leave blank to use server defaults.`
+          : request.field === "maxTokens"
+            ? t`Enter a whole number from 1 to ${MAX_MODEL_MAX_TOKENS} for maximum output tokens.`
+            : request.field === "maxImagesPerPrompt"
+              ? t`Enter a whole number from 1 to 1000 for the image limit.`
+              : t`Enter a whole number from 1 to ${MAX_MODEL_CONTEXT_WINDOW} for the context limit.`,
       );
       return;
     }
@@ -635,6 +646,10 @@ export function useModelSettings(onClose: () => void, scope: SettingsScope) {
     refresh,
     resetOpenAiCompatibleProbe,
     headerRows,
+    streamTimeoutMs,
+    setStreamTimeoutMs,
+    streamIdleTimeoutMs,
+    setStreamIdleTimeoutMs,
     setHeaderRows,
     savedHeaderEndpointMatches,
     acceptsKey,

@@ -20,7 +20,7 @@ it("offers native consultation messaging to Coordinator only", () => {
   }
 });
 
-it("gives Coordinator read-only Intelligence while keeping writes confined to Opportunities", () => {
+it("keeps Intelligence reads and explicit source refresh separate from Opportunities publication", () => {
   for (const role of FARMING_CONTROL_ROLES) {
     const tools = farmingControlToolsForRole(role);
     const intelligence = tools.find((tool) => tool.name === "farming_control_intelligence");
@@ -33,6 +33,10 @@ it("gives Coordinator read-only Intelligence while keeping writes confined to Op
     ]) {
       expect(tools.some((tool) => tool.name === name)).toBe(role === "opportunities");
     }
-    if (role === "coordinator") expect(tools.every((tool) => tool.readOnly)).toBe(true);
+    const sourceRefresh = tools.find((tool) => tool.name === "farming_control_source_refresh");
+    expect(Boolean(sourceRefresh)).toBe(role === "coordinator" || role === "opportunities");
+    if (sourceRefresh) expect(sourceRefresh.readOnly).toBe(false);
+    if (role === "coordinator")
+      expect(tools.filter((tool) => tool.name !== "farming_control_source_refresh").every((tool) => tool.readOnly)).toBe(true);
   }
 });

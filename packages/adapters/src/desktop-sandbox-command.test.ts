@@ -156,6 +156,28 @@ describe("desktop command execution", () => {
     }
   });
 
+  it("reports signal termination as failure rather than a successful exit", async () => {
+    const root = mkdtempSync(path.join(tmpdir(), "rakazo-desktop-command-"));
+    roots.push(root);
+    const desktop = new DesktopSandboxProvider({ root });
+    const computer = await desktop.provision({ botId: "signal", homePath: "/unused" }, ctx);
+    try {
+      const result = await collect(
+        desktop.execute(
+          computer,
+          {
+            argv: [process.execPath, "-e", "process.kill(process.pid, 'SIGTERM')"],
+            env: process.versions.electron ? { ELECTRON_RUN_AS_NODE: "1" } : {},
+          },
+          ctx,
+        ),
+      );
+      expect(result.code).toBe(1);
+    } finally {
+      await desktop.destroy(computer, ctx);
+    }
+  });
+
   it("keeps UTF-8 characters split across output chunks intact", async () => {
     const root = mkdtempSync(path.join(tmpdir(), "rakazo-desktop-command-"));
     roots.push(root);
@@ -199,6 +221,69 @@ describe("desktop command execution", () => {
       expect(result).toMatchObject({ code: 130, stderr: "command aborted\n" });
       expect(spawn).not.toHaveBeenCalled();
     } finally {
+      spawn.mockRestore();
+      await desktop.destroy(computer, ctx);
+    }
+  });
+
+  it("keeps process ownership until death and leaves sibling run trees untouched", async () => {
+    const root = mkdtempSync(path.join(tmpdir(), "rakazo-desktop-command-"));
+    roots.push(root);
+    const desktop = new DesktopSandboxProvider({ root });
+    const computer = await desktop.provision({ botId: "owned", homePath: "/unused" }, ctx);
+    const fake = () => {
+      let alive = true;
+      const child = Object.assign(new EventEmitter(), {
+        stdout: new PassThrough(),
+        stderr: new PassThrough(),
+      });
+      const tree = { alive: () => alive, kill: vi.fn(), close: vi.fn() };
+      return {
+        child,
+        tree,
+        die: () => {
+          alive = false;
+          child.emit("close", 0);
+        },
+      };
+    };
+    const target = fake(),
+      sibling = fake();
+    const spawn = vi
+      .spyOn(processTree, "spawnOwnedCommand")
+      .mockReturnValueOnce({
+        child: target.child as unknown as ChildProcessWithoutNullStreams,
+        tree: target.tree,
+      })
+      .mockReturnValueOnce({
+        child: sibling.child as unknown as ChildProcessWithoutNullStreams,
+        tree: sibling.tree,
+      });
+    const first = collect(
+      desktop.execute(computer, { argv: ["fake"] }, { ...ctx, runId: "target" }),
+    );
+    await vi.waitFor(() => expect(spawn).toHaveBeenCalledTimes(1));
+    const second = collect(
+      desktop.execute(computer, { argv: ["fake"] }, { ...ctx, runId: "sibling" }),
+    );
+    await vi.waitFor(() => expect(spawn).toHaveBeenCalledTimes(2));
+    try {
+      let cleaned = false;
+      const cleanup = desktop.cancelRunWork(computer, computer.id, "target", ctx).then(() => {
+        cleaned = true;
+      });
+      await vi.waitFor(() => expect(target.tree.kill).toHaveBeenCalledOnce());
+      expect(cleaned).toBe(false);
+      expect(target.tree.close).not.toHaveBeenCalled();
+      expect(sibling.tree.kill).not.toHaveBeenCalled();
+      target.die();
+      await cleanup;
+      expect(target.tree.close).toHaveBeenCalled();
+      expect(sibling.tree.close).not.toHaveBeenCalled();
+    } finally {
+      target.die();
+      sibling.die();
+      await Promise.all([first, second]);
       spawn.mockRestore();
       await desktop.destroy(computer, ctx);
     }

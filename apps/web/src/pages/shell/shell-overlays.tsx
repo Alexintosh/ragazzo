@@ -168,6 +168,13 @@ export function SettingsOverlays({
             const nextMe = await rpc.preferences.update({ timezone });
             setBootstrapMe((prev) => (prev ? { ...prev, timezone: nextMe.timezone } : nextMe));
           }}
+          roleplayEnabled={bootstrapMe?.roleplayEnabled === true}
+          onRoleplayEnabledChange={async (roleplayEnabled) => {
+            const nextMe = await rpc.preferences.update({ roleplayEnabled });
+            setBootstrapMe((prev) =>
+              prev ? { ...prev, roleplayEnabled: nextMe.roleplayEnabled } : nextMe,
+            );
+          }}
           onAccountImported={refreshSpaces}
           onImportAgent={() => {
             setOverlay(null);

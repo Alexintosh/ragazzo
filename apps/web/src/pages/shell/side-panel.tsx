@@ -41,6 +41,7 @@ export function ShellSidePanel({
   computerOpen,
   booting,
   computerPanel,
+  filesPanel,
   routinesPanel,
   routineEditorProps,
   openBot,
@@ -69,6 +70,7 @@ export function ShellSidePanel({
   computerOpen: boolean;
   booting: boolean;
   computerPanel: ReactNode;
+  filesPanel?: ReactNode;
   routinesPanel: ReactNode;
   routineEditorProps: ComponentProps<typeof RoutineEditor> | null;
   openBot: (botId: string) => void;
@@ -183,6 +185,7 @@ export function ShellSidePanel({
               </div>
             </div>
           ) : null}
+          {panel === "files" ? filesPanel : null}
           {panel === "create-group" ? (
             <CreateGroupForm
               bots={bots}
@@ -245,8 +248,45 @@ export function ShellSidePanel({
               onOpenConnections={() => openSettings("models")}
               memoryProviderConfigured={memoryProviderConfigured}
               onSkillsChange={setAgentSkills}
-              onSave={async ({ computerMode, ...patch }) => {
-                if (computerMode !== undefined && computerMode !== active.computerMode) {
+              onSave={async (
+                {
+                  computerMode,
+                  runtimeKind,
+                  executionTarget,
+                  runtimePermission,
+                  projectPath,
+                  registeredHostId,
+                  ...patch
+                },
+                onExecutionSaved,
+              ) => {
+                let savedComputerMode = active.computerMode;
+                if (
+                  runtimeKind !== undefined &&
+                  executionTarget !== undefined &&
+                  runtimePermission !== undefined &&
+                  projectPath !== undefined &&
+                  (runtimeKind !== (active.runtimeKind ?? "pi") ||
+                    executionTarget !== (active.executionTarget ?? "default") ||
+                    runtimePermission !== (active.runtimePermission ?? "workspace") ||
+                    projectPath !== (active.projectPath ?? null) ||
+                    (registeredHostId ?? null) !== (active.registeredHostId ?? null))
+                ) {
+                  const updated = await rpc.bots.setExecution({
+                    botId: active.id,
+                    runtimeKind,
+                    executionTarget,
+                    runtimePermission,
+                    projectPath,
+                    registeredHostId,
+                  });
+                  savedComputerMode = updated.computerMode;
+                  onExecutionSaved?.(updated);
+                  setBots((current) =>
+                    current.map((bot) => (bot.id === updated.id ? updated : bot)),
+                  );
+                }
+                if (computerMode !== undefined && computerMode !== savedComputerMode) {
                   await rpc.bots.setComputer({
                     botId: active.id,
                     mode: computerMode,

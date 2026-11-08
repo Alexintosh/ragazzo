@@ -13,6 +13,7 @@ loadRootEnv();
 import {
   auditLogConfig,
   ChatSdkMessagingSurface,
+  CodexAgentRuntime,
   CodexCatalogCache,
   contentKeyProviderFromEnv,
   createAgentHomeStore,
@@ -23,6 +24,7 @@ import {
   createConnectorStack,
   createDeadJobPruner,
   createFarmingControlService,
+  createHostComputerTransport,
   createIdleComputerSweeper,
   createJobReconciler,
   createMessagingContextLoader,
@@ -31,6 +33,7 @@ import {
   createPostgresReconciliationLeadership,
   createProductAnalytics,
   createReservedGraphileJobWorkerHost,
+  createRoleplaySpontaneousReconciler,
   createRoutineRetryNoticeReconciler,
   createRunExecutor,
   createRunSandbox,
@@ -64,6 +67,8 @@ import {
   reconcileCloudAgents,
   reconcileComputerUpdates,
   reconcilePurchases,
+  reconcileRegisteredHostRevocations,
+  reconcileWorkflows,
   resolveDeploymentModel,
   resolvePiSessionRoot,
   resolveSandboxProvider,
@@ -152,8 +157,14 @@ async function main() {
   const { key: deploymentModelKey, configured: deploymentModelConfigured } =
     resolveDeploymentModel();
   const sandboxProvider = resolveSandboxProvider(process.env);
+  const hostOptions = sandboxProviderOptionsFromEnv(process.env);
+  const nativeTransport = createHostComputerTransport({ prisma, secrets, ...hostOptions });
+  const nativeRuntime = new CodexAgentRuntime(nativeTransport);
+  const claudeRuntime = new CodexAgentRuntime(nativeTransport, "claude");
+  const acpRuntime = new CodexAgentRuntime(nativeTransport, "acp");
   const sandbox = await createRunSandbox(sandboxProvider, {
-    ...sandboxProviderOptionsFromEnv(process.env),
+    ...hostOptions,
+    secrets,
     supervisorUrl: process.env.SANDBOX_SUPERVISOR_URL ?? "http://127.0.0.1:7091",
     supervisorToken: sandboxProvider === "docker" ? resolveSupervisorToken(process.env) : undefined,
     dataDir,
@@ -264,6 +275,7 @@ async function main() {
     farmingControlOpportunityRefreshEnabled: process.env.FARMING_CONTROL_OPPORTUNITY_REFRESH_ENABLED === "true",
     farmingControlRiskAutomationEnabled:
       (process.env.FARMING_CONTROL_RISK_EVENT_TOKEN?.trim().length ?? 0) >= 32,
+    runtimes: { codex: nativeRuntime, claude: claudeRuntime, acp: acpRuntime },
     maxUploadSizeBytes: uploadSizeFromEnv(process.env),
     prisma,
     runtime,
@@ -355,6 +367,7 @@ async function main() {
     events,
     notifications,
     leadership: createPostgresReconciliationLeadership(pool),
+    reconcileRoleplaySpontaneous: createRoleplaySpontaneousReconciler({ prisma, jobs }),
     reconcileModelCredits: createModelCreditReconciler({
       prisma,
       lookup: deploymentModelUsageLookup(),
@@ -362,6 +375,9 @@ async function main() {
     reconcileCloudAgents: () => reconcileCloudAgents({ prisma, jobs, cloudAgent }),
     reconcilePurchases: () => reconcilePurchases({ prisma, jobs, paymentWallet }),
     reconcileComputerUpdates: () => reconcileComputerUpdates({ prisma, jobs }),
+    reconcileWorkflows: () => reconcileWorkflows({ prisma, jobs, sandbox }),
+    reconcileRegisteredHostRevocations: () =>
+      reconcileRegisteredHostRevocations({ prisma, secrets }),
     reconcileRoutineRetryNotices: inMemoryJobs
       ? undefined
       : createRoutineRetryNoticeReconciler(pool, (runId) =>

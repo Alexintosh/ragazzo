@@ -24,10 +24,11 @@ import type {
   SettingsScope,
   VaultPutInput,
 } from "@rakazo/contracts";
-import { BotSecretAuth, resolveBotAvatarSet } from "@rakazo/contracts";
-import { ACTIVE_RUN_STATUSES, displayName } from "@rakazo/core";
+import { BotSecretAuth, RoleplayCharacterSchema, resolveBotAvatarSet } from "@rakazo/contracts";
+import { ACTIVE_RUN_STATUSES, displayName, isFarmingControlSpecialist } from "@rakazo/core";
 import type { Prisma } from "@rakazo/db";
 import {
+  BotExecutionSettingsError,
   BotSectionNameConflictError,
   botProfileLabelsChanged,
   ComputerLimitError,
@@ -35,11 +36,14 @@ import {
   expireComputerExecutionLeases,
   InstructionConflictError,
   IsolationError,
+  isRoleplayEnabled,
   recordComputerRunEnd,
   recordSecurityEvent,
   restoreBotUnderComputerQuota,
   SpaceDeletionInProgressError,
+  setBotExecution,
   settingsTarget,
+  validateBotExecution,
 } from "@rakazo/db";
 import { getLogger } from "@rakazo/logging";
 import type { AgentImportServices } from "../agent-import.js";
@@ -47,7 +51,22 @@ import { agentImportSetupState, createImportedBot, previewAgentImport } from "..
 import { deleteAgentSecret, listAgentSecrets, putAgentSecret } from "../agent-secrets.js";
 import { changedBotSettings } from "../bot-setting-analytics.js";
 import { requireIdentityConfirmation } from "../identity-confirmation.js";
+import { resolveNativeProjectConfig } from "../native-project-config.js";
+import { assertNativeSetupAdmission } from "../native-setup-admission.js";
+import {
+  assertRoleplayAlbum,
+  duplicateRoleplayAlbum,
+  importRoleplayMedia,
+  loadRoleplayMedia,
+  updateRoleplayStoryMode,
+} from "../roleplay-media.js";
+import {
+  assertRoleplaySpontaneousTimezone,
+  loadRoleplayRelationship,
+  updateRoleplayRelationship,
+} from "../roleplay-relationship.js";
 import type { RouterDeps } from "../router.js";
+import { loadBotRuntimeModels, setBotRuntimeModel } from "../runtime-model-settings.js";
 import { loadMessagePage } from "../thread-message-pages.js";
 import type { RouterContext } from "./context.js";
 import {
@@ -59,6 +78,9 @@ import {
 
 /** Surface a Space deletion race as a retryable conflict instead of a generic failure. */
 function mapSpaceLifecycleError(error: unknown): unknown {
+  if (error instanceof BotExecutionSettingsError) {
+    return new ORPCError("CONFLICT", { message: error.message });
+  }
   if (error instanceof SpaceDeletionInProgressError) {
     return new ORPCError("CONFLICT", { message: error.message });
   }
@@ -196,12 +218,14 @@ export function botIntroPrompt(input: {
  * bot's own profile, and answering resumes the run as the user's turn.
  */
 export async function enqueueBotIntroRun(deps: RouterDeps, actor: Actor, bot: Bot): Promise<void> {
+  if (bot.botKind === "roleplay") return;
   const threadId = bot.threadId;
   if (!threadId) return;
   // In the scripted test/eval runtime an automatic run would compete with the harness's next
   // queued response.
   if (deps.env.agentRuntime === "scripted") return;
-  if ((await modelSetup(deps, actor)).needsModel) return;
+  const native = ["codex", "claude", "acp"].includes(bot.runtimeKind ?? "pi");
+  if (!native && (await modelSetup(deps, actor)).needsModel) return;
   const [user, space] = await Promise.all([
     deps.prisma.user.findUnique({ where: { id: actor.userId }, select: { name: true } }),
     deps.prisma.space.findUnique({
@@ -212,7 +236,9 @@ export async function enqueueBotIntroRun(deps: RouterDeps, actor: Actor, bot: Bo
   const prompt = botIntroPrompt({
     userName: displayName(user?.name, ""),
     spaceName: space && !space.isDefault ? space.name.trim() || null : null,
-    disabledBuiltinTools: bot.disabledBuiltinTools ?? [],
+    disabledBuiltinTools: native
+      ? [...(bot.disabledBuiltinTools ?? []), "ask_user"]
+      : (bot.disabledBuiltinTools ?? []),
   });
   const run = await deps.prisma.$transaction(async (tx) => {
     // An idempotent create (spawnKey) returns the bot it already made; it gets one intro.
@@ -253,16 +279,119 @@ export function botsRoutes(ctx: RouterContext) {
       listArchived: authed.bots.listArchived.handler(async ({ context }) =>
         repos.listBots(context.actor, { archived: true }),
       ),
+      roleplayMedia: authed.bots.roleplayMedia.handler(({ context, input }) =>
+        loadRoleplayMedia(deps, context.actor, input.botId),
+      ),
+      updateRoleplayStoryMode: authed.bots.updateRoleplayStoryMode.handler(({ context, input }) =>
+        updateRoleplayStoryMode(deps, context.actor, input),
+      ),
+      importRoleplayMedia: authed.bots.importRoleplayMedia.handler(({ context, input }) =>
+        importRoleplayMedia(deps, context.actor, input),
+      ),
+      roleplayRelationship: authed.bots.roleplayRelationship.handler(({ context, input }) =>
+        loadRoleplayRelationship(deps, context.actor, input.botId),
+      ),
+      updateRoleplayRelationship: authed.bots.updateRoleplayRelationship.handler(
+        ({ context, input }) => updateRoleplayRelationship(deps, context.actor, input),
+      ),
       get: authed.bots.get.handler(async ({ context, input }) => {
         const found = (await repos.listBots(context.actor)).find((bot) => bot.id === input.botId);
         if (!found) throw new IsolationError();
         return found;
       }),
+      runtimeModels: authed.bots.runtimeModels.handler(async ({ context, input }) => {
+        const bot = await repos.getBot(context.actor, input.botId);
+        return loadBotRuntimeModels(
+          deps,
+          context.actor,
+          {
+            ...bot,
+            runtimeKind: bot.runtimeKind as Bot["runtimeKind"],
+            executionTarget: bot.executionTarget as Bot["executionTarget"],
+            threadId: bot.thread?.id ?? null,
+          },
+          context.signal,
+        );
+      }),
+      setRuntimeModel: authed.bots.setRuntimeModel.handler(async ({ context, input }) => {
+        await setBotRuntimeModel(deps, context.actor, input, context.signal);
+        const bot = (await repos.listBots(context.actor)).find((row) => row.id === input.botId);
+        if (!bot) throw new IsolationError();
+        return bot;
+      }),
       create: authed.bots.create.handler(async ({ context, input }) => {
+        if (
+          input.botKind === "roleplay" &&
+          !(await isRoleplayEnabled(deps.prisma, context.actor.userId))
+        )
+          throw new ORPCError("BAD_REQUEST", {
+            message: "Roleplay is not enabled for this account. Enable it in Settings > General.",
+          });
+        if (input.botKind === "roleplay" && deps.env.sandboxProvider !== "docker")
+          throw new ORPCError("BAD_REQUEST", {
+            message: "Roleplay requires Docker on this server",
+          });
+        await assertRoleplaySpontaneousTimezone(deps, context.actor, input.roleplayCharacter);
+        await assertRoleplayAlbum(deps, context.actor, null, input.roleplayCharacter);
+        if (
+          input.executionTarget === "host" &&
+          !input.registeredHostId &&
+          !deps.env.nativeHostConfigured
+        ) {
+          throw new ORPCError("BAD_REQUEST", {
+            message: "Host execution requires a configured host bridge",
+          });
+        }
+        if (
+          input.executionTarget &&
+          input.executionTarget !== "default" &&
+          !input.registeredHostId &&
+          deps.env.sandboxProvider !== "docker" &&
+          !(input.executionTarget === "host" && deps.env.sandboxProvider === "desktop")
+        ) {
+          throw new ORPCError("BAD_REQUEST", {
+            message:
+              input.executionTarget === "docker"
+                ? "Docker sandbox is not enabled on this server"
+                : "Host execution is not enabled on this server",
+          });
+        }
         let bot: Bot;
         try {
-          bot = await repos.createBot(context.actor, input);
+          const requestedExecution = {
+            botId: "new",
+            runtimeKind: input.runtimeKind ?? "pi",
+            executionTarget:
+              input.executionTarget ?? (input.botKind === "roleplay" ? "docker" : "default"),
+            runtimePermission: input.runtimePermission ?? "workspace",
+            registeredHostId: input.registeredHostId,
+            projectPath: input.projectPath ?? null,
+          };
+          // An idempotent native creation returns its saved project even if the original alias
+          // or host is no longer available. Never re-resolve or change that existing bot.
+          const reused =
+            input.spawnKey && requestedExecution.runtimeKind !== "pi"
+              ? (await repos.listBots(context.actor)).find((row) => row.spawnKey === input.spawnKey)
+              : undefined;
+          if (reused) {
+            validateBotExecution(requestedExecution);
+            await deps.prisma.$transaction((tx) => assertNativeSetupAdmission(tx, context.actor));
+            bot = reused;
+          } else {
+            const execution = await resolveNativeProjectConfig(
+              deps,
+              context.actor,
+              requestedExecution,
+              context.signal,
+            );
+            bot = await repos.createBot(context.actor, {
+              ...input,
+              projectPath: execution.projectPath,
+            });
+          }
         } catch (error) {
+          if (error instanceof BotExecutionSettingsError)
+            throw new ORPCError("BAD_REQUEST", { message: error.message });
           throw mapSpaceLifecycleError(error);
         }
         await enqueueBotIntroRun(deps, context.actor, bot).catch((error) => {
@@ -288,8 +417,27 @@ export function botsRoutes(ctx: RouterContext) {
       ),
       duplicate: authed.bots.duplicate.handler(async ({ context, input }) => {
         const source = await repos.getBot(context.actor, input.botId);
+        if (
+          source.botKind === "roleplay" &&
+          !(await isRoleplayEnabled(deps.prisma, context.actor.userId))
+        )
+          throw new ORPCError("BAD_REQUEST", {
+            message: "Roleplay is not enabled for this account. Enable it in Settings > General.",
+          });
+        if (source.botKind === "roleplay" && deps.env.sandboxProvider !== "docker")
+          throw new ORPCError("BAD_REQUEST", {
+            message: "Roleplay requires Docker on this server",
+          });
+        const sourceCharacter =
+          source.roleplayCharacter == null
+            ? null
+            : RoleplayCharacterSchema.parse(source.roleplayCharacter);
         const duplicate = await repos
           .createBot(context.actor, {
+            botKind: source.botKind === "roleplay" ? "roleplay" : "agent",
+            roleplayCharacter: sourceCharacter?.media
+              ? { ...sourceCharacter, media: { ...sourceCharacter.media, album: [] } }
+              : sourceCharacter,
             name: duplicateBotName(source.name),
             description: source.description,
             instructions: source.instructions,
@@ -297,14 +445,23 @@ export function botsRoutes(ctx: RouterContext) {
             color: source.color,
             avatarSet: resolveBotAvatarSet(source.avatarSet),
             computerMode: source.computer?.scope === "dedicated" ? "dedicated" : "team",
-            modelProvider: source.modelProvider,
-            modelId: source.modelId,
-            thinkingLevel: source.thinkingLevel,
+            modelProvider: source.runtimeKind === "pi" ? source.modelProvider : null,
+            modelId: source.runtimeKind === "pi" ? source.modelId : null,
+            thinkingLevel: source.runtimeKind === "pi" ? source.thinkingLevel : null,
             disabledBuiltinTools: source.disabledBuiltinTools,
           })
           .catch((error: unknown) => {
             throw mapSpaceLifecycleError(error);
           });
+        if (source.botKind === "roleplay" && source.roleplayCharacter) {
+          duplicate.roleplayCharacter = await duplicateRoleplayAlbum(
+            deps,
+            context.actor,
+            source.id,
+            duplicate.id,
+            RoleplayCharacterSchema.parse(source.roleplayCharacter),
+          );
+        }
         const assignments = await deps.prisma.botMcpServer.findMany({
           where: {
             botId: source.id,
@@ -332,6 +489,22 @@ export function botsRoutes(ctx: RouterContext) {
       }),
       update: authed.bots.update.handler(async ({ context, input }) => {
         const existing = await repos.getBot(context.actor, input.botId);
+        await assertRoleplayAlbum(deps, context.actor, input.botId, input.roleplayCharacter);
+        await assertRoleplaySpontaneousTimezone(deps, context.actor, input.roleplayCharacter);
+        if (input.roleplayCharacter !== undefined && existing.botKind !== "roleplay")
+          throw new ORPCError("BAD_REQUEST", { message: "Characters require a roleplay bot" });
+        if (
+          existing.botKind === "roleplay" &&
+          (input.fleetManagement === true ||
+            input.crossSpaceCommunication === true ||
+            input.teamChatAmbientEnabled === true ||
+            input.disabledBuiltinTools !== undefined ||
+            input.selfUpdateInstructions === true ||
+            input.memoryScope === "shared")
+        )
+          throw new ORPCError("BAD_REQUEST", {
+            message: "Roleplay bots cannot use agent tools or delegation",
+          });
         if (input.sectionId) {
           const section = await deps.prisma.botSection.findFirst({
             where: {
@@ -343,15 +516,27 @@ export function botsRoutes(ctx: RouterContext) {
           });
           if (!section) throw new IsolationError();
         }
-        const modelChange = await validateBotModelChange(botModelValidation(context.actor), {
-          userId: context.actor.userId,
-          spaceId: context.actor.spaceId,
-          provider:
-            input.modelProvider !== undefined ? input.modelProvider : existing.modelProvider,
-          model: input.modelId !== undefined ? input.modelId : existing.modelId,
-          thinkingLevel: input.thinkingLevel,
-          current: { provider: existing.modelProvider, model: existing.modelId },
-        });
+        if (
+          ["codex", "claude", "acp"].includes(existing.runtimeKind ?? "pi") &&
+          (input.modelProvider !== undefined ||
+            input.modelId !== undefined ||
+            input.thinkingLevel !== undefined)
+        ) {
+          throw new ORPCError("BAD_REQUEST", {
+            message: "Native Codex uses its own account and model settings",
+          });
+        }
+        const modelChange = ["codex", "claude", "acp"].includes(existing.runtimeKind ?? "pi")
+          ? { ok: true as const }
+          : await validateBotModelChange(botModelValidation(context.actor), {
+              userId: context.actor.userId,
+              spaceId: context.actor.spaceId,
+              provider:
+                input.modelProvider !== undefined ? input.modelProvider : existing.modelProvider,
+              model: input.modelId !== undefined ? input.modelId : existing.modelId,
+              thinkingLevel: input.thinkingLevel,
+              current: { provider: existing.modelProvider, model: existing.modelId },
+            });
         if (!modelChange.ok) throw new ORPCError("BAD_REQUEST", { message: modelChange.error });
         const thinkingLevel = input.thinkingLevel;
         if (!existing.thread) throw new IsolationError();
@@ -363,8 +548,17 @@ export function botsRoutes(ctx: RouterContext) {
           botId: input.botId,
           emitBotUpdated: botProfileLabelsChanged(input) || input.expectedSettings !== undefined,
           expectedInstructions: input.expectedInstructions,
+          expectedRoleplayCharacter: input.expectedRoleplayCharacter,
+          ...(input.modelProvider !== undefined ||
+          input.modelId !== undefined ||
+          input.thinkingLevel !== undefined
+            ? { expectedRuntimeKind: existing.runtimeKind ?? "pi" }
+            : {}),
           expectedSettings: input.expectedSettings,
           data: {
+            ...(input.roleplayCharacter !== undefined
+              ? { roleplayCharacter: input.roleplayCharacter as Prisma.InputJsonValue }
+              : {}),
             name: input.name,
             description: input.description,
             instructions: input.instructions,
@@ -399,6 +593,18 @@ export function botsRoutes(ctx: RouterContext) {
             throw new ORPCError("CONFLICT", {
               message: "Settings changed; review the current settings first.",
             });
+          if (
+            (input.modelProvider !== undefined ||
+              input.modelId !== undefined ||
+              input.thinkingLevel !== undefined) &&
+            error &&
+            typeof error === "object" &&
+            "code" in error &&
+            error.code === "P2025"
+          )
+            throw new ORPCError("CONFLICT", { message: "Execution settings changed. Try again" });
+          if (error instanceof BotExecutionSettingsError)
+            throw new ORPCError("CONFLICT", { message: error.message });
           if (!(error instanceof InstructionConflictError)) throw error;
           throw new ORPCError("CONFLICT", { message: error.message });
         });
@@ -431,21 +637,102 @@ export function botsRoutes(ctx: RouterContext) {
         }
         return (await repos.listBots(context.actor)).find((bot) => bot.id === input.botId)!;
       }),
+      executionStatus: authed.bots.executionStatus.handler(async ({ context, input }) => {
+        const bot = await repos.getBot(context.actor, input.botId);
+        if (!bot.thread) throw new IsolationError();
+        if (
+          (!bot.registeredHostId && !deps.env.nativeHostConfigured) ||
+          !deps.nativeRuntimeStatus
+        ) {
+          return { available: false, authenticated: false, reason: "host-unavailable" as const };
+        }
+        try {
+          return await deps.nativeRuntimeStatus(
+            bot.id,
+            bot.thread.id,
+            computerContext(context.actor, bot.id, "execution.status"),
+          );
+        } catch {
+          return { available: false, authenticated: false, reason: "host-unavailable" as const };
+        }
+      }),
+      setExecution: authed.bots.setExecution.handler(async ({ context, input }) => {
+        if (
+          input.executionTarget === "host" &&
+          !input.registeredHostId &&
+          !deps.env.nativeHostConfigured
+        ) {
+          throw new ORPCError("BAD_REQUEST", {
+            message: "Host execution requires the configured desktop bridge",
+          });
+        }
+        if (
+          input.executionTarget !== "default" &&
+          !input.registeredHostId &&
+          deps.env.sandboxProvider !== "docker" &&
+          !(input.executionTarget === "host" && deps.env.sandboxProvider === "desktop")
+        ) {
+          throw new ORPCError("BAD_REQUEST", {
+            message:
+              input.executionTarget === "docker"
+                ? "Docker sandbox is not enabled on this server"
+                : "Host execution is not enabled on this server",
+          });
+        }
+        try {
+          // Verify ownership before resolving a path on any host; the commit rechecks it under lock.
+          const bot = await repos.getBot(context.actor, input.botId);
+          if (input.runtimeKind !== "pi" && isFarmingControlSpecialist(bot))
+            throw new ORPCError("BAD_REQUEST", {
+              message: "Farming Control specialists require the scoped Pi runtime. Choose a separate bot for a native runtime.",
+            });
+          validateBotExecution(input, bot.botKind === "roleplay" ? "roleplay" : "agent");
+          const execution = await resolveNativeProjectConfig(
+            deps,
+            context.actor,
+            input,
+            context.signal,
+          );
+          const committed = await setBotExecution(deps.prisma, context.actor, execution);
+          await deps.events.notify(committed.threadId, committed.seq).catch((error) => {
+            getLogger().error("execution settings realtime notification", error);
+          });
+        } catch (error) {
+          if (error instanceof BotExecutionSettingsError) {
+            throw new ORPCError("CONFLICT", { message: error.message });
+          }
+          throw mapSpaceLifecycleError(error);
+        }
+        const bot = (await repos.listBots(context.actor)).find((row) => row.id === input.botId);
+        if (!bot) throw new IsolationError();
+        return bot;
+      }),
       setComputer: authed.bots.setComputer.handler(async ({ context, input }) => {
         const bot = await repos.getBot(context.actor, input.botId);
         if (!bot.computer) throw new IsolationError();
+        if (bot.botKind === "roleplay" && input.mode !== "dedicated")
+          throw new ORPCError("BAD_REQUEST", {
+            message: "Roleplay bots require a dedicated Docker computer",
+          });
         const currentMode = bot.computer.scope === "dedicated" ? "dedicated" : "team";
         if (currentMode === input.mode) {
           try {
-            return await repos.setBotComputer(context.actor, bot.id, input.mode);
+            return await repos.setBotComputer(context.actor, bot.id, input.mode, bot.computerId!);
           } catch (error) {
+            if (error instanceof BotExecutionSettingsError)
+              throw new ORPCError("CONFLICT", { message: error.message });
             throw mapSpaceLifecycleError(error);
           }
         }
         const claimed = await deps.prisma.$transaction(async (tx) => {
           await tx.$queryRaw`SELECT id FROM computers WHERE id = ${bot.computerId} FOR UPDATE`;
           return tx.bot.updateMany({
-            where: { id: bot.id, computerSwitching: false, computer: { maintenanceId: null } },
+            where: {
+              id: bot.id,
+              computerId: bot.computerId,
+              computerSwitching: false,
+              computer: { maintenanceId: null },
+            },
             data: { computerSwitching: true },
           });
         });
@@ -487,13 +774,20 @@ export function botsRoutes(ctx: RouterContext) {
             });
             await recordComputerRunEnd(deps.prisma, bot.computer, "stopped");
           }
-          const updated = await repos.setBotComputer(context.actor, bot.id, input.mode);
+          const updated = await repos.setBotComputer(
+            context.actor,
+            bot.id,
+            input.mode,
+            bot.computerId!,
+          );
           deps.analytics?.capture(context.actor.userId, {
             name: "bot_setting_changed",
             setting: "computer",
           });
           return updated;
         } catch (error) {
+          if (error instanceof BotExecutionSettingsError)
+            throw new ORPCError("CONFLICT", { message: error.message });
           throw mapSpaceLifecycleError(error);
         } finally {
           await deps.prisma.bot.updateMany({

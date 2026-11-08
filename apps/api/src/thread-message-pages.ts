@@ -113,12 +113,12 @@ export async function loadAllMessages(
   return pages.reverse().flat();
 }
 
-async function withoutPeerRunMessages<
+export async function withoutPeerRunMessages<
   T extends {
     runId: string | null;
     blocks: Prisma.JsonValue;
   },
->(prisma: MessageDb, rows: T[]): Promise<T[]> {
+>(prisma: Pick<PrismaClient, "run">, rows: T[]): Promise<T[]> {
   const runIds = [...new Set(rows.flatMap((row) => (row.runId ? [row.runId] : [])))];
   if (runIds.length === 0) return rows;
   const runs = await prisma.run.findMany({

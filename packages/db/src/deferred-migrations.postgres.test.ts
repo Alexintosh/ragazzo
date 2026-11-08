@@ -1,4 +1,4 @@
-import { cpSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -68,5 +68,79 @@ dbTests("deferred migrations", () => {
     expect(await columns()).toEqual(["gone", "id"]);
     await deployMigrations({ migrationUrl: databaseUrl!, dbPackageDir, migrationsDir: dir });
     expect(await columns()).toEqual(["id"]);
+  });
+});
+
+dbTests("previous bot release migration compatibility", () => {
+  it("keeps the previous bot columns readable through the first deployment", async () => {
+    const schema = `bot_predecessor_${process.pid}_${Date.now()}`;
+    const dir = mkdtempSync(path.join(tmpdir(), "bot-predecessor-"));
+    const client = new Client({ connectionString: databaseUrl });
+    await client.connect();
+    await client.query(`CREATE SCHEMA "${schema}"`);
+    const isolated = new URL(databaseUrl!);
+    isolated.searchParams.set("schema", schema);
+    isolated.searchParams.set("options", `-c search_path=${schema}`);
+    try {
+      const predecessor = "20261001000000_previous_bot_release";
+      mkdirSync(path.join(dir, predecessor));
+      writeFileSync(
+        path.join(dir, predecessor, "migration.sql"),
+        `
+        CREATE TABLE bots (
+          id TEXT PRIMARY KEY,
+          name TEXT NOT NULL,
+          title TEXT NOT NULL DEFAULT '',
+          "selfUpdateInstructions" BOOLEAN NOT NULL DEFAULT false
+        );
+        CREATE TABLE referrals ("rewardKind" TEXT, "declinedAt" TIMESTAMPTZ);
+      `,
+      );
+      await deployMigrations({
+        migrationUrl: isolated.toString(),
+        dbPackageDir,
+        migrationsDir: dir,
+      });
+      const drop = "20261103120000_drop_dead_bot_and_referral_columns";
+      mkdirSync(path.join(dir, drop));
+      writeFileSync(
+        path.join(dir, drop, "migration.sql"),
+        readFileSync(path.join(dbPackageDir, "prisma/migrations", drop, "migration.sql"), "utf8"),
+      );
+
+      await deployMigrations({
+        migrationUrl: isolated.toString(),
+        dbPackageDir,
+        migrationsDir: dir,
+      });
+      // The previous release still supplies and reads both removed Prisma fields.
+      await client.query(`INSERT INTO "${schema}".bots (id, name, title, "selfUpdateInstructions")
+        VALUES ('old-release', 'Existing bot', 'Previous title', true)`);
+      // The new release omits them, so the predecessor defaults must remain usable too.
+      await client.query(
+        `INSERT INTO "${schema}".bots (id, name) VALUES ('new-release', 'New bot')`,
+      );
+      const { rows } = await client.query(`SELECT title, "selfUpdateInstructions"
+        FROM "${schema}".bots ORDER BY id`);
+      expect(rows).toEqual([
+        { title: "", selfUpdateInstructions: false },
+        { title: "Previous title", selfUpdateInstructions: true },
+      ]);
+
+      await deployMigrations({
+        migrationUrl: isolated.toString(),
+        dbPackageDir,
+        migrationsDir: dir,
+      });
+      const { rows: columns } = await client.query<{ column_name: string }>(
+        "SELECT column_name FROM information_schema.columns WHERE table_schema = $1 AND table_name = 'bots' ORDER BY 1",
+        [schema],
+      );
+      expect(columns.map((row) => row.column_name)).toEqual(["id", "name"]);
+    } finally {
+      await client.query(`DROP SCHEMA "${schema}" CASCADE`);
+      await client.end();
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 });

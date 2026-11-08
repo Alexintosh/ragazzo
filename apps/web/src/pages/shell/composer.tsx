@@ -73,8 +73,10 @@ export const Composer = memo(function Composer({
   sending,
   fileInputRef,
   onAttachmentPick,
+  attachmentsEnabled = true,
   onRemoveAttachment,
   onSend,
+  onQueue,
   onStop,
   phoneCallsEnabled,
   dictationTranscribe,
@@ -92,7 +94,11 @@ export const Composer = memo(function Composer({
   draftKey,
   draftRevision = 0,
   enterToSend,
+  firstTask,
+  onFirstTaskSetup,
 }: {
+  firstTask?: "pi" | "codex" | "claude" | "acp";
+  onFirstTaskSetup?: () => void;
   activeName?: string;
   running: boolean;
   disabled?: boolean;
@@ -109,6 +115,7 @@ export const Composer = memo(function Composer({
   onDismissError: () => void;
   sending: boolean;
   fileInputRef: RefObject<HTMLInputElement | null>;
+  attachmentsEnabled?: boolean;
   onAttachmentPick: (files: FileList | readonly File[] | null) => boolean;
   onRemoveAttachment: (attachment: PendingAttachment) => void;
   onSend: (
@@ -117,6 +124,7 @@ export const Composer = memo(function Composer({
     clientNonce: string,
     imageHandling?: "file",
   ) => Promise<boolean>;
+  onQueue?: (text: string, clientNonce: string) => Promise<boolean>;
   onStop: () => Promise<void>;
   phoneCallsEnabled?: boolean;
   /** Hold-to-talk falls back to the voice provider's transcription; undefined while unknown. */
@@ -208,7 +216,7 @@ export const Composer = memo(function Composer({
       }),
     [draftKey],
   );
-  const retryNonce = useRef<string | null>(null);
+  const retryNonce = useRef<{ intent: "send" | "queue"; nonce: string } | null>(null);
   const replyId = replyTarget?.id ?? null;
   const quote = replyTarget ? (replyQuote ?? null) : null;
   const previousReply = useRef({ id: replyId, quote });
@@ -311,7 +319,7 @@ export const Composer = memo(function Composer({
   }, []);
 
   function pickAttachments(files: FileList | readonly File[] | null) {
-    if (!files?.length) return;
+    if (!attachmentsEnabled || disabled || !files?.length) return;
     if (onAttachmentPick(files)) markEdited();
   }
 
@@ -458,10 +466,19 @@ export const Composer = memo(function Composer({
     mentionQuery === null &&
     (slashSkillOptions.length > 0 || slashActionOptions.length > 0);
 
-  async function send(imageHandling?: "file") {
-    if (!canSend || sending || disabled) return;
+  const canQueue =
+    Boolean(onQueue) &&
+    draft.trim().length > 0 &&
+    !selectedSkill &&
+    selectedMentions.length === 0 &&
+    pendingAttachments.length === 0 &&
+    !replyTarget;
+
+  async function send(intent: "send" | "queue" = "send", imageHandling?: "file") {
+    if (!canSend || sending || disabled || (intent === "queue" && !canQueue)) return;
     const revision = editRevision.current;
-    const clientNonce = retryNonce.current ?? newClientId();
+    const clientNonce =
+      retryNonce.current?.intent === intent ? retryNonce.current.nonce : newClientId();
     retryNonce.current = null;
     const submitted = compositionRef.current;
     const text = serializeComposerPrompt(submitted.text, selectedSkill);
@@ -474,9 +491,11 @@ export const Composer = memo(function Composer({
     setSelectedSkill(null);
     try {
       const accepted =
-        (await (imageHandling
-          ? onSend(text, mentions, clientNonce, imageHandling)
-          : onSend(text, mentions, clientNonce))) !== false;
+        (await (intent === "queue" && onQueue
+          ? onQueue(text, clientNonce)
+          : imageHandling
+            ? onSend(text, mentions, clientNonce, imageHandling)
+            : onSend(text, mentions, clientNonce))) !== false;
       settleComposerDraftSubmission(draftKey, submission, accepted);
       if (accepted) return;
     } catch {
@@ -486,7 +505,7 @@ export const Composer = memo(function Composer({
     }
     // Restore only an untouched draft, retaining its nonce for an unchanged retry.
     if (editRevision.current !== revision) return;
-    retryNonce.current = clientNonce;
+    retryNonce.current = { intent, nonce: clientNonce };
     commitComposition(submitted, false);
     setSelectedSkill(selectedSkill);
   }
@@ -495,7 +514,7 @@ export const Composer = memo(function Composer({
     const dataTransfer = event.dataTransfer;
     if (!isFileDrag(dataTransfer)) return;
     event.preventDefault();
-    if (disabled) {
+    if (disabled || !attachmentsEnabled) {
       dragDepth.current = 0;
       setDraggingFiles(false);
       return;
@@ -508,8 +527,8 @@ export const Composer = memo(function Composer({
     const dataTransfer = event.dataTransfer;
     if (!isFileDrag(dataTransfer)) return;
     event.preventDefault();
-    dataTransfer.dropEffect = disabled ? "none" : "copy";
-    if (disabled) {
+    dataTransfer.dropEffect = disabled || !attachmentsEnabled ? "none" : "copy";
+    if (disabled || !attachmentsEnabled) {
       dragDepth.current = 0;
       setDraggingFiles(false);
       return;
@@ -519,7 +538,7 @@ export const Composer = memo(function Composer({
 
   function handleDragLeave(event: DragEvent<HTMLFieldSetElement>) {
     if (!isFileDrag(event.dataTransfer)) return;
-    if (disabled) {
+    if (disabled || !attachmentsEnabled) {
       dragDepth.current = 0;
       setDraggingFiles(false);
       return;
@@ -534,7 +553,7 @@ export const Composer = memo(function Composer({
     event.preventDefault();
     dragDepth.current = 0;
     setDraggingFiles(false);
-    if (!disabled) pickAttachments(dataTransfer.files);
+    if (!disabled && attachmentsEnabled) pickAttachments(dataTransfer.files);
   }
 
   function handlePaste(event: ClipboardEvent<HTMLTextAreaElement>) {
@@ -542,7 +561,7 @@ export const Composer = memo(function Composer({
     // Only intercept real FileList pastes; leave text-only / empty-files native.
     if (disabled || !clipboardData || !isFilePaste(clipboardData)) return;
     event.preventDefault();
-    pickAttachments(clipboardData.files);
+    if (attachmentsEnabled) pickAttachments(clipboardData.files);
     const text = clipboardData.getData("text/plain");
     if (!text) return;
     const textarea = event.currentTarget;
@@ -610,13 +629,68 @@ export const Composer = memo(function Composer({
         draggingFiles ? "rounded-[14px] ring-2 ring-inset ring-ring" : ""
       }`}
     >
+      {firstTask &&
+      showComposerPlaceholder &&
+      !pendingAttachments.length &&
+      !replyTarget &&
+      !sending &&
+      !disabled ? (
+        <div
+          className="mb-2 flex flex-wrap items-center gap-1"
+          data-testid="first-task-suggestions"
+        >
+          {(firstTask !== "pi"
+            ? [
+                {
+                  label: t`Explore this project`,
+                  text: t`Explore this project and explain its architecture. Suggest a useful first task without changing files.`,
+                },
+                {
+                  label: t`Review the code`,
+                  text: t`Review this project's code for concrete bugs. Explain your findings before making changes.`,
+                },
+              ]
+            : [
+                {
+                  label: t`Plan a project`,
+                  text: t`Help me plan a project. Ask what I want to achieve and turn it into concrete next steps.`,
+                },
+                {
+                  label: t`Research a topic`,
+                  text: t`Help me research a topic. Ask what I need to decide, then gather evidence and cite your sources.`,
+                },
+              ]
+          ).map((suggestion) => (
+            <Button
+              key={suggestion.label}
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                updateDraft(suggestion.text);
+                textareaRef.current?.focus();
+              }}
+            >
+              {suggestion.label}
+            </Button>
+          ))}
+          {onFirstTaskSetup ? (
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              onClick={onFirstTaskSetup}
+            >{t`Choose runtime and model`}</Button>
+          ) : null}
+        </div>
+      ) : null}
       <div role="status" data-testid="composer-announcement" className="sr-only">
         {replyAnnouncement}
       </div>
       <ComposerError
         sendError={sendError}
         imageConfirmation={imageConfirmation}
-        onSendAsFile={imageConfirmation && !sending ? () => void send("file") : undefined}
+        onSendAsFile={imageConfirmation && !sending ? () => void send("send", "file") : undefined}
         runError={runError}
         runErrorId={runErrorId}
         onRunErrorPresented={onRunErrorPresented}
@@ -788,32 +862,40 @@ export const Composer = memo(function Composer({
           expanded ? "gap-x-2 gap-y-2 pb-[9px] pt-3" : "gap-x-3.5 py-[9px]"
         }`}
       >
-        <input
-          ref={fileInputRef}
-          type="file"
-          multiple
-          accept={ATTACHMENT_ACCEPT}
-          className="hidden"
-          onChange={(event) => pickAttachments(event.target.files)}
-        />
-        <Button
-          ref={attachButtonRef}
-          variant="ghost"
-          size="icon"
-          aria-label={t`Attach file`}
-          disabled={disabled}
-          onClick={() => fileInputRef.current?.click()}
-          className={`col-start-1 size-8 shrink-0 rounded-full border border-border bg-muted text-muted-foreground transition-colors hover:bg-accent hover:text-foreground ${
-            expanded ? "row-start-2" : ""
-          }`}
-        >
-          <Plus size={16} strokeWidth={2} />
-        </Button>
+        {attachmentsEnabled ? (
+          <>
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              accept={ATTACHMENT_ACCEPT}
+              className="hidden"
+              onChange={(event) => pickAttachments(event.target.files)}
+            />
+            <Button
+              ref={attachButtonRef}
+              variant="ghost"
+              size="icon"
+              aria-label={t`Attach file`}
+              disabled={disabled}
+              onClick={() => fileInputRef.current?.click()}
+              className={`col-start-1 size-8 shrink-0 rounded-full border border-border bg-muted text-muted-foreground transition-colors hover:bg-accent hover:text-foreground ${
+                expanded ? "row-start-2" : ""
+              }`}
+            >
+              <Plus size={16} strokeWidth={2} />
+            </Button>
+          </>
+        ) : null}
         <div
           ref={composerFieldRef}
           data-testid="composer-field"
           className={`flex min-w-0 flex-wrap items-end gap-1.5 ${
-            expanded ? "col-span-3 row-start-1 px-1.5" : "col-start-2"
+            expanded
+              ? "col-span-3 row-start-1 px-1.5"
+              : attachmentsEnabled
+                ? "col-start-2"
+                : "col-span-2 col-start-1"
           }`}
         >
           {selectedSkill ? (
@@ -965,6 +1047,16 @@ export const Composer = memo(function Composer({
             expanded ? "row-start-2" : ""
           }`}
         >
+          {running && onQueue && !talk.recording ? (
+            <Button
+              variant="ghost"
+              size="sm"
+              disabled={sending || disabled || !canQueue}
+              onClick={() => void send("queue")}
+            >
+              {t`Queue`}
+            </Button>
+          ) : null}
           {talk.recording?.locked ? (
             <HoldToTalkControls talk={talk} />
           ) : running ? (

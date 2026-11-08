@@ -10,6 +10,8 @@ export const ProductEventType = z.enum([
   "thread.message.created",
   "thread.cleared",
   "thread.message.updated",
+  "thread.queue.updated",
+  "thread.tasks.updated",
   "thread.message.reaction",
   "thread.progress",
   "thread.artifact",
@@ -22,6 +24,7 @@ export const ProductEventType = z.enum([
   "thread.call.ended",
   "run.started",
   "run.steering.claimed",
+  "run.queue.started",
   "run.checkpointed",
   "run.waiting_input",
   "run.completed",
@@ -121,6 +124,10 @@ export const MessageBlock = z.discriminatedUnion("kind", [
     kind: z.literal("ask"),
     text: z.string(),
     approvalEffectId: Id.optional(),
+    /** Provider-owned approval; only its explicit decision buttons can answer it. */
+    nativeApproval: z.boolean().optional(),
+    /** Server-persisted provider interaction binding, never an approval decision. */
+    nativeInteractionId: Id.optional(),
     instructionUpdate: z
       .object({
         botId: Id,
@@ -300,6 +307,7 @@ export const MessageBlock = z.discriminatedUnion("kind", [
   }),
   z.object({
     kind: z.literal("image"),
+    description: z.string().max(800).optional(),
     /** Explicit visual input requested by a confirmation-aware client. */
     imageHandling: z.literal("confirm").optional(),
     artifactId: Id,

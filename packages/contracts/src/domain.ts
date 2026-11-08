@@ -20,6 +20,7 @@ import {
 } from "./mcp.js";
 import { ModelHeadersSchema } from "./model-headers.js";
 import { NavLinkSchema } from "./nav-links.js";
+import { BotKindSchema, RoleplayCharacterSchema } from "./roleplay.js";
 import { RoutineWatchSchema, RoutineWatchStateSchema } from "./routine-watch.js";
 import { RunTriggerSchema } from "./runs.js";
 import { SettingsScopeSchema } from "./settings-scope.js";
@@ -78,7 +79,66 @@ export const InstructionVersionSchema = z.object({
   createdAt: z.string(),
 });
 
+export const RuntimeKindSchema = z.enum(["pi", "codex", "claude", "acp"]);
+/** Standard provider capabilities; UI and orchestration share the same fail-closed policy. */
+export const NativeRuntimeCapabilities = {
+  codex: {
+    label: "Codex",
+    workspace: true,
+    images: true,
+    applicationTools: true,
+    steering: true,
+    resume: true,
+  },
+  claude: {
+    label: "Claude Code",
+    workspace: false,
+    images: true,
+    applicationTools: true,
+    steering: false,
+    resume: true,
+  },
+  acp: {
+    label: "ACP",
+    workspace: false,
+    images: false,
+    applicationTools: true,
+    steering: false,
+    resume: false,
+  },
+} as const;
+export const ExecutionTargetSchema = z.enum(["default", "docker", "host"]);
+export const RuntimePermissionSchema = z.enum(["workspace", "full"]);
+
+export const NativeExecutionStatusSchema = z.object({
+  available: z.boolean(),
+  authenticated: z.boolean(),
+  capabilities: z
+    .object({
+      workspace: z.boolean(),
+      images: z.boolean(),
+      applicationTools: z.boolean(),
+      steering: z.boolean(),
+      resume: z.boolean(),
+    })
+    .optional(),
+  reason: z.enum(["cli-unavailable", "login-required", "host-unavailable"]).optional(),
+});
+export type NativeExecutionStatus = z.infer<typeof NativeExecutionStatusSchema>;
+
+export const SetBotExecutionInput = z.object({
+  botId: Id,
+  runtimeKind: RuntimeKindSchema,
+  registeredHostId: Id.nullable().optional(),
+  executionTarget: ExecutionTargetSchema,
+  runtimePermission: RuntimePermissionSchema,
+  projectPath: z.string().trim().min(1).max(4096).nullable(),
+});
+export type SetBotExecutionInput = z.infer<typeof SetBotExecutionInput>;
+
 export const BotSchema = z.object({
+  botKind: BotKindSchema.default("agent"),
+  roleplayCharacter: RoleplayCharacterSchema.nullable().default(null),
   id: Id,
   spaceId: Id,
   name: z.string(),
@@ -105,6 +165,12 @@ export const BotSchema = z.object({
   createdAt: z.string(),
   voiceId: z.string().nullable(),
   autoSpeak: z.boolean(),
+  runtimeKind: RuntimeKindSchema.default("pi"),
+  runtimeGeneration: z.number().int().nonnegative().optional(),
+  registeredHostId: Id.nullable().optional(),
+  executionTarget: ExecutionTargetSchema.default("default"),
+  runtimePermission: RuntimePermissionSchema.default("workspace"),
+  projectPath: z.string().nullable().default(null),
   modelProvider: z.string().nullable(),
   modelId: z.string().nullable(),
   thinkingLevel: ThinkingLevelSchema.nullable(),
@@ -361,30 +427,71 @@ export const BOT_NAME_MAX_LENGTH = 80;
 export const BOT_DESCRIPTION_MAX_LENGTH = 4000;
 export const BOT_INSTRUCTIONS_MAX_LENGTH = 20000;
 
-export const CreateBotInput = z.object({
-  /** Optional reserved identity so a creation preview uses the final bot seed. */
-  id: z
-    .string()
-    .regex(/^c[a-z0-9]{24}$/)
-    .optional(),
-  name: z.string().trim().min(1).max(BOT_NAME_MAX_LENGTH),
-  description: z.string().max(BOT_DESCRIPTION_MAX_LENGTH).default(""),
-  instructions: z.string().max(BOT_INSTRUCTIONS_MAX_LENGTH).default(""),
-  notifyOnFinish: z.boolean().default(true),
-  fleetManagement: z.boolean().optional(),
-  color: BotAvatarValueSchema.optional(),
-  avatarSet: BotAvatarSetSchema.optional(),
-  /** Organic body family (0-9); the server picks a matching id unless one is reserved. */
-  avatarFamily: z.number().int().min(0).max(9).optional(),
-  computerMode: ComputerModeSchema.default("team"),
-  /** Idempotency key within a space (unique with spaceId). */
-  spawnKey: z.string().trim().min(1).max(120).optional(),
-});
+export const CreateBotInput = z
+  .object({
+    /** Optional reserved identity so a creation preview uses the final bot seed. */
+    id: z
+      .string()
+      .regex(/^c[a-z0-9]{24}$/)
+      .optional(),
+    botKind: BotKindSchema.default("agent"),
+    roleplayCharacter: RoleplayCharacterSchema.nullable().optional(),
+    name: z.string().trim().min(1).max(BOT_NAME_MAX_LENGTH),
+    description: z.string().max(BOT_DESCRIPTION_MAX_LENGTH).default(""),
+    instructions: z.string().max(BOT_INSTRUCTIONS_MAX_LENGTH).default(""),
+    notifyOnFinish: z.boolean().default(true),
+    fleetManagement: z.boolean().optional(),
+    color: BotAvatarValueSchema.optional(),
+    avatarSet: BotAvatarSetSchema.optional(),
+    /** Organic body family (0-9) to draw the new bot with; the server picks an id that hashes to it. */
+    avatarFamily: z.number().int().min(0).max(9).optional(),
+    computerMode: ComputerModeSchema.default("team"),
+    runtimeKind: RuntimeKindSchema.optional(),
+    registeredHostId: Id.nullable().optional(),
+    executionTarget: ExecutionTargetSchema.optional(),
+    runtimePermission: RuntimePermissionSchema.optional(),
+    projectPath: z.string().trim().min(1).max(4096).nullable().optional(),
+    /** Idempotency key within a space (unique with spaceId). */
+    spawnKey: z.string().trim().min(1).max(120).optional(),
+  })
+  .superRefine((value, ctx) => {
+    if (value.botKind === "roleplay") {
+      if (!value.roleplayCharacter)
+        ctx.addIssue({
+          code: "custom",
+          path: ["roleplayCharacter"],
+          message: "Import a character for this roleplay bot",
+        });
+      for (const [field, invalid] of Object.entries({
+        runtimeKind: value.runtimeKind !== undefined && value.runtimeKind !== "pi",
+        executionTarget: value.executionTarget !== undefined && value.executionTarget !== "docker",
+        registeredHostId: Boolean(value.registeredHostId),
+        runtimePermission:
+          value.runtimePermission !== undefined && value.runtimePermission !== "workspace",
+        projectPath: value.projectPath != null,
+        fleetManagement: value.fleetManagement === true,
+      }))
+        if (invalid)
+          ctx.addIssue({
+            code: "custom",
+            path: [field],
+            message: "Roleplay bots use the internal runtime in Docker",
+          });
+    } else if (value.roleplayCharacter != null) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["roleplayCharacter"],
+        message: "Characters require a roleplay bot",
+      });
+    }
+  });
 export type CreateBotInput = z.infer<typeof CreateBotInput>;
 
 export const UpdateBotInput = z
   .object({
     botId: Id,
+    roleplayCharacter: RoleplayCharacterSchema.optional(),
+    expectedRoleplayCharacter: RoleplayCharacterSchema.optional(),
     name: z.string().trim().min(1).max(BOT_NAME_MAX_LENGTH).optional(),
     description: z.string().trim().max(BOT_DESCRIPTION_MAX_LENGTH).optional(),
     instructions: z.string().trim().max(BOT_INSTRUCTIONS_MAX_LENGTH).optional(),
@@ -1292,6 +1399,27 @@ export const DEFAULT_MODEL_CONTEXT_WINDOW = 262_144;
 
 export const MAX_MODEL_CONTEXT_WINDOW = 2_147_483_647;
 
+/** Bounded waits for model response headers and for activity in an open stream. */
+export const DEFAULT_MODEL_STREAM_TIMEOUT_MS = 120_000;
+export const DEFAULT_MODEL_STREAM_IDLE_TIMEOUT_MS = 180_000;
+export const MAX_MODEL_TIMEOUT_MS = 2_147_483_647;
+
+/** Positive integer milliseconds; zero never means an unbounded wait. */
+export function parseModelTimeoutMs(value: unknown): number | undefined {
+  if (typeof value !== "number" && typeof value !== "string") return undefined;
+  if (typeof value === "string" && !/^\d+$/.test(value.trim())) return undefined;
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed >= 1 && parsed <= MAX_MODEL_TIMEOUT_MS
+    ? parsed
+    : undefined;
+}
+
+export const ModelTimeoutsSchema = z.object({
+  streamTimeoutMs: z.number().int().min(1).max(MAX_MODEL_TIMEOUT_MS).optional(),
+  streamIdleTimeoutMs: z.number().int().min(1).max(MAX_MODEL_TIMEOUT_MS).optional(),
+});
+export type ModelTimeouts = z.infer<typeof ModelTimeoutsSchema>;
+
 /**
  * Output limits follow the model; the only fixed bound is the context ceiling, and a connection's
  * limit must still leave room for input (`modelOutputLeavesInputRoom`).
@@ -1365,6 +1493,7 @@ export const ModelCredentialSchema = z.object({
   /** Computed space preference order; credentials themselves remain newest first. */
   preferenceRank: z.number().int().nonnegative().optional(),
   ...ModelContextLimitsSchema.shape,
+  ...ModelTimeoutsSchema.shape,
   id: Id,
   provider: z.string(),
   label: z.string(),
@@ -1439,6 +1568,8 @@ export const CONNECTION_LABEL_MAX_LENGTH = 80;
 export const ModelConnectInputSchema = z
   .object({
     ...ModelContextLimitsSchema.shape,
+    streamTimeoutMs: ModelTimeoutsSchema.shape.streamTimeoutMs.nullable(),
+    streamIdleTimeoutMs: ModelTimeoutsSchema.shape.streamIdleTimeoutMs.nullable(),
     provider: z.string(),
     apiKey: z.string().optional(),
     accountId: z.string().optional(),
@@ -1521,7 +1652,12 @@ export const ModelConnectInputSchema = z
       });
     }
     // An existing connection can update its output limit without a new key.
-    if (!apiKey && value.maxTokens === undefined) {
+    if (
+      !apiKey &&
+      value.maxTokens === undefined &&
+      value.streamTimeoutMs === undefined &&
+      value.streamIdleTimeoutMs === undefined
+    ) {
       ctx.addIssue({
         code: "custom",
         message: "API key must contain at least 8 characters",
@@ -1779,6 +1915,8 @@ export const MeSchema = z.object({
    * Absent from servers that predate it.
    */
   timezone: z.string().nullable().optional(),
+  /** Account preference, read dynamically by API and workers. */
+  roleplayEnabled: z.boolean().optional(),
   billingEnabled: z.boolean(),
   /** True until a user of a billing deployment answers or skips the signup survey. Absent from older servers. */
   needsSignupSurvey: z.boolean().optional(),

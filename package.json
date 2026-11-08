@@ -38,7 +38,11 @@
     "perf:desktop": "tsx packages/testkit/src/cli/desktop-performance.ts",
     "perf:compare": "tsx packages/testkit/src/cli/compare-performance.ts",
     "compose:up": "docker compose --env-file .env -f infra/compose/docker-compose.yml up --build",
-    "compose:down": "docker compose --env-file .env -f infra/compose/docker-compose.yml down -v"
+    "compose:down": "docker compose --env-file .env -f infra/compose/docker-compose.yml down -v",
+    "host:start": "tsx apps/api/src/registered-host-server.ts",
+    "host:setup": "tsx apps/api/src/native-setup-cli.ts",
+    "native:start": "tsx apps/api/src/native-stack.ts --allow-host",
+    "native:build": "pnpm --filter @rakazo/api --filter @rakazo/worker --filter @rakazo/web build"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.15",

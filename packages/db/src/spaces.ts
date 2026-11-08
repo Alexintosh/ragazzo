@@ -376,6 +376,7 @@ export async function releaseSpaceDeletionClaim(
     where: {
       id: input.spaceId,
       deletionClaimId: input.claimId,
+      deletionCleanupStartedAt: null,
       memberships: { some: { userId: input.userId, role: "owner" } },
     },
     data: { deletingAt: null, deletionClaimId: null },
@@ -455,8 +456,8 @@ export async function personalOrganizationIds(
  * organizations, and spaces elsewhere where it is the only member. A claimed space refuses new
  * content, so nobody who joins later can lose a bot to the teardown. A retry after a failed
  * deletion keeps every space this account already claimed, even one someone has since joined,
- * so the last step can release it. A space another deletion is still working on fails the
- * account deletion until that claim finishes or goes stale.
+ * so the last step can release it before final cleanup starts. A space another deletion is
+ * still working on fails the account deletion until that claim finishes or goes stale.
  */
 export async function claimSpacesLeavingWithAccount(
   prisma: PrismaClient,
@@ -511,42 +512,85 @@ export async function claimSpacesLeavingWithAccount(
 /**
  * Delete a space claimed by `claimSpacesLeavingWithAccount`, once its bots and sandboxes are
  * gone. Rows left in it go by cascade, and its keys with it. Returns the stored artifacts to
- * remove after commit, or null when someone joined after the claim: the space stays, unclaimed.
+ * remove after commit, or null when someone joined before final cleanup: the space stays,
+ * unclaimed. Commit that final decision before invoking irreversible external cleanup. The
+ * database refuses new memberships and claim release from then on, including older API writes,
+ * so a lost cleanup acknowledgement cannot make a later retry retain a revoked Space.
  */
 export async function deleteSpaceLeavingWithAccount(
   prisma: PrismaClient,
   input: { spaceId: string; userId: string },
+  beforeDelete?: () => Promise<void>,
 ): Promise<{ artifactKeys: string[] } | null> {
   const claimId = accountDeletionClaimId(input.userId);
-  return withTransactionRetry(() =>
+  const ready = await withTransactionRetry(() =>
     prisma.$transaction(
       async (tx) => {
         await lockSpaceDeletion(tx, input.spaceId);
-        const [others, remainingBots, remainingComputers, artifacts] = await Promise.all([
+        // Membership admission takes a share lock on this row. Joins committed
+        // before this lock remain retainable; later joins see the committed fence.
+        const spaces = await tx.$queryRaw<
+          Array<{ deletionClaimId: string | null; deletionCleanupStartedAt: Date | null }>
+        >`
+          SELECT "deletionClaimId", "deletionCleanupStartedAt"
+          FROM spaces WHERE id = ${input.spaceId} FOR UPDATE
+        `;
+        if (!spaces.length) return false;
+        if (spaces[0]!.deletionClaimId !== claimId) throw new SpaceDeletionInProgressError();
+        if (spaces[0]!.deletionCleanupStartedAt) return true;
+        const [others, remainingBots, remainingComputers] = await Promise.all([
           tx.spaceMember.count({
             where: { spaceId: input.spaceId, userId: { not: input.userId } },
           }),
           tx.bot.count({ where: { spaceId: input.spaceId } }),
           tx.computer.count({ where: { spaceId: input.spaceId } }),
-          tx.artifact.findMany({
-            where: { spaceId: input.spaceId },
-            select: { storageKey: true },
-          }),
         ]);
         if (others > 0) {
           await tx.space.updateMany({
             where: { id: input.spaceId, deletionClaimId: claimId },
             data: { deletingAt: null, deletionClaimId: null },
           });
-          return null;
+          return false;
         }
         // Teardown was cut short; deleting again finishes it.
         if (remainingBots > 0 || remainingComputers > 0) throw new SpaceDeletionInProgressError();
-        await tx.space.deleteMany({ where: { id: input.spaceId, deletionClaimId: claimId } });
-        return { artifactKeys: artifacts.map((artifact) => artifact.storageKey) };
+        await tx.space.update({
+          where: { id: input.spaceId },
+          data: { deletionCleanupStartedAt: new Date() },
+        });
+        return true;
       },
-      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+      // Re-read memberships after acquiring the row lock, including joins that
+      // committed while this transaction waited for the advisory lock.
+      { isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted },
     ),
+  );
+  if (!ready) return null;
+
+  // Never put RPCs in a retryable transaction: side effects survive rollback.
+  await beforeDelete?.();
+  return withTransactionRetry(() =>
+    prisma.$transaction(async (tx) => {
+      await lockSpaceDeletion(tx, input.spaceId);
+      const space = await tx.space.findUnique({
+        where: { id: input.spaceId },
+        select: { deletionClaimId: true, deletionCleanupStartedAt: true },
+      });
+      if (!space) return null;
+      if (space.deletionClaimId !== claimId || !space.deletionCleanupStartedAt)
+        throw new SpaceDeletionInProgressError();
+      const [remainingBots, remainingComputers, artifacts] = await Promise.all([
+        tx.bot.count({ where: { spaceId: input.spaceId } }),
+        tx.computer.count({ where: { spaceId: input.spaceId } }),
+        tx.artifact.findMany({
+          where: { spaceId: input.spaceId },
+          select: { storageKey: true },
+        }),
+      ]);
+      if (remainingBots > 0 || remainingComputers > 0) throw new SpaceDeletionInProgressError();
+      await tx.space.delete({ where: { id: input.spaceId } });
+      return { artifactKeys: artifacts.map((artifact) => artifact.storageKey) };
+    }),
   );
 }
 

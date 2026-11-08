@@ -64,7 +64,7 @@ export function ComputerPanel({
           >
             <Trans>Open in full window</Trans>
           </div>
-        ) : computer?.kind === "desktop" ? (
+        ) : computer?.kind === "desktop" && !embeddedScreenUrl ? (
           <DesktopKindEmptyState
             className={`grid h-full place-items-center px-6 text-center text-sm text-muted-foreground/80 ${hideOnHover}`}
           />

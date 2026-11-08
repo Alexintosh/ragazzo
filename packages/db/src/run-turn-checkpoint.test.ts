@@ -101,4 +101,40 @@ describe("encrypted run turn checkpoint", () => {
     );
     expect(await loadRunTurnCheckpoint(state.client, run)).toBeUndefined();
   });
+  it("pins the physical native Stop target in the same fenced transaction as its checkpoint", async () => {
+    const state = fixture();
+    await saveRunTurnCheckpoint(
+      state.client,
+      run,
+      "fixture-worker",
+      2,
+      "child-checkpoint",
+      "physical-child",
+    );
+    expect(state.locked).toHaveBeenCalledWith({
+      where: {
+        id: run.id,
+        spaceId: run.spaceId,
+        status: "running",
+        leaseOwner: "fixture-worker",
+        leaseFence: 2,
+      },
+      data: { leaseFence: 2, nativeExecutionRunId: "physical-child" },
+    });
+    expect(state.locked.mock.invocationCallOrder[0]).toBeLessThan(
+      state.upsert.mock.invocationCallOrder[0]!,
+    );
+    state.locked.mockResolvedValueOnce({ count: 0 });
+    await expect(
+      saveRunTurnCheckpoint(
+        state.client,
+        run,
+        "fixture-worker",
+        2,
+        "late-checkpoint",
+        "late-child",
+      ),
+    ).rejects.toThrow("lease expired");
+    expect(await loadRunTurnCheckpoint(state.client, run)).toBe("child-checkpoint");
+  });
 });

@@ -104,6 +104,33 @@ function fixture(group = false) {
 }
 
 describe("current image send admission", () => {
+  it.each(["codex", "claude"])(
+    "uses the %s runtime's image capability instead of a text-only server model",
+    async (runtimeKind) => {
+      const { tx, send } = fixture();
+      tx.bot.findFirst.mockResolvedValue({
+        id: "bot-1",
+        runtimeKind,
+        modelProvider: null,
+        modelId: null,
+      } as never);
+      await expect(send()).resolves.toMatchObject({ runId: "run-1" });
+      expect(tx.userModelCredential.findFirst).not.toHaveBeenCalled();
+    },
+  );
+
+  it("rejects confirmed ACP images before saving the message", async () => {
+    const { tx, send } = fixture();
+    tx.bot.findFirst.mockResolvedValue({
+      id: "bot-1",
+      runtimeKind: "acp",
+      modelProvider: null,
+      modelId: null,
+    } as never);
+    await expect(send()).rejects.toMatchObject({ code: "CONFLICT" });
+    expect(tx.message.create).not.toHaveBeenCalled();
+  });
+
   it("preserves legacy clients that omit image handling", async () => {
     const { tx, send } = fixture();
     await expect(send(undefined, null)).resolves.toMatchObject({ runId: "run-1" });

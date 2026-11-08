@@ -7,9 +7,19 @@ export function toComputerRef(computer: {
   homeKey: string;
   kind: string;
   providerRef: string | null;
+  executionTarget?: string;
+  registeredHostId?: string | null;
+  scope?: string;
 }): ComputerRef {
   if (!computer.providerRef) throw new Error("computer provider reference is missing");
   return {
+    ...(computer.scope === "team" || computer.scope === "dedicated"
+      ? { scope: computer.scope }
+      : {}),
+    ...(computer.executionTarget
+      ? { executionTarget: computer.executionTarget as ComputerRef["executionTarget"] }
+      : {}),
+    ...(computer.registeredHostId ? { registeredHostId: computer.registeredHostId } : {}),
     id: computer.providerRef,
     botId: computer.homeKey,
     kind: computer.kind as ComputerRef["kind"],

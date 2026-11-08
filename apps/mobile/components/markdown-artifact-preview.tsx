@@ -43,11 +43,16 @@ export function MarkdownArtifactPreview({
   >({ status: "loading" });
   const targetBotId = "botId" in threadTarget ? threadTarget.botId : undefined;
   const targetGroupId = "groupId" in threadTarget ? threadTarget.groupId : undefined;
+  const targetTaskId = "taskId" in threadTarget ? threadTarget.taskId : undefined;
 
   useEffect(() => {
     let cancelled = false;
     const requestTarget: MobileArtifactTarget =
-      targetBotId !== undefined ? { botId: targetBotId } : { groupId: targetGroupId! };
+      targetTaskId !== undefined
+        ? { taskId: targetTaskId }
+        : targetBotId !== undefined
+          ? { botId: targetBotId }
+          : { groupId: targetGroupId! };
     void readMobileArtifactText(requestTarget, target.artifactId, target.mimeType)
       .then((markdown) => {
         if (!cancelled) setState({ status: "ready", markdown });
@@ -62,7 +67,7 @@ export function MarkdownArtifactPreview({
     return () => {
       cancelled = true;
     };
-  }, [targetBotId, targetGroupId, target.artifactId, target.mimeType]);
+  }, [targetBotId, targetGroupId, targetTaskId, target.artifactId, target.mimeType]);
 
   return (
     <Modal animationType="fade" presentationStyle="fullScreen" onRequestClose={onClose}>

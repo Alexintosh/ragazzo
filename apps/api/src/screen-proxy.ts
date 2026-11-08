@@ -37,6 +37,9 @@ export function mountScreenTarget(app: Hono, prisma: PrismaClient, secret: strin
               controlLeaseId: true,
               controlBotId: true,
               controlLeaseExpiresAt: true,
+              registeredHostId: true,
+              spaceId: true,
+              userId: true,
             },
           },
         },
@@ -55,6 +58,19 @@ export function mountScreenTarget(app: Hono, prisma: PrismaClient, secret: strin
           computer.controlBotId !== scope.botId))
     )
       return c.body(null, 403);
+    if (computer.registeredHostId) {
+      const active = await runAsSystem("check registered host for a screen capability", () =>
+        prisma.registeredHost.count({
+          where: {
+            id: computer.registeredHostId!,
+            spaceId: computer.spaceId,
+            userId: computer.userId,
+            revokedAt: null,
+          },
+        }),
+      );
+      if (active !== 1) return c.body(null, 403);
+    }
     return c.json(target);
   });
 }

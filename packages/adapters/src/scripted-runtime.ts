@@ -46,7 +46,7 @@ export class ScriptedAgentRuntime implements AgentRuntime {
       // Like Pi, a run first takes the messages waiting for it. A continuation exists only to
       // answer them, so their text is its prompt; any other run keeps its own task. A resumed
       // attempt claims the same rows again, so it rebuilds the script it was running.
-      const steering = (await request.claimSteering?.([])) ?? [];
+      const steering = (await request.claimSteering?.([], !request.turnCheckpoint)) ?? [];
       const steeredPrompt =
         request.prompt.includes(STEERING_CONTINUATION_PROMPT) && steering.length
           ? steering.map((item) => item.historyText ?? item.text).join("\n")

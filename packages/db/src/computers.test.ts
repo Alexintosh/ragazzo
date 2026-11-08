@@ -539,3 +539,27 @@ describe("restoreBotUnderComputerQuota", () => {
     expect(inUse()).toBe(1);
   });
 });
+
+describe("explicit team destinations", () => {
+  it("shares only within the same owner, space and target while retaining legacy keys", () => {
+    const base = { mode: "team" as const, spaceId: "space", userId: "owner" };
+    expect(computerScopeKey(base)).toBe("team:space:owner");
+    expect(computerScopeKey({ ...base, executionTarget: "default" })).toBe(computerScopeKey(base));
+    expect(computerHomeKey({ ...base, executionTarget: "default" })).toBe(computerHomeKey(base));
+    const placements = [
+      base,
+      { ...base, executionTarget: "host" as const },
+      { ...base, executionTarget: "docker" as const },
+      { ...base, userId: "other", executionTarget: "host" as const },
+      { ...base, spaceId: "other", executionTarget: "host" as const },
+    ];
+    expect(new Set(placements.map(computerScopeKey)).size).toBe(5);
+    expect(new Set(placements.map(computerHomeKey)).size).toBe(5);
+    for (const placement of placements) {
+      expect(computerHomeKey(placement).length).toBeLessThanOrEqual(40);
+      expect(computerHomeKey({ ...placement, botId: "one" })).toBe(
+        computerHomeKey({ ...placement, botId: "two" }),
+      );
+    }
+  });
+});

@@ -523,7 +523,7 @@ describe("ScriptedAgentRuntime steering", () => {
   it("keeps its own task when it takes waiting messages as context", async () => {
     const run = request("remember the plan", ["ask me which city"]);
     const events = await collect(run);
-    expect(run.claimSteering).toHaveBeenCalledExactlyOnceWith([]);
+    expect(run.claimSteering).toHaveBeenCalledExactlyOnceWith([], true);
     expect(events).toContainEqual(remembered);
     expect(events.some((event) => event.type === "ask")).toBe(false);
   });

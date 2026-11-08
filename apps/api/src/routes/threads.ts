@@ -18,6 +18,7 @@ import {
   createExternalConversationRepos,
   createThreadMessageInTransaction,
   IsolationError,
+  isRoleplayEnabled,
   lockOwnedGroup,
   touchGroupUpdatedAt,
 } from "@rakazo/db";
@@ -33,8 +34,11 @@ import {
   shouldForwardBackgroundThreadEvent,
   shouldForwardPeerThreadEvent,
 } from "../thread-message-pages.js";
+import type { QueueMutation } from "../thread-queue.js";
+import { mutateThreadQueue, readThreadQueue, resolveQueueTarget } from "../thread-queue.js";
 import type { ThreadTarget } from "../thread-target.js";
 import {
+  clearThreadMessageHistory,
   markThreadRead,
   markThreadUnreadFrom,
   reactToThreadMessage,
@@ -106,7 +110,6 @@ export function threadsRoutes(ctx: RouterContext) {
     input: Parameters<typeof sendThreadMessage>[3] & { botId?: string; groupId?: string },
     startRoutines?: Parameters<typeof sendThreadMessage>[5],
   ) => {
-    const setup = await modelSetup(deps, actor);
     const target = await resolveThreadTarget(deps.prisma, actor, input);
     if (input.farmingControlRiskContext || input.farmingControlEntityContext) {
       const kinds = target.kind === "bot" ? farmingControlMentionKinds(target.bot, target.bot.thread) : [];
@@ -129,6 +132,17 @@ export function threadsRoutes(ctx: RouterContext) {
         throw new ORPCError("FORBIDDEN", { message: "FC context requires an authorized private FC chat." });
       });
     }
+    if (target.kind === "bot" && target.bot.botKind === "roleplay") {
+      if (!(await isRoleplayEnabled(deps.prisma, actor.userId)))
+        throw new ORPCError("BAD_REQUEST", {
+          message: "Roleplay is not enabled for this account. Enable it in Settings > General.",
+        });
+      if (input.artifactIds?.length)
+        throw new ORPCError("BAD_REQUEST", {
+          message: "Roleplay currently supports text messages only",
+        });
+    }
+    const setup = await modelSetup(deps, actor);
     // A bot with its own runnable model needs no main model.
     if (
       setup.needsModel &&
@@ -171,8 +185,59 @@ export function threadsRoutes(ctx: RouterContext) {
       throw error;
     });
   };
+  const mutateQueue = async (
+    actor: Actor,
+    input: { botId?: string; groupId?: string; taskId?: string; recipientBotId?: string },
+    mutation: QueueMutation,
+  ) => {
+    const target = await resolveQueueTarget(
+      deps.prisma,
+      actor,
+      await resolveThreadTarget(deps.prisma, actor, input),
+      input.recipientBotId,
+    );
+    if (target.kind === "bot" && (mutation.kind === "enqueue" || mutation.kind === "steer"))
+      await assertTeachingSendAllowed(deps.prisma, actor.spaceId, target.botId);
+    const result = await mutateThreadQueue(deps.prisma, actor, target, mutation);
+    if (result.eventSeq !== null)
+      await deps.events
+        .notify(target.threadId, result.eventSeq)
+        .catch((error) => getLogger().error("queue notification", error));
+    if (result.continuationRunId)
+      await deps.jobs
+        .enqueue(runContinueJob(result.continuationRunId))
+        .catch((error) => getLogger().error("queue wake", error));
+    return result.snapshot;
+  };
   return {
     threads: {
+      queue: authed.threads.queue.handler(async ({ context, input }) =>
+        readThreadQueue(
+          deps.prisma,
+          context.actor,
+          await resolveQueueTarget(
+            deps.prisma,
+            context.actor,
+            await resolveThreadTarget(deps.prisma, context.actor, input),
+            input.recipientBotId,
+          ),
+        ),
+      ),
+      enqueue: authed.threads.enqueue.handler(async ({ context, input }) =>
+        mutateQueue(context.actor, input, { ...input, kind: "enqueue" }),
+      ),
+      updateQueued: authed.threads.updateQueued.handler(async ({ context, input }) =>
+        mutateQueue(context.actor, input, { ...input, kind: "edit" }),
+      ),
+      cancelQueued: authed.threads.cancelQueued.handler(async ({ context, input }) =>
+        mutateQueue(context.actor, input, { ...input, kind: "cancel" }),
+      ),
+      reorderQueued: authed.threads.reorderQueued.handler(async ({ context, input }) =>
+        mutateQueue(context.actor, input, { ...input, kind: "reorder" }),
+      ),
+      steerQueued: authed.threads.steerQueued.handler(async ({ context, input }) =>
+        mutateQueue(context.actor, input, { ...input, kind: "steer" }),
+      ),
       head: authed.threads.head.handler(async ({ context, input }) => {
         const target = await resolveThreadTarget(deps.prisma, context.actor, input);
         return threadHead(deps.prisma, target);
@@ -268,7 +333,10 @@ export function threadsRoutes(ctx: RouterContext) {
         const skillRecords = await agentSkills.listWithContent(actor);
         const routines = targets.map((target) => ({
           target,
-          prompt: expandSkillReferencesInPrompt(target.routine.prompt, skillRecords),
+          prompt: expandSkillReferencesInPrompt(
+            target.routine.prompt,
+            target.botKind === "roleplay" ? [] : skillRecords,
+          ),
           nonce: routineTestRunNonce(
             actor,
             `routine-mention:${input.clientNonce}:${target.routine.id}`,
@@ -325,6 +393,7 @@ export function threadsRoutes(ctx: RouterContext) {
         const target = await resolveThreadTarget(deps.prisma, context.actor, input);
         // Without a model or while teaching, the reaction is still saved; it just starts no turn.
         const mayStartTurn =
+          (target.kind !== "bot" || target.bot.botKind !== "roleplay") &&
           (!(await modelSetup(deps, context.actor)).needsModel ||
             (await botsRunOwnModels(deps, context.actor, [
               await reactedBotId(target, input.messageId),
@@ -355,16 +424,13 @@ export function threadsRoutes(ctx: RouterContext) {
       }),
       clear: authed.threads.clear.handler(async ({ context, input }) => {
         const target = await resolveThreadTarget(deps.prisma, context.actor, input);
-        const contextBotId = target.kind === "bot" ? target.botId : target.memberBotIds[0];
-        if (!contextBotId) throw new IsolationError();
-        const { cancelledRunIds, historyCompactionGeneration } = await deps.events.clearThread({
-          spaceId: context.actor.spaceId,
-          threadId: target.threadId,
-          botId: contextBotId,
-          ...(target.kind === "group" ? { groupId: target.groupId } : {}),
-        });
+        const { cancelledRunIds, historyCompactionGeneration } = await clearThreadMessageHistory(
+          deps,
+          context.actor,
+          target,
+        );
         const [configuredMemory] = await Promise.all([
-          target.kind === "bot"
+          target.kind === "bot" && !target.taskId
             ? deps.memoryProviders.resolve(context.actor.spaceId).catch((error) => {
                 getLogger().error("semantic memory resolution after thread clear failed", error);
                 return null;
@@ -404,6 +470,14 @@ export function threadsRoutes(ctx: RouterContext) {
       }),
       followUp: authed.threads.followUp.handler(async ({ context, input }) => {
         const target = await resolveThreadTarget(deps.prisma, context.actor, input);
+        if (
+          target.kind === "bot" &&
+          target.bot.botKind === "roleplay" &&
+          !(await isRoleplayEnabled(deps.prisma, context.actor.userId))
+        )
+          throw new ORPCError("BAD_REQUEST", {
+            message: "Roleplay is not enabled for this account. Enable it in Settings > General.",
+          });
         if (target.kind === "bot") {
           await assertTeachingSendAllowed(deps.prisma, context.actor.spaceId, target.botId);
           const sent = await deps.events.sendUserMessage({
@@ -526,6 +600,8 @@ export function threadsRoutes(ctx: RouterContext) {
       answerCall: callsEnabled.threads.answerCall.handler(async ({ context, input }) => {
         const target = await resolveThreadTarget(deps.prisma, context.actor, input);
         if (target.kind !== "bot") throw new IsolationError();
+        if (target.bot.botKind === "roleplay")
+          throw new ORPCError("BAD_REQUEST", { message: "Roleplay does not support live calls" });
         const answered = await settleCallRequest(deps, {
           threadId: target.threadId,
           callId: input.callId,
@@ -539,6 +615,8 @@ export function threadsRoutes(ctx: RouterContext) {
       declineCall: callsEnabled.threads.declineCall.handler(async ({ context, input }) => {
         const target = await resolveThreadTarget(deps.prisma, context.actor, input);
         if (target.kind !== "bot") throw new IsolationError();
+        if (target.bot.botKind === "roleplay")
+          throw new ORPCError("BAD_REQUEST", { message: "Roleplay does not support live calls" });
         await settleCallRequest(deps, {
           threadId: target.threadId,
           callId: input.callId,
@@ -550,6 +628,8 @@ export function threadsRoutes(ctx: RouterContext) {
       endCall: callsEnabled.threads.endCall.handler(async ({ context, input }) => {
         const target = await resolveThreadTarget(deps.prisma, context.actor, input);
         if (target.kind !== "bot") throw new IsolationError();
+        if (target.bot.botKind === "roleplay")
+          throw new ORPCError("BAD_REQUEST", { message: "Roleplay does not support live calls" });
         await assertTeachingSendAllowed(deps.prisma, context.actor.spaceId, target.botId);
         const { botId, threadId } = target;
         // The bot's own call: its card keeps how long the user stayed on.

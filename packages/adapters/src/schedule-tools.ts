@@ -254,6 +254,7 @@ export interface ScheduleToolDeps {
   prisma: PrismaClient;
   events: ThreadEvents;
   jobs: JobPublisher;
+  signal?: AbortSignal;
 }
 
 /** The user's saved timezone, so "every morning at 9" means their 9, not UTC's. */
@@ -321,6 +322,7 @@ export async function createScheduleFromTool(
   const resolved = resolveScheduleTiming(input.schedule, timezone);
   if (!resolved.ok) return { error: resolved.error };
 
+  deps.signal?.throwIfAborted();
   const row = await deps.prisma.routine.create({
     data: {
       spaceId: input.spaceId,
@@ -418,6 +420,7 @@ async function createWatchFromTool(
     return { error: error instanceof Error ? error.message : "Invalid change trigger." };
   }
   const nextRunAt = new Date(Date.now() + 2_000);
+  deps.signal?.throwIfAborted();
   const row = await deps.prisma.routine.create({
     data: {
       spaceId: input.spaceId,
@@ -466,6 +469,7 @@ async function createWatchFromTool(
 export async function listSchedulesFromTool(
   deps: Pick<ScheduleToolDeps, "prisma">,
   input: { spaceId: string; botId: string; userId: string; threadId?: string },
+  options?: { activeOnly: boolean; skip: number; take: number },
 ) {
   const rows = await deps.prisma.routine.findMany({
     where: {
@@ -473,8 +477,10 @@ export async function listSchedulesFromTool(
       botId: input.botId,
       userId: input.userId,
       ...(input.threadId ? { threadId: input.threadId } : {}),
+      ...(options?.activeOnly ? { active: true } : {}),
     },
-    orderBy: { createdAt: "desc" },
+    orderBy: options ? [{ createdAt: "desc" }, { id: "desc" }] : { createdAt: "desc" },
+    ...(options ? { skip: options.skip, take: options.take } : {}),
   });
   return {
     routines: rows.map((row) => ({
@@ -603,6 +609,7 @@ export async function updateScheduleFromTool(
   // The scope is part of the write, so the routine cannot change hands between the read and it.
   // A name or prompt edit writes only those fields, so a run claimed meanwhile keeps its advance;
   // a timing edit applies only if no run advanced the routine since the read.
+  deps.signal?.throwIfAborted();
   const { count } = await deps.prisma.routine.updateMany({
     where: {
       ...scope,
@@ -684,6 +691,7 @@ export async function cancelScheduleFromTool(
   if (!existing) return { error: "Schedule not found." };
 
   // The scope is part of the delete, so the routine cannot change hands between the read and it.
+  deps.signal?.throwIfAborted();
   const { count } = await deps.prisma.routine.deleteMany({ where: { ...scope, id: existing.id } });
   if (count === 0) return { error: "Schedule not found." };
   await deps.jobs.cancel(routineJobKey(existing.id));

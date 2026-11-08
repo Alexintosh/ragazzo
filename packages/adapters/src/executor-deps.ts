@@ -22,6 +22,7 @@ import type { FarmingControlReadService } from "./farming-control-team-policy.js
 import type { MemoryProviderResolver } from "./memory-provider-factory.js";
 import type { CodexLiveCatalog } from "./pi-codex-catalog.js";
 import type { RemoteTransportDependencies } from "./remote-mcp.js";
+import type { RoleplayRuntime } from "./roleplay-runtime.js";
 import type { TicketChangeNotifier } from "./ticket-changes.js";
 import type { UserDeviceGateway } from "./user-device-protocol.js";
 
@@ -31,11 +32,14 @@ export interface ExecutorDeps {
   farmingControlRiskAutomationEnabled?: boolean;
   farmingControlOpportunitiesEnabled?: boolean;
   farmingControlOpportunityRefreshEnabled?: boolean;
+  roleplayRuntime?: RoleplayRuntime;
   maxUploadSizeBytes?: number;
   contextStrategy?: AgentContextStrategy;
   prisma: PrismaClient;
   events: ThreadEvents;
   runtime: AgentRuntime;
+  /** Optional native harnesses; the default runtime continues to serve Pi bots. */
+  runtimes?: { codex?: AgentRuntime; claude?: AgentRuntime; acp?: AgentRuntime };
   sandbox: SandboxProvider;
   memory: MemoryStore;
   memoryProviders: MemoryProviderResolver;

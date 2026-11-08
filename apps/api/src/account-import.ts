@@ -12,6 +12,7 @@ import type {
   AccountExportRecord,
   AccountImportResult,
   Actor,
+  RoleplayCharacter,
 } from "@rakazo/contracts";
 import {
   ACCOUNT_EXPORT_FORMAT,
@@ -22,6 +23,7 @@ import {
   AccountExportManifestSchema,
   AccountExportRecordSchema,
   attachmentSizeLabel,
+  isAttachmentImageMimeType,
   resolveBotAvatarSet,
 } from "@rakazo/contracts";
 import { organicAvatarFamily } from "@rakazo/core";
@@ -239,6 +241,7 @@ class SpaceImport {
     string,
     { id: string; threadId: string; homeKey: string; directory: string }
   >();
+  readonly roleplayCharacters = new Map<string, RoleplayCharacter>();
   readonly groupThreads = new Map<string, string>();
   readonly threadSeqs = new Map<string, number>();
   readonly artifacts = new Map<string, PendingArtifact>();
@@ -737,6 +740,15 @@ class AccountImporter implements ArchiveSink {
     const space = this.current!;
     if (space.ids.has(record.id)) throw unreadable();
     const bot = await this.repos.createBot(space.actor, {
+      botKind: record.botKind ?? "agent",
+      roleplayCharacter: record.roleplayCharacter
+        ? {
+            ...record.roleplayCharacter,
+            ...(record.roleplayCharacter.media
+              ? { media: { ...record.roleplayCharacter.media, album: [] } }
+              : {}),
+          }
+        : undefined,
       name: record.name,
       description: record.description,
       instructions: record.instructions,
@@ -777,6 +789,8 @@ class AccountImporter implements ArchiveSink {
       },
     });
     if (!computer || !thread) throw new Error("Imported bot is missing its computer or thread");
+    if (record.botKind === "roleplay" && record.roleplayCharacter)
+      space.roleplayCharacters.set(record.id, record.roleplayCharacter);
     space.ids.set(record.id, bot.id);
     space.bots.set(record.id, {
       id: bot.id,
@@ -926,6 +940,31 @@ class AccountImporter implements ArchiveSink {
         });
       }
       if (rows.length) await this.deps.prisma.artifact.createMany({ data: rows });
+      for (const [sourceBotId, character] of space.roleplayCharacters) {
+        const botId = space.mapped(sourceBotId);
+        const media = character.media;
+        if (!media) continue;
+        const album = media.album.map((entry) => {
+          const row = rows.find(
+            (row) =>
+              row.id === space.ids.get(entry.artifactId) &&
+              row.botId === botId &&
+              row.groupId == null &&
+              isAttachmentImageMimeType(row.mimeType),
+          );
+          if (!row) throw new Error("An album image is missing from the account archive");
+          return { ...entry, artifactId: row.id! };
+        });
+        await this.deps.prisma.bot.update({
+          where: { id: botId },
+          data: {
+            roleplayCharacter: {
+              ...character,
+              media: { ...media, album },
+            } as unknown as Prisma.InputJsonValue,
+          },
+        });
+      }
     });
     for (const [homeKey, staging] of space.homes)
       await this.deps.home.commit(homeKey, staging, space.context());
