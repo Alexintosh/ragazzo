@@ -266,6 +266,24 @@ live in the private conversation. Changes to evaluators go through normal FC
 review and replay. These workflows have no financial write or execution tools.
 
 
+### Current evidence, history and interpretation
+
+The Risk page and `farming_control_risk_review` use the same authenticated
+`farmingControl.riskReview` service. Select an exact returned monitorKey for
+bounded dated history and surviving correlated emergency/trend/weekly runs.
+Read current FC assessments and their observation time separately from archived
+transitions and interpretation status. `currentFinality:not_exposed` identifies
+an absent public field; archive finality does not fill it. History coverage
+remains unknown, including when no row survives or the read is truncated.
+
+Interpretation metadata is restricted to the configured owner's current private
+Risk scope and contains no chat content. Completed analysis remains
+indeterminate without verified final-output linkage, with no fabricated message
+link. Weekly fleet research is distinct from a selected episode. No exposure
+association means holding impact is unproven. Display/demo copies do not change
+tool evidence or the chosen chat behavior. These repeated reads perform no
+mutation, run wake, notification or transaction.
+
 ### Risk admission receipts
 
 The event POST retains exact v1 `accepted/runId` responses by default. Request

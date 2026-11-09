@@ -187,14 +187,33 @@ export function compactFarmingControlRiskReview(
           omittedLimitationCount: Math.max(0, linked.limitations.length - 8),
         }
       : null,
+    currentFinality: review.currentFinality ?? "not_exposed",
+    episodeHistory: review.episodeHistory ? {
+      ...review.episodeHistory, transitions: review.episodeHistory.transitions.slice(-12),
+      omittedTransitionCount: Math.max(0, review.episodeHistory.transitions.length - 12),
+    } : null,
+    interpretations: review.interpretations ? {
+      ...review.interpretations, runs: review.interpretations.runs.slice(0, 8),
+      omittedRunCount: Math.max(0, review.interpretations.runs.length - 8),
+    } : null,
     linkedCurrentObservationOmitted: false,
     omittedMonitorCount: 0,
     omittedIssueCount: Math.max(0, review.issues.length - 8),
     interpretation:
-      "Inventory rows require an exact monitorKey drilldown for numeric/current findings. Historical groups are aggregated by family; no comparison across runtime/configuration lineages is implied. Omission counts are not zero risk. Raw asset quantities retain raw units. executionEligible remains false.",
+      "Inventory rows require an exact monitorKey drilldown for numeric/current findings. Historical groups are aggregated by family; no comparison across runtime/configuration lineages is implied. Omission counts are not zero risk. Dated episode transitions and interpretation run states are independent of current health. Completed analysis without final-output proof remains indeterminate. Current finality is not exposed. Raw asset quantities retain raw units. executionEligible remains false.",
   };
   // Drop whole optional evidence records, never clip JSON or a decimal, if a dense subject reaches the model budget.
   while (new TextEncoder().encode(JSON.stringify(output)).byteLength > MODEL_BUDGET - 256) {
+    if (output.episodeHistory?.transitions.length) {
+      output.episodeHistory.transitions.shift();
+      output.episodeHistory.omittedTransitionCount++;
+      continue;
+    }
+    if (output.interpretations?.runs.length) {
+      output.interpretations.runs.pop();
+      output.interpretations.omittedRunCount++;
+      continue;
+    }
     const last = output.monitors.at(-1);
     if (!last) break;
     if (!selected && output.monitors.length > 1) {

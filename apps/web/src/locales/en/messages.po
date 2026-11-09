@@ -8452,3 +8452,179 @@ msgstr "Provide secret"
 #: src/pages/shell/thread-queue.tsx
 msgid "Take over"
 msgstr "Take over"
+
+#: src/pages/FarmingControl.tsx
+msgid "All monitors"
+msgstr "All monitors"
+
+#: src/components/farming-control/risk-cards.tsx
+msgid "Completed runs remain indeterminate without final-output proof."
+msgstr "Completed runs remain indeterminate without final-output proof."
+
+#: src/components/farming-control/risk-cards.tsx
+msgid "Coverage"
+msgstr "Coverage"
+
+#: src/components/farming-control/risk-cards.tsx
+msgid "Current FC state"
+msgstr "Current FC state"
+
+#: src/components/farming-control/risk-cards.tsx
+msgid "Dated episode history"
+msgstr "Dated episode history"
+
+#: src/components/farming-control/risk-cards.tsx
+msgid "Emergency"
+msgstr "Emergency"
+
+#: src/components/farming-control/risk-cards.tsx
+msgid "Episode opened"
+msgstr "Episode opened"
+
+#: src/components/farming-control/risk-cards.tsx
+msgid "Event time"
+msgstr "Event time"
+
+#: src/components/farming-control/risk-cards.tsx
+msgid "Evidence summary hidden in demo"
+msgstr "Evidence summary hidden in demo"
+
+#: src/components/farming-control/risk-cards.tsx
+msgid "Exposure not established"
+msgstr "Exposure not established"
+
+#: src/components/farming-control/risk-cards.tsx
+msgid "Finality"
+msgstr "Finality"
+
+#: src/components/farming-control/risk-cards.tsx
+msgid "Finalized"
+msgstr "Finalized"
+
+#: src/components/farming-control/risk-cards.tsx
+msgid "History and interpretation"
+msgstr "History and interpretation"
+
+#: src/components/farming-control/risk-cards.tsx
+msgid "History read is incomplete."
+msgstr "History read is incomplete."
+
+#: src/components/farming-control/risk-cards.tsx
+msgid "Holding association"
+msgstr "Holding association"
+
+#: src/components/farming-control/risk-cards.tsx
+msgid "Includes monitors without proven holdings. Select a monitor for dated evidence."
+msgstr "Includes monitors without proven holdings. Select a monitor for dated evidence."
+
+#: src/components/farming-control/risk-cards.tsx
+msgid "Indeterminate"
+msgstr "Indeterminate"
+
+#: src/components/farming-control/risk-cards.tsx
+msgid "Latest"
+msgstr "Latest"
+
+#: src/components/farming-control/risk-cards.tsx
+msgid "Leased"
+msgstr "Leased"
+
+#: src/pages/FarmingControl.tsx
+msgid "Loading Monitoring review"
+msgstr "Loading Monitoring review"
+
+#: src/components/farming-control/risk-cards.tsx
+msgid "Matched visible holding"
+msgstr "Matched visible holding"
+
+#: src/components/farming-control/risk-cards.tsx
+msgid "Monitoring history and interpretation"
+msgstr "Monitoring history and interpretation"
+
+#: src/pages/FarmingControl.tsx
+msgid "Monitoring review is unavailable. Current risk remains unknown."
+msgstr "Monitoring review is unavailable. Current risk remains unknown."
+
+#: src/components/farming-control/risk-cards.tsx
+msgid "Monitoring-wide research; not a selected episode result."
+msgstr "Monitoring-wide research; not a selected episode result."
+
+#: src/components/farming-control/risk-cards.tsx
+msgid "No Monitoring evidence returned. Current risk remains unknown."
+msgstr "No Monitoring evidence returned. Current risk remains unknown."
+
+#: src/components/farming-control/risk-cards.tsx
+msgid "No correlated Risk run returned. Analysis availability is unknown."
+msgstr "No correlated Risk run returned. Analysis availability is unknown."
+
+#: src/components/farming-control/risk-cards.tsx
+msgid "No retained transitions returned; past incidents remain unknown."
+msgstr "No retained transitions returned; past incidents remain unknown."
+
+#: src/components/farming-control/risk-cards.tsx
+msgid "Not exposed by this evidence read"
+msgstr "Not exposed by this evidence read"
+
+#: src/components/farming-control/risk-cards.tsx
+msgid "Opened"
+msgstr "Opened"
+
+#: src/components/farming-control/risk-cards.tsx
+msgid "Policy unknown"
+msgstr "Policy unknown"
+
+#: src/components/farming-control/risk-cards.tsx
+msgid "Resolved"
+msgstr "Resolved"
+
+#: src/components/farming-control/risk-cards.tsx
+msgid "Risk interpretation"
+msgstr "Risk interpretation"
+
+#: src/components/farming-control/risk-cards.tsx
+msgid "Run history read is incomplete."
+msgstr "Run history read is incomplete."
+
+#: src/components/farming-control/risk-cards.tsx
+msgid "Run status"
+msgstr "Run status"
+
+#: src/components/farming-control/risk-cards.tsx
+msgid "Status observed"
+msgstr "Status observed"
+
+#: src/components/farming-control/risk-cards.tsx
+msgid "The selected monitor is unavailable. Current risk remains unknown."
+msgstr "The selected monitor is unavailable. Current risk remains unknown."
+
+#: src/components/farming-control/risk-cards.tsx
+msgid "Trend review"
+msgstr "Trend review"
+
+#: src/components/farming-control/risk-cards.tsx
+msgid "Unknown"
+msgstr "Unknown"
+
+#: src/components/farming-control/risk-cards.tsx
+msgid "Updated"
+msgstr "Updated"
+
+#: src/components/farming-control/risk-cards.tsx
+msgid "Waiting for input"
+msgstr "Waiting for input"
+
+#: src/components/farming-control/risk-cards.tsx
+msgid "Waiting for takeover"
+msgstr "Waiting for takeover"
+
+#: src/components/farming-control/risk-cards.tsx
+msgid "Weekly research"
+msgstr "Weekly research"
+
+#: src/components/farming-control/risk-cards.tsx
+msgid "History coverage is unknown. These records do not establish present health or delivery recovery."
+msgstr "History coverage is unknown. These records do not establish present health or delivery recovery."
+
+#: src/pages/FarmingControl.tsx
+msgid "Visible holdings and monitors"
+msgstr "Visible holdings and monitors"

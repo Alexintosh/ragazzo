@@ -54,6 +54,9 @@ import { curveRiskSource, morphoRiskSource, projectRiskExposures } from "./farmi
 import { detailActivitiesSource, detailActivity, detailEntrySource, detailInventorySource, detailTransaction } from "./farming-control-position-detail.js";
 import type { PositionDetailPath } from "./farming-control-position-detail.js";
 
+import type { FarmingControlRiskHistoryPath } from "./farming-control-risk-history.js";
+import { readFarmingControlRiskHistory } from "./farming-control-risk-history.js";
+
 const ms = z.number().int().nonnegative();
 // Wallet addresses stay inside this adapter; consumers receive only the hidden count.
 const walletVisibilitySource = FarmingControlWalletVisibilitySchema.omit({
@@ -212,7 +215,7 @@ type PositionYieldSource =
   | `/positions/${string}/metrics/apr?${string}`
   | `/positions/${string}/performance?${string}`;
 type PositionHistoryPath = PositionYieldSource | FarmingControlPositionEarningsPath;
-type ScopedSource = PositionDetailPath | `/monitoring/hot/evidence?${string}` | PositionHistoryPath | `${typeof SOURCES.portfolio | typeof SOURCES.history}?${string}`;
+type ScopedSource = FarmingControlRiskHistoryPath | PositionDetailPath | `/monitoring/hot/evidence?${string}` | PositionHistoryPath | `${typeof SOURCES.portfolio | typeof SOURCES.history}?${string}`;
 const aprHistorySource = z.object({
   positionId: z.string().max(500),
   asOfMs: ms,
@@ -1560,9 +1563,16 @@ export function createFarmingControlClient(options: {
     }
     if (selection.monitorKey && !items.length)
       issues.push("The selected monitor is absent from the desired-running Monitoring universe; this does not establish safety or prove that the monitor does not exist.");
+    const selected = selection.monitorKey && items.length === 1 ? items[0] : null;
+    const episodeHistory = selected ? await readFarmingControlRiskHistory({
+      monitorKey: selected.monitorKey, fromMs: result.data.requestedFromMs,
+      throughMs: result.data.asOfMs, enabled: selected.history.status !== "disabled", read,
+    }) : undefined;
     return {
-      ...meta(result.data.asOfMs, [path], issues, true),
-      state: issues.length || items.some((item) =>
+      ...meta(result.data.asOfMs, [path, ...(selected ? [`/monitoring/hot/monitors/${encodeURIComponent(selected.monitorKey)}/history`] : [])], issues, true),
+      currentFinality: "not_exposed",
+      ...(episodeHistory ? { episodeHistory } : {}),
+      state: issues.length || episodeHistory?.state === "unavailable" || episodeHistory?.truncated || items.some((item) =>
         item.current.status !== "live" || item.history.status !== "ready" || item.history.truncated
       ) ? "partial" : "available",
       selectionStatus: selection.monitorKey ? items.length ? "matched" : "absent_subject" : "all_subjects",

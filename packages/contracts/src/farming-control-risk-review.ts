@@ -110,6 +110,68 @@ export const FarmingControlMonitoringEvidenceSchema = z.object({
 export type FarmingControlMonitoringEvidence = z.infer<
   typeof FarmingControlMonitoringEvidenceSchema
 >;
+/** Dated archive evidence only; never a current health or transport projection. */
+export const FarmingControlRiskEpisodeHistorySchema = z.object({
+  state: z.enum(["not_requested", "partial", "unavailable", "disabled"]),
+  coverage: z.literal("unknown"),
+  fromMs: ms,
+  throughMs: ms,
+  recordsRead: count,
+  truncated: z.boolean(),
+  transitions: z
+    .array(
+      z.object({
+        id: z.string().max(256),
+        monitorKey: z.string().max(500),
+        runtimeInstanceId: z.string().max(256),
+        subjectKey: z.string().max(500),
+        policyKey: z.string().max(500).nullable(),
+        episodeOpenedAtMs: ms.nullable(),
+        occurredAtMs: ms,
+        recordedAtMs: ms,
+        transition: z.enum(["opened", "updated", "resolved"]),
+        severity: z.enum(["info", "warning", "critical"]).nullable(),
+        finality: z.enum(["latest", "finalized"]).nullable(),
+        blockNumber: z.string().max(256).nullable(),
+        blockHash: z.string().max(256).nullable(),
+      }),
+    )
+    .max(200),
+  limitations: z.array(text).max(8),
+});
+export type FarmingControlRiskEpisodeHistory = z.infer<
+  typeof FarmingControlRiskEpisodeHistorySchema
+>;
+
+export const FarmingControlRiskInterpretationsSchema = z.object({
+  state: z.enum(["not_requested", "partial", "unavailable"]),
+  asOfMs: ms,
+  truncated: z.boolean(),
+  runs: z
+    .array(
+      z.object({
+        runId: z.string().max(500),
+        eventId: z.string().max(600),
+        kind: z.enum(["emergency", "material_trend", "weekly_review"]),
+        scope: z.enum(["selected_monitor", "monitoring_universe"]),
+        triggeredAtMs: ms,
+        occurredAtMs: ms.nullable(),
+        episodeOpenedAtMs: ms.nullable(),
+        subjectKey: z.string().max(500).nullable(),
+        policyKey: z.string().max(500).nullable(),
+        transition: z.enum(["opened", "updated", "resolved"]).nullable(),
+        runStatus: z.string().max(100).nullable(),
+        analysisStatus: z.enum(["pending", "failed", "indeterminate"]),
+        messageId: z.null(),
+      }),
+    )
+    .max(40),
+  limitations: z.array(text).max(8),
+});
+export type FarmingControlRiskInterpretations = z.infer<
+  typeof FarmingControlRiskInterpretationsSchema
+>;
+
 export const FarmingControlRiskReviewSchema = z.object({
   state: z.enum(["available", "partial", "unavailable"]),
   fetchedAtMs: ms,
@@ -125,6 +187,9 @@ export const FarmingControlRiskReviewSchema = z.object({
     "unavailable",
   ]),
   linkedExposure: FarmingControlRiskExposureSchema.nullable(),
+  currentFinality: z.literal("not_exposed").optional(),
+  episodeHistory: FarmingControlRiskEpisodeHistorySchema.optional(),
+  interpretations: FarmingControlRiskInterpretationsSchema.optional(),
 });
 export type FarmingControlRiskReview = z.infer<typeof FarmingControlRiskReviewSchema>;
 
