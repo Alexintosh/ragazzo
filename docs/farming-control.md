@@ -266,6 +266,30 @@ live in the private conversation. Changes to evaluators go through normal FC
 review and replay. These workflows have no financial write or execution tools.
 
 
+### Risk admission receipts
+
+The event POST retains exact v1 `accepted/runId` responses by default. Request
+`Accept: application/vnd.fc-risk-receipt.v2+json` for an additive receipt with
+the echoed event ID, `created`/`replayed`/ignored reception, run status, wake
+outcome and analysis status. A failed wake after commit retains the same run;
+the existing worker recovers it when separately started by the operator.
+
+Reconcile a lost response with authenticated
+`GET /api/v1/farming-control/risk-events/{eventId}` or retry the original POST
+with the exact same ID. GET never creates or wakes work. Both operations require
+the dedicated bearer, configured owner and current private Risk scope; they
+return minimal metadata without conversation content. An ID grants no access.
+A 404 means no surviving scoped admission proof, not proof of no prior effect.
+Ignored receipts terminate transport delivery without claiming a new run.
+V1 null run IDs remain ambiguous. No receipt proves current pool health.
+
+Analysis is pending for active runs, failed for failed/cancelled runs and
+indeterminate for completed runs without provable final-output linkage. The
+sender receives no message content or message reference. After a confirmed
+admission, reread status rather than creating a replacement event. Deduplication
+lasts while the original run/nonce records survive. This interface does not
+start the stopped application or grant financial execution authority.
+
 ## Opportunity research
 
 In a private chat with **Coordinator**, ask it to consult **Opportunities** about current alternatives or source health. The Coordinator sends the specialist a focused question. The specialist reads the current evidence and its final answer returns to the same Coordinator chat. Delivery is asynchronous. The Coordinator can also read Intelligence directly. Private consultations permit research reads. Publishing a recommendation and recording feedback belong to the specialist’s separate workflows.
