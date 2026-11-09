@@ -40,3 +40,28 @@ it("queues enabled pulls once per UTC day and leaves active jobs with FC", async
   });
   expect(post).toHaveBeenCalledTimes(1);
 });
+
+it("reports FC coalescing a refresh that became active after the source read", async () => {
+  const time = Date.UTC(2026, 10, 9, 10);
+  const post = vi.fn(async () => ({
+    jobs: [{ source: { key: "synthetic-source" }, deduplicated: true }],
+  }));
+  const result = await refreshOpportunitySources(time, {
+    get: vi.fn(async () => ({
+      items: [
+        {
+          key: "synthetic-source",
+          enabled: true,
+          mode: "pull",
+          available: true,
+          pullSyncable: true,
+          activeRefreshJob: null,
+          latestRefreshJob: null,
+        },
+      ],
+    })),
+    post,
+  });
+  expect(result).toEqual({ eligible: 1, queued: 0, alreadyRequested: 0, busy: 1 });
+  expect(post).toHaveBeenCalledOnce();
+});

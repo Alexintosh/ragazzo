@@ -51,6 +51,18 @@ export function sourceRefreshStatus(value: unknown, expectedJobId: string) {
     .safeParse(job.lastError);
   const terminal = ["completed", "dead", "cancelled"].includes(job.status);
   const skipped = job.status === "completed" && job.result?.status === "skipped";
+  // Retain FC's machine-readable explanation without forwarding arbitrary
+  // result/error text from the provider boundary.
+  const skippedReason = z
+    .enum([
+      "source_not_found",
+      "source_disabled",
+      "source_push_only",
+      "adapter_unavailable",
+      "sync_runtime_unavailable",
+      "not_refreshable",
+    ])
+    .safeParse(skipped ? job.result?.reason : undefined);
   const outcome = !terminal
     ? "pending"
     : job.status === "cancelled"
@@ -70,6 +82,7 @@ export function sourceRefreshStatus(value: unknown, expectedJobId: string) {
     sourceSync: job.sourceSync,
     terminal,
     outcome,
+    skippedReason: skippedReason.success ? skippedReason.data : null,
     errorCode: error.success ? error.data.code : null,
     failureClass:
       job.status === "dead"
