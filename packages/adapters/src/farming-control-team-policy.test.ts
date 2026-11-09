@@ -7,15 +7,15 @@ import {
   farmingControlToolsForRole,
 } from "./farming-control-team-policy.js";
 
-it("offers native consultation messaging to Coordinator only", () => {
+it("offers native consultation messaging and public reads to Coordinator only", () => {
   for (const role of FARMING_CONTROL_ROLES) {
     const tools = farmingControlSafeToolsForRole(role);
     expect(tools.has("message_bot")).toBe(role === "coordinator");
-    expect([...tools].filter((tool) => tool !== "message_bot")).toEqual([
+    expect([...tools].filter((tool) => tool !== "message_bot" && tool !== "web_fetch")).toEqual([
       ...FARMING_CONTROL_SAFE_TOOLS,
     ]);
     expect(tools.has("shell")).toBe(false);
-    expect(tools.has("web_fetch")).toBe(false);
+    expect(tools.has("web_fetch")).toBe(role === "coordinator");
     expect(tools.has("run_subagent")).toBe(false);
   }
 });
@@ -37,6 +37,10 @@ it("keeps Intelligence reads and explicit source refresh separate from Opportuni
     expect(Boolean(sourceRefresh)).toBe(role === "coordinator" || role === "opportunities");
     if (sourceRefresh) expect(sourceRefresh.readOnly).toBe(false);
     if (role === "coordinator")
-      expect(tools.filter((tool) => tool.name !== "farming_control_source_refresh").every((tool) => tool.readOnly)).toBe(true);
+      expect(
+        tools
+          .filter((tool) => tool.name !== "farming_control_source_refresh")
+          .every((tool) => tool.readOnly),
+      ).toBe(true);
   }
 });

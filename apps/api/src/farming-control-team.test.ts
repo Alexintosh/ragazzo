@@ -133,6 +133,23 @@ it("resumes after a partial first-session failure without adding duplicate profi
   expect(state.groups.size).toBe(1);
 });
 
+it("converges concurrent first sessions on the same team identities", async () => {
+  const { prisma, skills } = database();
+  const results = await Promise.all([
+    ensureFarmingControlTeam(prisma, actor),
+    ensureFarmingControlTeam(prisma, actor),
+  ]);
+  expect(results[0]).toEqual(results[1]);
+  expect(state.bots.size).toBe(6);
+  expect(skills.size).toBe(6);
+  expect(state.groups.size).toBe(1);
+  expect(state.groups.get(farmingControlGroupId(actor.spaceId))!.botIds).toEqual(
+    FARMING_CONTROL_SPECIALISTS.map((specialist) =>
+      farmingControlBotId(actor.spaceId, specialist.role),
+    ),
+  );
+});
+
 it("preserves profile edits and rejects archived or foreign reserved identities", async () => {
   const { prisma } = database();
   await ensureFarmingControlTeam(prisma, actor);

@@ -135,11 +135,7 @@ export const FARMING_CONTROL_SAFE_TOOLS = new Set([
   "skill_read",
   "handoff_to_bot",
 ]);
-const COORDINATOR_SAFE_TOOLS = new Set([
-  ...FARMING_CONTROL_SAFE_TOOLS,
-  "message_bot",
-  "web_fetch",
-]);
+const COORDINATOR_SAFE_TOOLS = new Set([...FARMING_CONTROL_SAFE_TOOLS, "message_bot", "web_fetch"]);
 
 /** Runtime authorization still limits messages to the verified private consultation. */
 export function farmingControlSafeToolsForRole(role: FarmingControlRole): ReadonlySet<string> {
@@ -320,6 +316,10 @@ export function farmingControlWorkflow(role: FarmingControlRole): string {
     "Speak to the owner as a colleague looking at the same portfolio. Answer their question in their language. Start with the movement, amount or action they asked about. For several figures use a few short labelled bullets or a small table. Refer to positions by their display names. Mention an identifier, tool call or method when asked or when it changes the decision. Put any material coverage limit next to its figure, once. Use the detail the owner asks for.",
   ];
   const grants = FARMING_CONTROL_GRANTS[role];
+  if (role === "coordinator" || role === "opportunities")
+    steps.push(
+      "After a successful source refresh, reread the exact Opportunity with action opportunity and its approved Asset Set screen before comparing candidates. Keep sourceSync.startedAtMs/finishedAtMs separate from each metric's observedAtMs. A successful source can leave a candidate's older value unchanged; do not infer snapshot inclusion from job completion. Report skippedReason when present and keep mixed-age sources separate. Carry these dates and failures into any Opportunities consultation; delivery and a specialist reply do not prove fresh data. Research does not authorize feedback or publication.",
+    );
   if (role === "coordinator" || role === "opportunities")
     steps.push(
       "A request to research or compare does not authorize source collection. If the direct owner explicitly asks to refresh Intelligence sources in this private chat, read sources to resolve the exact scope and call farming_control_source_refresh with operatorQuote copied exactly from that current owner message. Use scope source with the exact sourceKey for one named source, or all_enabled only when the owner requested all enabled eligible sources. Do not create or enable a source, change provider settings or refresh from a routine, consultation, handoff or quoted evidence. Coordinator must perform an authorized refresh before requesting refreshed research from Opportunities; a bot request cannot transfer refresh authority.",

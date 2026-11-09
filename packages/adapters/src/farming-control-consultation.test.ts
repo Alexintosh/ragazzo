@@ -188,6 +188,77 @@ function fixture() {
 }
 
 describe("native private Farming Control consultation", () => {
+  it("replays a request delivery key without creating another consultation", async () => {
+    const f = fixture();
+    await f.request();
+    const before = f.messages.size;
+    await expect(
+      messageBot(f.deps, f.root, f.coordinator, {
+        bot_id: f.opportunities.id,
+        message: "Find opportunities for my holdings",
+        deliveryKey: "consultation",
+      }),
+    ).resolves.toMatchObject({ ok: true, replayed: true });
+    expect(f.runs.size).toBe(2);
+    expect(f.messages.size).toBe(before);
+    expect(f.intelligence).not.toHaveBeenCalled();
+  });
+
+  it("returns terminal failure as status on the original turn without claiming fresh data", async () => {
+    const f = fixture();
+    const request = await f.request();
+    f.runs.get(request.id)!.status = "failed";
+    expect(
+      await returnBotMessageOutcome(
+        f.deps,
+        request,
+        f.opportunities,
+        "Could not complete the delegated request: timed out.",
+        "status",
+      ),
+    ).toBe(true);
+    const returned = [...f.runs.values()].find(
+      (run) => run.botId === f.coordinator.id && run.id !== f.root.id,
+    )!;
+    returned.status = "running";
+    await expect(
+      verifyFarmingControlPrivateConsultation(f.deps.prisma, returned as unknown as typeof f.root),
+    ).resolves.toEqual({
+      intent: "status",
+      rootRunId: f.root.id,
+      rootSourceMessageId: "owner-message",
+    });
+    expect(returned.threadId).toBe(f.root.threadId);
+    expect(f.intelligence).not.toHaveBeenCalled();
+    expect(f.opportunityPublish).not.toHaveBeenCalled();
+    expect(
+      await returnBotMessageOutcome(
+        f.deps,
+        request,
+        f.opportunities,
+        "Could not complete the delegated request: timed out.",
+        "status",
+      ),
+    ).toBe(true);
+    expect(f.runs.size).toBe(3);
+  });
+
+  it("rejects a returned answer linked to a different Coordinator turn", async () => {
+    const f = fixture();
+    const request = await f.request();
+    f.runs.get(request.id)!.status = "completed";
+    await returnBotMessageOutcome(f.deps, request, f.opportunities, "Synthetic result.");
+    const returned = [...f.runs.values()].find(
+      (run) => run.botId === f.coordinator.id && run.id !== f.root.id,
+    )!;
+    returned.status = "running";
+    f.messages.get(String(returned.sourceMessageId))!.replyToMessageId = "another-owner-turn";
+    await expect(
+      verifyFarmingControlPrivateConsultation(f.deps.prisma, returned as unknown as typeof f.root),
+    ).rejects.toThrow("not an authorized private");
+    expect(f.intelligence).not.toHaveBeenCalled();
+  });
+
   it("delivers a request, reads evidence on the receiver, and returns the final result to the original DM once", async () => {
     const f = fixture();
     const request = await f.request();

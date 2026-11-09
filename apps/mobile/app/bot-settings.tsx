@@ -872,7 +872,10 @@ export default function BotSettingsScreen() {
                     spaceId={bot.spaceId}
                     value={registeredHostId}
                     localHostConfigured={environment.localHostConfigured}
-                    onChange={setRegisteredHostId}
+                    onChange={(hostId) => {
+                      if (hostId !== registeredHostId) setProjectPath("");
+                      setRegisteredHostId(hostId);
+                    }}
                   />
                 ) : null}
                 {runtimeKind !== "pi" ? (
