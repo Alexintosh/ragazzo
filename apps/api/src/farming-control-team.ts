@@ -42,15 +42,18 @@ export async function ensureFarmingControlTeam(prisma: PrismaClient, actor: Acto
         (["current", "legacy"] as const).flatMap((team) =>
           (["current", "legacy"] as const).flatMap((consultation) =>
             (["current", "legacy"] as const).flatMap((names) =>
-              (["current", "legacy"] as const).map((refresh) =>
-                farmingControlInstructions(
-                  specialist.role,
-                  actor.spaceId,
-                  precision,
-                  team,
-                  consultation,
-                  names,
-                  refresh,
+              (["current", "legacy"] as const).flatMap((refresh) =>
+                (["current", "legacy"] as const).map((publicRead) =>
+                  farmingControlInstructions(
+                    specialist.role,
+                    actor.spaceId,
+                    precision,
+                    team,
+                    consultation,
+                    names,
+                    refresh,
+                    publicRead,
+                  ),
                 ),
               ),
             ),
@@ -69,12 +72,18 @@ export async function ensureFarmingControlTeam(prisma: PrismaClient, actor: Acto
         disabledBuiltinTools,
       });
     } else if (generatedInstructions.includes(prior.instructions)) {
-      const legacyDisabled = BUILTIN_TOOL_NAMES.filter(
-        (name) => !FARMING_CONTROL_SAFE_TOOLS.has(name),
-      );
-      const generatedToolPolicy =
-        prior.disabledBuiltinTools.length === legacyDisabled.length &&
-        legacyDisabled.every((name) => prior.disabledBuiltinTools.includes(name));
+      // Both previous generated Coordinator policies predate public reads:
+      // the original safe list, and its private-consultation messaging upgrade.
+      const generatedToolPolicy = [
+        FARMING_CONTROL_SAFE_TOOLS,
+        new Set([...FARMING_CONTROL_SAFE_TOOLS, "message_bot"]),
+      ].some((allowed) => {
+        const disabled = BUILTIN_TOOL_NAMES.filter((name) => !allowed.has(name));
+        return (
+          prior.disabledBuiltinTools.length === disabled.length &&
+          disabled.every((name) => prior.disabledBuiltinTools.includes(name))
+        );
+      });
       // Upgrade only generated profiles and exact generated tool restrictions.
       // CAS preserves concurrent instruction and tool edits independently.
       if (prior.instructions !== instructions)

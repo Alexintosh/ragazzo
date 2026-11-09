@@ -16,6 +16,7 @@ import {
 } from "@rakazo/contracts";
 import {
   credentialForModel,
+  isFarmingControlSpecialist,
   MODEL_SEARCH_THRESHOLD,
   modelOptionKey,
   parseModelOptionKey,
@@ -417,6 +418,21 @@ export default function BotSettingsScreen() {
 
   async function save() {
     if (!botId || !bot || pending || roleplaySettingsState.pending) return;
+    const executionChanged =
+      runtimeKind !== (bot.runtimeKind ?? "pi") ||
+      executionTarget !== (bot.executionTarget ?? "default") ||
+      runtimePermission !== (bot.runtimePermission ?? "workspace") ||
+      (registeredHostId ?? null) !== (bot.registeredHostId ?? null) ||
+      (projectPath || null) !== (bot.projectPath ?? null);
+    if (
+      executionChanged &&
+      executionTarget === "host" &&
+      !registeredHostId &&
+      !environment.localHostConfigured
+    ) {
+      setError(t("Choose a registered host."));
+      return;
+    }
     // Saving other settings must also commit any character draft before leaving the screen.
     if (roleplaySettingsRef.current && !(await roleplaySettingsRef.current.save())) return;
     setPending(true);
@@ -460,13 +476,7 @@ export default function BotSettingsScreen() {
       }
       if (autoSpeak !== bot.autoSpeak) input.autoSpeak = autoSpeak;
       let executionBot = bot;
-      if (
-        runtimeKind !== (bot.runtimeKind ?? "pi") ||
-        executionTarget !== (bot.executionTarget ?? "default") ||
-        runtimePermission !== (bot.runtimePermission ?? "workspace") ||
-        (registeredHostId ?? null) !== (bot.registeredHostId ?? null) ||
-        (projectPath || null) !== (bot.projectPath ?? null)
-      ) {
+      if (executionChanged) {
         const updated = await rpc("bots/setExecution", {
           botId,
           runtimeKind,
@@ -809,17 +819,21 @@ export default function BotSettingsScreen() {
                   value={runtimeKind}
                   choices={[
                     { key: "pi", label: "Pi" },
-                    ...Object.entries(NativeRuntimeCapabilities).map(([key, capability]) => ({
-                      key,
-                      label: capability.label,
-                    })),
+                    ...(bot && isFarmingControlSpecialist(bot)
+                      ? []
+                      : Object.entries(NativeRuntimeCapabilities).map(([key, capability]) => ({
+                          key,
+                          label: capability.label,
+                        }))),
                   ]}
                   onChange={(value) => {
                     const kind = value as Bot["runtimeKind"];
+                    if (bot && isFarmingControlSpecialist(bot) && kind !== "pi") return;
                     setRuntimeKind(kind);
                     if (kind !== "pi") {
                       if (executionTarget !== "host") setComputerMode("dedicated");
                       setExecutionTarget("host");
+                      if (kind !== "codex") setRuntimePermission("full");
                     } else {
                       setRuntimePermission("workspace");
                       setProjectPath("");
@@ -857,6 +871,7 @@ export default function BotSettingsScreen() {
                   <RegisteredHostPicker
                     spaceId={bot.spaceId}
                     value={registeredHostId}
+                    localHostConfigured={environment.localHostConfigured}
                     onChange={setRegisteredHostId}
                   />
                 ) : null}

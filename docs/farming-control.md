@@ -94,6 +94,17 @@ links and does not establish who owned a historical position mark.
 | Operations | Portfolio and Harvest |
 | Opportunities | Intelligence, portfolio and risk |
 
+In the Coordinator's private owner chat, it can use `web_fetch` to read public
+protocol documentation, announcements and other relevant public pages. Public
+reads cite their source and distinguish publication dates from fetch time.
+They do not refresh FC Intelligence or establish current holdings. Private or
+signed links, account details and portfolio data must never be sent in a URL.
+Pages requiring login or JavaScript may be unavailable. This capability is
+limited to current direct-owner private turns; other specialists, team groups,
+consultations, delegated turns and routines retain their existing tool access.
+Reopening Farming updates untouched generated Coordinator instructions and tool
+lists. Customized instructions and tool lists are preserved.
+
 Each specialist has an editable profile and a deployment-provided role skill.
 The skills adapt the read workflows from Farming Control Operations, Monitoring
 and Cash-out/Tax to each specialist's granted tools. Opening the team updates

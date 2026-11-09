@@ -7,8 +7,10 @@ import { useSpaceRpc } from "../../lib/space-rpc";
 export function RegisteredHostPicker({
   value,
   onChange,
+  localHostAvailable = true,
 }: {
   value: string | null;
+  localHostAvailable?: boolean;
   onChange: (value: string | null) => void;
 }) {
   const { t } = useLingui();
@@ -71,11 +73,14 @@ export function RegisteredHostPicker({
           aria-label={t`Host`}
           value={value ?? ""}
           onChange={(event) => {
+            if (!event.target.value && !localHostAvailable) return;
             intent.current++;
             onChange(event.target.value || null);
           }}
         >
-          <NativeSelectOption value="">{t`Local host`}</NativeSelectOption>
+          <NativeSelectOption value="" disabled={!localHostAvailable}>
+            {localHostAvailable ? t`Local host` : t`Select a registered host`}
+          </NativeSelectOption>
           {hosts.map((host) => (
             <NativeSelectOption key={host.id} value={host.id} disabled={!!host.revokedAt}>
               {host.name}

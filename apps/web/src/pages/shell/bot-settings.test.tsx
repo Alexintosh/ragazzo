@@ -17,7 +17,7 @@ vi.mock("../../lib/rpc", () => {
       credentials: vi.fn(async () => []),
       list: vi.fn(async () => []),
     },
-    me: vi.fn(async () => ({})),
+    me: vi.fn(async () => ({ sandboxProvider: "docker", localHostConfigured: true })),
   };
   return {
     rpc,
@@ -625,9 +625,12 @@ describe("canonical project folder saves", () => {
     await act(async () => setField(project, "/tmp/project"));
     await save();
     if (edit === "path") await act(async () => setField(project, "/another/project"));
-    else if (edit === "host")
+    else if (edit === "host") {
       await submitToolName(container.querySelector<HTMLSelectElement>('[id$="-host"]')!, "");
-    else
+      const nextProject = container.querySelector<HTMLInputElement>('[id$="-project"]')!;
+      expect(nextProject.value).toBe("");
+      await act(async () => setField(nextProject, "/another-host/project"));
+    } else
       await submitToolName(
         container.querySelector<HTMLSelectElement>('[id$="-permission"]')!,
         "full",
@@ -640,7 +643,7 @@ describe("canonical project folder saves", () => {
       edit === "path"
         ? "/another/project"
         : edit === "host"
-          ? "/tmp/project"
+          ? "/another-host/project"
           : "/private/tmp/project",
     );
     if (edit === "permission")

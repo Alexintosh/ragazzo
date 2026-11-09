@@ -629,11 +629,18 @@ export function createRunExecutor(executorDeps: ExecutorDeps) {
         // Do not expose private history or model context to an externally started specialist run.
         let riskAutomation: FarmingControlRiskTrigger | undefined;
         let consultationRootMessageId: string | undefined;
+        let coordinatorPublicWebReadAllowed = false;
         if (isFarmingControlSpecialist(bot))
           await authorizeFarmingControlRun(deps, run, bot, {
             allowRiskAutomation: true,
             allowOpportunityAutomation: true,
             allowPrivateConsultation: true,
+            onOwnerMessage: () => {
+              coordinatorPublicWebReadAllowed =
+                farmingControlRole(bot) === "coordinator" &&
+                thread.groupId === null &&
+                web.describe().id === "keyless-http";
+            },
             onPrivateConsultation: (proof) => {
               consultationRootMessageId = proof.rootSourceMessageId;
             },
@@ -1319,6 +1326,7 @@ export function createRunExecutor(executorDeps: ExecutorDeps) {
           (tool) =>
             (!fcSpecialist || (fcRole && farmingControlSafeToolsForRole(fcRole).has(tool.name))) &&
             (consultationRootMessageId === undefined || tool.name === "skill_read") &&
+            (!fcSpecialist || tool.name !== "web_fetch" || coordinatorPublicWebReadAllowed) &&
             (tool.name !== "message_bot" ||
               !fcSpecialist ||
               (ownerStartedRun && !thread.groupId)) &&
