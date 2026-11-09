@@ -1,4 +1,11 @@
 export const JA_MESSAGES: Record<string, string> = {
+  "Waiting for answer": "回答を待っています",
+  "Waiting for secret": "シークレットを待っています",
+  Waiting: "待機中",
+  "Review approval": "承認を確認",
+  "Provide secret": "シークレットを入力",
+  "Take over": "操作を引き継ぐ",
+  "Waiting for current work": "現在の作業を待っています",
   "Spontaneous messages": "自発的なメッセージ",
   Frequency: "頻度",
   Gentle: "控えめ",

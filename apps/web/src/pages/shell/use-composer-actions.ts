@@ -217,27 +217,39 @@ export function useComposerActions({
       const groupId = activeGroupId.current;
       if (!botId && !groupId) return;
       clearReadBoundary();
-      await rpc.threads.answer({
-        ...(taskIdRef.current
-          ? { taskId: taskIdRef.current }
-          : groupId
-            ? { groupId }
-            : { botId: botId! }),
-        runId: message.runId ?? "",
-        messageId: message.id,
-        answer: text,
-        ...(fields ? { fields } : {}),
-        ...(remember === false ? { remember } : {}),
-        ...(dismiss ? { dismiss: true as const } : {}),
-      });
-      // The answer is saved; live events can reconcile a failed refresh.
+      const answeredTaskId = taskIdRef.current;
       try {
-        if (groupId && activeGroupId.current === groupId) {
-          await refreshGroupThreadRef.current(groupId);
-        } else if (botId && activeBotId.current === botId) {
-          await refreshThreadRef.current(botId);
-        }
-      } catch {}
+        await rpc.threads.answer({
+          ...(answeredTaskId
+            ? { taskId: answeredTaskId }
+            : groupId
+              ? { groupId }
+              : { botId: botId! }),
+          runId: message.runId ?? "",
+          messageId: message.id,
+          answer: text,
+          ...(fields ? { fields } : {}),
+          ...(remember === false ? { remember } : {}),
+          ...(dismiss ? { dismiss: true as const } : {}),
+        });
+      } finally {
+        // Another device may have answered; preserve any rejection after rereading.
+        try {
+          if (
+            taskIdRef.current === answeredTaskId &&
+            groupId &&
+            activeGroupId.current === groupId
+          ) {
+            await refreshGroupThreadRef.current(groupId);
+          } else if (
+            taskIdRef.current === answeredTaskId &&
+            botId &&
+            activeBotId.current === botId
+          ) {
+            await refreshThreadRef.current(botId);
+          }
+        } catch {}
+      }
     },
     [],
   );
@@ -442,7 +454,7 @@ export function useComposerActions({
           text: trimmed || undefined,
           mentions: plan.mentionPayload.length ? plan.mentionPayload : undefined,
           farmingControlRiskContext: plan.farmingControlRiskContext,
-    farmingControlEntityContext: plan.farmingControlEntityContext,
+          farmingControlEntityContext: plan.farmingControlEntityContext,
           artifactIds: artifactIds.length ? artifactIds : undefined,
           replyToMessageId: reroutedToGroup ? undefined : activeReplyTarget?.id,
           replyQuote: reroutedToGroup ? undefined : (activeReplyQuote ?? undefined),

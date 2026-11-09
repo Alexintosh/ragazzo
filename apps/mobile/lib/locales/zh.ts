@@ -1,4 +1,11 @@
 export const ZH_MESSAGES: Record<string, string> = {
+  "Waiting for answer": "等待回答",
+  "Waiting for secret": "等待提供密钥",
+  Waiting: "等待中",
+  "Review approval": "查看审批",
+  "Provide secret": "提供密钥",
+  "Take over": "接管控制",
+  "Waiting for current work": "等待当前工作",
   "Spontaneous messages": "主动消息",
   Frequency: "频率",
   Gentle: "轻柔",

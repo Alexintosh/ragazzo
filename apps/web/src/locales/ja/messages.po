@@ -8428,3 +8428,27 @@ msgstr "Main view"
 #: src/pages/AccountSettingsOverlay.tsx
 msgid "Theme"
 msgstr "Theme"
+
+#: src/pages/shell/thread-queue.tsx
+msgid "Waiting for answer"
+msgstr "回答を待っています"
+
+#: src/pages/shell/thread-queue.tsx
+msgid "Waiting for secret"
+msgstr "シークレットを待っています"
+
+#: src/pages/shell/thread-queue.tsx
+msgid "Waiting"
+msgstr "待機中"
+
+#: src/pages/shell/thread-queue.tsx
+msgid "Review approval"
+msgstr "承認を確認"
+
+#: src/pages/shell/thread-queue.tsx
+msgid "Provide secret"
+msgstr "シークレットを入力"
+
+#: src/pages/shell/thread-queue.tsx
+msgid "Take over"
+msgstr "操作を引き継ぐ"

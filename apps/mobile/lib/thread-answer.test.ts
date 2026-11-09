@@ -101,11 +101,11 @@ describe("mobile ask answers", () => {
     },
   );
 
-  it("still fails when the server doesn't accept the answer", async () => {
+  it("rereads and preserves rejection after another device may have answered", async () => {
     const h = setup(async () => undefined);
     h.rpc.mockRejectedValueOnce(new Error("offline"));
     await expect(h.answerMessage(message, "example-password")).rejects.toThrow("offline");
-    expect(h.refresh).not.toHaveBeenCalled();
+    expect(h.refresh).toHaveBeenCalledTimes(1);
   });
 
   it("skips the refresh after the viewer has moved to another thread", async () => {

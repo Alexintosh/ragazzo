@@ -1,4 +1,11 @@
 export const RU_MESSAGES: Record<string, string> = {
+  "Waiting for answer": "Ожидание ответа",
+  "Waiting for secret": "Ожидание секрета",
+  Waiting: "Ожидание",
+  "Review approval": "Проверить подтверждение",
+  "Provide secret": "Указать секрет",
+  "Take over": "Взять управление",
+  "Waiting for current work": "Ожидание текущей работы",
   "Spontaneous messages": "Спонтанные сообщения",
   Frequency: "Частота",
   Gentle: "Редко",
