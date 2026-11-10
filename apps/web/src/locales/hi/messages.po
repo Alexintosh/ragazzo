@@ -8428,3 +8428,27 @@ msgstr "Main view"
 #: src/pages/AccountSettingsOverlay.tsx
 msgid "Theme"
 msgstr "Theme"
+
+#: src/pages/shell/thread-queue.tsx
+msgid "Waiting for answer"
+msgstr "उत्तर की प्रतीक्षा है"
+
+#: src/pages/shell/thread-queue.tsx
+msgid "Waiting for secret"
+msgstr "गोपनीय जानकारी की प्रतीक्षा है"
+
+#: src/pages/shell/thread-queue.tsx
+msgid "Waiting"
+msgstr "प्रतीक्षा में"
+
+#: src/pages/shell/thread-queue.tsx
+msgid "Review approval"
+msgstr "अनुमोदन की समीक्षा करें"
+
+#: src/pages/shell/thread-queue.tsx
+msgid "Provide secret"
+msgstr "गोपनीय जानकारी दें"
+
+#: src/pages/shell/thread-queue.tsx
+msgid "Take over"
+msgstr "नियंत्रण लें"

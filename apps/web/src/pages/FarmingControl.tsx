@@ -43,7 +43,7 @@ import {
   ValueHistory,
 } from "../components/farming-control/presentation";
 import { presentPortfolioAmounts } from "../components/farming-control/portfolio-demo";
-import { RiskCards } from "../components/farming-control/risk-cards";
+import { RiskCards, RiskReviewEvidence } from "../components/farming-control/risk-cards";
 import { farmingRiskDraft } from "../lib/farming-risk-draft";
 import { formatRelativeTime } from "../lib/relative-time";
 import type { RpcClient } from "../lib/rpc";
@@ -169,6 +169,15 @@ export function FarmingControlPage({
     refetchInterval: view === "risk" ? 60_000 : false,
     refetchIntervalInBackground: false,
     retry: false,
+  });
+  const [reviewSelection, setReviewSelection] = useState<{ queryScope: string; monitorKey: string } | null>(null);
+  const selectedMonitor = reviewSelection?.queryScope === queryScope ? reviewSelection.monitorKey : undefined;
+  const reviewQuery = useQuery({
+    queryKey: ["farming-control", queryScope, "risk-review", selectedMonitor ?? null],
+    queryFn: ({ signal }) => rpc.farmingControl.riskReview(selectedMonitor ? { monitorKey: selectedMonitor } : {}, { signal }),
+    enabled: view === "risk",
+    staleTime: 30_000, refetchInterval: view === "risk" ? 60_000 : false,
+    refetchIntervalInBackground: false, retry: false,
   });
   const demoSeed = view === "portfolio" ? portfolioDemo.seed : null;
   const data = useMemo(() => {
@@ -307,7 +316,7 @@ export function FarmingControlPage({
               <Trans>Farming Control</Trans>
               <span aria-hidden="true"> · </span>
               {view === "risk"
-                ? t`Visible wallets`
+                ? t`Visible holdings and monitors`
                 : view === "portfolio" &&
                     (data as FarmingControlPortfolio | undefined)?.walletVisibility?.active
                   ? t`Selected wallets`
@@ -331,16 +340,17 @@ export function FarmingControlPage({
           <Button
             variant="ghost"
             size="icon-sm"
-            disabled={query.isFetching || detailFetching}
+            disabled={query.isFetching || detailFetching || (view === "risk" && reviewQuery.isFetching)}
             onClick={() => {
               void query.refetch();
+              if (view === "risk") void reviewQuery.refetch();
               if (positionId) void queryClient.invalidateQueries({ queryKey: detailQueryKey });
             }}
             aria-label={t`Refresh Farming Control`}
           >
             <RefreshCw
               size={15}
-              className={query.isFetching || detailFetching ? "animate-spin" : ""}
+              className={query.isFetching || detailFetching || (view === "risk" && reviewQuery.isFetching) ? "animate-spin" : ""}
             />
           </Button>
           <Button
@@ -451,6 +461,8 @@ export function FarmingControlPage({
               ) : view === "risk" ? (
                 <RiskCards
                   data={data as FarmingControlRisk}
+                  demoMode={portfolioDemo.seed !== null}
+                  onReview={(monitorKey) => setReviewSelection({ queryScope, monitorKey })}
                   onMention={(card, signal) => ask(riskCardContext(card, signal))}
                   mentionBusy={asking}
                   mentionError={askError}
@@ -482,6 +494,16 @@ export function FarmingControlPage({
                   ))}
                 </div>
               </details>
+            </>
+          ) : null}
+          {view === "risk" ? (
+            <>
+              {selectedMonitor ? <Button variant="ghost" onClick={() => setReviewSelection(null)}><Trans>All monitors</Trans></Button> : null}
+              {reviewQuery.isError ? <p role="status" className="text-xs text-warning"><Trans>Monitoring review is unavailable. Current risk remains unknown.</Trans></p> :
+                reviewQuery.data ? <RiskReviewEvidence review={reviewQuery.data}
+                  onSelect={(monitorKey) => setReviewSelection({ queryScope, monitorKey })}
+                  onMention={(monitorKey, label) => void ask({ owner: "risk", exposureId: monitorKey, label })} /> :
+                  <p role="status" className="text-xs"><Trans>Loading Monitoring review</Trans></p>}
             </>
           ) : null}
         </div>

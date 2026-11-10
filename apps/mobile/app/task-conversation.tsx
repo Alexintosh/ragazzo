@@ -331,16 +331,19 @@ function TaskThread({ taskId, messageId }: { taskId?: string; messageId?: string
                 actionProps={{}}
                 onAnswer={async (value, answer, fields, dismiss, remember) => {
                   if (!value.runId) return;
-                  await request("threads/answer", {
-                    ...target,
-                    runId: value.runId,
-                    messageId: value.id,
-                    answer,
-                    ...(fields ? { fields: [...fields] } : {}),
-                    ...(remember === false ? { remember: false as const } : {}),
-                    ...(dismiss ? { dismiss: true } : {}),
-                  });
-                  await perform(async () => undefined);
+                  try {
+                    await request("threads/answer", {
+                      ...target,
+                      runId: value.runId,
+                      messageId: value.id,
+                      answer,
+                      ...(fields ? { fields: [...fields] } : {}),
+                      ...(remember === false ? { remember: false as const } : {}),
+                      ...(dismiss ? { dismiss: true } : {}),
+                    });
+                  } finally {
+                    await perform(async () => undefined);
+                  }
                 }}
                 onOpenBot={(id, name) =>
                   router.push({ pathname: "/thread", params: { botId: id, name } })

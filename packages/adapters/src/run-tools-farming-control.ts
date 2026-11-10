@@ -34,7 +34,10 @@ import {
   farmingControlRole,
   isFarmingControlSpecialist,
 } from "./farming-control-team-policy.js";
+import type { RunContext } from "./run-context.js";
+import { isSubagentToolExecution } from "./run-effects.js";
 import type { ToolHandler } from "./run-tool-gate.js";
+import { MAX_WEB_FETCH_OFFSET } from "./web-limits.js";
 
 const findInput = z
   .object({
@@ -59,6 +62,36 @@ const riskReviewToolInput = FarmingControlRiskReviewInputSchema.extend({
   inventoryOffset: z.number().int().min(0).max(1_000).optional(),
 });
 const DENIED = "This capability is not granted to this Farming Control specialist.";
+const publicWebFetchInput = z
+  .object({
+    url: z.string().trim().min(1).max(8_192),
+    maxChars: z.number().finite().optional(),
+    offset: z.number().finite().min(0).max(MAX_WEB_FETCH_OFFSET).optional(),
+  })
+  .strict();
+
+/** Recheck live provenance before approval and again immediately before public egress. */
+export async function farmingControlWebFetchDenied(
+  ctx: RunContext,
+  executionId: string,
+): Promise<boolean> {
+  if (!isFarmingControlSpecialist(ctx.bot)) return false;
+  if (
+    farmingControlRole(ctx.bot) !== "coordinator" ||
+    ctx.thread.groupId !== null ||
+    isSubagentToolExecution(executionId) ||
+    ctx.providers.web.describe().id !== "keyless-http"
+  )
+    return true;
+  try {
+    await authorizeFarmingControlRun(ctx.deps, ctx.run, ctx.bot, {
+      requireDirectOwnerTurn: true,
+    });
+    return false;
+  } catch {
+    return true;
+  }
+}
 
 /** Defense in depth: profile edits, hidden calls, and connector aliases cannot expand the grant. */
 export function farmingControlToolDenied(
@@ -67,6 +100,13 @@ export function farmingControlToolDenied(
   args: Record<string, unknown>,
   groupId: string | null,
 ): boolean {
+  if (name === "web_fetch" && isFarmingControlSpecialist(bot)) {
+    return (
+      farmingControlRole(bot) !== "coordinator" ||
+      groupId !== null ||
+      !publicWebFetchInput.safeParse(args).success
+    );
+  }
   if (name === "farming_control_source_refresh") {
     const role = farmingControlRole(bot);
     return (

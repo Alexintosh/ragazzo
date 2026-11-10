@@ -1,5 +1,6 @@
 import * as z from "zod";
 import { Id, IsoDate } from "./ids.js";
+import { WaitingDetailSchema } from "./thread-queue.js";
 
 export const WORKFLOW_NODE_LIMIT = 32;
 export const WorkflowNodeSchema = z.object({
@@ -70,6 +71,7 @@ export const WorkflowNodeStateSchema = z.object({
   taskId: Id.nullable(),
   runId: Id.nullable(),
   error: z.string().nullable(),
+  waitingDetail: WaitingDetailSchema.optional(),
 });
 export const WorkflowRunSchema = z.object({
   id: Id,

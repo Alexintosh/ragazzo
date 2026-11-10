@@ -20,6 +20,7 @@ import {
   chatModelChoices,
   connectedModelChoices,
   credentialForModel,
+  isFarmingControlSpecialist,
   modelOptionKey,
   parseModelOptionKey,
   resolveSelectableModelId,
@@ -50,7 +51,7 @@ import { useSpaceQueries } from "../../lib/query";
 import { useSpaceRpc } from "../../lib/space-rpc";
 import { errorText } from "../../lib/user-error";
 import { AvatarStudioPopover } from "./avatar-studio-popover";
-import { BotRuntimeSettings, BotRuntimeStatus } from "./bot-runtime-settings";
+import { BotRuntimeSettings, BotRuntimeStatus, useBotRuntimeSettingsError } from "./bot-runtime-settings";
 import { ChatModelPicker } from "./chat-model-picker";
 import { RoleplayRelationshipDebug } from "./roleplay-relationship-debug";
 import { RoleplaySettings } from "./roleplay-settings";
@@ -199,6 +200,8 @@ export function BotSettings({
     projectPath: bot.projectPath ?? null,
     registeredHostId: bot.registeredHostId ?? null,
   });
+  const piOnly = isFarmingControlSpecialist(bot);
+  const runtimeError = useBotRuntimeSettingsError(runtime, piOnly);
   const [computerMode, setComputerMode] = useState(bot.computerMode);
   const [memoryScope, setMemoryScope] = useState(bot.memoryScope);
   const [autoSpeak, setAutoSpeak] = useState(bot.autoSpeak);
@@ -271,6 +274,7 @@ export function BotSettings({
   const executeSaveRef = useRef<
     (
       patchOverrides?: {
+        saveAdvanced?: boolean;
         name?: string;
         description?: string;
         color?: string;
@@ -368,6 +372,7 @@ export function BotSettings({
 
   async function executeSave(
     patchOverrides?: {
+      saveAdvanced?: boolean;
       name?: string;
       description?: string;
       color?: string;
@@ -391,6 +396,11 @@ export function BotSettings({
         await onSave({ fleetManagement: patchOverrides.fleetManagement });
         return;
       }
+      const saveAdvanced = patchOverrides?.saveAdvanced === true;
+      const executionChanged = saveAdvanced &&
+        JSON.stringify(JSON.parse(advancedSnapshot).slice(6)) !==
+        JSON.stringify(JSON.parse(savedAdvanced).slice(6));
+      if (executionChanged && runtimeError) throw new Error(runtimeError);
       const selected = selectedModel;
       const nextName = (patchOverrides?.name !== undefined ? patchOverrides.name : name).trim();
       const nextDescription = (
@@ -416,6 +426,7 @@ export function BotSettings({
           ? { avatarSet: nextAvatarSet }
           : {}),
         notifyOnFinish: nextNotify,
+        ...(saveAdvanced ? {
         ...runtime,
         computerMode,
         memoryScope,
@@ -438,13 +449,11 @@ export function BotSettings({
                 : null,
             }
           : {}),
+        } : {}),
       };
       const requestedTools = patchOverrides?.disabledBuiltinTools;
       const baseTools = patchOverrides?.baseDisabledBuiltinTools ?? [];
       let savedRuntime = runtime;
-      const executionChanged =
-        JSON.stringify(JSON.parse(advancedSnapshot).slice(6)) !==
-        JSON.stringify(JSON.parse(savedAdvanced).slice(6));
       const acceptExecution = (updated: Bot) => {
         savedRuntime = {
           runtimeKind: updated.runtimeKind ?? "pi",
@@ -515,7 +524,7 @@ export function BotSettings({
       };
       if (nextName) savedNameRef.current = nextName;
       savedDescriptionRef.current = nextDescription;
-      setSavedAdvanced(
+      if (saveAdvanced) setSavedAdvanced(
         JSON.stringify([
           modelKey,
           thinkingLevel,
@@ -573,6 +582,7 @@ export function BotSettings({
   }
 
   function enqueueSave(patchOverrides?: {
+    saveAdvanced?: boolean;
     name?: string;
     description?: string;
     color?: string;
@@ -741,6 +751,7 @@ export function BotSettings({
               <SettingsGroup label={t`Agent and environment`}>
                 <BotRuntimeSettings
                   value={runtime}
+                  piOnly={piOnly}
                   onChange={(value) => {
                     setRuntime({ ...value, registeredHostId: value.registeredHostId ?? null });
                     if (
@@ -922,7 +933,7 @@ export function BotSettings({
                   value={description}
                   maxLength={BOT_DESCRIPTION_MAX_LENGTH}
                   onChange={(e) => setDescription(e.target.value)}
-                  onBlur={() => void enqueueSave()}
+                  onBlur={() => void enqueueSave({ description })}
                   placeholder={t`What this bot is for`}
                   rows={2}
                   className="mt-2 min-h-16 resize-none field-sizing-content border-0 bg-transparent p-0 text-foreground shadow-none"
@@ -1005,9 +1016,10 @@ export function BotSettings({
           {dirty ? (
             <Button
               className="sticky bottom-0 mt-5 w-full"
-              disabled={saving}
+              disabled={saving || Boolean(runtimeError)}
               onClick={() => {
                 void enqueueSave({
+                  saveAdvanced: true,
                   name,
                   description,
                   color,

@@ -21,6 +21,7 @@ import {
   farmingControlRiskReviewTool,
   farmingControlSourceRefreshTool,
   farmingControlToolDenied,
+  farmingControlWebFetchDenied,
 } from "./run-tools-farming-control.js";
 import { fileTools } from "./run-tools-files.js";
 import { fleetTools } from "./run-tools-fleet.js";
@@ -130,6 +131,8 @@ async function dispatchTool(
   ) {
     return { error: "This capability is not granted to this Farming Control specialist." };
   }
+  if (request.name === "web_fetch" && (await farmingControlWebFetchDenied(ctx, executionId)))
+    return { error: "This capability is not granted to this Farming Control specialist." };
   const refused = await prepareToolRequest(ctx, request);
   if (refused) return refused;
   const gate = await gateToolCall(ctx, request, observer);

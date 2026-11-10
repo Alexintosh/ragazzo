@@ -31,7 +31,7 @@ import { errorText } from "../../lib/user-error";
 import { BotLookPicker } from "./avatar-studio-popover";
 import { ComputerModePicker } from "./bot-panel";
 import type { BotRuntimeSettingsValue } from "./bot-runtime-settings";
-import { BotRuntimeSettings } from "./bot-runtime-settings";
+import { BotRuntimeSettings, useBotRuntimeSettingsError } from "./bot-runtime-settings";
 
 /** One preview identity per organic look, so the dialog can show a body before the bot has an id. */
 const ORGANIC_IDENTITIES = ORGANIC_AVATAR_LOOKS.map(organicAvatarSampleIdentity);
@@ -140,6 +140,7 @@ export function CreateBotDialog({
     runtimePermission: "workspace",
     projectPath: null,
   });
+  const runtimeError = useBotRuntimeSettingsError(runtime);
   const [computerMode, setComputerMode] = useState<ComputerMode>("team");
   const [avatarSet, setAvatarSet] = useState<BotAvatarSet>(DEFAULT_NEW_BOT_AVATAR_SET);
   const [submitting, setSubmitting] = useState(false);
@@ -148,6 +149,10 @@ export function CreateBotDialog({
 
   async function create() {
     if (!trimmed || submitting || (roleplay && (!character || importing))) return;
+    if (!roleplay && runtimeError) {
+      setError(runtimeError);
+      return;
+    }
     setError(null);
     setSubmitting(true);
     const organic = avatarSet === "organic" && parseBotAvatar(look.value).shapeIndex === undefined;
@@ -165,9 +170,7 @@ export function CreateBotDialog({
               projectPath: null,
               registeredHostId: null,
             }
-          : executionOpen
-            ? { ...runtime, computerMode }
-            : {}),
+          : { ...runtime, computerMode }),
         ...(avatarSet === "rakazo" ? { id: previewId } : {}),
         avatarSet,
         ...(organic ? { avatarFamily: organicAvatarFamily(look.identity) } : {}),
@@ -314,6 +317,9 @@ export function CreateBotDialog({
               <Trans>Agent and environment</Trans>
             </Button>
           ) : null}
+          {!executionOpen && !roleplay && runtimeError ? (
+            <p role="status" className="text-xs text-muted-foreground">{runtimeError}</p>
+          ) : null}
           {executionOpen && !roleplay ? (
             <div className="space-y-3">
               <BotRuntimeSettings value={runtime} onChange={setRuntime} />
@@ -326,7 +332,8 @@ export function CreateBotDialog({
             </Button>
             <Button
               type="submit"
-              disabled={!trimmed || submitting || (roleplay && (!character || importing))}
+              disabled={!trimmed || submitting || (roleplay && (!character || importing)) ||
+                (!roleplay && Boolean(runtimeError))}
             >
               <Trans>Create</Trans>
             </Button>

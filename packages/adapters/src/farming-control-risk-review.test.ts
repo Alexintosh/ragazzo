@@ -1,7 +1,10 @@
-import { describe, expect, it, vi } from "vitest";
+import type { Actor } from "@rakazo/contracts";
 import { FarmingControlRiskReviewSchema } from "@rakazo/contracts";
+import type { PrismaClient } from "@rakazo/db";
+import { describe, expect, it, vi } from "vitest";
 import { createFarmingControlClient } from "./farming-control.js";
 import { compactFarmingControlRiskReview } from "./farming-control-risk-review-model.js";
+import { createFarmingControlService } from "./farming-control-service.js";
 import { farmingControlToolsForRole } from "./farming-control-team-policy.js";
 
 const now = 1_800_000_000_000;
@@ -123,10 +126,22 @@ describe("Monitoring-wide risk review", () => {
       hiddenWalletAddresses: ["0x0000000000000000000000000000000000000001"],
     };
     const position = {
-      id: "visible-position", label: "Visible holding", state: "active",
-      current: { valueUsd: "1100.25", capitalBaselineUsd: "1000", observedAtMs: now, nature: "mark_to_market" },
+      id: "visible-position",
+      label: "Visible holding",
+      state: "active",
+      current: {
+        valueUsd: "1100.25",
+        capitalBaselineUsd: "1000",
+        observedAtMs: now,
+        nature: "mark_to_market",
+      },
       apr: null,
-      dataQuality: { hasObservations: true, lastObservedAtMs: now, rateObservedAtMs: null, maxObservationAgeMs: 7200000 },
+      dataQuality: {
+        hasObservations: true,
+        lastObservedAtMs: now,
+        rateObservedAtMs: null,
+        maxObservationAgeMs: 7200000,
+      },
     };
     const morpho = (monitorKey: string, positionId: string) => ({
       monitorKey,
@@ -197,7 +212,9 @@ describe("Monitoring-wide risk review", () => {
     expect(selected.exposureAssociationStatus).toBe("matched_visible_holding");
     expect(selected.linkedExposure?.positions).toHaveLength(1);
     expect(compactFarmingControlRiskReview(selected).linkedExposure?.positions[0]).toMatchObject({
-      id: position.id, association: "active_exposure", holding: {
+      id: position.id,
+      association: "active_exposure",
+      holding: {
         current: { valueUsd: "1100.25", observedAtMs: now },
         dataQuality: { valueFreshness: "current" },
       },
@@ -344,4 +361,131 @@ describe("Monitoring-wide risk review", () => {
       }
     }
   });
+});
+
+describe("authorized Risk review composition", () => {
+  const actor: Actor = {
+    userId: "fixture-owner",
+    spaceId: "fixture-space",
+    email: "owner@example.test",
+    isDeploymentOwner: false,
+  };
+  function serviceFixture() {
+    const space = {
+      id: actor.spaceId,
+      organizationId: actor.spaceId,
+      deletingAt: null,
+      memberships: [{ userId: actor.userId, role: "owner" }],
+      organization: { members: [{ userId: actor.userId, role: "owner" }] },
+    };
+    const prisma = {
+      space: { findFirst: vi.fn(async () => space) },
+      bot: { findFirst: vi.fn(async () => null) },
+      run: { findMany: vi.fn() },
+      event: { findMany: vi.fn() },
+    };
+    const transport = vi.fn<typeof fetch>(async (input) =>
+      new URL(String(input)).pathname === "/monitoring/hot/evidence"
+        ? Response.json({ ...evidence, asOfMs: Date.now() })
+        : Response.json({}, { status: 503 }),
+    );
+    const service = createFarmingControlService(
+      prisma as unknown as PrismaClient,
+      { farmingControlApiUrl: "http://127.0.0.1:9876", farmingControlOwnerUserId: actor.userId },
+      transport,
+    );
+    return { service, prisma, transport };
+  }
+  it("denies other owners and shared workspaces before any FC or Risk-run read", async () => {
+    const f = serviceFixture();
+    await expect(
+      f.service.riskReview({ ...actor, userId: "other" }, { monitorKey: item.monitorKey }),
+    ).rejects.toMatchObject({ code: "FORBIDDEN" });
+    expect(f.prisma.space.findFirst).not.toHaveBeenCalled();
+    const space = await f.prisma.space.findFirst();
+    space.memberships.push({ userId: "peer", role: "member" });
+    await expect(
+      f.service.riskReview(actor, { monitorKey: item.monitorKey }),
+    ).rejects.toMatchObject({ code: "FORBIDDEN" });
+    expect(f.transport).not.toHaveBeenCalled();
+    expect(f.prisma.bot.findFirst).not.toHaveBeenCalled();
+  });
+  it("uses the same review for scoped consumers and exposes unavailable interpretation independently of current FC state", async () => {
+    const f = serviceFixture();
+    const review = await f.service.riskReview(actor, { monitorKey: item.monitorKey });
+    expect(FarmingControlRiskReviewSchema.safeParse(review).success).toBe(true);
+    expect(review.evidence?.items[0]?.emergency.status).toBe("attention");
+    expect(review.currentFinality).toBe("not_exposed");
+    expect(review.interpretations).toMatchObject({ state: "unavailable", runs: [] });
+    expect(review.state).toBe("partial");
+    expect(review.sources).toContain("ragazzo:scoped-risk-runs");
+    const compact = compactFarmingControlRiskReview(review);
+    expect(compact.interpretations?.state).toBe(review.interpretations?.state);
+    expect(compact.episodeHistory?.coverage).toBe("unknown");
+    expect(f.prisma.run.findMany).not.toHaveBeenCalled();
+    f.prisma.bot.findFirst.mockClear();
+    await f.service.riskReview(actor);
+    expect(f.prisma.bot.findFirst).not.toHaveBeenCalled();
+  });
+});
+
+it("bounds dated history and interpretation in the specialist projection without changing raw evidence", async () => {
+  const review = await fixture().client.riskReview();
+  review.selectionStatus = "matched";
+  review.episodeHistory = {
+    state: "partial",
+    coverage: "unknown",
+    fromMs: now - 1000,
+    throughMs: now,
+    recordsRead: 200,
+    truncated: true,
+    limitations: [],
+    transitions: Array.from({ length: 200 }, (_, i) => ({
+      id: String(i),
+      monitorKey: item.monitorKey,
+      runtimeInstanceId: "generation-a",
+      subjectKey: "s".repeat(500),
+      policyKey: "p".repeat(500),
+      episodeOpenedAtMs: now - 1000,
+      occurredAtMs: now - 1000 + i,
+      recordedAtMs: now - 900 + i,
+      transition: i === 199 ? "resolved" : "opened",
+      severity: "critical",
+      finality: "finalized",
+      blockNumber: "42",
+      blockHash: null,
+    })),
+  };
+  review.interpretations = {
+    state: "partial",
+    asOfMs: now,
+    truncated: true,
+    limitations: [],
+    runs: Array.from({ length: 40 }, (_, i) => ({
+      runId: String(i),
+      eventId: "a".repeat(64),
+      kind: "emergency",
+      scope: "selected_monitor",
+      triggeredAtMs: now,
+      occurredAtMs: now - 1000,
+      episodeOpenedAtMs: now - 1000,
+      subjectKey: "s".repeat(500),
+      policyKey: "p".repeat(500),
+      transition: "opened",
+      runStatus: "completed",
+      analysisStatus: "indeterminate",
+      messageId: null,
+    })),
+  };
+  const original = structuredClone(review);
+  const compact = compactFarmingControlRiskReview(review);
+  expect(new TextEncoder().encode(JSON.stringify(compact)).length).toBeLessThanOrEqual(24000);
+  expect(compact.episodeHistory!.omittedTransitionCount).toBeGreaterThanOrEqual(188);
+  expect(compact.interpretations!.omittedRunCount).toBeGreaterThanOrEqual(32);
+  expect(
+    compact.interpretations!.runs.every(
+      (run) => run.analysisStatus === "indeterminate" && run.messageId === null,
+    ),
+  ).toBe(true);
+  expect(review).toEqual(original);
 });

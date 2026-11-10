@@ -1,4 +1,11 @@
 export const NL_MESSAGES: Record<string, string> = {
+  "Waiting for answer": "Wacht op antwoord",
+  "Waiting for secret": "Wacht op geheim",
+  Waiting: "Wachten",
+  "Review approval": "Goedkeuring bekijken",
+  "Provide secret": "Geheim invoeren",
+  "Take over": "Overnemen",
+  "Waiting for current work": "Wacht op huidig werk",
   "Spontaneous messages": "Spontane berichten",
   Frequency: "Frequentie",
   Gentle: "Rustig",

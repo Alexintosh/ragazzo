@@ -171,8 +171,8 @@ import { mountDiagramScript } from "./diagram-script.js";
 import { configuredEmailProvider } from "./email.js";
 import type { AppEnv } from "./env.js";
 import { loadEnv } from "./env.js";
-import { mountFarmingControlRiskEvents } from "./farming-control-risk-events.js";
 import { createFarmingControlService } from "./farming-control.js";
+import { mountFarmingControlRiskEvents } from "./farming-control-risk-events.js";
 import { healthRoutes } from "./health.js";
 import { mountLocalComputerHost } from "./local-settings.js";
 import { marketingEmailRoutes, sendWelcomeEmail } from "./marketing-email.js";
@@ -965,6 +965,7 @@ async function buildApp(overrides: CreateAppOverrides): Promise<AppHandles> {
     ["/api/auth/*", "authentication"],
     ["/api/v1/bots/*", "bot webhook"],
     ["/api/v1/farming-control/risk-events", "trusted FC risk event"],
+    ["/api/v1/farming-control/risk-events/:eventId", "trusted FC risk event status"],
     ["/api/v1/messaging/*", "messaging webhook"],
     ["/api/v1/phone/*", "messaging webhook"],
   ] as const) {

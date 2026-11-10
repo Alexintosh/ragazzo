@@ -7,6 +7,7 @@ import type { RunContext } from "./run-context.js";
 import { runScopedToolExecutionId } from "./run-effects.js";
 import { flushProgress, publishMidTurnNarration, showNarrationStatus } from "./run-progress.js";
 import type { ToolCall, ToolHandlers } from "./run-tool-gate.js";
+import { farmingControlWebFetchDenied } from "./run-tools-farming-control.js";
 import { webFetchFromTool, webSearchFromTool } from "./web-tools.js";
 
 export async function cloudAgentTool(ctx: RunContext, call: ToolCall) {
@@ -79,6 +80,10 @@ export const integrationTools: ToolHandlers = {
     return call.finish(found);
   },
   async web_fetch(ctx, call) {
+    if (await farmingControlWebFetchDenied(ctx, call.executionId))
+      return call.finish({
+        error: "This capability is not granted to this Farming Control specialist.",
+      });
     const { context } = ctx;
     const { args } = call;
     return call.finish(await webFetchFromTool(ctx.providers.web, context, args));

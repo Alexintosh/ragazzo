@@ -59,6 +59,265 @@ function fixture(handler: (path: string, init?: RequestInit) => unknown | Promis
   };
 }
 
+const refreshJob = {
+  id: "synthetic-job-a",
+  sourceId: "synthetic-source-a",
+  source: { id: "synthetic-source-a", key: "source-a", label: null },
+  status: "completed",
+  attempts: 1,
+  maxAttempts: 3,
+  runAfterMs: now - 60_000,
+  createdAtMs: now - 60_000,
+  updatedAtMs: now,
+  result: { sourceSync: { syncId: "synthetic-sync-a", status: "succeeded" } },
+  sourceSync: {
+    id: "synthetic-sync-a",
+    sourceId: "synthetic-source-a",
+    status: "succeeded",
+    startedAtMs: now - 60_000,
+    finishedAtMs: now,
+  },
+};
+
+describe("source attempt and candidate value evidence", () => {
+  it("keeps the same FC job identity for concurrent refresh requests", async () => {
+    let submissions = 0;
+    const f = fixture((path, init) => {
+      if (path === "/intelligence/sources")
+        return {
+          items: [
+            {
+              ...refreshJob.source,
+              enabled: true,
+              mode: "pull",
+              available: true,
+              pullSyncable: true,
+            },
+          ],
+        };
+      expect(path).toBe("/intelligence/sources/refresh");
+      expect(init?.method).toBe("POST");
+      return {
+        requestedSourceKeys: ["source-a"],
+        jobs: [
+          {
+            source: refreshJob.source,
+            job: { ...refreshJob, status: "running" },
+            deduplicated: submissions++ > 0,
+          },
+        ],
+      };
+    });
+    const input = {
+      scope: "source" as const,
+      sourceKey: "source-a",
+      operatorQuote: "Refresh source-a",
+    };
+    const [first, second] = await Promise.all([
+      f.client.refreshSources(input),
+      f.client.refreshSources(input),
+    ]);
+    expect(first).toMatchObject({
+      state: "accepted",
+      jobs: [{ job: { id: refreshJob.id }, deduplicated: false }],
+    });
+    expect(second).toMatchObject({
+      state: "accepted",
+      jobs: [{ job: { id: refreshJob.id }, deduplicated: true }],
+    });
+    expect(submissions).toBe(2);
+  });
+
+  it.each([
+    ["queued", null, "pending", false],
+    ["running", null, "pending", false],
+    ["completed", null, "unconfirmed", true],
+    [
+      "completed",
+      { ...refreshJob.sourceSync, status: "running", finishedAtMs: null },
+      "unconfirmed",
+      true,
+    ],
+    ["completed", { ...refreshJob.sourceSync, status: "failed" }, "failed", true],
+    ["completed", refreshJob.sourceSync, "succeeded", true],
+    ["dead", null, "failed", true],
+    ["cancelled", null, "cancelled", true],
+  ])(
+    "projects %s and its independent source-sync result",
+    async (status, sourceSync, outcome, terminal) => {
+      const f = fixture(() => ({
+        ...refreshJob,
+        status,
+        sourceSync,
+        lastError: { code: "lease_expired_max_attempts", message: "private-provider-error" },
+      }));
+      const result = await f.client.read({ action: "refresh_status", jobId: refreshJob.id });
+      expect(result).toMatchObject({ state: "available", data: { status, outcome, terminal } });
+      expect(JSON.stringify(result)).not.toContain("private-provider-error");
+    },
+  );
+
+  it.each([
+    "source_not_found",
+    "source_disabled",
+    "source_push_only",
+    "adapter_unavailable",
+    "sync_runtime_unavailable",
+    "not_refreshable",
+  ])("retains the worker's safe skip reason %s", async (reason) => {
+    const f = fixture(() => ({
+      ...refreshJob,
+      sourceSync: null,
+      result: { status: "skipped", reason },
+    }));
+    expect(await f.client.read({ action: "refresh_status", jobId: refreshJob.id })).toMatchObject({
+      state: "available",
+      data: { outcome: "skipped", terminal: true, skippedReason: reason, sourceSync: null },
+    });
+  });
+
+  it("keeps unknown skip reasons private and never treats a non-skipped result as a skip", async () => {
+    for (const [status, reason, outcome] of [
+      ["skipped", "private-provider-error", "skipped"],
+      ["other", "source_disabled", "unconfirmed"],
+    ]) {
+      const f = fixture(() => ({ ...refreshJob, sourceSync: null, result: { status, reason } }));
+      const result = await f.client.read({ action: "refresh_status", jobId: refreshJob.id });
+      expect(result).toMatchObject({ state: "available", data: { outcome, skippedReason: null } });
+      expect(JSON.stringify(result)).not.toContain("private-provider-error");
+    }
+  });
+
+  it.each(["failed", "succeeded"])(
+    "rereads the exact candidate after a %s sync without advancing an old value date",
+    async (syncStatus) => {
+      const oldAt = now - 86_400_000;
+      const oldMetric = {
+        id: "synthetic-metric-a",
+        positionId: "synthetic-candidate-a",
+        sourceId: refreshJob.sourceId,
+        sourceItemId: "synthetic-item-a",
+        metricKey: "yield.apy",
+        valueDecimal: "0.045",
+        unit: "fraction_per_year",
+        observedAtMs: oldAt,
+        metadata: { methodology: "provider", window: "current" },
+      };
+      const criteria = {
+        assetSetKey: "USD",
+        assetSetVersionId: "synthetic-version",
+        activeAssetSetVersionIds: ["synthetic-version"],
+      };
+      const f = fixture((path) => {
+        if (path === `/intelligence/sources/refresh-jobs/${refreshJob.id}`)
+          return { ...refreshJob, sourceSync: { ...refreshJob.sourceSync, status: syncStatus } };
+        if (path === "/intelligence/opportunities/synthetic-case-a")
+          return {
+            opportunity: {
+              id: "synthetic-case-a",
+              positionId: oldMetric.positionId,
+              status: "discovered",
+            },
+            candidateContext: { metricSignals: [oldMetric], claims: [] },
+            currentRecommendation: null,
+            recommendations: [],
+            feedback: [],
+          };
+        if (path.startsWith("/intelligence/screening?"))
+          return {
+            criteria,
+            items: [
+              {
+                opportunityId: "synthetic-case-a",
+                positionId: oldMetric.positionId,
+                sourceKey: "source-a",
+                metrics: { apy: oldMetric },
+              },
+              {
+                opportunityId: "synthetic-case-b",
+                positionId: "synthetic-candidate-b",
+                sourceKey: "source-b",
+                metrics: {
+                  apy: {
+                    ...oldMetric,
+                    id: "synthetic-metric-b",
+                    positionId: "synthetic-candidate-b",
+                    sourceId: "synthetic-source-b",
+                    sourceItemId: "synthetic-item-b",
+                    valueDecimal: "0.04",
+                    observedAtMs: now,
+                  },
+                },
+                operatorFeedback: {
+                  count: 1,
+                  latest: { sentiment: "negative", reason: "weak_evidence" },
+                },
+              },
+            ],
+            page: { total: 2, count: 2, hasMore: false, nextCursor: null },
+          };
+        throw new Error(`Unexpected request: ${path}`);
+      });
+      const attempt = await f.client.read({ action: "refresh_status", jobId: refreshJob.id });
+      const candidate = await f.client.read({
+        action: "opportunity",
+        opportunityId: "synthetic-case-a",
+      });
+      const screen = await f.client.read({ action: "screen", assetSetKey: "USD" });
+      expect(attempt).toMatchObject({
+        state: "available",
+        data: {
+          outcome: syncStatus === "failed" ? "failed" : "succeeded",
+          sourceSync: { startedAtMs: now - 60_000, finishedAtMs: now },
+        },
+      });
+      expect(candidate).toMatchObject({
+        state: "available",
+        fetchedAtMs: now,
+        data: {
+          opportunity: { id: "synthetic-case-a", positionId: oldMetric.positionId },
+          candidateContext: { metricSignals: [oldMetric] },
+        },
+      });
+      expect(screen).toMatchObject({
+        state: "available",
+        data: {
+          criteria,
+          items: [
+            {
+              sourceKey: "source-a",
+              metrics: { apy: { valueDecimal: "0.045", observedAtMs: oldAt } },
+            },
+            {
+              sourceKey: "source-b",
+              metrics: { apy: { valueDecimal: "0.04", observedAtMs: now } },
+              operatorFeedback: { count: 1 },
+            },
+          ],
+        },
+      });
+      expect(f.http.mock.calls.map(([url]) => new URL(String(url)).pathname)).toEqual([
+        `/intelligence/sources/refresh-jobs/${refreshJob.id}`,
+        "/intelligence/opportunities/synthetic-case-a",
+        "/intelligence/screening",
+      ]);
+      expect(f.http.mock.calls.every(([, init]) => init?.method === "GET")).toBe(true);
+    },
+  );
+
+  it("rejects status from a different job or source before claiming success", async () => {
+    for (const reply of [
+      { ...refreshJob, id: "other-job" },
+      { ...refreshJob, sourceSync: { ...refreshJob.sourceSync, sourceId: "other-source" } },
+    ]) {
+      const f = fixture(() => reply);
+      expect(await f.client.read({ action: "refresh_status", jobId: refreshJob.id })).toMatchObject(
+        { state: "unavailable" },
+      );
+    }
+  });
+});
+
 describe("bounded Farming Control Intelligence transport", () => {
   it("exposes source status and failure timestamps without config, cursors or transport secrets", async () => {
     const f = fixture(() => ({

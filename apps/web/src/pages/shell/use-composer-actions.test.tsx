@@ -295,6 +295,39 @@ describe("task conversations", () => {
     );
   });
 
+  it("rereads the current task after a rejected answer and preserves its error", async () => {
+    const rejected = new Error("Question already answered");
+    methods.answer.mockRejectedValueOnce(rejected);
+    refresh.mockRejectedValueOnce(new Error("Refresh unavailable"));
+    await act(async () => {
+      await expect(
+        latest.answerMessage({ id: "ask", runId: "run" } as ThreadMessage, "Paris"),
+      ).rejects.toBe(rejected);
+    });
+    expect(refresh).toHaveBeenCalledTimes(1);
+  });
+
+  it("preserves a late answer rejection without refreshing a different task", async () => {
+    let rejectAnswer!: (error: Error) => void;
+    methods.answer.mockReturnValueOnce(
+      new Promise((_resolve, reject) => {
+        rejectAnswer = reject;
+      }),
+    );
+    let answer!: Promise<void>;
+    act(() => {
+      answer = latest.answerMessage({ id: "ask", runId: "run" } as ThreadMessage, "Paris");
+    });
+    props = { taskId: "other-task" };
+    act(() => root.render(<Harness {...props} />));
+    const rejected = new Error("Question no longer pending");
+    await act(async () => {
+      rejectAnswer(rejected);
+      await expect(answer).rejects.toBe(rejected);
+    });
+    expect(refresh).not.toHaveBeenCalled();
+  });
+
   it("does not apply a late stop response to another task on the same bot", async () => {
     let resolveStop!: () => void;
     methods.stop.mockImplementation(

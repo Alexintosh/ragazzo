@@ -45,6 +45,7 @@ afterEach(() => {
   act(() => root.unmount());
   container.remove();
   vi.unstubAllGlobals();
+  vi.useRealTimers();
 });
 it("ignores a late refresh older than an accepted mutation", async () => {
   const oldRead = deferred();
@@ -66,4 +67,49 @@ it("does not display a request or error from a chat the user left", async () => 
   expect(current.queue?.revision).toBe(9);
   await act(async () => pending.resolve(snapshot(20)));
   expect(current.queue?.revision).toBe(9);
+});
+
+it("rereads on reconnect and drops a stale action at the same queue revision", async () => {
+  const question: ThreadQueue = {
+    ...snapshot(7),
+    waitingReason: "approval",
+    waitingDetail: { reason: "question", runId: "run", messageId: "ask", action: "answer" },
+  };
+  read.mockResolvedValue(question);
+  await render("a");
+  expect(current.waitingHref).toBe("/app/a?m=ask");
+  read.mockResolvedValue({ ...question, waitingDetail: { reason: "waiting", runId: "run" } });
+  await act(async () => window.dispatchEvent(new Event("online")));
+  expect(current.queue?.revision).toBe(7);
+  expect(current.waitingHref).toBeUndefined();
+});
+
+it("does not let a late equal-revision read resurrect the old request", async () => {
+  vi.useFakeTimers();
+  const stale = deferred();
+  const question: ThreadQueue = {
+    ...snapshot(7),
+    waitingReason: "approval",
+    waitingDetail: { reason: "question", runId: "run", messageId: "ask", action: "answer" },
+  };
+  read
+    .mockReturnValueOnce(stale.promise)
+    .mockResolvedValue({ ...question, waitingDetail: { reason: "waiting", runId: "run" } });
+  await render("a");
+  await act(async () => window.dispatchEvent(new Event("focus")));
+  expect(current.waitingHref).toBeUndefined();
+  await act(async () => stale.resolve(question));
+  expect(current.queue?.waitingDetail?.reason).toBe("waiting");
+});
+
+it("rereads rejected queue mutations while retaining the server CAS revision", async () => {
+  read.mockResolvedValue(snapshot(7));
+  enqueue.mockRejectedValue(new Error("Queue changed"));
+  await render("a");
+  read.mockResolvedValue(snapshot(8));
+  await act(async () => {
+    expect(await current.enqueue("draft", "nonce")).toBe(false);
+  });
+  expect(current.queue?.revision).toBe(8);
+  expect(current.error).toContain("Queue changed");
 });

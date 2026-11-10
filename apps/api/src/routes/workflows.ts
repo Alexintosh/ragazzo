@@ -6,12 +6,12 @@ import {
   attachWorkflowRecoveryInTransaction,
   getWorkflow,
   getWorkflowRun,
+  readWorkflowRunView,
   reconcileWorkflow,
   requestWorkflowCancellation,
   saveWorkflow,
   startWorkflow,
   WorkflowConflictError,
-  workflowRunView,
   workflowView,
 } from "@rakazo/db";
 import { getLogger } from "@rakazo/logging";
@@ -76,18 +76,21 @@ export function workflowsRoutes({ deps, authed }: RouterContext) {
       ),
       runs: authed.workflows.runs.handler(async ({ context, input }) => {
         await getWorkflow(deps.prisma, context.actor, input.workflowId);
+        const rows = await deps.prisma.workflowRun.findMany({
+          where: {
+            workflowId: input.workflowId,
+            spaceId: context.actor.spaceId,
+            userId: context.actor.userId,
+          },
+          orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+          take: 50,
+        });
+        // Bound this read request's enrichment fan-out to one graph at a time.
+        const runs = [];
+        for (const row of rows)
+          runs.push(await readWorkflowRunView(deps.prisma, context.actor, row));
         return {
-          runs: (
-            await deps.prisma.workflowRun.findMany({
-              where: {
-                workflowId: input.workflowId,
-                spaceId: context.actor.spaceId,
-                userId: context.actor.userId,
-              },
-              orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-              take: 50,
-            })
-          ).map(workflowRunView),
+          runs,
         };
       }),
       run: authed.workflows.run.handler(({ context, input }) =>

@@ -1,4 +1,11 @@
 export const DE_MESSAGES: Record<string, string> = {
+  "Waiting for answer": "Wartet auf Antwort",
+  "Waiting for secret": "Wartet auf geheime Eingabe",
+  Waiting: "Wartet",
+  "Review approval": "Freigabe prüfen",
+  "Provide secret": "Geheimnis eingeben",
+  "Take over": "Übernehmen",
+  "Waiting for current work": "Wartet auf die aktuelle Arbeit",
   "Spontaneous messages": "Spontane Nachrichten",
   Frequency: "Häufigkeit",
   Gentle: "Sanft",

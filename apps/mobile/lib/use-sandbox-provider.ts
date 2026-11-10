@@ -1,17 +1,22 @@
 import { useEffect, useState } from "react";
 import { rpc } from "./api";
 
-/** Only offer Docker once this deployment confirms it can run it. */
+/** Only offer local execution choices confirmed by this deployment. */
 export function useSandboxProvider() {
   const [environment, setEnvironment] = useState<{
     provider?: string | null;
+    localHostConfigured?: boolean;
     failed?: boolean;
   }>();
   useEffect(() => {
     let active = true;
     void rpc("me").then(
       (me) => {
-        if (active) setEnvironment({ provider: me.sandboxProvider });
+        if (active)
+          setEnvironment({
+            provider: me.sandboxProvider,
+            localHostConfigured: me.localHostConfigured === true,
+          });
       },
       () => {
         if (active) setEnvironment({ failed: true });
@@ -23,6 +28,7 @@ export function useSandboxProvider() {
   }, []);
   return {
     dockerAvailable: environment?.provider === "docker",
+    localHostConfigured: environment?.localHostConfigured === true,
     loading: !environment,
     failed: environment?.failed ?? false,
   };

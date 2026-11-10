@@ -13,10 +13,12 @@ import { NativeSwitch } from "./native-switch";
 export function RegisteredHostPicker({
   spaceId,
   value,
+  localHostConfigured = false,
   onChange,
 }: {
   spaceId: string;
   value: string | null;
+  localHostConfigured?: boolean;
   onChange: (value: string | null) => void;
 }) {
   const { t } = useI18n();
@@ -86,13 +88,18 @@ export function RegisteredHostPicker({
         label={t("Host")}
         value={value ?? ""}
         choices={[
-          { key: "", label: t("Local bridge") },
+          {
+            key: "",
+            label: localHostConfigured ? t("Local bridge") : t("Choose a host"),
+            disabled: !localHostConfigured,
+          },
           ...choices,
           ...(value && !choices.some((host) => host.key === value)
-            ? [{ key: value, label: t("Unavailable host") }]
+            ? [{ key: value, label: t("Unavailable host"), disabled: true }]
             : []),
         ]}
         onChange={(next) => {
+          if (!next && !localHostConfigured) return;
           intent.current++;
           onChange(next || null);
         }}

@@ -2,6 +2,7 @@ import { Plural, Trans, useLingui } from "@lingui/react/macro";
 import type {
   FarmingControlRisk,
   FarmingControlRiskExposure,
+  FarmingControlRiskReview,
   FarmingControlRiskSignal,
 } from "@rakazo/contracts";
 import {
@@ -28,6 +29,8 @@ type Props = {
     exposure: FarmingControlRiskExposure,
     signal?: FarmingControlRiskSignal,
   ) => Promise<void>;
+  onReview?: (monitorKey: string) => void;
+  demoMode?: boolean;
   mentionBusy?: boolean;
   mentionError?: string | null;
 };
@@ -154,8 +157,10 @@ function ObservationTime({ value }: { value: number | null }) {
 function signalValue(
   signal: Pick<FarmingControlRiskSignal, "value" | "format" | "unit">,
   unavailable: string,
+  demoMode = false,
 ) {
   if (signal.value === null) return unavailable;
+  if (demoMode && (signal.format === "amount" || signal.format === "text")) return "—";
   if (signal.format === "fraction") {
     // Shift the source decimal exactly; no floating-point financial conversion.
     const match = /^([+-]?(?:\d*\.?\d+|\d+\.?))(?:e([+-]?\d+))?$/i.exec(signal.value);
@@ -173,16 +178,18 @@ function signalValue(
 function SignalRow({
   signal,
   onSelect,
+  demoMode = false,
 }: {
   signal: FarmingControlRiskSignal;
   onSelect: () => void;
+  demoMode?: boolean;
 }) {
   const { t } = useLingui();
   const labels = useSeverityLabels();
   const severity = signal.severity;
   const status =
     signal.status === "action_required" ? t`Action required` : labels[severity ?? "unknown"];
-  const value = signalValue(signal, status);
+  const value = signalValue(signal, status, demoMode);
   return (
     <button
       type="button"
@@ -244,7 +251,14 @@ function triagedExposures(exposures: FarmingControlRiskExposure[]) {
   );
 }
 
-export function RiskCards({ data, onMention, mentionBusy = false, mentionError = null }: Props) {
+export function RiskCards({
+  data,
+  onMention,
+  onReview,
+  demoMode = false,
+  mentionBusy = false,
+  mentionError = null,
+}: Props) {
   const { t } = useLingui();
   const labels = useSeverityLabels();
   const [selection, setSelection] = useState<{ exposureId: string; signalKey: string } | null>(
@@ -300,7 +314,12 @@ export function RiskCards({ data, onMention, mentionBusy = false, mentionError =
                 )}
                 data-testid="farming-control-risk-card"
               >
-                <div className={cn("flex items-start gap-3 px-5 pt-5 pb-4", compact && "@3xl/farming:py-4")}>
+                <div
+                  className={cn(
+                    "flex items-start gap-3 px-5 pt-5 pb-4",
+                    compact && "@3xl/farming:py-4",
+                  )}
+                >
                   <div
                     aria-hidden="true"
                     className="mt-1 flex size-8 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground"
@@ -327,7 +346,10 @@ export function RiskCards({ data, onMention, mentionBusy = false, mentionError =
                   <RiskGauge exposure={item} />
                 </div>
                 <CardContent
-                  className={cn("px-5", compact && "@3xl/farming:border-s @3xl/farming:border-border @3xl/farming:py-2")}
+                  className={cn(
+                    "px-5",
+                    compact && "@3xl/farming:border-s @3xl/farming:border-border @3xl/farming:py-2",
+                  )}
                 >
                   {signals.length ? (
                     signals
@@ -335,6 +357,7 @@ export function RiskCards({ data, onMention, mentionBusy = false, mentionError =
                       .map((signal) => (
                         <SignalRow
                           key={signal.key}
+                          demoMode={demoMode}
                           signal={signal}
                           onSelect={() =>
                             setSelection({ exposureId: item.id, signalKey: signal.key })
@@ -356,6 +379,7 @@ export function RiskCards({ data, onMention, mentionBusy = false, mentionError =
                       {signals.slice(3).map((signal) => (
                         <SignalRow
                           key={signal.key}
+                          demoMode={demoMode}
                           signal={signal}
                           onSelect={() =>
                             setSelection({ exposureId: item.id, signalKey: signal.key })
@@ -377,12 +401,23 @@ export function RiskCards({ data, onMention, mentionBusy = false, mentionError =
                 <CardFooter
                   className={cn(
                     "mt-auto justify-between gap-3 px-5 py-2",
-                    compact && "@3xl/farming:mt-0 @3xl/farming:border-t-0 @3xl/farming:bg-transparent",
+                    compact &&
+                      "@3xl/farming:mt-0 @3xl/farming:border-t-0 @3xl/farming:bg-transparent",
                   )}
                 >
-                  <span className={cn("text-[10px] text-muted-foreground", compact && "@3xl/farming:hidden")}>
+                  <span
+                    className={cn(
+                      "text-[10px] text-muted-foreground",
+                      compact && "@3xl/farming:hidden",
+                    )}
+                  >
                     {item.coverage === "unknown" ? t`Coverage unknown` : t`Partial risk coverage`}
                   </span>
+                  {onReview ? (
+                    <Button variant="ghost" size="sm" onClick={() => onReview(item.monitorKey)}>
+                      <Trans>History and interpretation</Trans>
+                    </Button>
+                  ) : null}
                   <Button
                     variant="ghost"
                     size="sm"
@@ -456,9 +491,12 @@ export function RiskCards({ data, onMention, mentionBusy = false, mentionError =
                 selectedSignal.status === "action_required"
                   ? t`Action required`
                   : labels[selectedSignal.severity ?? "unknown"],
+                demoMode,
               )}
             </div>
-            <p className="text-sm leading-relaxed">{selectedSignal.summary}</p>
+            <p className="text-sm leading-relaxed">
+              {demoMode ? t`Evidence summary hidden in demo` : selectedSignal.summary}
+            </p>
             <dl className="grid grid-cols-[auto_1fr] gap-x-5 gap-y-3 text-xs">
               <dt className="text-muted-foreground">
                 <Trans>Linked positions</Trans>
@@ -511,12 +549,14 @@ export function RiskCards({ data, onMention, mentionBusy = false, mentionError =
                 {selectedSignal.metrics.map((metric) => (
                   <div key={metric.key} className="contents">
                     <dt className="text-muted-foreground">{metric.label}</dt>
-                    <dd className="text-end tabular-nums">{signalValue(metric, t`No reading`)}</dd>
+                    <dd className="text-end tabular-nums">
+                      {signalValue(metric, t`No reading`, demoMode)}
+                    </dd>
                   </div>
                 ))}
               </dl>
             ) : null}
-            {exposure.limitations.length ? (
+            {!demoMode && exposure.limitations.length ? (
               <div className="space-y-2 border-t border-border pt-4 text-xs leading-relaxed text-muted-foreground">
                 {exposure.limitations.map((limitation) => (
                   <p key={limitation}>{limitation}</p>
@@ -541,5 +581,247 @@ export function RiskCards({ data, onMention, mentionBusy = false, mentionError =
         ) : null}
       </Dialog>
     </>
+  );
+}
+
+/** The same authenticated review the specialist reads, with no financial amount disclosure. */
+export function RiskReviewEvidence({
+  review,
+  onSelect,
+  onMention,
+}: {
+  review: FarmingControlRiskReview;
+  onSelect: (monitorKey: string) => void;
+  onMention: (monitorKey: string, label: string) => void;
+}) {
+  const { t } = useLingui();
+  const health = {
+    unknown: t`No reading`,
+    healthy: t`Within limits`,
+    attention: t`Watch`,
+    action_required: t`Action required`,
+  };
+  const analysis = { pending: t`Pending`, failed: t`Failed`, indeterminate: t`Indeterminate` };
+  const runLabels: Record<string, string> = {
+    queued: t`Queued`,
+    leased: t`Leased`,
+    running: t`Running`,
+    waiting_input: t`Waiting for input`,
+    waiting_takeover: t`Waiting for takeover`,
+    completed: t`Completed`,
+    failed: t`Failed`,
+    cancelled: t`Cancelled`,
+  };
+  const kinds = {
+    emergency: t`Emergency`,
+    material_trend: t`Trend review`,
+    weekly_review: t`Weekly research`,
+  };
+  const transition = { opened: t`Opened`, updated: t`Updated`, resolved: t`Resolved` };
+  const date = (value: number) => (
+    <time dateTime={new Date(value).toISOString()}>{new Date(value).toLocaleString()}</time>
+  );
+  const selected = review.selectionStatus === "matched";
+  const item = selected ? review.evidence?.items[0] : null;
+  return (
+    <section
+      className="space-y-3 border-t border-border pt-4"
+      aria-label={t`Monitoring history and interpretation`}
+    >
+      <h2 className="text-sm font-medium">
+        <Trans>Monitoring history and interpretation</Trans>
+      </h2>
+      {!selected ? (
+        <>
+          <p className="text-xs text-muted-foreground">
+            <Trans>
+              Includes monitors without proven holdings. Select a monitor for dated evidence.
+            </Trans>
+          </p>
+          {review.evidence?.items.map((monitor) => (
+            <Button
+              key={monitor.monitorKey}
+              variant="ghost"
+              onClick={() => onSelect(monitor.monitorKey)}
+            >
+              {monitor.label} · {health[monitor.emergency.status]}
+            </Button>
+          ))}
+          {!review.evidence?.items.length ? (
+            <p className="text-xs">
+              <Trans>No Monitoring evidence returned. Current risk remains unknown.</Trans>
+            </p>
+          ) : null}
+        </>
+      ) : item ? (
+        <>
+          <div className="flex flex-wrap items-center gap-3">
+            <h3 className="text-sm font-medium">{item.label}</h3>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => onMention(item.monitorKey, item.label)}
+            >
+              <Trans>Mention to agent</Trans>
+            </Button>
+          </div>
+          <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-xs">
+            <dt>
+              <Trans>Current FC state</Trans>
+            </dt>
+            <dd>
+              {health[item.emergency.status]} ·{" "}
+              {item.current.status === "live" ? t`Current` : t`No reading`}
+            </dd>
+            <dt>
+              <Trans>Observation</Trans>
+            </dt>
+            <dd>
+              <ObservationTime value={item.current.observedAtMs} />
+            </dd>
+            <dt>
+              <Trans>Finality</Trans>
+            </dt>
+            <dd>
+              <Trans>Not exposed by this evidence read</Trans>
+            </dd>
+            <dt>
+              <Trans>Coverage</Trans>
+            </dt>
+            <dd>
+              <Trans>Partial risk coverage</Trans>
+            </dd>
+            <dt>
+              <Trans>Holding association</Trans>
+            </dt>
+            <dd>
+              {review.exposureAssociationStatus === "matched_visible_holding"
+                ? t`Matched visible holding`
+                : t`Exposure not established`}
+            </dd>
+          </dl>
+          <details className="text-xs" open>
+            <summary className="cursor-pointer font-medium">
+              <Trans>Dated episode history</Trans>
+            </summary>
+            <p className="my-2 text-muted-foreground">
+              <Trans>
+                History coverage is unknown. These records do not establish present health or
+                delivery recovery.
+              </Trans>
+            </p>
+            {review.episodeHistory?.transitions.length ? (
+              <ol className="space-y-2">
+                {review.episodeHistory.transitions.map((row) => (
+                  <li
+                    key={`${row.runtimeInstanceId}:${row.id}`}
+                    className="border-s border-border ps-3"
+                  >
+                    <span className="font-medium">{transition[row.transition]}</span> ·{" "}
+                    {date(row.occurredAtMs)}
+                    <div className="text-muted-foreground">
+                      {row.subjectKey} · {row.policyKey ?? t`Policy unknown`}
+                    </div>
+                    <div>
+                      {t`Episode opened`}:{" "}
+                      {row.episodeOpenedAtMs === null ? t`Unknown` : date(row.episodeOpenedAtMs)}
+                    </div>
+                    <div>
+                      {t`Finality`}:{" "}
+                      {row.finality === "finalized"
+                        ? t`Finalized`
+                        : row.finality === "latest"
+                          ? t`Latest`
+                          : t`Unknown`}
+                    </div>
+                  </li>
+                ))}
+              </ol>
+            ) : (
+              <p>
+                <Trans>No retained transitions returned; past incidents remain unknown.</Trans>
+              </p>
+            )}
+            {review.episodeHistory?.truncated ? (
+              <p className="mt-2 text-warning">
+                <Trans>History read is incomplete.</Trans>
+              </p>
+            ) : null}
+          </details>
+          <details className="text-xs" open>
+            <summary className="cursor-pointer font-medium">
+              <Trans>Risk interpretation</Trans>
+            </summary>
+            <p className="my-2 text-muted-foreground">
+              <Trans>Completed runs remain indeterminate without final-output proof.</Trans>
+            </p>
+            {review.interpretations ? (
+              <p className="my-2 text-muted-foreground">
+                {t`Status observed`}: {date(review.interpretations.asOfMs)}
+              </p>
+            ) : null}
+            {review.interpretations?.runs.length ? (
+              <ul className="space-y-2">
+                {review.interpretations.runs.map((run) => (
+                  <li key={run.runId} className="border-s border-border ps-3">
+                    <div>
+                      {kinds[run.kind]} · {date(run.triggeredAtMs)} · {analysis[run.analysisStatus]}
+                    </div>
+                    <div className="text-muted-foreground">
+                      {t`Run status`}: {runLabels[run.runStatus ?? ""] ?? t`Unknown`}
+                    </div>
+                    {run.subjectKey ? (
+                      <div className="text-muted-foreground">
+                        {run.subjectKey} · {run.policyKey ?? t`Policy unknown`}
+                      </div>
+                    ) : null}
+                    {run.scope === "monitoring_universe" ? (
+                      <div>
+                        <Trans>Monitoring-wide research; not a selected episode result.</Trans>
+                      </div>
+                    ) : null}
+                    {run.occurredAtMs !== null ? (
+                      <div>
+                        {t`Event time`}: {date(run.occurredAtMs)} ·{" "}
+                        {run.transition ? transition[run.transition] : null}
+                      </div>
+                    ) : null}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p>
+                <Trans>No correlated Risk run returned. Analysis availability is unknown.</Trans>
+              </p>
+            )}
+            {review.interpretations?.truncated ? (
+              <p className="mt-2 text-warning">
+                <Trans>Run history read is incomplete.</Trans>
+              </p>
+            ) : null}
+          </details>
+          <details className="text-xs text-muted-foreground">
+            <summary className="cursor-pointer">
+              <Trans>Sources and coverage</Trans>
+            </summary>
+            {review.sources.map((source) => (
+              <div key={source} className="break-all font-mono">
+                {source}
+              </div>
+            ))}
+            <div>
+              {t`Fetched`}: {date(review.fetchedAtMs)}
+            </div>
+            {review.issues.map((issue) => (
+              <p key={issue}>{issue}</p>
+            ))}
+          </details>
+        </>
+      ) : (
+        <p>
+          <Trans>The selected monitor is unavailable. Current risk remains unknown.</Trans>
+        </p>
+      )}
+    </section>
   );
 }

@@ -94,6 +94,17 @@ links and does not establish who owned a historical position mark.
 | Operations | Portfolio and Harvest |
 | Opportunities | Intelligence, portfolio and risk |
 
+In the Coordinator's private owner chat, it can use `web_fetch` to read public
+protocol documentation, announcements and other relevant public pages. Public
+reads cite their source and distinguish publication dates from fetch time.
+They do not refresh FC Intelligence or establish current holdings. Private or
+signed links, account details and portfolio data must never be sent in a URL.
+Pages requiring login or JavaScript may be unavailable. This capability is
+limited to current direct-owner private turns; other specialists, team groups,
+consultations, delegated turns and routines retain their existing tool access.
+Reopening Farming updates untouched generated Coordinator instructions and tool
+lists. Customized instructions and tool lists are preserved.
+
 Each specialist has an editable profile and a deployment-provided role skill.
 The skills adapt the read workflows from Farming Control Operations, Monitoring
 and Cash-out/Tax to each specialist's granted tools. Opening the team updates
@@ -254,6 +265,48 @@ automatic Risk access. Model-generated interpretations and proposed rules
 live in the private conversation. Changes to evaluators go through normal FC
 review and replay. These workflows have no financial write or execution tools.
 
+
+### Current evidence, history and interpretation
+
+The Risk page and `farming_control_risk_review` use the same authenticated
+`farmingControl.riskReview` service. Select an exact returned monitorKey for
+bounded dated history and surviving correlated emergency/trend/weekly runs.
+Read current FC assessments and their observation time separately from archived
+transitions and interpretation status. `currentFinality:not_exposed` identifies
+an absent public field; archive finality does not fill it. History coverage
+remains unknown, including when no row survives or the read is truncated.
+
+Interpretation metadata is restricted to the configured owner's current private
+Risk scope and contains no chat content. Completed analysis remains
+indeterminate without verified final-output linkage, with no fabricated message
+link. Weekly fleet research is distinct from a selected episode. No exposure
+association means holding impact is unproven. Display/demo copies do not change
+tool evidence or the chosen chat behavior. These repeated reads perform no
+mutation, run wake, notification or transaction.
+
+### Risk admission receipts
+
+The event POST retains exact v1 `accepted/runId` responses by default. Request
+`Accept: application/vnd.fc-risk-receipt.v2+json` for an additive receipt with
+the echoed event ID, `created`/`replayed`/ignored reception, run status, wake
+outcome and analysis status. A failed wake after commit retains the same run;
+the existing worker recovers it when separately started by the operator.
+
+Reconcile a lost response with authenticated
+`GET /api/v1/farming-control/risk-events/{eventId}` or retry the original POST
+with the exact same ID. GET never creates or wakes work. Both operations require
+the dedicated bearer, configured owner and current private Risk scope; they
+return minimal metadata without conversation content. An ID grants no access.
+A 404 means no surviving scoped admission proof, not proof of no prior effect.
+Ignored receipts terminate transport delivery without claiming a new run.
+V1 null run IDs remain ambiguous. No receipt proves current pool health.
+
+Analysis is pending for active runs, failed for failed/cancelled runs and
+indeterminate for completed runs without provable final-output linkage. The
+sender receives no message content or message reference. After a confirmed
+admission, reread status rather than creating a replacement event. Deduplication
+lasts while the original run/nonce records survive. This interface does not
+start the stopped application or grant financial execution authority.
 
 ## Opportunity research
 

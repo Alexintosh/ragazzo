@@ -1907,6 +1907,8 @@ export const MeSchema = z.object({
   computerHost: z.enum(["docker", "this-mac"]).nullable(),
   canChooseHostComputer: z.boolean(),
   sandboxProvider: z.string(),
+  /** Whether Host can use the deployment bridge without a registered host ID. */
+  localHostConfigured: z.boolean().optional(),
   /** Whether this account can add stdio MCP servers here. Absent from older servers. */
   mcpStdioEnabled: z.boolean().default(false),
   avatarStyle: AvatarStyleSchema,

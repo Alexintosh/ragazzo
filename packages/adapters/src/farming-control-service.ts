@@ -8,12 +8,15 @@ import type {
   FarmingControlPositionHistoryInput,
   FarmingControlRecommendationFeedbackInput,
   FarmingControlRiskReviewInput,
+  FarmingControlRiskReview,
   FarmingControlSection,
   FarmingControlSourceRefreshInput,
 } from "@rakazo/contracts";
 import type { PrismaClient } from "@rakazo/db";
 import { runAsSystem } from "@rakazo/db";
 import { createFarmingControlClient } from "./farming-control.js";
+import type { RiskInterpretationDb } from "./farming-control-risk-interpretation.js";
+import { readFarmingControlRiskInterpretations } from "./farming-control-risk-interpretation.js";
 import { createFarmingControlIntelligence } from "./farming-control-intelligence.js";
 
 export class FarmingControlAccessError extends Error {
@@ -33,7 +36,7 @@ export interface FarmingControlConfiguration {
 
 /** The host dataset belongs to one immutable account, in its unshared personal workspace. */
 export function createFarmingControlService(
-  prisma: Pick<PrismaClient, "space">,
+  prisma: Pick<PrismaClient, "space"> & Partial<RiskInterpretationDb>,
   config: FarmingControlConfiguration,
   transport?: typeof fetch,
 ) {
@@ -174,7 +177,18 @@ export function createFarmingControlService(
     async riskReview(actor: Actor, input?: FarmingControlRiskReviewInput) {
       await authorize(actor);
       if (!client) throw new FarmingControlAccessError("NOT_FOUND");
-      return client.riskReview(input);
+      const review: FarmingControlRiskReview = await client.riskReview(input);
+      if (input?.monitorKey && review.selectionStatus === "matched" && review.evidence) {
+        review.interpretations = prisma.bot && prisma.run && prisma.event
+          ? await readFarmingControlRiskInterpretations(prisma as RiskInterpretationDb, actor,
+            input.monitorKey, review.evidence.requestedFromMs, review.evidence.asOfMs)
+          : { state: "unavailable", asOfMs: Date.now(), truncated: false, runs: [],
+            limitations: ["Risk run metadata is unavailable in this service composition."] };
+        review.sources.push("ragazzo:scoped-risk-runs");
+        if (review.interpretations.state === "unavailable" || review.interpretations.truncated)
+          review.state = "partial";
+      }
+      return review;
     },
     async risk(actor: Actor) {
       await authorize(actor);

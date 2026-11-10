@@ -8428,3 +8428,27 @@ msgstr "Main view"
 #: src/pages/AccountSettingsOverlay.tsx
 msgid "Theme"
 msgstr "Theme"
+
+#: src/pages/shell/thread-queue.tsx
+msgid "Waiting for answer"
+msgstr "답변 대기 중"
+
+#: src/pages/shell/thread-queue.tsx
+msgid "Waiting for secret"
+msgstr "비밀 정보 대기 중"
+
+#: src/pages/shell/thread-queue.tsx
+msgid "Waiting"
+msgstr "대기 중"
+
+#: src/pages/shell/thread-queue.tsx
+msgid "Review approval"
+msgstr "승인 검토"
+
+#: src/pages/shell/thread-queue.tsx
+msgid "Provide secret"
+msgstr "비밀 정보 제공"
+
+#: src/pages/shell/thread-queue.tsx
+msgid "Take over"
+msgstr "제어권 가져오기"
