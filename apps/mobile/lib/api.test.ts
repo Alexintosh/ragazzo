@@ -4606,3 +4606,25 @@ describe("stale helper projection", () => {
     });
   });
 });
+
+describe("mobile agent activity event scope", () => {
+  it("projects public summaries without moving the cursor backwards or across threads", () => {
+    const initial = snapshot([]);
+    const summary = {
+      type: "agent.reasoning",
+      threadId: "thread-1",
+      runId: "run-1",
+      seq: 4,
+      payload: { id: "summary", text: "Checking files", done: true },
+    };
+    const next = applyMobileThreadEvent(initial, summary)!;
+    expect(next.activity).toEqual([
+      expect.objectContaining({ kind: "reasoning", text: "Checking files", status: "completed" }),
+    ]);
+    expect(next.cursor).toBe(4);
+    expect(applyMobileThreadEvent(next, { ...summary, seq: 2 })).toBe(next);
+    expect(applyMobileThreadEvent(next, { ...summary, threadId: "other-thread", seq: 20 })).toBe(
+      next,
+    );
+  });
+});

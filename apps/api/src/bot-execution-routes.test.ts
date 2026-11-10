@@ -11,9 +11,23 @@ const actor: Actor = {
   email: "test@example.test",
   isDeploymentOwner: false,
 };
-function fixture(options: { hostConfigured?: boolean; botExists?: boolean } = {}) {
+function fixture(
+  options: {
+    hostConfigured?: boolean;
+    botExists?: boolean;
+    runtimeKind?: string;
+    botKind?: string;
+  } = {},
+) {
   const findFirst = vi.fn(async () =>
-    options.botExists === false ? null : { id: "bot", thread: { id: "thread" } },
+    options.botExists === false
+      ? null
+      : {
+          id: "bot",
+          thread: { id: "thread" },
+          runtimeKind: options.runtimeKind ?? "pi",
+          botKind: options.botKind ?? "agent",
+        },
   );
   const nativeRuntimeStatus = vi.fn(async () => ({ available: true, authenticated: true }));
   const transaction = vi.fn();
@@ -83,5 +97,44 @@ describe("native execution routes", () => {
     ).rejects.toThrow("configured desktop bridge");
     expect(transaction).not.toHaveBeenCalled();
     expect(nativeRuntimeStatus).not.toHaveBeenCalled();
+  });
+});
+
+describe("tool-call limit eligibility", () => {
+  it.each(["codex", "claude", "acp"])(
+    "rejects a Pi limit for %s before any write",
+    async (runtimeKind) => {
+      const { client, transaction } = fixture({ runtimeKind });
+      await expect(
+        client.bots.update({
+          botId: "bot",
+          maxToolCallsPerTurn: 3,
+          expectedMaxToolCallsPerTurn: null,
+        }),
+      ).rejects.toThrow("Tool call limits require a Pi agent");
+      expect(transaction).not.toHaveBeenCalled();
+    },
+  );
+  it("rejects roleplay overrides before any write", async () => {
+    const { client, transaction } = fixture({ botKind: "roleplay" });
+    await expect(
+      client.bots.update({
+        botId: "bot",
+        maxToolCallsPerTurn: 3,
+        expectedMaxToolCallsPerTurn: null,
+      }),
+    ).rejects.toThrow("Tool call limits require a Pi agent");
+    expect(transaction).not.toHaveBeenCalled();
+  });
+  it("checks bot ownership before changing a limit", async () => {
+    const { client, transaction } = fixture({ botExists: false });
+    await expect(
+      client.bots.update({
+        botId: "foreign",
+        maxToolCallsPerTurn: 3,
+        expectedMaxToolCallsPerTurn: null,
+      }),
+    ).rejects.toThrow();
+    expect(transaction).not.toHaveBeenCalled();
   });
 });

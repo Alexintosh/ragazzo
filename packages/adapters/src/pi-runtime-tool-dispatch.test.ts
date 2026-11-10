@@ -542,7 +542,7 @@ describe("Pi connector tool dispatch", () => {
       events.push(event);
     }
 
-    expect(claimSteering).toHaveBeenNthCalledWith(1, []);
+    expect(claimSteering).toHaveBeenNthCalledWith(1, [], true);
     expect(claimSteering).toHaveBeenNthCalledWith(2, []);
     // The run's person is asked for a reply; anything else is passed on with its source and
     // no call to reply. The run sees one boundary, marked as from its person.
@@ -681,7 +681,7 @@ describe("Pi connector tool dispatch", () => {
       // Exhaust the runtime event stream.
     }
 
-    expect(claimSteering).toHaveBeenNthCalledWith(1, []);
+    expect(claimSteering).toHaveBeenNthCalledWith(1, [], true);
     expect(claimSteering).toHaveBeenNthCalledWith(2, []);
     expect(claimSteering).toHaveBeenNthCalledWith(3, ["steering-1"]);
     expect(fakeAgentState.preparedMessages).toEqual([
@@ -1832,6 +1832,40 @@ describe("Pi connector tool dispatch", () => {
     expect(events.at(-1)).toEqual({
       type: "done",
       text: "I stopped after reaching the limit of 80 tool calls in this turn. Send another message to continue.",
+    });
+  });
+
+  it("uses the operator's per-bot limit instead of the deployment default", async () => {
+    process.env.MAX_TOOL_CALLS_PER_TURN = "80";
+    fakeAgentState.mode = "parent-limit";
+    const executeTool = vi.fn(async () => ({ ok: true }));
+    const events = [];
+    for await (const event of new PiAgentRuntime().run(
+      {
+        botId: "b",
+        threadId: "t",
+        runId: "operator-limited",
+        prompt: "keep going",
+        instructions: "Use shell.",
+        history: [],
+        tools: [shellTool],
+        model: { provider: "test", id: "dispatch-test-model" },
+        executeTool,
+        maxToolCallsPerTurn: 3,
+      },
+      {
+        operationId: "operator-limit",
+        traceId: "operator-limit",
+        spaceId: "w",
+        userId: "u",
+        signal: new AbortController().signal,
+      },
+    ))
+      events.push(event);
+    expect(executeTool).toHaveBeenCalledTimes(3);
+    expect(events.at(-1)).toEqual({
+      type: "done",
+      text: "I stopped after reaching the limit of 3 tool calls in this turn. Send another message to continue.",
     });
   });
 

@@ -64,6 +64,7 @@ import { resolveBusyBotName, toComputerStatus } from "./computer-status.js";
 import { withSerializableRetry } from "./serializable-retry.js";
 import type { ImageAdmissionRun } from "./thread-image-admission.js";
 import { assertThreadImageInput } from "./thread-image-admission.js";
+import { loadThreadAgentActivity } from "./thread-agent-activity.js";
 import { loadMessagePage } from "./thread-message-pages.js";
 
 export type ThreadTarget =
@@ -489,12 +490,20 @@ export async function threadSnapshot(
                   orderBy: { seq: "asc" },
                 })
               : [];
-          return { messagePage, last, run: currentRun, activeRuns, liveEvents };
+          return {
+            messagePage,
+            last,
+            run: currentRun,
+            activeRuns,
+            liveEvents,
+            activity: await loadThreadAgentActivity(tx, target.threadId, activeRuns),
+          };
         },
         { timeout: 15_000, maxWait: 5_000 },
       ),
     ]);
     return {
+      activity: core.activity,
       botId: target.botId,
       threadId: target.threadId,
       cursor: core.last?.seq ?? -1,
@@ -565,6 +574,7 @@ export async function threadSnapshot(
         messagePage,
         last,
         activeRuns,
+        activity: await loadThreadAgentActivity(tx, target.threadId, activeRuns),
         terminalRun: pickLatestTerminalRun(recentTerminals),
         liveEvents,
       };
@@ -573,6 +583,7 @@ export async function threadSnapshot(
   );
   const primaryActiveRun = pickPrimaryActiveRun(core.activeRuns);
   return {
+    activity: core.activity,
     groupId: target.groupId,
     groupName: target.groupName,
     members: target.members,

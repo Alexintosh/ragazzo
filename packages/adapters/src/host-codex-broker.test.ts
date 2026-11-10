@@ -112,6 +112,47 @@ describe("native Codex host ownership", () => {
       emit: (message: CodexMessage) => emit(message),
     };
   }
+  it("streams public reasoning summaries and native tool lifecycle without raw reasoning or output", async () => {
+    const s = setup();
+    const stream = s.broker.run(s.input, new AbortController().signal)[Symbol.asyncIterator]();
+    await stream.next();
+    await vi.waitFor(() => expect(s.calls.some((call) => call.method === "turn/start")).toBe(true));
+    const emit = (method: string, params: Record<string, unknown>) =>
+      s.emit({ method, params: { threadId: "native-session", turnId: "native-turn", ...params } });
+    emit("item/started", { item: { id: "reason", type: "reasoning" } });
+    emit("item/reasoning/summaryTextDelta", { delta: "Checking the project" });
+    emit("item/reasoning/textDelta", { delta: "private raw reasoning" });
+    emit("item/completed", { item: { id: "reason", type: "reasoning" } });
+    emit("item/started", {
+      item: { id: "command", type: "commandExecution", command: "echo fixture" },
+    });
+    emit("item/completed", {
+      item: {
+        id: "command",
+        type: "commandExecution",
+        status: "completed",
+        exitCode: 1,
+        aggregatedOutput: "private tool output",
+      },
+    });
+    emit("turn/completed", { turn: { id: "native-turn", status: "completed" } });
+    const events = [];
+    for (;;) {
+      const next = await stream.next();
+      if (next.done) break;
+      events.push(next.value.event);
+    }
+    expect(events).toContainEqual({ type: "reasoning", text: "Checking the project" });
+    expect(events).toContainEqual(
+      expect.objectContaining({ type: "tool", name: "native_command" }),
+    );
+    expect(events).toContainEqual(
+      expect.objectContaining({ type: "tool_completed", failed: true }),
+    );
+    expect(JSON.stringify(events)).not.toContain("private raw reasoning");
+    expect(JSON.stringify(events)).not.toContain("private tool output");
+    expect(s.calls.find((call) => call.method === "turn/start")?.params.summary).toBe("auto");
+  });
   it("runs two disjoint same-bot tasks concurrently, queues collisions and stops only one", async () => {
     await mkdir(path.join(root, "left"));
     await mkdir(path.join(root, "right"));

@@ -1,11 +1,17 @@
 import type {
   Actor,
+  WaitingDetail,
   Workflow,
   WorkflowGraph,
   WorkflowNodeState,
   WorkflowRun,
 } from "@rakazo/contracts";
-import { SaveWorkflowInput, WorkflowGraphSchema, WorkflowNodeStateSchema } from "@rakazo/contracts";
+import {
+  MessageBlock,
+  SaveWorkflowInput,
+  WorkflowGraphSchema,
+  WorkflowNodeStateSchema,
+} from "@rakazo/contracts";
 import type {
   Prisma,
   PrismaClient,
@@ -15,6 +21,94 @@ import type {
 import { appendEventInTransaction } from "./events.js";
 import { createThreadMessageInTransaction } from "./messages.js";
 import { IsolationError } from "./scope.js";
+import { deriveRunWaitingDetail } from "./waiting-detail.js";
+
+/** Owned, bounded evidence reads; never reads secret storage or effect request/result values. */
+export async function readRunWaitingDetail(
+  tx: Prisma.TransactionClient,
+  actor: Actor,
+  runId: string,
+  scope: { threadId?: string; botId?: string; taskId?: string } = {},
+): Promise<WaitingDetail | undefined> {
+  const run = await tx.run.findFirst({
+    where: {
+      id: runId,
+      ...scope,
+      spaceId: actor.spaceId,
+      userId: actor.userId,
+      bot: { spaceId: actor.spaceId, userId: actor.userId, archivedAt: null },
+    },
+    select: { id: true, status: true, threadId: true, botId: true },
+  });
+  if (!run || !["waiting_input", "waiting_takeover"].includes(run.status)) return undefined;
+  const messages = await tx.message.findMany({
+    where: { threadId: run.threadId, runId: run.id, role: "bot" },
+    orderBy: { seq: "desc" },
+    take: 50,
+    select: { id: true, runId: true, blocks: true },
+  });
+  const approvalEffectIds = [
+    ...new Set(
+      messages.flatMap((message) => {
+        if (message.runId !== run.id) return [];
+        const parsed = MessageBlock.array().safeParse(message.blocks);
+        const ask = parsed.success
+          ? parsed.data.find((block) => block.kind === "ask" && block.status !== "answered")
+          : undefined;
+        return ask?.kind === "ask" && ask.approvalEffectId ? [ask.approvalEffectId] : [];
+      }),
+    ),
+  ];
+  const [effects, bot] = await Promise.all([
+    run.status === "waiting_input" && approvalEffectIds.length > 0
+      ? tx.externalEffect.findMany({
+          where: {
+            id: { in: approvalEffectIds },
+            runId: run.id,
+            spaceId: actor.spaceId,
+            status: "intended",
+          },
+          take: approvalEffectIds.length,
+          select: { id: true, runId: true, kind: true, status: true },
+        })
+      : [],
+    run.status === "waiting_takeover"
+      ? tx.bot.findFirst({
+          where: { id: run.botId, spaceId: actor.spaceId, userId: actor.userId, archivedAt: null },
+          select: {
+            computer: {
+              select: {
+                state: true,
+                providerRef: true,
+                spaceId: true,
+                userId: true,
+                controlRunId: true,
+                executionLeases: {
+                  where: { botId: run.botId, runId: run.id },
+                  take: 1,
+                  select: { runId: true },
+                },
+              },
+            },
+          },
+        })
+      : null,
+  ]);
+  const computer = bot?.computer;
+  return deriveRunWaitingDetail({
+    run,
+    messages,
+    effects,
+    canTakeover: Boolean(
+      computer?.state === "running" &&
+        computer.providerRef &&
+        computer.spaceId === actor.spaceId &&
+        computer.userId === actor.userId &&
+        (computer.controlRunId === run.id ||
+          computer.executionLeases.some((lease) => lease.runId === run.id)),
+    ),
+  });
+}
 
 export class WorkflowConflictError extends Error {
   constructor() {
@@ -23,7 +117,11 @@ export class WorkflowConflictError extends Error {
 }
 const owned = (actor: Actor) => ({ spaceId: actor.spaceId, userId: actor.userId });
 const terminal = new Set(["succeeded", "failed", "cancelled"]);
-const statesOf = (row: RunRow) => WorkflowNodeStateSchema.array().parse(row.nodes);
+// Detail is a live projection, never durable workflow state or a recovery input.
+const statesOf = (row: RunRow) =>
+  WorkflowNodeStateSchema.array()
+    .parse(row.nodes)
+    .map(({ waitingDetail: _detail, ...node }) => node);
 export function workflowView(row: WorkflowRow): Workflow {
   return {
     id: row.id,
@@ -42,10 +140,43 @@ export function workflowRunView(row: RunRow): WorkflowRun {
     revision: row.revision,
     status: row.status as WorkflowRun["status"],
     graph: WorkflowGraphSchema.parse(row.graph),
-    nodes: statesOf(row),
+    nodes: statesOf(row).map((node) => ({
+      ...node,
+      ...(row.status === "running" && node.status === "waiting_approval" && node.runId
+        ? { waitingDetail: { reason: "waiting" as const, runId: node.runId } }
+        : {}),
+    })),
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };
+}
+/** Enrich only the linked run; node scheduling status remains independent. */
+export async function readWorkflowRunView(
+  tx: Prisma.TransactionClient,
+  actor: Actor,
+  row: RunRow,
+): Promise<WorkflowRun> {
+  if (row.spaceId !== actor.spaceId || row.userId !== actor.userId) throw new IsolationError();
+  const view = workflowRunView(row);
+  view.nodes = await Promise.all(
+    view.nodes.map(async (node) => {
+      if (
+        view.status !== "running" ||
+        !["queued", "running", "waiting_approval"].includes(node.status) ||
+        !node.runId ||
+        !node.taskId
+      )
+        return node;
+      const definition = view.graph.nodes.find((item) => item.id === node.nodeId);
+      if (!definition) return node;
+      const waitingDetail = await readRunWaitingDetail(tx, actor, node.runId, {
+        taskId: node.taskId,
+        botId: definition.botId,
+      });
+      return waitingDetail ? { ...node, waitingDetail } : node;
+    }),
+  );
+  return view;
 }
 export async function workflowBotsAllowed(
   tx: Prisma.TransactionClient,
@@ -68,7 +199,7 @@ export async function getWorkflow(prisma: PrismaClient, actor: Actor, workflowId
 export async function getWorkflowRun(prisma: PrismaClient, actor: Actor, runId: string) {
   const row = await prisma.workflowRun.findFirst({ where: { id: runId, ...owned(actor) } });
   if (!row) throw new IsolationError();
-  return workflowRunView(row);
+  return readWorkflowRunView(prisma, actor, row);
 }
 export async function saveWorkflow(prisma: PrismaClient, actor: Actor, value: unknown) {
   const input = SaveWorkflowInput.parse(value);

@@ -1,6 +1,6 @@
 import { t } from "@lingui/core/macro";
 import type { CSSProperties, PointerEvent, ReactNode } from "react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { useBotsSidebarWidth } from "./shell/sidebar-layout";
 
 const STORAGE_KEY = "rakazo:right-panel-width";
@@ -30,11 +30,22 @@ export function ResizableSidePanel({
   open,
   panel,
   children,
+  id,
+  label,
+  onClose,
+  fullWidthOnMobile = false,
 }: {
   open: boolean;
   panel: string;
   children: ReactNode;
+  id?: string;
+  label?: string;
+  onClose?: () => void;
+  fullWidthOnMobile?: boolean;
 }) {
+  const generatedId = useId();
+  const panelId = id ?? generatedId;
+  const panelRef = useRef<HTMLElement>(null);
   const reservedLeadingPx = useBotsSidebarWidth();
   const [preferredWidth, setPreferredWidth] = useState(readPreferredWidth);
   const [viewportWidth, setViewportWidth] = useState(() => window.innerWidth);
@@ -43,6 +54,20 @@ export function ResizableSidePanel({
   const [dragging, setDragging] = useState(false);
   const drag = useRef<{ x: number; width: number; direction: number } | null>(null);
   const width = Math.max(MIN_WIDTH, Math.min(maxWidth, preferredWidth));
+
+  useEffect(() => {
+    if (!open) return;
+    const opener = document.activeElement;
+    return () => {
+      const current = document.activeElement;
+      if (
+        opener instanceof HTMLElement &&
+        opener.isConnected &&
+        (current === document.body || panelRef.current?.contains(current))
+      )
+        opener.focus({ preventScroll: true });
+    };
+  }, [open]);
 
   useEffect(() => {
     try {
@@ -74,16 +99,36 @@ export function ResizableSidePanel({
 
   return (
     <aside
+      ref={panelRef}
+      id={panelId}
+      aria-label={label}
+      aria-hidden={!open || undefined}
+      inert={!open}
+      onKeyDown={(event) => {
+        if (
+          open &&
+          onClose &&
+          event.key === "Escape" &&
+          !event.defaultPrevented &&
+          event.target instanceof Node &&
+          event.currentTarget.contains(event.target)
+        ) {
+          event.preventDefault();
+          event.stopPropagation();
+          onClose();
+        }
+      }}
       data-testid="side-panel"
       data-panel={panel}
       data-overlay={overlay || undefined}
       style={{ "--panel-width": `${width}px` } as CSSProperties}
-      className={`absolute inset-y-0 end-0 z-20 flex min-h-0 shrink-0 flex-col overflow-hidden bg-background ${overlay ? "md:absolute" : "md:relative"} ${dragging ? "" : "transition-[width] duration-150 ease-out"} ${open ? "w-full max-w-[384px] border-s border-sidebar-border md:w-(--panel-width) md:max-w-none" : "pointer-events-none w-0"}`}
+      className={`absolute inset-y-0 end-0 z-20 flex min-h-0 shrink-0 flex-col overflow-hidden bg-background ${overlay ? "md:absolute" : "md:relative"} ${dragging ? "" : "transition-[width] duration-150 ease-out"} ${open ? `w-full ${fullWidthOnMobile ? "" : "max-w-[384px]"} border-s border-sidebar-border md:w-(--panel-width) md:max-w-none` : "pointer-events-none w-0"}`}
     >
       {open ? (
         <hr
           tabIndex={0}
           aria-label={t`Resize panel`}
+          aria-controls={panelId}
           aria-orientation="vertical"
           aria-valuemin={MIN_WIDTH}
           aria-valuemax={maxWidth}

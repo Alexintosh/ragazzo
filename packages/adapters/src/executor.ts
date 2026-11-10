@@ -1773,6 +1773,7 @@ export function createRunExecutor(executorDeps: ExecutorDeps) {
               instructions: native
                 ? [
                     runIdentityInstruction(bot, run.trigger),
+                    agentSkillsLine,
                     messagingContext,
                     memoryContext ? redactSecrets(memoryContext, runSecrets) : undefined,
                     "Use native coding tools in the configured project and the offered Rakazo tools for application actions. Use the native question flow when user input is needed; helper delegation and screen takeover are unavailable in this runtime.",
@@ -1824,6 +1825,9 @@ export function createRunExecutor(executorDeps: ExecutorDeps) {
                   ),
               ),
               tools: scopedTask ? [] : tools,
+              ...(bot.maxToolCallsPerTurn != null
+                ? { maxToolCallsPerTurn: bot.maxToolCallsPerTurn }
+                : {}),
               model: {
                 provider: runModelProvider,
                 id: runModelId,

@@ -11,13 +11,16 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("../../lib/rpc", () => {
   const rpc = {
     hosts: { list: vi.fn(async () => []) },
-    bots: { executionStatus: vi.fn(async () => ({ available: true, authenticated: true })) },
+    bots: {
+      executionStatus: vi.fn(async () => ({ available: true, authenticated: true })),
+      roleplayMedia: vi.fn(async () => ({ storyMode: false })),
+    },
     voice: { voices: vi.fn(async () => []) },
     models: {
       credentials: vi.fn(async () => []),
       list: vi.fn(async () => []),
     },
-    me: vi.fn(async () => ({})),
+    me: vi.fn(async () => ({ sandboxProvider: "docker", localHostConfigured: true })),
   };
   return {
     rpc,
@@ -152,11 +155,35 @@ afterEach(() => {
 });
 
 type SavePatch = {
+  maxToolCallsPerTurn?: number | null;
+  expectedMaxToolCallsPerTurn?: number | null;
   disabledBuiltinTools?: string[];
   name?: string;
   title?: string;
   fleetManagement?: boolean;
 };
+
+it("saves an optional tool limit without switching the runtime and can disable it", async () => {
+  const onSave = vi.fn(async (_patch: SavePatch) => undefined);
+  await renderSettings(onSave);
+  const toggle = container.querySelector<HTMLButtonElement>('[id$="-tool-limit-enabled"]')!;
+  expect(toggle.getAttribute("aria-checked")).toBe("false");
+  await act(async () => toggle.click());
+  const input = container.querySelector<HTMLInputElement>('[aria-label="Maximum tool calls"]')!;
+  await act(async () => setField(input, "3"));
+  const save = () =>
+    [...container.querySelectorAll("button")].find((button) => button.textContent === "Save")!;
+  await act(async () => save().click());
+  expect(onSave).toHaveBeenLastCalledWith(
+    expect.objectContaining({ maxToolCallsPerTurn: 3, expectedMaxToolCallsPerTurn: null }),
+  );
+  expect(onSave.mock.calls.at(-1)).toHaveLength(1);
+  await act(async () => toggle.click());
+  await act(async () => save().click());
+  expect(onSave).toHaveBeenLastCalledWith(
+    expect.objectContaining({ maxToolCallsPerTurn: null, expectedMaxToolCallsPerTurn: 3 }),
+  );
+});
 
 function setField(input: HTMLInputElement, value: string) {
   const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
@@ -625,9 +652,12 @@ describe("canonical project folder saves", () => {
     await act(async () => setField(project, "/tmp/project"));
     await save();
     if (edit === "path") await act(async () => setField(project, "/another/project"));
-    else if (edit === "host")
+    else if (edit === "host") {
       await submitToolName(container.querySelector<HTMLSelectElement>('[id$="-host"]')!, "");
-    else
+      const nextProject = container.querySelector<HTMLInputElement>('[id$="-project"]')!;
+      expect(nextProject.value).toBe("");
+      await act(async () => setField(nextProject, "/another-host/project"));
+    } else
       await submitToolName(
         container.querySelector<HTMLSelectElement>('[id$="-permission"]')!,
         "full",
@@ -640,7 +670,7 @@ describe("canonical project folder saves", () => {
       edit === "path"
         ? "/another/project"
         : edit === "host"
-          ? "/tmp/project"
+          ? "/another-host/project"
           : "/private/tmp/project",
     );
     if (edit === "permission")
@@ -669,4 +699,35 @@ describe("Roleplay settings", () => {
     expect(container.querySelector('[data-testid="bot-settings-tools"]')).toBeNull();
     expect(container.querySelector('[aria-label="Instructions"]')).toBeNull();
   });
+});
+
+it("saves a profile name without applying an unfinished runtime draft", async () => {
+  const onSave = vi.fn(async (_patch: SavePatch) => undefined);
+  await renderSettings(onSave);
+  await submitToolName(container.querySelector<HTMLSelectElement>('[id$="-runtime"]')!, "codex");
+  await act(async () =>
+    container.querySelector<HTMLButtonElement>('[aria-label="Edit name"]')!.click(),
+  );
+  const name = container.querySelector<HTMLInputElement>('[aria-label="Name"]')!;
+  await act(async () => setField(name, "Research"));
+  await act(async () =>
+    name.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true })),
+  );
+  expect(onSave).toHaveBeenCalledOnce();
+  const saved = onSave.mock.calls[0]![0];
+  expect(saved).toMatchObject({ name: "Research" });
+  for (const field of [
+    "runtimeKind",
+    "executionTarget",
+    "projectPath",
+    "modelId",
+    "maxToolCallsPerTurn",
+  ]) {
+    expect(saved).not.toHaveProperty(field);
+  }
+  expect(container.querySelector<HTMLSelectElement>('[id$="-runtime"]')!.value).toBe("codex");
+  expect(
+    [...container.querySelectorAll("button")].find((button) => button.textContent === "Save")!
+      .disabled,
+  ).toBe(true);
 });

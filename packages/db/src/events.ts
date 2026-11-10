@@ -1,3 +1,4 @@
+import { AgentReasoningPayloadSchema } from "@rakazo/contracts";
 import type { ProductAnalytics, RealtimeFanout } from "@rakazo/adapter-kit";
 import type {
   BotSecretDestination,
@@ -2288,6 +2289,11 @@ export async function appendEventInTransaction(
   tx: Prisma.TransactionClient,
   input: AppendEventInput,
 ) {
+  const reasoning = input.type === "agent.reasoning";
+  if (reasoning) {
+    AgentReasoningPayloadSchema.parse(input.payload);
+    if (!input.runId || !input.lease) throw new RunHistoryWriteError();
+  }
   const activity = input.type === "thread.meta" && hasThinkingActivityMarker(input.payload);
   if (activity) {
     ThreadActivityPayloadSchema.parse(input.payload);
@@ -2315,7 +2321,10 @@ export async function appendEventInTransaction(
       allowCancelled: input.allowCancelledRun,
       lease: input.lease,
     });
-    if (activity && (run?.status !== "running" || run.leaseOwner !== input.lease?.owner)) {
+    if (
+      (activity || reasoning) &&
+      (run?.status !== "running" || run.leaseOwner !== input.lease?.owner)
+    ) {
       throw new RunHistoryWriteError();
     }
     firstResponseAt = run?.firstResponseAt;

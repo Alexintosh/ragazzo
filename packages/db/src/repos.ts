@@ -113,6 +113,7 @@ function mapBot(
     runtimePermission?: string;
     projectPath?: string | null;
     thinkingLevel?: string | null;
+    maxToolCallsPerTurn?: number | null;
     teamChatAmbientEnabled?: boolean;
     teamChatRules?: string;
     crossSpaceCommunication?: boolean;
@@ -168,6 +169,7 @@ function mapBot(
     modelProvider: bot.modelProvider ? canonicalPiProviderId(bot.modelProvider) : null,
     modelId: bot.modelId ?? null,
     thinkingLevel: (bot.thinkingLevel as Bot["thinkingLevel"]) ?? null,
+    maxToolCallsPerTurn: bot.maxToolCallsPerTurn ?? null,
     teamChatAmbientEnabled: bot.teamChatAmbientEnabled ?? false,
     teamChatRules: bot.teamChatRules ?? "",
     crossSpaceCommunication: bot.crossSpaceCommunication ?? false,
@@ -557,6 +559,7 @@ export function createRepos(
         modelProvider?: string | null;
         modelId?: string | null;
         thinkingLevel?: string | null;
+        maxToolCallsPerTurn?: number | null;
         disabledBuiltinTools?: string[];
         initialMessage?: {
           role: "user" | "bot" | "system";
@@ -692,6 +695,7 @@ export function createRepos(
               modelProvider,
               modelId,
               thinkingLevel,
+              maxToolCallsPerTurn: input.maxToolCallsPerTurn ?? null,
               disabledBuiltinTools,
             },
           });

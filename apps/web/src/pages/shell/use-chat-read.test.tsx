@@ -43,7 +43,17 @@ const rpc = {
   threads: { markRead: request("markRead"), markUnread: request("markUnread") },
 } as unknown as ReturnType<typeof createSpaceRpc>;
 
-function Harness({ active, group, taskId }: { active?: Bot; group?: Group; taskId?: string }) {
+function Harness({
+  active,
+  group,
+  taskId,
+  visible,
+}: {
+  active?: Bot;
+  group?: Group;
+  taskId?: string;
+  visible?: boolean;
+}) {
   const [bots, setBots] = useState([botA, botB]);
   const [groups, setGroups] = useState([groupG]);
   const read = useChatRead({
@@ -52,6 +62,7 @@ function Harness({ active, group, taskId }: { active?: Bot; group?: Group; taskI
     groupId: group?.id,
     taskId,
     activeGroup: group,
+    visible,
     setBots,
     setGroups,
   });
@@ -65,7 +76,7 @@ async function flush() {
   });
 }
 
-async function open(chat: { active?: Bot; group?: Group; taskId?: string }) {
+async function open(chat: { active?: Bot; group?: Group; taskId?: string; visible?: boolean }) {
   act(() => root.render(<Harness {...chat} />));
   await flush();
 }
@@ -269,4 +280,17 @@ it("marks task visits and unread boundaries without clearing the main bot conver
   await open({ active: botA, taskId: "task-two" });
   expect(requests[2]!.input).toEqual({ taskId: "task-two" });
   expect(latest.read.markedUnreadMessageId).toBeUndefined();
+});
+
+it("keeps a hidden transcript unread until revealed and rejects a stale bot callback", async () => {
+  await open({ active: botA, visible: false });
+  latest.read.markBotReadIfVisible(botA.id);
+  await focus();
+  expect(requests).toHaveLength(0);
+  await open({ active: botA, visible: true });
+  expect(requests).toHaveLength(1);
+  await settle(0);
+  latest.read.markBotReadIfVisible(botB.id);
+  await flush();
+  expect(requests).toHaveLength(1);
 });

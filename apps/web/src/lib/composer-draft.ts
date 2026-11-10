@@ -147,6 +147,77 @@ export function readComposerDraft(
   }
 }
 
+/** Verify persisted chip identities and offsets as well as the visible draft. */
+export function composerDraftMatches(
+  threadKey: string,
+  text: string,
+  bindings: readonly ComposerMentionBinding[],
+  storage: DraftStorage | null = getLocalStorage(),
+): boolean {
+  const expected = validateComposerMentionBindings(text, bindings);
+  return (
+    storage !== null &&
+    readComposerDraft(threadKey, storage) === text &&
+    expected.length === bindings.length &&
+    JSON.stringify(readComposerDraftBindings(threadKey, storage)) === JSON.stringify(expected)
+  );
+}
+
+/** Handoffs require durable text and chip metadata together. */
+export function writeVerifiedComposerDraft(
+  threadKey: string,
+  draft: string,
+  storage: DraftStorage | null = getLocalStorage(),
+  bindings?: readonly ComposerMentionBinding[],
+): boolean {
+  pendingSubmissions.delete(threadKey);
+  if (!storage || !threadKey) return false;
+  const draftKey = composerDraftStorageKey(threadKey);
+  const bindingKey = composerDraftBindingsKey(threadKey);
+  let previousDraft: string | null;
+  let previousBindings: string | null;
+  try {
+    previousDraft = storage.getItem(draftKey);
+    previousBindings = storage.getItem(bindingKey);
+  } catch {
+    return false;
+  }
+  // Unchanged plain-text resubmissions retain their existing identities.
+  const bindingRecord =
+    bindings === undefined && draft && draft === previousDraft
+      ? previousBindings
+      : bindings?.length && draft
+        ? JSON.stringify({ version: 1, text: draft, bindings })
+        : null;
+  if (bindings && validateComposerMentionBindings(draft, bindings).length !== bindings.length)
+    return false;
+  const restore = (key: string, value: string | null) => {
+    try {
+      if (value === null) storage.removeItem(key);
+      else storage.setItem(key, value);
+    } catch {
+      // A denied storage operation must not prevent restoring the other record.
+    }
+  };
+  try {
+    // Metadata first: quota failures must not replace a draft without its metadata.
+    if (bindingRecord === null) storage.removeItem(bindingKey);
+    else storage.setItem(bindingKey, bindingRecord);
+    if (draft.length === 0) storage.removeItem(draftKey);
+    else storage.setItem(draftKey, draft);
+    if (
+      storage.getItem(draftKey) !== (draft || null) ||
+      storage.getItem(bindingKey) !== bindingRecord
+    )
+      throw new Error("Composer draft storage did not retain the complete draft");
+    return true;
+  } catch {
+    restore(draftKey, previousDraft);
+    restore(bindingKey, previousBindings);
+    return false;
+  }
+}
+
 export function writeComposerDraft(
   threadKey: string,
   draft: string,

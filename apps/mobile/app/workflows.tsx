@@ -1,6 +1,6 @@
 import type { WorkflowNodeState, WorkflowRun } from "@rakazo/contracts";
 import { canRecoverWorkflowNode } from "@rakazo/contracts";
-import { newClientId } from "@rakazo/core";
+import { newClientId, workflowWaiting } from "@rakazo/core";
 import { useQuery } from "@tanstack/react-query";
 import { Stack, useFocusEffect, useIsFocused, useRouter } from "expo-router";
 import { useCallback, useRef, useState } from "react";
@@ -10,7 +10,11 @@ import { MenuPicker } from "../components/menu-picker";
 import { NativeActionButton } from "../components/native-action-button";
 import { SettingsGroup, SettingsRow } from "../components/settings-group";
 import { useAppForeground } from "../lib/app-foreground";
-import { createConversationRequest } from "../lib/conversation-work";
+import {
+  createConversationRequest,
+  waitingActionLabel,
+  waitingLabel,
+} from "../lib/conversation-work";
 import { useI18n } from "../lib/i18n";
 import { useMobileTokens } from "../lib/native";
 import { queryClient, rpcQuery } from "../lib/query";
@@ -75,14 +79,18 @@ function WorkflowDetail({ workflowId }: { workflowId: string }) {
   const poll = focused && foreground ? 5_000 : false;
   const definition = useQuery(rpcQuery("workflows/get", { workflowId }), queryClient);
   const runs = useQuery(
-    { ...rpcQuery("workflows/runs", { workflowId }), refetchInterval: poll },
+    {
+      ...rpcQuery("workflows/runs", { workflowId }),
+      refetchInterval: poll,
+      refetchOnReconnect: "always",
+    },
     queryClient,
   );
   const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
   const runId = selectedRunId ?? runs.data?.runs[0]?.id;
   const runOptions = rpcQuery("workflows/run", { runId: runId! });
   const run = useQuery(
-    { ...runOptions, enabled: Boolean(runId), refetchInterval: poll },
+    { ...runOptions, enabled: Boolean(runId), refetchInterval: poll, refetchOnReconnect: "always" },
     queryClient,
   );
   const receipt = useRef<WorkflowRun | null>(null);
@@ -90,6 +98,12 @@ function WorkflowDetail({ workflowId }: { workflowId: string }) {
   if (run.data && (!receipt.current || run.data.revision >= receipt.current.revision))
     receipt.current = run.data;
   const currentRun = receipt.current;
+  useFocusEffect(
+    useCallback(() => {
+      void runs.refetch();
+      if (runId) void run.refetch();
+    }, [runId, foreground]),
+  );
   const [busy, setBusy] = useState(false);
   const busyRef = useRef(false);
   const [error, setError] = useState<string | null>(null);
@@ -120,7 +134,7 @@ function WorkflowDetail({ workflowId }: { workflowId: string }) {
     } catch (cause) {
       setError(errorText(cause));
     } finally {
-      await Promise.all([runs.refetch(), definition.refetch()]);
+      await Promise.all([runs.refetch(), definition.refetch(), ...(runId ? [run.refetch()] : [])]);
       busyRef.current = false;
       setBusy(false);
     }
@@ -220,11 +234,14 @@ function WorkflowDetail({ workflowId }: { workflowId: string }) {
             {currentRun.graph.nodes.map((node) => {
               const state = currentRun.nodes.find((value) => value.nodeId === node.id);
               if (!state) return null;
+              const waiting = workflowWaiting(state);
               return (
                 <View key={node.id}>
                   <SettingsRow
                     title={node.label}
-                    detail={[status(state.status), state.error].filter(Boolean).join(" · ")}
+                    detail={[waiting ? waitingLabel(waiting) : status(state.status), state.error]
+                      .filter(Boolean)
+                      .join(" · ")}
                     chevron={state.taskId ? "right" : undefined}
                     onPress={
                       state.taskId
@@ -236,6 +253,21 @@ function WorkflowDetail({ workflowId }: { workflowId: string }) {
                         : undefined
                     }
                   />
+                  {waiting?.action && waiting.messageId && state.taskId ? (
+                    <View style={{ paddingHorizontal: 16, paddingBottom: 12 }}>
+                      <NativeActionButton
+                        label={waitingActionLabel(waiting)}
+                        prominence="plain"
+                        disabled={busy}
+                        onPress={() =>
+                          router.push({
+                            pathname: "/task-conversation",
+                            params: { taskId: state.taskId!, messageId: waiting.messageId! },
+                          })
+                        }
+                      />
+                    </View>
+                  ) : null}
                   {canRecoverWorkflowNode(state) && currentRun.status !== "running" ? (
                     <View style={{ paddingHorizontal: 16, paddingBottom: 12 }}>
                       <NativeActionButton

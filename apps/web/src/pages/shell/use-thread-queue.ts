@@ -1,9 +1,15 @@
 import type { ThreadQueue } from "@rakazo/contracts";
+import { queueWaiting } from "@rakazo/core";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { createSpaceRpc } from "../../lib/rpc";
 import { errorText } from "../../lib/user-error";
 
-export type QueueConversationTarget = { botId?: string; groupId?: string; taskId?: string; recipientBotId?: string };
+export type QueueConversationTarget = {
+  botId?: string;
+  groupId?: string;
+  taskId?: string;
+  recipientBotId?: string;
+};
 
 /** The server owns queue order and claim state; local edits never replace that state. */
 export function useThreadQueue(
@@ -12,9 +18,16 @@ export function useThreadQueue(
   cursor: number | undefined,
 ) {
   const input = typeof conversation === "string" ? { botId: conversation } : conversation;
-  const botId = input ? [input.botId, input.groupId, input.taskId, input.recipientBotId].join(":") : undefined;
+  const botId = input
+    ? [input.botId, input.groupId, input.taskId, input.recipientBotId].join(":")
+    : undefined;
   const targetInput = useMemo(() => input, [botId]);
-  const [state, setState] = useState<{ botId: string; queue: ThreadQueue } | null>(null);
+  const [state, setState] = useState<{
+    botId: string;
+    queue: ThreadQueue;
+    readOrder: number;
+  } | null>(null);
+  const readOrder = useRef(0);
   const [error, setError] = useState<{ botId: string; text: string } | null>(null);
   const [busy, setBusy] = useState(false);
   const scope = useRef(botId);
@@ -27,18 +40,21 @@ export function useThreadQueue(
       mounted.current = false;
     };
   }, []);
-  const commit = useCallback((target: string, next: ThreadQueue) => {
+  const commit = useCallback((target: string, next: ThreadQueue, order: number) => {
     if (!mounted.current || scope.current !== target) return;
     setState((previous) =>
-      previous?.botId === target && previous.queue.revision > next.revision
+      previous?.botId === target &&
+      (previous.queue.revision > next.revision ||
+        (previous.queue.revision === next.revision && previous.readOrder > order))
         ? previous
-        : { botId: target, queue: next },
+        : { botId: target, queue: next, readOrder: order },
     );
   }, []);
   const refresh = useCallback(async () => {
     if (!botId) return;
+    const order = ++readOrder.current;
     try {
-      commit(botId, await rpc.threads.queue(targetInput!));
+      commit(botId, await rpc.threads.queue(targetInput!), order);
     } catch (cause) {
       if (mounted.current && scope.current === botId) setError({ botId, text: errorText(cause) });
     }
@@ -47,7 +63,14 @@ export function useThreadQueue(
     setError(null);
     void refresh();
     const timer = window.setInterval(() => void refresh(), 5_000);
-    return () => window.clearInterval(timer);
+    const reread = () => void refresh();
+    window.addEventListener("online", reread);
+    window.addEventListener("focus", reread);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener("online", reread);
+      window.removeEventListener("focus", reread);
+    };
   }, [refresh]);
   useEffect(() => {
     const timer = window.setTimeout(() => void refresh(), 250);
@@ -60,8 +83,9 @@ export function useThreadQueue(
     mutation.current = true;
     setBusy(true);
     setError(null);
+    const order = ++readOrder.current;
     try {
-      commit(target, await action(target));
+      commit(target, await action(target), order);
       return true;
     } catch (cause) {
       if (mounted.current && scope.current === target) {
@@ -75,8 +99,23 @@ export function useThreadQueue(
       if (mounted.current) setBusy(false);
     }
   }
+  const queue = state && state.botId === botId ? state.queue : null;
+  const waiting = queue ? queueWaiting(queue) : undefined;
+  const path = input?.taskId
+    ? input.botId
+      ? `/app/${encodeURIComponent(input.botId)}/tasks/${encodeURIComponent(input.taskId)}`
+      : window.location.pathname
+    : input?.groupId
+      ? `/app/g/${encodeURIComponent(input.groupId)}`
+      : input?.botId
+        ? `/app/${encodeURIComponent(input.botId)}`
+        : undefined;
   return {
-    queue: state && state.botId === botId ? state.queue : null,
+    queue,
+    waitingHref:
+      waiting?.action && waiting.messageId && path
+        ? `${path}?${new URLSearchParams({ m: waiting.messageId })}`
+        : undefined,
     error: error && error.botId === botId ? error.text : null,
     busy,
     enqueue: (text: string, clientNonce: string) =>

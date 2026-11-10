@@ -130,6 +130,10 @@ export function createHostComputerRunner(options: {
     };
   }
 
+  // A persisted workspace survives bridge restarts, but its live browser/command ownership does not.
+  const isRunning = (computer: ComputerRef, context: AdapterContext) =>
+    provider.boxes.has(computer.id) && provider.isRunning(computer, context);
+
   function screen() {
     if (!options.screen)
       throw new HostScreenError("Screen control is not available on this computer.");
@@ -154,13 +158,12 @@ export function createHostComputerRunner(options: {
       const browserInput = input as HostBrowserRequest;
       if (stoppingBrowsers && input.method !== "browserRevokeScope")
         throw new Error("Host browser is stopping");
-      if (input.method === "browserScreen" && !(await provider.isRunning(computer, context)))
+      if (input.method === "browserScreen" && !(await isRunning(computer, context)))
         throw new Error(HOST_COMPUTER_STOPPED_MESSAGE);
       if (["browserPage", "browserObserve", "browserAct"].includes(input.method)) {
         const lease = await beginMutation();
         try {
-          if (!(await provider.isRunning(computer, context)))
-            throw new Error("Local computer stopped");
+          if (!(await isRunning(computer, context))) throw new Error("Local computer stopped");
           await lease.check();
           yield await browsers.dispatch(browserInput, computer, context.signal);
         } finally {
@@ -251,7 +254,7 @@ export function createHostComputerRunner(options: {
         break;
       }
       case "isRunning":
-        yield await provider.isRunning(computer, context);
+        yield await isRunning(computer, context);
         break;
       case "prepare":
         await provider.prepare(computer, context);
@@ -267,8 +270,7 @@ export function createHostComputerRunner(options: {
           let release: (() => Promise<void>) | undefined;
           let verified = true;
           try {
-            if (!(await provider.isRunning(computer, context)))
-              throw new Error("Local computer stopped");
+            if (!(await isRunning(computer, context))) throw new Error("Local computer stopped");
             release = await writeScopes.acquire(
               `host-command:${randomUUID()}`,
               null,

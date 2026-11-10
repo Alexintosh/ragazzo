@@ -16,6 +16,14 @@ No Docker image or browser download is required when Chrome/Chromium is already 
 
 ## Runtime settings
 
+Use [the typed agent workflow](../.agents/skills/native-runtime-settings/SKILL.md)
+for configuration, model inheritance, conflict handling and post-save rereads.
+Host availability comes from the existing `me.localHostConfigured` capability.
+Changing host clears the draft project folder. Profile autosaves preserve unsaved
+advanced settings; the operator applies those settings with Save.
+Native runs receive the available application skill catalog as well as explicit
+skill invocations. A catalog entry does not grant filesystem or tool access.
+
 In web bot creation and settings, **Browse** opens a directory picker on the selected host. It lists folders within that host's home directory; **Use folder** updates the draft, while **Cancel** leaves it unchanged. Manual entry remains available for other locations. The picker does not upload files, create folders, save the bot or grant host access. Changing host or Space discards the previous listing.
 
 Saving native execution settings resolves an existing absolute project path on the selected host and stores its canonical location. For example, macOS `/tmp/example` resolves to `/private/tmp/example`. Later work uses that saved location rather than following the original alias again; runtime checks still reject a saved canonical path that has become a symlink. The host bridge must support project-path resolution, and unavailable hosts or missing folders fail before saving a new execution configuration.

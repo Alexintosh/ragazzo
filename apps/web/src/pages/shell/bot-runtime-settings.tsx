@@ -3,9 +3,8 @@ import type { Bot } from "@rakazo/contracts";
 import { NativeRuntimeCapabilities } from "@rakazo/contracts";
 import { Button, NativeSelect, NativeSelectOption } from "@rakazo/ui-web";
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useId, useState } from "react";
+import { useId } from "react";
 import { useSpaceQueries } from "../../lib/query";
-import { useSpaceRpc } from "../../lib/space-rpc";
 import { NativeRuntimeSetup } from "./native-runtime-setup";
 import { ProjectFolderPicker } from "./project-folder-picker";
 import { RegisteredHostPicker } from "./registered-host-picker";
@@ -14,6 +13,21 @@ export type BotRuntimeSettingsValue = Pick<
   Bot,
   "runtimeKind" | "executionTarget" | "runtimePermission" | "projectPath" | "registeredHostId"
 >;
+
+/** Incomplete selections stay local until the operator chooses a host and project. */
+export function useBotRuntimeSettingsError(value: BotRuntimeSettingsValue) {
+  const { t } = useLingui();
+  const queries = useSpaceQueries();
+  const me = useQuery({ ...queries.me.queryOptions(), refetchOnMount: "always" });
+  if (value.executionTarget === "host" && !value.registeredHostId) {
+    if (me.isPending) return t`Checking host availability…`;
+    if (me.data?.localHostConfigured !== true)
+      return t`Select a registered host, such as your Mac.`;
+  }
+  if (value.runtimeKind !== "pi" && !value.projectPath?.trim())
+    return t`Choose a project folder on the selected host.`;
+  return null;
+}
 
 export function BotRuntimeSettings({
   value,
@@ -24,31 +38,15 @@ export function BotRuntimeSettings({
 }) {
   const { t } = useLingui();
   const id = useId();
-  const rpc = useSpaceRpc();
-  const [environment, setEnvironment] = useState<{
-    client: typeof rpc;
-    provider?: string | null;
-    failed?: boolean;
-  }>();
-  useEffect(() => {
-    let active = true;
-    void rpc.me({}).then(
-      (me) => {
-        if (active) setEnvironment({ client: rpc, provider: me.sandboxProvider });
-      },
-      () => {
-        if (active) setEnvironment({ client: rpc, failed: true });
-      },
-    );
-    return () => {
-      active = false;
-    };
-  }, [rpc]);
-  const currentEnvironment = environment?.client === rpc ? environment : undefined;
-  const dockerAvailable = currentEnvironment?.provider === "docker";
-  const dockerHint = currentEnvironment?.failed
+  const queries = useSpaceQueries();
+  const environment = useQuery({ ...queries.me.queryOptions(), refetchOnMount: "always" });
+  const dockerAvailable = environment.data?.sandboxProvider === "docker";
+  const localHostAvailable = environment.data?.localHostConfigured === true;
+  const hostReady = Boolean(value.registeredHostId) || localHostAvailable;
+  const selectionError = useBotRuntimeSettingsError(value);
+  const dockerHint = environment.isError
     ? t`Could not check Docker availability.`
-    : !currentEnvironment
+    : environment.isPending
       ? t`Checking Docker availability…`
       : t`Docker is not enabled on this deployment.`;
   return (
@@ -121,13 +119,21 @@ export function BotRuntimeSettings({
       {value.executionTarget === "host" ? (
         <RegisteredHostPicker
           value={value.registeredHostId ?? null}
-          onChange={(registeredHostId) => onChange({ ...value, registeredHostId })}
+          localHostAvailable={localHostAvailable}
+          onChange={(registeredHostId) =>
+            onChange({
+              ...value,
+              registeredHostId,
+              projectPath:
+                registeredHostId === (value.registeredHostId ?? null) ? value.projectPath : null,
+            })
+          }
         />
       ) : null}
-      {value.runtimeKind !== "pi" ? (
+      {value.runtimeKind !== "pi" && hostReady ? (
         <NativeRuntimeSetup kind={value.runtimeKind} hostId={value.registeredHostId ?? null} />
       ) : null}
-      {value.runtimeKind !== "pi" ? (
+      {value.runtimeKind !== "pi" && hostReady ? (
         <ProjectFolderPicker
           key={value.registeredHostId ?? "local"}
           id={`${id}-project`}
@@ -135,6 +141,11 @@ export function BotRuntimeSettings({
           value={value.projectPath}
           onChange={(projectPath) => onChange({ ...value, projectPath })}
         />
+      ) : null}
+      {selectionError ? (
+        <p role="status" className="text-xs text-muted-foreground">
+          {selectionError}
+        </p>
       ) : null}
       {value.runtimeKind !== "pi" ? (
         <label
@@ -160,6 +171,15 @@ export function BotRuntimeSettings({
             <NativeSelectOption value="full">{t`Full access`}</NativeSelectOption>
           </NativeSelect>
         </label>
+      ) : null}
+      {value.runtimeKind !== "pi" ? (
+        <div role="note" className="space-y-1 text-xs text-muted-foreground">
+          <p>
+            {value.runtimePermission === "full"
+              ? t`Full access allows file changes and commands outside the project folder.`
+              : t`Workspace limits file writes. It does not limit all reads or network access.`}
+          </p>
+        </div>
       ) : null}
     </div>
   );

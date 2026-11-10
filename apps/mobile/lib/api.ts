@@ -1,3 +1,4 @@
+import { reduceAgentActivity } from "@rakazo/core";
 import type {
   AccountSecurity,
   AuthCapabilities,
@@ -1486,6 +1487,21 @@ export function applyMobileThreadEvent(
   event: ThreadEvent,
 ): MobileSnapshot | null {
   if (!prev || event.type === "heartbeat") return prev;
+  if (
+    (!event.threadId || event.threadId === prev.threadId) &&
+    event.seq !== undefined &&
+    event.seq > (prev.cursor ?? -1)
+  ) {
+    const activity = reduceAgentActivity(prev.activity ?? [], event);
+    if (activity.length || prev.activity?.length) prev = { ...prev, activity };
+  }
+  if (event.type === "agent.reasoning" || event.type === "thread.meta") {
+    return (!event.threadId || event.threadId === prev.threadId) &&
+      event.seq !== undefined &&
+      event.seq > (prev.cursor ?? -1)
+      ? { ...prev, cursor: event.seq }
+      : prev;
+  }
   if (stopsRunHelpers(event)) {
     const messages = settleRunSubagents(prev.messages, event.runId);
     if (messages !== prev.messages) prev = { ...prev, messages };
@@ -1495,6 +1511,7 @@ export function applyMobileThreadEvent(
       ...prev,
       cursor: event.seq,
       messages: [],
+      activity: [],
       olderCursor: null,
       run: null,
       activeRuns: [],

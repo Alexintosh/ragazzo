@@ -27,6 +27,7 @@ import {
   Suspense,
   useCallback,
   useEffect,
+  useId,
   useLayoutEffect,
   useMemo,
   useRef,
@@ -34,6 +35,7 @@ import {
   useSyncExternalStore,
 } from "react";
 import { useParams } from "react-router-dom";
+import { AgentActivity } from "../components/AgentActivity";
 import { ComputerUpdateProgress } from "../components/ComputerUpdateProgress";
 import { CallCard, CallReturnBar } from "../components/call/CallCard";
 import { IncomingCall } from "../components/call/IncomingCall";
@@ -147,6 +149,9 @@ function SpaceShell() {
     overlay,
     setOverlay,
   } = useShellNavigation();
+  const [tasksVisible, setTasksVisible] = useState(false);
+  const [activityVisible, setActivityVisible] = useState(false);
+  const composerPanelId = useId();
   const queries = spaceQueries(userId ?? null, shellSpaceId);
   const tasksFilter = groupId ? { groupId } : botId && !taskId ? { botId } : {};
   const tasksQuery = useInfiniteQuery({
@@ -1069,6 +1074,15 @@ function SpaceShell() {
         {active || activeGroup ? (
           // Let messages continue behind the composer's rounded top corners.
           <div className="pointer-events-none relative z-30 -mt-7">
+            <div id={`${composerPanelId}-activity`} hidden={!activityVisible}>
+              <AgentActivity
+                key={activeSnapshot?.threadId}
+                entries={activeSnapshot?.activity ?? []}
+                defaultOpen
+                visible={activityVisible}
+                botName={inGroup ? (id) => resolveTranscriptMemberName(id) : undefined}
+              />
+            </div>
             {recordingSkill ? (
               <div className="pointer-events-auto bg-background px-6 pb-2 text-center text-[13px] text-destructive">
                 <Trans>Teaching in progress. Stop teaching before sending a new message.</Trans>
@@ -1094,7 +1108,11 @@ function SpaceShell() {
                 </select>
               </label>
             ) : null}
-            <div className="pointer-events-auto px-3 pb-2 md:px-[max(1.5rem,calc((100%_-_60rem)/2))]">
+            <div
+              id={`${composerPanelId}-tasks`}
+              hidden={!tasksVisible}
+              className="pointer-events-auto px-3 pb-2 md:px-[max(1.5rem,calc((100%_-_60rem)/2))]"
+            >
               {taskId ? (
                 <Button
                   size="sm"
@@ -1103,6 +1121,8 @@ function SpaceShell() {
                 >{t`Bot conversation`}</Button>
               ) : null}
               <ConversationTasks
+                visible={tasksVisible}
+                defaultOpen
                 key={taskId ?? groupId ?? active?.id}
                 rpc={rpc}
                 target={taskId ? { taskId } : groupId ? { groupId } : { botId: active!.id }}
@@ -1136,6 +1156,16 @@ function SpaceShell() {
               }}
             />
             <Composer
+              taskPanel={{
+                visible: tasksVisible,
+                id: `${composerPanelId}-tasks`,
+                toggle: () => setTasksVisible((visible) => !visible),
+              }}
+              activityPanel={{
+                visible: activityVisible,
+                id: `${composerPanelId}-activity`,
+                toggle: () => setActivityVisible((visible) => !visible),
+              }}
               key={taskId ? `task:${taskId}` : inGroup ? `group:${groupId}` : `bot:${active?.id}`}
               draftKey={
                 taskId ? `task:${taskId}` : inGroup ? `group:${groupId}` : `bot:${active?.id}`

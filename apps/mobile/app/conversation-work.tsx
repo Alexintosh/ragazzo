@@ -1,5 +1,5 @@
 import type { ConversationTask, ThreadQueue } from "@rakazo/contracts";
-import { newClientId } from "@rakazo/core";
+import { newClientId, queueWaiting } from "@rakazo/core";
 import { useQuery } from "@tanstack/react-query";
 import { Stack, useFocusEffect, useIsFocused, useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useRef, useState } from "react";
@@ -10,7 +10,13 @@ import { NativeActionButton } from "../components/native-action-button";
 import { SettingsGroup, SettingsRow } from "../components/settings-group";
 import { activityStatusLabel } from "../lib/activity";
 import { useAppForeground } from "../lib/app-foreground";
-import { createConversationRequest, latestQueue, moveQueued } from "../lib/conversation-work";
+import {
+  createConversationRequest,
+  latestQueue,
+  moveQueued,
+  waitingActionLabel,
+  waitingLabel,
+} from "../lib/conversation-work";
 import { useI18n } from "../lib/i18n";
 import { native, useMobileTokens } from "../lib/native";
 import { queryClient, rpcQuery } from "../lib/query";
@@ -72,6 +78,7 @@ function Work({ botId, groupId, taskId }: { botId?: string; groupId?: string; ta
       ...queueOptions,
       enabled: valid && Boolean(recipientId),
       refetchInterval: poll,
+      refetchOnReconnect: "always",
     },
     queryClient,
   );
@@ -101,7 +108,7 @@ function Work({ botId, groupId, taskId }: { botId?: string; groupId?: string; ta
   useFocusEffect(
     useCallback(() => {
       void refresh();
-    }, [queueKey]),
+    }, [queueKey, foreground]),
   );
 
   function nonce(key: string) {
@@ -133,6 +140,7 @@ function Work({ botId, groupId, taskId }: { botId?: string; groupId?: string; ta
   async function queueAction(action: () => Promise<ThreadQueue>) {
     const requested = queueKey;
     await act(async () => {
+      await queryClient.cancelQueries({ queryKey: queueOptions.queryKey, exact: true });
       const next = await action();
       if (queueRef.current.key === requested) {
         queueRef.current.data = latestQueue(queueRef.current.data, next);
@@ -149,6 +157,7 @@ function Work({ botId, groupId, taskId }: { botId?: string; groupId?: string; ta
       ? errorText(queueQuery.error ?? tasks.error ?? stopped.error ?? group.error ?? task.error)
       : null);
   const disabled = busy || !recipientId;
+  const waiting = queue ? queueWaiting(queue) : undefined;
   return (
     <ScrollView
       style={[{ flex: 1, backgroundColor: tokens.background }, sideInsets]}
@@ -318,17 +327,26 @@ function Work({ botId, groupId, taskId }: { botId?: string; groupId?: string; ta
           )}
           {queue ? (
             <SettingsGroup label={t("Queue")}>
-              <SettingsRow
-                title={
-                  queue.waitingReason === "approval"
-                    ? t("Waiting for approval")
-                    : queue.waitingReason === "computer"
-                      ? t("Waiting for computer")
-                      : queue.waitingReason === "running"
-                        ? t("Running")
-                        : t("Ready")
-                }
-              />
+              <SettingsRow title={waiting ? waitingLabel(waiting) : t("Waiting")} />
+              {waiting?.action && waiting.messageId ? (
+                <NativeActionButton
+                  label={waitingActionLabel(waiting)}
+                  prominence="plain"
+                  disabled={disabled}
+                  onPress={() => {
+                    const params = { messageId: waiting.messageId! };
+                    if (taskId)
+                      router.push({
+                        pathname: "/task-conversation",
+                        params: { ...params, taskId },
+                      });
+                    else if (groupId)
+                      router.push({ pathname: "/group-thread", params: { ...params, groupId } });
+                    else if (botId)
+                      router.push({ pathname: "/thread", params: { ...params, botId } });
+                  }}
+                />
+              ) : null}
               {queue.entries.map((entry, index) => (
                 <View key={entry.id} style={{ padding: 16, gap: 10 }}>
                   <Text selectable style={{ color: tokens.foreground }}>

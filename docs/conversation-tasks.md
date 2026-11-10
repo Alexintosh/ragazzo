@@ -1,6 +1,12 @@
 # Task conversations and recovery
 
-A bot can have separate task conversations. Open **Tasks** in a conversation to create one, or use **Start as task** on an unclaimed queue entry. Group queues require an explicit recipient. Moving input to a task atomically withdraws it from the original queue; it cannot run in both places.
+A bot can have separate task conversations. On web and Electron, the **Tasks** icon
+beside the attachment control shows or hides the task panel, initially hidden.
+Hiding the panel preserves task instructions being edited. Mobile's matching icon
+opens the existing **Conversation work** screen. Open **Tasks** to create one, or
+use **Start as task** on an unclaimed queue entry. Group queues require an explicit
+recipient. Moving input to a task atomically withdraws it from the original queue;
+it cannot run in both places.
 
 Tasks reuse the existing bot identity, computer, runtime, permissions and model settings. Their messages, approvals, Stop action, draft and native session belong to their own thread. Task conversations remain addressable after they leave the newest page. Activity, search and source links open the task itself.
 

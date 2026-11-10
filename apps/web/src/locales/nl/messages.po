@@ -695,6 +695,11 @@ msgstr ""
 msgid "Agent"
 msgstr ""
 
+#: src/components/AgentActivity.tsx
+#: src/pages/shell/composer.tsx
+msgid "Agent activity"
+msgstr "Agentactiviteit"
+
 #: src/pages/shell/bot-panel.tsx
 #: src/pages/shell/create-bot-dialog.tsx
 msgid "Agent and environment"
@@ -1443,6 +1448,10 @@ msgid "Checking Docker availability…"
 msgstr ""
 
 #: src/pages/shell/bot-runtime-settings.tsx
+msgid "Checking host availability…"
+msgstr ""
+
+#: src/pages/shell/bot-runtime-settings.tsx
 msgid "Checking runtime…"
 msgstr ""
 
@@ -1469,6 +1478,10 @@ msgstr "Kies een model"
 #: src/pages/Auth.tsx
 msgid "Choose a new password"
 msgstr "Kies een nieuw wachtwoord"
+
+#: src/pages/shell/bot-runtime-settings.tsx
+msgid "Choose a project folder on the selected host."
+msgstr ""
 
 #: src/pages/Onboarding.tsx
 msgid "Choose a provider"
@@ -1671,6 +1684,7 @@ msgstr "Compact"
 msgid "Complete"
 msgstr "Voltooid"
 
+#: src/components/AgentActivity.tsx
 #: src/components/SubagentCard.tsx
 msgid "Completed"
 msgstr "Voltooid"
@@ -3103,6 +3117,10 @@ msgstr "Voer een wachtwoord in"
 msgid "Enter a path to find other folders."
 msgstr ""
 
+#: src/pages/shell/bot-panel.tsx
+msgid "Enter a positive whole number for the tool call limit."
+msgstr ""
+
 #: src/lib/user-error.ts
 msgid "Enter a valid email"
 msgstr "Voer een geldig e-mailadres in"
@@ -3231,6 +3249,10 @@ msgstr "Elke maand"
 msgid "Every week"
 msgstr "Elke week"
 
+#: src/pages/shell/bot-panel.tsx
+msgid "Execution limits"
+msgstr ""
+
 #: src/pages/PluginsOverlay.tsx
 msgid "Executor token"
 msgstr "Executor-token"
@@ -3291,6 +3313,7 @@ msgstr "Extra hoog"
 msgid "failed"
 msgstr "mislukt"
 
+#: src/components/AgentActivity.tsx
 #: src/components/SubagentCard.tsx
 #: src/pages/ActivityList.tsx
 msgid "Failed"
@@ -3433,6 +3456,10 @@ msgstr ""
 
 #: src/pages/shell/bot-runtime-settings.tsx
 msgid "Full access"
+msgstr ""
+
+#: src/pages/shell/bot-runtime-settings.tsx
+msgid "Full access allows file changes and commands outside the project folder."
 msgstr ""
 
 #: src/pages/WindowChrome.tsx
@@ -3918,6 +3945,10 @@ msgstr "Laat bots feiten op betekenis opslaan en terugvinden, naast MEMORY.md."
 msgid "Light"
 msgstr "Licht"
 
+#: src/pages/shell/bot-panel.tsx
+msgid "Limit tool calls"
+msgstr ""
+
 #: src/pages/RoutineEditor.tsx
 msgid "Linear issue"
 msgstr "Linear-issue"
@@ -4160,6 +4191,10 @@ msgstr "Maximum aantal afbeeldingen per verzoek"
 #: src/pages/Onboarding.tsx
 msgid "Maximum output tokens"
 msgstr "Maximaal aantal uitvoertokens"
+
+#: src/pages/shell/bot-panel.tsx
+msgid "Maximum tool calls"
+msgstr ""
 
 #: src/pages/memory-providers/SerenitySettingsForm.tsx
 msgid "MCP endpoint"
@@ -4584,6 +4619,10 @@ msgstr ""
 #: src/pages/SettingsOverlay.tsx
 msgid "Next settings sections"
 msgstr ""
+
+#: src/components/AgentActivity.tsx
+msgid "No activity yet."
+msgstr "Nog geen activiteit."
 
 #: src/pages/PluginsOverlay.tsx
 msgid "No apps match your search."
@@ -5058,6 +5097,10 @@ msgstr "Telefoongesprek"
 msgid "Photo"
 msgstr "Foto"
 
+#: src/pages/shell/bot-panel.tsx
+msgid "Pi only. Off uses the deployment default, which is unlimited unless configured."
+msgstr ""
+
 #: src/pages/GroupPanel.tsx
 msgid "Pick {GROUP_MEMBER_MIN}–{GROUP_MEMBER_MAX}"
 msgstr "Kies {GROUP_MEMBER_MIN}–{GROUP_MEMBER_MAX}"
@@ -5272,6 +5315,10 @@ msgstr ""
 #: src/pages/shell/bot-model-picker.tsx
 msgid "Reasoning effort"
 msgstr "Redeneerinspanning"
+
+#: src/components/AgentActivity.tsx
+msgid "Reasoning summary"
+msgstr "Samenvatting van de redenering"
 
 #: src/pages/memory-providers/SerenitySettingsForm.tsx
 msgid "Recall and write"
@@ -5801,6 +5848,7 @@ msgstr "Het uitvoertijdstip moet in de toekomst liggen."
 msgid "running"
 msgstr "draait"
 
+#: src/components/AgentActivity.tsx
 #: src/components/McpServerHealthLine.tsx
 #: src/components/SubagentCard.tsx
 #: src/pages/ActivityList.tsx
@@ -6039,6 +6087,14 @@ msgstr ""
 #: src/pages/shell/chat-header.tsx
 msgid "Select a bot"
 msgstr "Selecteer een bot"
+
+#: src/pages/shell/registered-host-picker.tsx
+msgid "Select a registered host"
+msgstr ""
+
+#: src/pages/shell/bot-runtime-settings.tsx
+msgid "Select a registered host, such as your Mac."
+msgstr ""
 
 #: src/pages/memory-providers/ConnectionModeFields.tsx
 msgid "Self-hosted"
@@ -6536,6 +6592,10 @@ msgstr "Onderwijs stoppen"
 msgid "Stop the current reply before saving character changes."
 msgstr ""
 
+#: src/components/AgentActivity.tsx
+msgid "Stopped"
+msgstr "Gestopt"
+
 #. js-lingui-explicit-id
 #: src/lib/browser-notifications.ts
 msgid "Stopped."
@@ -6658,6 +6718,7 @@ msgstr ""
 msgid "Task instructions"
 msgstr ""
 
+#: src/pages/shell/composer.tsx
 #: src/pages/shell/conversation-tasks.tsx
 msgid "Tasks"
 msgstr ""
@@ -6783,6 +6844,7 @@ msgstr "Deze bestanden of keuzes kloppen niet meer. Kies de bestanden opnieuw."
 msgid "These saved settings can't be read. Remove it and add it again."
 msgstr "Deze opgeslagen instellingen kunnen niet worden gelezen. Verwijder ze en voeg ze opnieuw toe."
 
+#: src/components/AgentActivity.tsx
 #: src/components/call/CallCard.tsx
 #: src/pages/ModelRoleSettings.tsx
 #: src/pages/RoutineEditor.tsx
@@ -7344,17 +7406,9 @@ msgstr ""
 msgid "Wait a moment and test again."
 msgstr "Wacht even en test daarna opnieuw."
 
-#: src/pages/shell/thread-queue.tsx
-msgid "Waiting for approval"
-msgstr ""
-
-#: src/pages/shell/thread-queue.tsx
-msgid "Waiting for computer"
-msgstr ""
-
-#: src/pages/shell/thread-queue.tsx
-msgid "Waiting for current work"
-msgstr ""
+#: src/components/AgentActivity.tsx
+msgid "Waiting"
+msgstr "Wachten"
 
 #: src/lib/roster-status.ts
 msgid "Waiting in line…"
@@ -7519,6 +7573,10 @@ msgstr "Werkt met je ChatGPT- of Claude-abonnement."
 msgid "Workspace"
 msgstr "Werkruimte"
 
+#: src/pages/shell/bot-runtime-settings.tsx
+msgid "Workspace limits file writes. It does not limit all reads or network access."
+msgstr ""
+
 #: src/pages/shell/conversation-tasks.tsx
 msgid "Write scope"
 msgstr ""
@@ -7607,3 +7665,36 @@ msgstr "Je spraakaanbieder heeft geen tegoed meer."
 #: src/lib/user-error.ts
 msgid "Your voice provider key was rejected."
 msgstr "Je spraakaanbieder heeft de sleutel geweigerd."
+
+#: src/pages/shell/thread-queue.tsx
+msgid "Waiting for approval"
+msgstr ""
+
+#: src/pages/shell/thread-queue.tsx
+msgid "Waiting for computer"
+msgstr ""
+
+#: src/pages/shell/thread-queue.tsx
+msgid "Waiting for current work"
+msgstr ""
+
+
+#: src/pages/shell/thread-queue.tsx
+msgid "Waiting for answer"
+msgstr "Wacht op antwoord"
+
+#: src/pages/shell/thread-queue.tsx
+msgid "Waiting for secret"
+msgstr "Wacht op geheim"
+
+#: src/pages/shell/thread-queue.tsx
+msgid "Review approval"
+msgstr "Goedkeuring bekijken"
+
+#: src/pages/shell/thread-queue.tsx
+msgid "Provide secret"
+msgstr "Geheim invoeren"
+
+#: src/pages/shell/thread-queue.tsx
+msgid "Take over"
+msgstr "Overnemen"

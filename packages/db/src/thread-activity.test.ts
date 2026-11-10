@@ -92,3 +92,32 @@ it("retains normal metadata semantics without an activity fence", async () => {
     data: expect.objectContaining({ type: "thread.meta", payload: notice.payload }),
   });
 });
+
+describe("public reasoning summary persistence", () => {
+  const summary: AppendEventInput = {
+    ...input,
+    type: "agent.reasoning",
+    payload: { id: "summary", text: "Checking the project", done: true },
+  };
+  it("stores the explicit public contract and requires a current lease", async () => {
+    const f = fixture();
+    await f.append(summary);
+    expect(f.tx.event.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ type: "agent.reasoning", payload: summary.payload }),
+      }),
+    );
+    await expect(f.append({ ...summary, lease: undefined })).rejects.toThrow(RunHistoryWriteError);
+    await expect(fixture("running", "new-owner", 3).append(summary)).rejects.toThrow(
+      RunHistoryWriteError,
+    );
+    await expect(fixture("completed").append(summary)).rejects.toThrow(RunHistoryWriteError);
+  });
+  it("rejects opaque payload additions before writing", async () => {
+    const f = fixture();
+    await expect(
+      f.append({ ...summary, payload: { ...summary.payload, encrypted: "opaque" } }),
+    ).rejects.toThrow();
+    expect(f.tx.event.create).not.toHaveBeenCalled();
+  });
+});

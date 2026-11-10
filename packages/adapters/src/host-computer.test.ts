@@ -208,6 +208,21 @@ describe("native host computer transport", () => {
     await rm(root, { recursive: true, force: true, maxRetries: 20, retryDelay: 50 });
   });
 
+  it("requires reprovisioning after a bridge restart despite the persisted workspace", async () => {
+    await server.close();
+    server = await startHostComputerServer({
+      root,
+      token,
+      hostname: "127.0.0.1",
+      writeScopeRoot: path.join(root, "write-scopes"),
+    });
+    server.setEnabled(true);
+    client = new HostComputerSandbox(`http://127.0.0.1:${server.port}`, token);
+    expect(await client.isRunning(computer, context)).toBe(false);
+    computer = await client.provision({ botId: "test-bot", homePath: "/unused" }, context);
+    expect(await client.isRunning(computer, context)).toBe(true);
+  });
+
   it("rejects an older host's ordinary acknowledgement for strict recovery cleanup", async () => {
     const request = vi.spyOn(client, "request").mockImplementation(async function* <T>() {
       yield null as T;

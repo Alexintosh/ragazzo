@@ -1,5 +1,9 @@
 # Tool activity
 
+For the live conversation flow, public reasoning summaries and individual tool
+outcomes on web, Electron and mobile, see [Agent activity](agent-activity.md).
+That panel is independent of the older preference described below.
+
 Bot replies in the web app and the Electron desktop app can show a small card listing the
 tools the bot called during the run.
 

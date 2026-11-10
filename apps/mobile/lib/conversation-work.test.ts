@@ -22,7 +22,14 @@ vi.mock("./api", () => ({
 vi.mock("./session", () => ({ currentSessionGeneration: () => state.session }));
 vi.mock("./i18n", () => ({ t: (value: string) => value }));
 
-import { createConversationRequest, latestQueue, moveQueued } from "./conversation-work";
+import { queueWaiting } from "@rakazo/core";
+import {
+  createConversationRequest,
+  latestQueue,
+  moveQueued,
+  waitingActionLabel,
+  waitingLabel,
+} from "./conversation-work";
 
 beforeEach(() => {
   state.spaceId = "space-a";
@@ -48,6 +55,34 @@ const queue = (revision: number, ids: string[]): ThreadQueue => ({
 });
 
 describe("native conversation work", () => {
+  it("accepts changed waiting detail on an equal-revision reread and removes the stale button", () => {
+    const question: ThreadQueue = {
+      ...queue(4, []),
+      waitingReason: "approval",
+      waitingDetail: { reason: "question", runId: "run", messageId: "ask", action: "answer" },
+    };
+    expect(waitingLabel(queueWaiting(question))).toBe("Waiting for answer");
+    expect(waitingActionLabel(queueWaiting(question))).toBe("Answer");
+    const answered = { ...question, waitingDetail: { reason: "waiting" as const, runId: "run" } };
+    const current = latestQueue(question, answered);
+    expect(current).toBe(answered);
+    expect(waitingActionLabel(queueWaiting(current))).toBe("");
+    expect(waitingLabel(queueWaiting(current))).toBe("Waiting");
+  });
+  it("keeps old-server fallbacks and server-denied takeover non-actionable", () => {
+    expect(waitingLabel(queueWaiting({ ...queue(1, []), waitingReason: "approval" }))).toBe(
+      "Waiting for approval",
+    );
+    expect(waitingActionLabel(queueWaiting(queue(1, [])))).toBe("");
+    expect(
+      waitingActionLabel(
+        queueWaiting({
+          ...queue(1, []),
+          waitingDetail: { reason: "takeover", runId: "run", messageId: "computer" },
+        }),
+      ),
+    ).toBe("");
+  });
   it("keeps queue order from a newer poll when an older mutation receipt arrives", () => {
     const newer = queue(4, ["second", "first"]);
     expect(latestQueue(newer, queue(3, ["first", "second"]))).toBe(newer);

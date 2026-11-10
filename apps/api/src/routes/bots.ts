@@ -449,6 +449,7 @@ export function botsRoutes(ctx: RouterContext) {
             modelId: source.runtimeKind === "pi" ? source.modelId : null,
             thinkingLevel: source.runtimeKind === "pi" ? source.thinkingLevel : null,
             disabledBuiltinTools: source.disabledBuiltinTools,
+            maxToolCallsPerTurn: source.maxToolCallsPerTurn,
           })
           .catch((error: unknown) => {
             throw mapSpaceLifecycleError(error);
@@ -489,6 +490,11 @@ export function botsRoutes(ctx: RouterContext) {
       }),
       update: authed.bots.update.handler(async ({ context, input }) => {
         const existing = await repos.getBot(context.actor, input.botId);
+        if (
+          input.maxToolCallsPerTurn != null &&
+          (existing.botKind === "roleplay" || (existing.runtimeKind ?? "pi") !== "pi")
+        )
+          throw new ORPCError("BAD_REQUEST", { message: "Tool call limits require a Pi agent" });
         await assertRoleplayAlbum(deps, context.actor, input.botId, input.roleplayCharacter);
         await assertRoleplaySpontaneousTimezone(deps, context.actor, input.roleplayCharacter);
         if (input.roleplayCharacter !== undefined && existing.botKind !== "roleplay")
@@ -546,16 +552,24 @@ export function botsRoutes(ctx: RouterContext) {
           spaceId: context.actor.spaceId,
           threadId: existing.thread.id,
           botId: input.botId,
-          emitBotUpdated: botProfileLabelsChanged(input) || input.expectedSettings !== undefined,
+          emitBotUpdated:
+            botProfileLabelsChanged(input) ||
+            input.expectedSettings !== undefined ||
+            input.maxToolCallsPerTurn !== undefined,
+          expectedMaxToolCallsPerTurn: input.expectedMaxToolCallsPerTurn,
           expectedInstructions: input.expectedInstructions,
           expectedRoleplayCharacter: input.expectedRoleplayCharacter,
           ...(input.modelProvider !== undefined ||
           input.modelId !== undefined ||
-          input.thinkingLevel !== undefined
+          input.thinkingLevel !== undefined ||
+          input.maxToolCallsPerTurn !== undefined
             ? { expectedRuntimeKind: existing.runtimeKind ?? "pi" }
             : {}),
           expectedSettings: input.expectedSettings,
           data: {
+            ...(input.maxToolCallsPerTurn !== undefined
+              ? { maxToolCallsPerTurn: input.maxToolCallsPerTurn }
+              : {}),
             ...(input.roleplayCharacter !== undefined
               ? { roleplayCharacter: input.roleplayCharacter as Prisma.InputJsonValue }
               : {}),
@@ -589,7 +603,10 @@ export function botsRoutes(ctx: RouterContext) {
               : {}),
           },
         }).catch((error) => {
-          if (input.expectedSettings && isRecordNotFound(error))
+          if (
+            (input.expectedSettings || input.expectedMaxToolCallsPerTurn !== undefined) &&
+            isRecordNotFound(error)
+          )
             throw new ORPCError("CONFLICT", {
               message: "Settings changed; review the current settings first.",
             });

@@ -53,7 +53,7 @@ export function useComposerLayout(draft: string, hasChips: boolean) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const mirrorRef = useRef<HTMLDivElement>(null);
   const [composerExpanded, setComposerExpanded] = useState(false);
-  const attachButtonRef = useRef<HTMLButtonElement>(null);
+  const composerToolsRef = useRef<HTMLDivElement>(null);
   const composerActionsRef = useRef<HTMLDivElement>(null);
   const composerBarRef = useRef<HTMLDivElement>(null);
   const composerFieldRef = useRef<HTMLDivElement>(null);
@@ -78,6 +78,17 @@ export function useComposerLayout(draft: string, hasChips: boolean) {
       const contentHeight = measureTextareaHeight(textarea);
       textarea.style.height = `${contentHeight}px`;
       syncMirror(textarea, mirrorRef.current);
+      const tools = composerToolsRef.current;
+      const actions = composerActionsRef.current;
+      if (!tools || !actions) return;
+      const besideControls =
+        spaceBetween(tools.getBoundingClientRect(), actions.getBoundingClientRect()) -
+        2 * COMPOSER_ONE_LINE_GAP_PX;
+      // Keep a usable input width when extra controls share the leading toolbar.
+      if (besideControls > 0 && besideControls < 128) {
+        setComposerExpanded(true);
+        return;
+      }
       if (draft.length === 0) {
         setComposerExpanded(false);
         return;
@@ -86,12 +97,6 @@ export function useComposerLayout(draft: string, hasChips: boolean) {
         setComposerExpanded(true);
         return;
       }
-      const attach = attachButtonRef.current;
-      const actions = composerActionsRef.current;
-      if (!attach || !actions) return;
-      const besideControls =
-        spaceBetween(attach.getBoundingClientRect(), actions.getBoundingClientRect()) -
-        2 * COMPOSER_ONE_LINE_GAP_PX;
       const heightBeside = measureTextareaHeight(
         textarea,
         besideControls - COMPOSER_COLLAPSE_SLACK_PX,
@@ -176,7 +181,7 @@ export function useComposerLayout(draft: string, hasChips: boolean) {
   return {
     textareaRef,
     mirrorRef,
-    attachButtonRef,
+    composerToolsRef,
     composerActionsRef,
     composerBarRef,
     composerFieldRef,

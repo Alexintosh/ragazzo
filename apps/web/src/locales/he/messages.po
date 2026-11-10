@@ -695,6 +695,11 @@ msgstr ""
 msgid "Agent"
 msgstr ""
 
+#: src/components/AgentActivity.tsx
+#: src/pages/shell/composer.tsx
+msgid "Agent activity"
+msgstr "פעילות הסוכן"
+
 #: src/pages/shell/bot-panel.tsx
 #: src/pages/shell/create-bot-dialog.tsx
 msgid "Agent and environment"
@@ -1443,6 +1448,10 @@ msgid "Checking Docker availability…"
 msgstr ""
 
 #: src/pages/shell/bot-runtime-settings.tsx
+msgid "Checking host availability…"
+msgstr ""
+
+#: src/pages/shell/bot-runtime-settings.tsx
 msgid "Checking runtime…"
 msgstr ""
 
@@ -1469,6 +1478,10 @@ msgstr "בחירת מודל"
 #: src/pages/Auth.tsx
 msgid "Choose a new password"
 msgstr "בחירת סיסמה חדשה"
+
+#: src/pages/shell/bot-runtime-settings.tsx
+msgid "Choose a project folder on the selected host."
+msgstr ""
 
 #: src/pages/Onboarding.tsx
 msgid "Choose a provider"
@@ -1671,6 +1684,7 @@ msgstr "צפוף"
 msgid "Complete"
 msgstr "הושלם"
 
+#: src/components/AgentActivity.tsx
 #: src/components/SubagentCard.tsx
 msgid "Completed"
 msgstr "הושלם"
@@ -3103,6 +3117,10 @@ msgstr "יש להזין סיסמה"
 msgid "Enter a path to find other folders."
 msgstr ""
 
+#: src/pages/shell/bot-panel.tsx
+msgid "Enter a positive whole number for the tool call limit."
+msgstr ""
+
 #: src/lib/user-error.ts
 msgid "Enter a valid email"
 msgstr "יש להזין אימייל תקין"
@@ -3231,6 +3249,10 @@ msgstr "כל חודש"
 msgid "Every week"
 msgstr "כל שבוע"
 
+#: src/pages/shell/bot-panel.tsx
+msgid "Execution limits"
+msgstr ""
+
 #: src/pages/PluginsOverlay.tsx
 msgid "Executor token"
 msgstr "טוקן Executor"
@@ -3291,6 +3313,7 @@ msgstr "גבוה מאוד"
 msgid "failed"
 msgstr "נכשל"
 
+#: src/components/AgentActivity.tsx
 #: src/components/SubagentCard.tsx
 #: src/pages/ActivityList.tsx
 msgid "Failed"
@@ -3435,6 +3458,10 @@ msgstr ""
 msgid "Full access"
 msgstr ""
 
+#: src/pages/shell/bot-runtime-settings.tsx
+msgid "Full access allows file changes and commands outside the project folder."
+msgstr ""
+
 #: src/pages/WindowChrome.tsx
 msgid "Fullscreen"
 msgstr "מסך מלא"
@@ -3565,7 +3592,7 @@ msgstr "הסתרת התמליל"
 #: src/pages/model-settings/compatible-model-fields.tsx
 #: src/pages/Onboarding.tsx
 msgid "High"
-msgstr "גבוהה"
+msgstr "גבוה"
 
 #. js-lingui-explicit-id
 #: src/lib/model-catalog.ts
@@ -3918,6 +3945,10 @@ msgstr "מאפשר לבוטים לשמור ולשלוף עובדות לפי מש
 msgid "Light"
 msgstr "בהיר"
 
+#: src/pages/shell/bot-panel.tsx
+msgid "Limit tool calls"
+msgstr ""
+
 #: src/pages/RoutineEditor.tsx
 msgid "Linear issue"
 msgstr "Issue ב-Linear"
@@ -4160,6 +4191,10 @@ msgstr "מספר תמונות מרבי לבקשה"
 #: src/pages/Onboarding.tsx
 msgid "Maximum output tokens"
 msgstr "מספר טוקנים מרבי בפלט"
+
+#: src/pages/shell/bot-panel.tsx
+msgid "Maximum tool calls"
+msgstr ""
 
 #: src/pages/memory-providers/SerenitySettingsForm.tsx
 msgid "MCP endpoint"
@@ -4584,6 +4619,10 @@ msgstr ""
 #: src/pages/SettingsOverlay.tsx
 msgid "Next settings sections"
 msgstr ""
+
+#: src/components/AgentActivity.tsx
+msgid "No activity yet."
+msgstr "אין עדיין פעילות."
 
 #: src/pages/PluginsOverlay.tsx
 msgid "No apps match your search."
@@ -5058,6 +5097,10 @@ msgstr ""
 msgid "Photo"
 msgstr "תמונה"
 
+#: src/pages/shell/bot-panel.tsx
+msgid "Pi only. Off uses the deployment default, which is unlimited unless configured."
+msgstr ""
+
 #: src/pages/GroupPanel.tsx
 msgid "Pick {GROUP_MEMBER_MIN}–{GROUP_MEMBER_MAX}"
 msgstr ""
@@ -5272,6 +5315,10 @@ msgstr ""
 #: src/pages/shell/bot-model-picker.tsx
 msgid "Reasoning effort"
 msgstr "רמת חשיבה"
+
+#: src/components/AgentActivity.tsx
+msgid "Reasoning summary"
+msgstr "סיכום ההסקה"
 
 #: src/pages/memory-providers/SerenitySettingsForm.tsx
 msgid "Recall and write"
@@ -5801,6 +5848,7 @@ msgstr "זמן ההרצה חייב להיות בעתיד."
 msgid "running"
 msgstr "פועל"
 
+#: src/components/AgentActivity.tsx
 #: src/components/McpServerHealthLine.tsx
 #: src/components/SubagentCard.tsx
 #: src/pages/ActivityList.tsx
@@ -6039,6 +6087,14 @@ msgstr ""
 #: src/pages/shell/chat-header.tsx
 msgid "Select a bot"
 msgstr "בחירת בוט"
+
+#: src/pages/shell/registered-host-picker.tsx
+msgid "Select a registered host"
+msgstr ""
+
+#: src/pages/shell/bot-runtime-settings.tsx
+msgid "Select a registered host, such as your Mac."
+msgstr ""
 
 #: src/pages/memory-providers/ConnectionModeFields.tsx
 msgid "Self-hosted"
@@ -6536,6 +6592,10 @@ msgstr "הפסקת הלימוד"
 msgid "Stop the current reply before saving character changes."
 msgstr ""
 
+#: src/components/AgentActivity.tsx
+msgid "Stopped"
+msgstr "נעצר"
+
 #. js-lingui-explicit-id
 #: src/lib/browser-notifications.ts
 msgid "Stopped."
@@ -6658,6 +6718,7 @@ msgstr ""
 msgid "Task instructions"
 msgstr ""
 
+#: src/pages/shell/composer.tsx
 #: src/pages/shell/conversation-tasks.tsx
 msgid "Tasks"
 msgstr ""
@@ -6783,6 +6844,7 @@ msgstr "הקבצים או הבחירות כבר לא תואמים. יש לבחו
 msgid "These saved settings can't be read. Remove it and add it again."
 msgstr "לא ניתן לקרוא את ההגדרות השמורות. יש להסיר ולהוסיף מחדש."
 
+#: src/components/AgentActivity.tsx
 #: src/components/call/CallCard.tsx
 #: src/pages/ModelRoleSettings.tsx
 #: src/pages/RoutineEditor.tsx
@@ -7344,17 +7406,9 @@ msgstr ""
 msgid "Wait a moment and test again."
 msgstr "יש להמתין רגע ולבדוק שוב."
 
-#: src/pages/shell/thread-queue.tsx
-msgid "Waiting for approval"
-msgstr ""
-
-#: src/pages/shell/thread-queue.tsx
-msgid "Waiting for computer"
-msgstr ""
-
-#: src/pages/shell/thread-queue.tsx
-msgid "Waiting for current work"
-msgstr ""
+#: src/components/AgentActivity.tsx
+msgid "Waiting"
+msgstr "ממתין"
 
 #: src/lib/roster-status.ts
 msgid "Waiting in line…"
@@ -7519,6 +7573,10 @@ msgstr "עובד עם המינוי שלך ל-ChatGPT או ל-Claude."
 msgid "Workspace"
 msgstr ""
 
+#: src/pages/shell/bot-runtime-settings.tsx
+msgid "Workspace limits file writes. It does not limit all reads or network access."
+msgstr ""
+
 #: src/pages/shell/conversation-tasks.tsx
 msgid "Write scope"
 msgstr ""
@@ -7607,3 +7665,36 @@ msgstr "לספק הקול שלך נגמר הקרדיט."
 #: src/lib/user-error.ts
 msgid "Your voice provider key was rejected."
 msgstr "ספק הקול שלך דחה את המפתח."
+
+#: src/pages/shell/thread-queue.tsx
+msgid "Waiting for approval"
+msgstr ""
+
+#: src/pages/shell/thread-queue.tsx
+msgid "Waiting for computer"
+msgstr ""
+
+#: src/pages/shell/thread-queue.tsx
+msgid "Waiting for current work"
+msgstr ""
+
+
+#: src/pages/shell/thread-queue.tsx
+msgid "Waiting for answer"
+msgstr "ממתין לתשובה"
+
+#: src/pages/shell/thread-queue.tsx
+msgid "Waiting for secret"
+msgstr "ממתין למידע סודי"
+
+#: src/pages/shell/thread-queue.tsx
+msgid "Review approval"
+msgstr "בדיקת אישור"
+
+#: src/pages/shell/thread-queue.tsx
+msgid "Provide secret"
+msgstr "הזנת מידע סודי"
+
+#: src/pages/shell/thread-queue.tsx
+msgid "Take over"
+msgstr "לקיחת שליטה"

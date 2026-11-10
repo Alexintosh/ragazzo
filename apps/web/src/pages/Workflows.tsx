@@ -5,6 +5,7 @@ import {
   WORKFLOW_NODE_LIMIT,
   WorkflowGraphSchema,
 } from "@rakazo/contracts";
+import { workflowWaiting } from "@rakazo/core";
 import { Button, Input, NativeSelect, NativeSelectOption, Textarea } from "@rakazo/ui-web";
 import { skipToken, useQuery } from "@tanstack/react-query";
 import { ArrowLeft, Plus, Trash2 } from "lucide-react";
@@ -14,6 +15,7 @@ import { Link } from "react-router-dom";
 import { useSpaceQueries } from "../lib/query";
 import { rpc } from "../lib/rpc";
 import { errorText } from "../lib/user-error";
+import { waitingActionLabel, waitingLabel } from "./shell/thread-queue";
 import { WindowChrome } from "./WindowChrome";
 
 export function WorkflowsPage() {
@@ -47,11 +49,15 @@ export function WorkflowsPage() {
     queries.workflows.runs.queryOptions({
       input: workflow ? { workflowId: workflow.id } : skipToken,
       refetchInterval: 3000,
+      refetchOnReconnect: "always",
+      refetchOnWindowFocus: "always",
     }),
   );
   const run = useQuery(
     queries.workflows.run.queryOptions({
       input: runId ? { runId } : skipToken,
+      refetchOnReconnect: "always",
+      refetchOnWindowFocus: "always",
       refetchInterval: (query) => {
         const current = query.state.data;
         return current &&
@@ -67,6 +73,7 @@ export function WorkflowsPage() {
   const visibleGraph = runId && run.data ? run.data.graph : graph;
   const node = visibleGraph.nodes.find((item) => item.id === selected);
   const nodeState = run.data?.nodes.find((item) => item.nodeId === selected);
+  const waiting = nodeState ? workflowWaiting(nodeState) : undefined;
   const dirty =
     !workflow || workflow.name !== name || JSON.stringify(workflow.graph) !== JSON.stringify(graph);
   const valid = WorkflowGraphSchema.safeParse(graph);
@@ -79,6 +86,7 @@ export function WorkflowsPage() {
       await fn();
     } catch (cause) {
       setError(errorText(cause));
+      if (runId) await run.refetch();
     } finally {
       busyRef.current = false;
       setBusy(false);
@@ -307,7 +315,11 @@ export function WorkflowsPage() {
               <>
                 <h2 className="text-sm font-medium">{node.label}</h2>
                 <p className="text-sm text-muted-foreground">
-                  {nodeState ? statusLabel(nodeState.status, t) : ""}
+                  {waiting
+                    ? waitingLabel(waiting, t)
+                    : nodeState
+                      ? statusLabel(nodeState.status, t)
+                      : ""}
                 </p>
                 <p className="whitespace-pre-wrap text-sm">{node.prompt}</p>
                 {nodeState?.error ? (
@@ -321,6 +333,14 @@ export function WorkflowsPage() {
                     to={`/app/${encodeURIComponent(node.botId)}/tasks/${encodeURIComponent(nodeState.taskId)}`}
                   >
                     <Trans>Open task</Trans>
+                  </Link>
+                ) : null}
+                {waiting?.action && waiting.messageId && nodeState?.taskId ? (
+                  <Link
+                    className="block text-sm underline underline-offset-4"
+                    to={`/app/${encodeURIComponent(node.botId)}/tasks/${encodeURIComponent(nodeState.taskId)}?${new URLSearchParams({ m: waiting.messageId })}`}
+                  >
+                    {waitingActionLabel(waiting, t)}
                   </Link>
                 ) : null}
                 {nodeState && canRecoverWorkflowNode(nodeState) && run.data ? (
@@ -638,7 +658,9 @@ export function WorkflowCanvas({
                 <span
                   className={`text-xs ${state.status === "failed" ? "text-destructive" : "text-muted-foreground"}`}
                 >
-                  {statusLabel(state.status, t)}
+                  {workflowWaiting(state)
+                    ? waitingLabel(workflowWaiting(state)!, t)
+                    : statusLabel(state.status, t)}
                 </span>
               ) : null}
             </button>

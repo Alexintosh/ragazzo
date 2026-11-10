@@ -23,6 +23,8 @@ export function ConversationTasks({
   loadingMore,
   onLoadMore,
   onOpenSource,
+  visible = true,
+  defaultOpen = false,
 }: {
   rpc: ReturnType<typeof createSpaceRpc>;
   target: QueueConversationTarget;
@@ -35,9 +37,11 @@ export function ConversationTasks({
   onOpenSource?: (path: string) => void;
   onOpen: (task: ConversationTask) => void;
   onChanged: () => void;
+  visible?: boolean;
+  defaultOpen?: boolean;
 }) {
   const { t } = useLingui();
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(defaultOpen);
   const [stopped, setStopped] = useState<StoppedConversationRun[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -51,7 +55,7 @@ export function ConversationTasks({
   } | null>(null);
   const targetKey = JSON.stringify(target);
   useEffect(() => {
-    if (!expanded) return;
+    if (!expanded || !visible) return;
     let alive = true;
     const refresh = () =>
       void rpc.tasks
@@ -68,7 +72,7 @@ export function ConversationTasks({
       alive = false;
       window.clearInterval(timer);
     };
-  }, [expanded, rpc, targetKey]);
+  }, [expanded, visible, rpc, targetKey]);
   const relevantTasks = currentTask
     ? tasks.filter(
         (task) => task.id === currentTask.id || task.recoveryOfRunId === currentTask.runId,
@@ -84,6 +88,7 @@ export function ConversationTasks({
           : null;
   return (
     <details
+      hidden={!visible}
       open={expanded}
       onToggle={(event) => setExpanded(event.currentTarget.open)}
       data-testid="conversation-tasks"

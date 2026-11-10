@@ -8,6 +8,8 @@ With the database, dependencies, production build and computer image already ins
 make start
 ```
 
+On macOS, `./start.command` (also opened from Finder) delegates to this same command. It looks for an existing Node installation on PATH and common Homebrew, Volta, fnm and nvm locations, and requires installed dependencies and pnpm. It never installs tools or dependencies. Keep its terminal open while the stack runs. `./start.command --help` prints usage without starting anything.
+
 This first runs `pnpm db:migrate` against the configured existing database, applying pending schema and job queue migrations and refreshing runtime grants with `DATABASE_MIGRATION_URL`. If migration fails, no local services start. It then starts API, worker, web and the host bridge. It starts a local Docker supervisor when that port is free, or authenticates and reuses an already-running supervisor. The command explicitly grants local host execution, like `native:start`. It does not create a database, copy data, install dependencies, build or download computer images. The stored deployment computer preference must be `this-mac`, preserving existing host defaults while explicit Docker bots stay in Docker.
 
 The managed supervisor uses `DOCKER_SOCKET` if supplied; otherwise it follows the Docker CLI's selected context (or `DOCKER_HOST`). Only local Unix sockets are supported. Its listeners bind to loopback, and automatic image builds are disabled with `SANDBOX_AUTO_BUILD_IMAGE=false`. A missing image or unavailable Docker daemon fails startup with an explanation.

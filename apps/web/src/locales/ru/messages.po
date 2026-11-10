@@ -695,6 +695,11 @@ msgstr ""
 msgid "Agent"
 msgstr ""
 
+#: src/components/AgentActivity.tsx
+#: src/pages/shell/composer.tsx
+msgid "Agent activity"
+msgstr "Активность агента"
+
 #: src/pages/shell/bot-panel.tsx
 #: src/pages/shell/create-bot-dialog.tsx
 msgid "Agent and environment"
@@ -828,7 +833,7 @@ msgstr "Другой ассистент"
 
 #: src/components/AskCard.tsx
 msgid "Answer"
-msgstr "Ответ"
+msgstr "Ответить"
 
 #: src/components/call/IncomingCall.tsx
 msgctxt "incoming call"
@@ -1443,6 +1448,10 @@ msgid "Checking Docker availability…"
 msgstr ""
 
 #: src/pages/shell/bot-runtime-settings.tsx
+msgid "Checking host availability…"
+msgstr ""
+
+#: src/pages/shell/bot-runtime-settings.tsx
 msgid "Checking runtime…"
 msgstr ""
 
@@ -1469,6 +1478,10 @@ msgstr "Выберите модель"
 #: src/pages/Auth.tsx
 msgid "Choose a new password"
 msgstr "Выберите новый пароль"
+
+#: src/pages/shell/bot-runtime-settings.tsx
+msgid "Choose a project folder on the selected host."
+msgstr ""
 
 #: src/pages/Onboarding.tsx
 msgid "Choose a provider"
@@ -1671,6 +1684,7 @@ msgstr ""
 msgid "Complete"
 msgstr "Завершить"
 
+#: src/components/AgentActivity.tsx
 #: src/components/SubagentCard.tsx
 msgid "Completed"
 msgstr "Завершено"
@@ -3103,6 +3117,10 @@ msgstr "Введите пароль"
 msgid "Enter a path to find other folders."
 msgstr ""
 
+#: src/pages/shell/bot-panel.tsx
+msgid "Enter a positive whole number for the tool call limit."
+msgstr ""
+
 #: src/lib/user-error.ts
 msgid "Enter a valid email"
 msgstr "Введите действительный адрес электронной почты"
@@ -3231,6 +3249,10 @@ msgstr "Каждый месяц"
 msgid "Every week"
 msgstr "Каждую неделю"
 
+#: src/pages/shell/bot-panel.tsx
+msgid "Execution limits"
+msgstr ""
+
 #: src/pages/PluginsOverlay.tsx
 msgid "Executor token"
 msgstr "Токен Executor"
@@ -3291,6 +3313,7 @@ msgstr "Очень высокий"
 msgid "failed"
 msgstr "неуспешный"
 
+#: src/components/AgentActivity.tsx
 #: src/components/SubagentCard.tsx
 #: src/pages/ActivityList.tsx
 msgid "Failed"
@@ -3433,6 +3456,10 @@ msgstr ""
 
 #: src/pages/shell/bot-runtime-settings.tsx
 msgid "Full access"
+msgstr ""
+
+#: src/pages/shell/bot-runtime-settings.tsx
+msgid "Full access allows file changes and commands outside the project folder."
 msgstr ""
 
 #: src/pages/WindowChrome.tsx
@@ -3918,6 +3945,10 @@ msgstr "Позволяет ботам сохранять и находить ф�
 msgid "Light"
 msgstr "Светлая"
 
+#: src/pages/shell/bot-panel.tsx
+msgid "Limit tool calls"
+msgstr ""
+
 #: src/pages/RoutineEditor.tsx
 msgid "Linear issue"
 msgstr "Задача Linear"
@@ -4159,6 +4190,10 @@ msgstr ""
 #: src/pages/ModelSettingsOverlay.tsx
 #: src/pages/Onboarding.tsx
 msgid "Maximum output tokens"
+msgstr ""
+
+#: src/pages/shell/bot-panel.tsx
+msgid "Maximum tool calls"
 msgstr ""
 
 #: src/pages/memory-providers/SerenitySettingsForm.tsx
@@ -4584,6 +4619,10 @@ msgstr ""
 #: src/pages/SettingsOverlay.tsx
 msgid "Next settings sections"
 msgstr ""
+
+#: src/components/AgentActivity.tsx
+msgid "No activity yet."
+msgstr "Активности пока нет."
 
 #: src/pages/PluginsOverlay.tsx
 msgid "No apps match your search."
@@ -5058,6 +5097,10 @@ msgstr "Телефонный звонок"
 msgid "Photo"
 msgstr "Фото"
 
+#: src/pages/shell/bot-panel.tsx
+msgid "Pi only. Off uses the deployment default, which is unlimited unless configured."
+msgstr ""
+
 #: src/pages/GroupPanel.tsx
 msgid "Pick {GROUP_MEMBER_MIN}–{GROUP_MEMBER_MAX}"
 msgstr ""
@@ -5272,6 +5315,10 @@ msgstr ""
 #: src/pages/shell/bot-model-picker.tsx
 msgid "Reasoning effort"
 msgstr ""
+
+#: src/components/AgentActivity.tsx
+msgid "Reasoning summary"
+msgstr "Краткое изложение рассуждений"
 
 #: src/pages/memory-providers/SerenitySettingsForm.tsx
 msgid "Recall and write"
@@ -5801,6 +5848,7 @@ msgstr "Время выполнения должно быть в будущем.
 msgid "running"
 msgstr "выполняется"
 
+#: src/components/AgentActivity.tsx
 #: src/components/McpServerHealthLine.tsx
 #: src/components/SubagentCard.tsx
 #: src/pages/ActivityList.tsx
@@ -6039,6 +6087,14 @@ msgstr ""
 #: src/pages/shell/chat-header.tsx
 msgid "Select a bot"
 msgstr "Выберите бота"
+
+#: src/pages/shell/registered-host-picker.tsx
+msgid "Select a registered host"
+msgstr ""
+
+#: src/pages/shell/bot-runtime-settings.tsx
+msgid "Select a registered host, such as your Mac."
+msgstr ""
 
 #: src/pages/memory-providers/ConnectionModeFields.tsx
 msgid "Self-hosted"
@@ -6536,6 +6592,10 @@ msgstr "Остановить обучение"
 msgid "Stop the current reply before saving character changes."
 msgstr ""
 
+#: src/components/AgentActivity.tsx
+msgid "Stopped"
+msgstr "Остановлено"
+
 #. js-lingui-explicit-id
 #: src/lib/browser-notifications.ts
 msgid "Stopped."
@@ -6658,6 +6718,7 @@ msgstr ""
 msgid "Task instructions"
 msgstr ""
 
+#: src/pages/shell/composer.tsx
 #: src/pages/shell/conversation-tasks.tsx
 msgid "Tasks"
 msgstr ""
@@ -6783,6 +6844,7 @@ msgstr "Эти файлы или выбор больше не совпадают
 msgid "These saved settings can't be read. Remove it and add it again."
 msgstr ""
 
+#: src/components/AgentActivity.tsx
 #: src/components/call/CallCard.tsx
 #: src/pages/ModelRoleSettings.tsx
 #: src/pages/RoutineEditor.tsx
@@ -7344,17 +7406,9 @@ msgstr ""
 msgid "Wait a moment and test again."
 msgstr "Подождите немного и повторите тест."
 
-#: src/pages/shell/thread-queue.tsx
-msgid "Waiting for approval"
-msgstr ""
-
-#: src/pages/shell/thread-queue.tsx
-msgid "Waiting for computer"
-msgstr ""
-
-#: src/pages/shell/thread-queue.tsx
-msgid "Waiting for current work"
-msgstr ""
+#: src/components/AgentActivity.tsx
+msgid "Waiting"
+msgstr "Ожидание"
 
 #: src/lib/roster-status.ts
 msgid "Waiting in line…"
@@ -7519,6 +7573,10 @@ msgstr "Работает с вашей подпиской ChatGPT или Claude.
 msgid "Workspace"
 msgstr ""
 
+#: src/pages/shell/bot-runtime-settings.tsx
+msgid "Workspace limits file writes. It does not limit all reads or network access."
+msgstr ""
+
 #: src/pages/shell/conversation-tasks.tsx
 msgid "Write scope"
 msgstr ""
@@ -7607,3 +7665,36 @@ msgstr "У вашего голосового провайдера закончи
 #: src/lib/user-error.ts
 msgid "Your voice provider key was rejected."
 msgstr "Ваш голосовой провайдер отклонил ключ."
+
+#: src/pages/shell/thread-queue.tsx
+msgid "Waiting for approval"
+msgstr ""
+
+#: src/pages/shell/thread-queue.tsx
+msgid "Waiting for computer"
+msgstr ""
+
+#: src/pages/shell/thread-queue.tsx
+msgid "Waiting for current work"
+msgstr ""
+
+
+#: src/pages/shell/thread-queue.tsx
+msgid "Waiting for answer"
+msgstr "Ожидание ответа"
+
+#: src/pages/shell/thread-queue.tsx
+msgid "Waiting for secret"
+msgstr "Ожидание секрета"
+
+#: src/pages/shell/thread-queue.tsx
+msgid "Review approval"
+msgstr "Проверить подтверждение"
+
+#: src/pages/shell/thread-queue.tsx
+msgid "Provide secret"
+msgstr "Указать секрет"
+
+#: src/pages/shell/thread-queue.tsx
+msgid "Take over"
+msgstr "Взять управление"
