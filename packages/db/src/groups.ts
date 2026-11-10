@@ -414,15 +414,39 @@ export function createGroupRepos(prisma: PrismaClient) {
       return group;
     },
 
-    async createGroup(actor: Actor, input: { name: string; botIds: string[] }): Promise<Group> {
+    async createGroup(
+      actor: Actor,
+      input: { id?: string; name: string; botIds: string[] },
+    ): Promise<Group> {
       const members = await assertOwnedBots(prisma, actor, input.botIds);
       const created = await prisma.$transaction(async (tx) => {
         await lockSpaceForContentCreation(tx, {
           spaceId: actor.spaceId,
           userId: actor.userId,
         });
+        // Internal deterministic identities support repeat-safe deployment provisioning.
+        // The existing space lock serializes first-session retries across API instances.
+        if (input.id) {
+          const existing = await tx.chatGroup.findFirst({
+            where: { id: input.id, spaceId: actor.spaceId, userId: actor.userId },
+            include: groupInclude,
+          });
+          if (existing) {
+            if (
+              existing.archivedAt ||
+              existing.members.length !== members.length ||
+              existing.members.some((member) => !input.botIds.includes(member.bot.id))
+            ) {
+              throw new IsolationError(
+                "The configured group has changed. Restore its existing members before continuing.",
+              );
+            }
+            return attachNewestGroupMessage(tx, existing);
+          }
+        }
         const group = await tx.chatGroup.create({
           data: {
+            ...(input.id ? { id: input.id } : {}),
             spaceId: actor.spaceId,
             userId: actor.userId,
             name: displayName(input.name, ""),

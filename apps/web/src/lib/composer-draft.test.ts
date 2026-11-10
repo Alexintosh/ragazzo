@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 
 import {
+  composerDraftMatches,
+  writeVerifiedComposerDraft,
   beginComposerDraftSubmission,
   composerDraftBindingsKey,
   composerDraftStorageKey,
@@ -99,5 +101,34 @@ describe("composer drafts", () => {
     } finally {
       vi.unstubAllGlobals();
     }
+  });
+});
+
+describe("verified composer drafts", () => {
+  it("verifies round trips and rejects unavailable storage", () => {
+    const storage = memoryStorage();
+    expect(writeVerifiedComposerDraft("thread", "hello", storage, [])).toBe(true);
+    expect(composerDraftMatches("thread", "hello", [], storage)).toBe(true);
+    expect(writeVerifiedComposerDraft("thread", "hello", null)).toBe(false);
+  });
+  it("restores the previous draft when a text write fails after metadata removal", () => {
+    const storage = memoryStorage();
+    writeComposerDraft("thread", "old", storage);
+    const set = storage.setItem;
+    storage.setItem = (key, value) => {
+      if (value === "new") throw new Error("quota");
+      set(key, value);
+    };
+    expect(writeVerifiedComposerDraft("thread", "new", storage, [])).toBe(false);
+    expect(readComposerDraft("thread", storage)).toBe("old");
+  });
+  it("rejects silently dropped writes and denied reads", () => {
+    const storage = memoryStorage();
+    storage.setItem = () => {};
+    expect(writeVerifiedComposerDraft("thread", "new", storage)).toBe(false);
+    storage.getItem = () => {
+      throw new Error("denied");
+    };
+    expect(writeVerifiedComposerDraft("thread", "new", storage)).toBe(false);
   });
 });
