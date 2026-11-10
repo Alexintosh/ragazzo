@@ -1,4 +1,8 @@
 export const ES_MESSAGES: Record<string, string> = {
+  "Agent activity": "Actividad del agente",
+  "Reasoning summary": "Resumen del razonamiento",
+  "No activity yet.": "Aún no hay actividad.",
+  Stopped: "Detenido",
   "Waiting for answer": "Esperando respuesta",
   "Waiting for secret": "Esperando un secreto",
   Waiting: "En espera",

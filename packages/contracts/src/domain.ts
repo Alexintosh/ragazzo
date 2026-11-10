@@ -1,4 +1,5 @@
 import * as z from "zod";
+import { AgentActivityEntrySchema } from "./agent-activity.js";
 import { AGENT_SECRET_NAME_PATTERN } from "./agent-secret-name.js";
 import { BotAvatarSetSchema, BotAvatarValueSchema } from "./bot-avatar.js";
 import { DisabledBuiltinToolsSchema } from "./builtin-tools.js";
@@ -1392,6 +1393,7 @@ export const ThreadMessagePageSchema = z.object({
 export type ThreadMessagePage = z.infer<typeof ThreadMessagePageSchema>;
 
 export const ThreadSnapshotSchema = z.object({
+  activity: z.array(AgentActivityEntrySchema).optional(),
   threadId: Id,
   cursor: z.number().int().min(-1),
   messages: z.array(ThreadMessageSchema),

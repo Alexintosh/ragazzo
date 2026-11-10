@@ -16,6 +16,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Stack, useIsFocused, useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, ScrollView, Text, TextInput, View } from "react-native";
+import { AgentActivity } from "../components/agent-activity";
 import { glassHeaderOptions } from "../components/glass-title";
 import type { ImageArtifactPreviewTarget } from "../components/image-artifact-viewer";
 import { ImageArtifactViewer } from "../components/image-artifact-viewer";
@@ -117,6 +118,7 @@ function TaskThread({ taskId, messageId }: { taskId?: string; messageId?: string
   const [snapshot, setSnapshot] = useState<MobileSnapshot | null>(null);
   const snapshotRef = useRef<MobileSnapshot | null>(null);
   const [draft, setDraft] = useState("");
+  const [activityVisible, setActivityVisible] = useState(false);
   const [busy, setBusy] = useState(false);
   const busyRef = useRef(false);
   const [error, setError] = useState<string | null>(null);
@@ -409,20 +411,40 @@ function TaskThread({ taskId, messageId }: { taskId?: string; messageId?: string
         {snapshot?.run && "error" in snapshot.run && snapshot.run.error ? (
           <Text style={{ color: tokens.destructive }}>{snapshot.run.error}</Text>
         ) : null}
-        <MenuPicker
-          label={t("Attach")}
-          choices={[
-            { key: "", label: t("Choose a source") },
-            ...attachments.attachActions.map((action) => ({
-              key: action.id!,
-              label: action.title,
-            })),
-          ]}
-          value=""
-          onChange={(source) => {
-            if (!busy) attachments.attachFrom(source);
-          }}
-        />
+        {activityVisible ? (
+          <AgentActivity key={snapshot?.threadId} entries={snapshot?.activity ?? []} defaultOpen />
+        ) : null}
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+          <MenuPicker
+            label={t("Attach")}
+            choices={[
+              { key: "", label: t("Choose a source") },
+              ...attachments.attachActions.map((action) => ({
+                key: action.id!,
+                label: action.title,
+              })),
+            ]}
+            value=""
+            onChange={(source) => {
+              if (!busy) attachments.attachFrom(source);
+            }}
+          />
+          <NativeActionButton
+            label=""
+            accessibilityLabel={t("Tasks")}
+            icon={{ ios: "checklist", android: "list-outline" }}
+            prominence="plain"
+            onPress={() => router.push({ pathname: "/conversation-work", params: target })}
+          />
+          <NativeActionButton
+            label=""
+            accessibilityLabel={t("Agent activity")}
+            icon={{ ios: "waveform.path", android: "pulse" }}
+            prominence="plain"
+            selected={activityVisible}
+            onPress={() => setActivityVisible((visible) => !visible)}
+          />
+        </View>
         {attachments.attachmentNotice ? (
           <Text style={{ color: tokens.mutedForeground }}>{attachments.attachmentNotice}</Text>
         ) : null}

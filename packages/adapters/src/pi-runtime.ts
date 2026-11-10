@@ -71,6 +71,7 @@ import { PiJsonlSessionRecorder } from "./pi-session.js";
 import { withPiTelemetry } from "./pi-telemetry.js";
 import { withPiThinkingActivity } from "./pi-thinking-activity.js";
 import { observedPiStream } from "./pi-usage.js";
+import { withPublicReasoningSummaries } from "./public-reasoning.js";
 import type { RuntimeContextDecision } from "./runtime-context.js";
 import { createRuntimeContextPolicy } from "./runtime-context.js";
 import { deliverFinishedShells } from "./shell-command-stream.js";
@@ -389,7 +390,9 @@ export class PiAgentRuntime implements AgentRuntime {
                 target.models,
                 target.model,
                 ctx,
-                withCloudflareAuth(target.config, options),
+                withPublicReasoningSummaries(withCloudflareAuth(target.config, options), (text) =>
+                  queue.push({ type: "reasoning", text }),
+                ),
                 target.config.maxTokens,
                 () => target.credentials?.accessToken ?? target.apiKey,
                 (preparedOptions) =>

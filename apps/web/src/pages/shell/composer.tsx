@@ -18,7 +18,17 @@ import {
   updateComposerMentionBindings,
 } from "@rakazo/core";
 import { Button } from "@rakazo/ui-web";
-import { ArrowUp, Box, Paperclip, Plus, Settings, Square, X } from "lucide-react";
+import {
+  Activity,
+  ArrowUp,
+  Box,
+  ListTodo,
+  Paperclip,
+  Plus,
+  Settings,
+  Square,
+  X,
+} from "lucide-react";
 import type { ClipboardEvent, DragEvent, RefObject } from "react";
 import { memo, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
@@ -90,7 +100,11 @@ export const Composer = memo(function Composer({
   enterToSend,
   firstTask,
   onFirstTaskSetup,
+  taskPanel,
+  activityPanel,
 }: {
+  taskPanel?: { visible: boolean; id: string; toggle: () => void };
+  activityPanel?: { visible: boolean; id: string; toggle: () => void };
   firstTask?: "pi" | "codex" | "claude" | "acp";
   onFirstTaskSetup?: () => void;
   activeName?: string;
@@ -217,7 +231,7 @@ export const Composer = memo(function Composer({
   const {
     textareaRef,
     mirrorRef,
-    attachButtonRef,
+    composerToolsRef,
     composerActionsRef,
     composerBarRef,
     composerFieldRef,
@@ -802,38 +816,70 @@ export const Composer = memo(function Composer({
           expanded ? "gap-x-2 gap-y-2 pb-[9px] pt-3" : "gap-x-3.5 py-[9px]"
         }`}
       >
-        {attachmentsEnabled ? (
-          <>
-            <input
-              ref={fileInputRef}
-              type="file"
-              multiple
-              accept={ATTACHMENT_ACCEPT}
-              className="hidden"
-              onChange={(event) => pickAttachments(event.target.files)}
-            />
+        <div
+          ref={composerToolsRef}
+          className={`col-start-1 flex items-center gap-1 ${expanded ? "row-start-2" : ""}`}
+        >
+          {attachmentsEnabled ? (
+            <>
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                accept={ATTACHMENT_ACCEPT}
+                className="hidden"
+                onChange={(event) => pickAttachments(event.target.files)}
+              />
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label={t`Attach file`}
+                disabled={disabled}
+                onClick={() => fileInputRef.current?.click()}
+                className="size-8 shrink-0 rounded-full border border-border bg-muted text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+              >
+                <Plus size={16} strokeWidth={2} />
+              </Button>
+            </>
+          ) : null}
+          {taskPanel ? (
             <Button
-              ref={attachButtonRef}
+              type="button"
               variant="ghost"
               size="icon"
-              aria-label={t`Attach file`}
-              disabled={disabled}
-              onClick={() => fileInputRef.current?.click()}
-              className={`col-start-1 size-8 shrink-0 rounded-full border border-border bg-muted text-muted-foreground transition-colors hover:bg-accent hover:text-foreground ${
-                expanded ? "row-start-2" : ""
-              }`}
+              aria-label={t`Tasks`}
+              title={t`Tasks`}
+              aria-expanded={taskPanel.visible}
+              aria-controls={taskPanel.id}
+              onClick={taskPanel.toggle}
+              className={`size-8 shrink-0 rounded-full ${taskPanel.visible ? "bg-accent text-foreground" : "text-muted-foreground"}`}
             >
-              <Plus size={16} strokeWidth={2} />
+              <ListTodo aria-hidden size={16} />
             </Button>
-          </>
-        ) : null}
+          ) : null}
+          {activityPanel ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              aria-label={t`Agent activity`}
+              title={t`Agent activity`}
+              aria-expanded={activityPanel.visible}
+              aria-controls={activityPanel.id}
+              onClick={activityPanel.toggle}
+              className={`size-8 shrink-0 rounded-full ${activityPanel.visible ? "bg-accent text-foreground" : "text-muted-foreground"}`}
+            >
+              <Activity aria-hidden size={16} />
+            </Button>
+          ) : null}
+        </div>
         <div
           ref={composerFieldRef}
           data-testid="composer-field"
           className={`flex min-w-0 flex-wrap items-end gap-1.5 ${
             expanded
               ? "col-span-3 row-start-1 px-1.5"
-              : attachmentsEnabled
+              : attachmentsEnabled || taskPanel || activityPanel
                 ? "col-start-2"
                 : "col-span-2 col-start-1"
           }`}

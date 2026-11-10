@@ -695,6 +695,11 @@ msgstr ""
 msgid "Agent"
 msgstr ""
 
+#: src/components/AgentActivity.tsx
+#: src/pages/shell/composer.tsx
+msgid "Agent activity"
+msgstr "エージェントの動作"
+
 #: src/pages/shell/bot-panel.tsx
 #: src/pages/shell/create-bot-dialog.tsx
 msgid "Agent and environment"
@@ -828,7 +833,7 @@ msgstr "他のアシスタント"
 
 #: src/components/AskCard.tsx
 msgid "Answer"
-msgstr "回答"
+msgstr "応答"
 
 #: src/components/call/IncomingCall.tsx
 msgctxt "incoming call"
@@ -1443,6 +1448,10 @@ msgid "Checking Docker availability…"
 msgstr ""
 
 #: src/pages/shell/bot-runtime-settings.tsx
+msgid "Checking host availability…"
+msgstr ""
+
+#: src/pages/shell/bot-runtime-settings.tsx
 msgid "Checking runtime…"
 msgstr ""
 
@@ -1469,6 +1478,10 @@ msgstr "モデルを選択"
 #: src/pages/Auth.tsx
 msgid "Choose a new password"
 msgstr "新しいパスワードを設定"
+
+#: src/pages/shell/bot-runtime-settings.tsx
+msgid "Choose a project folder on the selected host."
+msgstr ""
 
 #: src/pages/Onboarding.tsx
 msgid "Choose a provider"
@@ -1671,6 +1684,7 @@ msgstr "コンパクト"
 msgid "Complete"
 msgstr "完了"
 
+#: src/components/AgentActivity.tsx
 #: src/components/SubagentCard.tsx
 msgid "Completed"
 msgstr "完了"
@@ -3103,6 +3117,10 @@ msgstr "パスワードを入力してください"
 msgid "Enter a path to find other folders."
 msgstr ""
 
+#: src/pages/shell/bot-panel.tsx
+msgid "Enter a positive whole number for the tool call limit."
+msgstr ""
+
 #: src/lib/user-error.ts
 msgid "Enter a valid email"
 msgstr "有効なメールアドレスを入力してください"
@@ -3231,6 +3249,10 @@ msgstr "毎月"
 msgid "Every week"
 msgstr "毎週"
 
+#: src/pages/shell/bot-panel.tsx
+msgid "Execution limits"
+msgstr ""
+
 #: src/pages/PluginsOverlay.tsx
 msgid "Executor token"
 msgstr "実行トークン"
@@ -3291,6 +3313,7 @@ msgstr "非常に高い"
 msgid "failed"
 msgstr "失敗"
 
+#: src/components/AgentActivity.tsx
 #: src/components/SubagentCard.tsx
 #: src/pages/ActivityList.tsx
 msgid "Failed"
@@ -3433,6 +3456,10 @@ msgstr ""
 
 #: src/pages/shell/bot-runtime-settings.tsx
 msgid "Full access"
+msgstr ""
+
+#: src/pages/shell/bot-runtime-settings.tsx
+msgid "Full access allows file changes and commands outside the project folder."
 msgstr ""
 
 #: src/pages/WindowChrome.tsx
@@ -3918,6 +3945,10 @@ msgstr "MEMORY.md に加えて、ボットが意味に基づいて事実を保�
 msgid "Light"
 msgstr "ライト"
 
+#: src/pages/shell/bot-panel.tsx
+msgid "Limit tool calls"
+msgstr ""
+
 #: src/pages/RoutineEditor.tsx
 msgid "Linear issue"
 msgstr "Linear課題"
@@ -4160,6 +4191,10 @@ msgstr "リクエストあたりの最大画像数"
 #: src/pages/Onboarding.tsx
 msgid "Maximum output tokens"
 msgstr "最大出力トークン数"
+
+#: src/pages/shell/bot-panel.tsx
+msgid "Maximum tool calls"
+msgstr ""
 
 #: src/pages/memory-providers/SerenitySettingsForm.tsx
 msgid "MCP endpoint"
@@ -4584,6 +4619,10 @@ msgstr ""
 #: src/pages/SettingsOverlay.tsx
 msgid "Next settings sections"
 msgstr "次の設定セクション"
+
+#: src/components/AgentActivity.tsx
+msgid "No activity yet."
+msgstr "まだ動作はありません。"
 
 #: src/pages/PluginsOverlay.tsx
 msgid "No apps match your search."
@@ -5058,6 +5097,10 @@ msgstr "電話"
 msgid "Photo"
 msgstr "写真"
 
+#: src/pages/shell/bot-panel.tsx
+msgid "Pi only. Off uses the deployment default, which is unlimited unless configured."
+msgstr ""
+
 #: src/pages/GroupPanel.tsx
 msgid "Pick {GROUP_MEMBER_MIN}–{GROUP_MEMBER_MAX}"
 msgstr "{GROUP_MEMBER_MIN}–{GROUP_MEMBER_MAX}人を選択"
@@ -5272,6 +5315,10 @@ msgstr ""
 #: src/pages/shell/bot-model-picker.tsx
 msgid "Reasoning effort"
 msgstr "推論レベル"
+
+#: src/components/AgentActivity.tsx
+msgid "Reasoning summary"
+msgstr "推論の要約"
 
 #: src/pages/memory-providers/SerenitySettingsForm.tsx
 msgid "Recall and write"
@@ -5801,6 +5848,7 @@ msgstr "実行日時は未来の日時を指定してください。"
 msgid "running"
 msgstr "実行中"
 
+#: src/components/AgentActivity.tsx
 #: src/components/McpServerHealthLine.tsx
 #: src/components/SubagentCard.tsx
 #: src/pages/ActivityList.tsx
@@ -6039,6 +6087,14 @@ msgstr ""
 #: src/pages/shell/chat-header.tsx
 msgid "Select a bot"
 msgstr "ボットを選択"
+
+#: src/pages/shell/registered-host-picker.tsx
+msgid "Select a registered host"
+msgstr ""
+
+#: src/pages/shell/bot-runtime-settings.tsx
+msgid "Select a registered host, such as your Mac."
+msgstr ""
 
 #: src/pages/memory-providers/ConnectionModeFields.tsx
 msgid "Self-hosted"
@@ -6536,6 +6592,10 @@ msgstr "ティーチングを停止"
 msgid "Stop the current reply before saving character changes."
 msgstr ""
 
+#: src/components/AgentActivity.tsx
+msgid "Stopped"
+msgstr "停止"
+
 #. js-lingui-explicit-id
 #: src/lib/browser-notifications.ts
 msgid "Stopped."
@@ -6658,6 +6718,7 @@ msgstr ""
 msgid "Task instructions"
 msgstr ""
 
+#: src/pages/shell/composer.tsx
 #: src/pages/shell/conversation-tasks.tsx
 msgid "Tasks"
 msgstr ""
@@ -6783,6 +6844,7 @@ msgstr "ファイルまたは選択内容が一致しなくなりました。も
 msgid "These saved settings can't be read. Remove it and add it again."
 msgstr "保存された設定を読み取れません。削除してから再度追加してください。"
 
+#: src/components/AgentActivity.tsx
 #: src/components/call/CallCard.tsx
 #: src/pages/ModelRoleSettings.tsx
 #: src/pages/RoutineEditor.tsx
@@ -7344,17 +7406,9 @@ msgstr ""
 msgid "Wait a moment and test again."
 msgstr "しばらく待ってから再度テストしてください。"
 
-#: src/pages/shell/thread-queue.tsx
-msgid "Waiting for approval"
-msgstr ""
-
-#: src/pages/shell/thread-queue.tsx
-msgid "Waiting for computer"
-msgstr ""
-
-#: src/pages/shell/thread-queue.tsx
-msgid "Waiting for current work"
-msgstr ""
+#: src/components/AgentActivity.tsx
+msgid "Waiting"
+msgstr "待機中"
 
 #: src/lib/roster-status.ts
 msgid "Waiting in line…"
@@ -7519,6 +7573,10 @@ msgstr "ChatGPT または Claude のプランで使えます。"
 msgid "Workspace"
 msgstr "ワークスペース"
 
+#: src/pages/shell/bot-runtime-settings.tsx
+msgid "Workspace limits file writes. It does not limit all reads or network access."
+msgstr ""
+
 #: src/pages/shell/conversation-tasks.tsx
 msgid "Write scope"
 msgstr ""
@@ -7608,6 +7666,18 @@ msgstr "音声プロバイダーのクレジットが不足しています。"
 msgid "Your voice provider key was rejected."
 msgstr "音声プロバイダーのキーが拒否されました。"
 
+#: src/pages/shell/thread-queue.tsx
+msgid "Waiting for approval"
+msgstr ""
+
+#: src/pages/shell/thread-queue.tsx
+msgid "Waiting for computer"
+msgstr ""
+
+#: src/pages/shell/thread-queue.tsx
+msgid "Waiting for current work"
+msgstr ""
+
 
 #: src/pages/shell/thread-queue.tsx
 msgid "Waiting for answer"
@@ -7616,10 +7686,6 @@ msgstr "回答を待っています"
 #: src/pages/shell/thread-queue.tsx
 msgid "Waiting for secret"
 msgstr "シークレットを待っています"
-
-#: src/pages/shell/thread-queue.tsx
-msgid "Waiting"
-msgstr "待機中"
 
 #: src/pages/shell/thread-queue.tsx
 msgid "Review approval"

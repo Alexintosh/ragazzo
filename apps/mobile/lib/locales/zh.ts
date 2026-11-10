@@ -1,4 +1,8 @@
 export const ZH_MESSAGES: Record<string, string> = {
+  "Agent activity": "智能体活动",
+  "Reasoning summary": "推理摘要",
+  "No activity yet.": "暂无活动。",
+  Stopped: "已停止",
   "Waiting for answer": "等待回答",
   "Waiting for secret": "等待提供密钥",
   Waiting: "等待中",

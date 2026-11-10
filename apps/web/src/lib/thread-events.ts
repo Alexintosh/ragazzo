@@ -10,6 +10,7 @@ import type {
 } from "@rakazo/contracts";
 import { RUN_TRIGGERS } from "@rakazo/contracts";
 import {
+  reduceAgentActivity,
   isActive,
   isBackgroundRunTrigger,
   isRunTerminalEvent,
@@ -248,6 +249,8 @@ export function prependThreadMessagePage(
 
 export function isThreadSnapshotEvent(event: ProductEvent): boolean {
   return (
+    event.type === "agent.reasoning" ||
+    event.type === "thread.meta" ||
     event.type === "thread.cleared" ||
     event.type === "thread.progress" ||
     event.type === "thread.subagent" ||
@@ -270,6 +273,15 @@ export function reduceThreadSnapshot(
   event: ProductEvent,
 ): ThreadSnapshot | null {
   if (!prev) return prev;
+  if (event.threadId === prev.threadId && event.seq > prev.cursor) {
+    const activity = reduceAgentActivity(prev.activity ?? [], event);
+    if (activity.length || prev.activity?.length) prev = { ...prev, activity };
+  }
+  if (event.type === "agent.reasoning" || event.type === "thread.meta") {
+    return event.threadId === prev.threadId && event.seq > prev.cursor
+      ? { ...prev, cursor: event.seq }
+      : prev;
+  }
   if (stopsRunHelpers(event)) {
     const messages = settleRunSubagents(prev.messages, event.runId);
     if (messages !== prev.messages) prev = { ...prev, messages };
@@ -280,6 +292,7 @@ export function reduceThreadSnapshot(
       ...prev,
       cursor: event.seq,
       messages: [],
+      activity: [],
       olderCursor: null,
       run: null,
       activeRuns: [],

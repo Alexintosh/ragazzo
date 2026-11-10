@@ -41,6 +41,7 @@ import { useI18n } from "../lib/i18n";
 import { useMobileTokens, useResolvedAppearance } from "../lib/native";
 import type { ComposerSnapshot } from "../lib/thread-feedback";
 import { GlassSurface } from "./glass-surface";
+import { NativeActionButton } from "./native-action-button";
 import { NativeSymbol } from "./native-symbol";
 
 type NativeEdit = {
@@ -81,6 +82,8 @@ type ThreadComposerProps = {
   stop: () => Promise<void>;
   startVoiceCall?: () => Promise<void>;
   onSlashAction: (action: SlashActionId) => void;
+  onOpenTasks?: () => void;
+  activityPanel?: { visible: boolean; toggle: () => void };
 };
 
 export function ThreadComposer({
@@ -105,6 +108,8 @@ export function ThreadComposer({
   stop,
   startVoiceCall,
   onSlashAction,
+  onOpenTasks,
+  activityPanel,
 }: ThreadComposerProps) {
   const tokens = useMobileTokens();
   const mentionStyle = (mention: ComposerMention) => ({
@@ -477,6 +482,29 @@ export function ThreadComposer({
               </GlassSurface>
             </View>
           </MenuView>
+        ) : null}
+        {onOpenTasks ? (
+          <NativeActionButton
+            label=""
+            accessibilityLabel={t("Tasks")}
+            icon={{ ios: "checklist", android: "list-outline" }}
+            prominence="plain"
+            size="compact"
+            style={{ width: 32, minHeight: 44 }}
+            onPress={onOpenTasks}
+          />
+        ) : null}
+        {activityPanel ? (
+          <NativeActionButton
+            label=""
+            accessibilityLabel={t("Agent activity")}
+            icon={{ ios: "waveform.path", android: "pulse" }}
+            prominence="plain"
+            size="compact"
+            style={{ width: 32, minHeight: 44 }}
+            selected={activityPanel.visible}
+            onPress={activityPanel.toggle}
+          />
         ) : null}
         <GlassSurface
           shape="roundedRectangle"

@@ -2029,3 +2029,22 @@ describe("screen read ownership", () => {
     expect(screenReadLoaded("running", "running")).toBe(true);
   });
 });
+
+describe("agent activity event scope", () => {
+  it("projects public summaries without moving the cursor backwards or across threads", () => {
+    const initial = snapshot([]);
+    const summary = event({
+      type: "agent.reasoning",
+      payload: { id: "summary", text: "Checking files", done: true },
+    });
+    const next = reduceThreadSnapshot(initial, summary)!;
+    expect(next.activity).toEqual([
+      expect.objectContaining({ kind: "reasoning", text: "Checking files", status: "completed" }),
+    ]);
+    expect(next.cursor).toBe(4);
+    expect(reduceThreadSnapshot(next, { ...summary, seq: 2 })).toBe(next);
+    expect(reduceThreadSnapshot(next, { ...summary, threadId: "other-thread", seq: 20 })).toBe(
+      next,
+    );
+  });
+});

@@ -668,6 +668,15 @@ export type AgentRuntimeEvent =
   | { type: "text"; text: string }
   /** Explicit provider reasoning lifecycle only; never contains reasoning text. */
   | { type: "thinking"; active: boolean }
+  /** Public provider summary delta; never raw or encrypted reasoning. */
+  | { type: "reasoning"; text: string }
+  | {
+      type: "tool_completed";
+      name: string;
+      executionId: string;
+      durationMs: number;
+      failed: boolean;
+    }
   /** A new assistant message starts; its text does not continue the previous text. */
   | { type: "turn" }
   /** Messages sent while the bot worked were handed to the model before this turn. */
@@ -687,6 +696,8 @@ export type AgentRuntimeEvent =
       name: string;
       args: Record<string, unknown>;
       executionId: string;
+      /** Provider-owned execution reported for display; never apply or loop-guard it here. */
+      observed?: true;
       /** The model reached this deferred built-in through use_tool. */
       viaUseTool?: boolean;
     }

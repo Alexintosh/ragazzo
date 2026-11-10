@@ -92,7 +92,12 @@ type Run = {
   outputs: Promise<void>;
   itemScopes: Map<
     string,
-    { command?: string; cwd?: string; changes?: Array<{ path: string; diff: string }> }
+    {
+      command?: string;
+      cwd?: string;
+      startedAt?: number;
+      changes?: Array<{ path: string; diff: string }>;
+    }
   >;
 };
 const hash = (text: string) => createHash("sha256").update(text).digest("hex");
@@ -626,6 +631,11 @@ export class HostCodexBroker {
     if (run.turn && p.turnId && p.turnId !== run.turn) return;
     if (message.method === "item/agentMessage/delta") {
       if (typeof p.delta === "string") this.publish(run, { type: "text", text: p.delta });
+    } else if (message.method === "item/reasoning/summaryPartAdded") {
+      if (typeof p.summaryIndex === "number" && p.summaryIndex > 0)
+        this.publish(run, { type: "reasoning", text: "\n\n" });
+    } else if (message.method === "item/reasoning/summaryTextDelta") {
+      if (typeof p.delta === "string") this.publish(run, { type: "reasoning", text: p.delta });
     } else if (message.method === "item/started") {
       const item = p.item;
       if (item?.id && (item.type === "commandExecution" || item.type === "fileChange")) {
@@ -646,17 +656,39 @@ export class HostCodexBroker {
                   (change.diff.length > 4096 ? "\n[Diff truncated]" : ""),
               }))
             : undefined;
-        run.itemScopes.set(item.id, { command: item.command, cwd: item.cwd, changes });
+        run.itemScopes.set(item.id, {
+          command: item.command,
+          cwd: item.cwd,
+          changes,
+          startedAt: Date.now(),
+        });
         if (run.itemScopes.size > 128) run.itemScopes.delete(run.itemScopes.keys().next().value!);
       }
-      if (item?.type === "commandExecution" || item?.type === "fileChange")
+      if (item?.type === "reasoning") this.publish(run, { type: "thinking", active: true });
+      if (item?.id && (item.type === "commandExecution" || item.type === "fileChange"))
         this.publish(run, {
-          type: "progress",
-          text: item.type === "commandExecution" ? "Running a command" : "Editing files",
-          activity: true,
+          type: "tool",
+          observed: true,
+          name: item.type === "commandExecution" ? "native_command" : "native_file_change",
+          args: { itemId: item.id },
+          executionId: JSON.stringify([run.input.runId, item.id]),
         });
     } else if (message.method === "item/completed") {
       const item = p.item;
+      if (item?.type === "reasoning") this.publish(run, { type: "thinking", active: false });
+      if (item?.id && (item.type === "commandExecution" || item.type === "fileChange")) {
+        const startedAt = run.itemScopes.get(item.id)?.startedAt;
+        this.publish(run, {
+          type: "tool_completed",
+          name: item.type === "commandExecution" ? "native_command" : "native_file_change",
+          executionId: JSON.stringify([run.input.runId, item.id]),
+          durationMs: startedAt === undefined ? 0 : Date.now() - startedAt,
+          failed:
+            item.status === "failed" ||
+            item.status === "declined" ||
+            (typeof item.exitCode === "number" && item.exitCode !== 0),
+        });
+      }
       if (item?.type === "imageGeneration" && typeof item.savedPath === "string")
         this.output(run, item.savedPath);
       if (item?.type === "agentMessage" && typeof item.text === "string") {
@@ -964,6 +996,7 @@ export class HostCodexBroker {
       threadId: run.session,
       model: input.model && input.model !== "default" ? input.model : null,
       effort: selectedEffort === "off" ? "none" : selectedEffort,
+      summary: "auto",
       input: [
         {
           type: "text",

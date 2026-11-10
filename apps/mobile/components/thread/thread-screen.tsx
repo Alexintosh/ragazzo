@@ -51,6 +51,7 @@ import { useThreadSync } from "../../lib/thread-sync";
 import { useThreadTranscript } from "../../lib/thread-transcript";
 import { useAutoSpeakReply, useSpeakMessages, useThreadVoiceCall } from "../../lib/thread-voice";
 import { liveEndRunError } from "../../lib/thread-window";
+import { AgentActivity } from "../agent-activity";
 import { FailedSendBubble } from "../failed-send-bubble";
 import type { MarkdownArtifactPreviewTarget } from "../markdown-artifact-preview";
 import { MarkdownArtifactPreview } from "../markdown-artifact-preview";
@@ -82,6 +83,7 @@ export function Thread({ sessionEpoch, userId }: { sessionEpoch: number; userId:
   const focused = useIsFocused();
   const foreground = useAppForeground();
   const router = useRouter();
+  const [activityVisible, setActivityVisible] = useState(false);
   // Beside the chat list on a wide window, the chat has only the width the list leaves.
   const { inboxShown, contentWidth: windowWidth } = useSplitView();
   const nativeHeaderHeight = useHeaderHeight();
@@ -586,6 +588,14 @@ export function Thread({ sessionEpoch, userId }: { sessionEpoch: number; userId:
           loadingNewer={paging.loadingNewer}
           showLatest={showLatest}
         />
+        {activityVisible ? (
+          <AgentActivity
+            key={snap?.threadId}
+            entries={snap?.activity ?? []}
+            defaultOpen
+            botName={(id) => snap?.members?.find((member) => member.botId === id)?.name}
+          />
+        ) : null}
         <ThreadFetchErrorNotice error={error} showingSaved={showingSaved} />
         {/* Shrinks (the suggestion lists scroll) so the input and Send stay above the keyboard. */}
         <ThreadComposerDock
@@ -610,6 +620,16 @@ export function Thread({ sessionEpoch, userId }: { sessionEpoch: number; userId:
           }
         >
           <ThreadComposer
+            onOpenTasks={() =>
+              router.push({
+                pathname: "/conversation-work",
+                params: botId ? { botId } : { groupId },
+              })
+            }
+            activityPanel={{
+              visible: activityVisible,
+              toggle: () => setActivityVisible((visible) => !visible),
+            }}
             key={threadKey}
             ref={composer.composerRef}
             draftScope={draftScope}

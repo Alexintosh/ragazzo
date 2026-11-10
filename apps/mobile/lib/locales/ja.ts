@@ -1,4 +1,8 @@
 export const JA_MESSAGES: Record<string, string> = {
+  "Agent activity": "エージェントの動作",
+  "Reasoning summary": "推論の要約",
+  "No activity yet.": "まだ動作はありません。",
+  Stopped: "停止",
   "Waiting for answer": "回答を待っています",
   "Waiting for secret": "シークレットを待っています",
   Waiting: "待機中",

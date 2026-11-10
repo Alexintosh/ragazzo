@@ -67,6 +67,7 @@ import {
   TOOL_STEPS_WITHOUT_RESPONSE,
 } from "./run-replies.js";
 import { scheduleRoutineRetry } from "./run-routines.js";
+import { createRunReasoning } from "./run-reasoning.js";
 import { applyTool } from "./run-tools.js";
 import { withRuntimeCleanup } from "./runtime-stream.js";
 import {
@@ -100,6 +101,7 @@ export async function consumeRunEvents(
 ): Promise<boolean> {
   const { deps, run, runId, bot } = ctx;
   const { reply } = ctx.state;
+  const reasoning = createRunReasoning(ctx);
   let thinking = false;
   const publishThinking = async (active: boolean) => {
     if (thinking === active) return;
@@ -133,6 +135,25 @@ export async function consumeRunEvents(
       if (!ctx.state.lease.valid) return true;
       if (await runLeaseLost(ctx)) return true;
 
+      if (event.type === "reasoning") {
+        await reasoning.push(event.text);
+        continue;
+      }
+      if (event.type !== "checkpoint" && event.type !== "usage") await reasoning.finish();
+      if (event.type === "tool_completed") {
+        await appendToolCompletionAudit(
+          deps,
+          { spaceId: run.spaceId, threadId: run.threadId, botId: bot.id, runId },
+          {
+            name: event.name,
+            executionId: event.executionId,
+            durationMs: event.durationMs,
+            ...(event.failed ? { error: "Tool failed" } : {}),
+          },
+          ctx.secrets,
+        );
+        continue;
+      }
       if (event.type === "thinking") {
         await publishThinking(event.active);
         continue;
@@ -198,6 +219,7 @@ export async function consumeRunEvents(
     return false;
   } finally {
     // Run completion clears thinking too; never let this replace the turn's own outcome.
+    await reasoning.finish().catch(() => {});
     await publishThinking(false).catch(() => {});
   }
 }
@@ -497,6 +519,7 @@ async function onToolCalled(ctx: RunContext, event: RuntimeEvent<"tool">): Promi
   });
   await showNarrationStatus(ctx, heldNote);
   tryFlushPendingTools(reply);
+  if (event.observed) return false;
   const loopGuard = advanceToolCallLoopGuard(ctx.state.toolCallStreak, event.name, event.args);
   ctx.state.toolCallStreak = loopGuard.streak;
   if (loopGuard.stuck) {

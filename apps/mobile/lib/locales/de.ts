@@ -1,4 +1,8 @@
 export const DE_MESSAGES: Record<string, string> = {
+  "Agent activity": "Agentenaktivität",
+  "Reasoning summary": "Zusammenfassung der Überlegungen",
+  "No activity yet.": "Noch keine Aktivität.",
+  Stopped: "Gestoppt",
   "Waiting for answer": "Wartet auf Antwort",
   "Waiting for secret": "Wartet auf geheime Eingabe",
   Waiting: "Wartet",

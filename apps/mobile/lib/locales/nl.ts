@@ -1,4 +1,8 @@
 export const NL_MESSAGES: Record<string, string> = {
+  "Agent activity": "Agentactiviteit",
+  "Reasoning summary": "Samenvatting van de redenering",
+  "No activity yet.": "Nog geen activiteit.",
+  Stopped: "Gestopt",
   "Waiting for answer": "Wacht op antwoord",
   "Waiting for secret": "Wacht op geheim",
   Waiting: "Wachten",

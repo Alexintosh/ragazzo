@@ -1,3 +1,4 @@
+export * from "./agent-activity.js";
 export * from "./action-approval.js";
 export * from "./agent-import/index.js";
 export * from "./agent-skill.js";
