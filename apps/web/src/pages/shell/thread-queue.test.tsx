@@ -21,6 +21,13 @@ vi.mock("@rakazo/ui-web", () => ({
     </button>
   ),
 }));
+vi.mock("react-router-dom", () => ({
+  Link: ({ to, children, ...props }: ComponentProps<"a"> & { to: string }) => (
+    <a href={to} {...props}>
+      {children}
+    </a>
+  ),
+}));
 
 import { ThreadQueuePanel } from "./thread-queue";
 
@@ -144,4 +151,65 @@ it("promotes a queued entry with a stable identity when a response fails", async
   expect(button("Start as task").disabled).toBe(false);
   await act(async () => button("Start as task").click());
   expect(startTask.mock.calls[1]).toEqual(startTask.mock.calls[0]);
+});
+
+it("shows an ordinary question's Answer link even without queued messages", () => {
+  render({
+    queue: {
+      ...queue,
+      entries: [],
+      waitingReason: "approval",
+      waitingDetail: { reason: "question", runId: "run", messageId: "ask", action: "answer" },
+    },
+    waitingHref: "/app/b?m=ask",
+  });
+  expect(container.textContent).toContain("Waiting for answer");
+  expect(container.textContent).not.toContain("Waiting for approval");
+  expect(container.querySelector("a")?.textContent).toBe("Answer");
+  expect(container.querySelector("a")?.getAttribute("href")).toBe("/app/b?m=ask");
+});
+
+it("removes a stale button when another device answers without advancing the queue revision", () => {
+  render({
+    queue: {
+      ...queue,
+      waitingDetail: {
+        reason: "secret",
+        runId: "run",
+        messageId: "secret",
+        action: "provide_secret",
+      },
+    },
+    waitingHref: "/app/b?m=secret",
+  });
+  expect(container.querySelector("a")?.textContent).toBe("Provide secret");
+  render({ queue: { ...queue, waitingDetail: { reason: "waiting", runId: "run" } } });
+  expect(container.querySelector("a")).toBeNull();
+  expect(container.textContent).not.toContain("Waiting for approval");
+});
+
+it("uses legacy labels without a request button for an older server", () => {
+  render({ queue: { ...queue, waitingReason: "approval" }, waitingHref: "/app/b?m=old" });
+  expect(container.textContent).toContain("Waiting for approval");
+  expect(container.querySelector("a")).toBeNull();
+});
+
+it("offers takeover only when the server offers the action", () => {
+  render({
+    queue: { ...queue, waitingDetail: { reason: "takeover", runId: "run", messageId: "computer" } },
+    waitingHref: "/app/b?m=computer",
+  });
+  expect(container.querySelector("a")).toBeNull();
+  render({
+    queue: {
+      ...queue,
+      waitingDetail: {
+        reason: "takeover",
+        runId: "run",
+        messageId: "computer",
+        action: "takeover",
+      },
+    },
+  });
+  expect(container.querySelector("a")?.textContent).toBe("Take over");
 });

@@ -22,15 +22,18 @@ export async function answerThreadMessage(
 ) {
   if (readOnly || (!botId && !groupId) || !message.runId) return;
   markRead();
-  await rpc("threads/answer", {
-    ...(groupId ? { groupId } : { botId }),
-    runId: message.runId,
-    messageId: message.id,
-    answer,
-    ...(fields ? { fields: [...fields] } : {}),
-    ...(remember === false ? { remember } : {}),
-    ...(dismiss ? { dismiss: true as const } : {}),
-  });
-  // The answer is saved once the server accepts it; a failed refresh only delays the card.
-  if (isCurrentTarget(botId, groupId)) await refresh().catch(() => undefined);
+  try {
+    await rpc("threads/answer", {
+      ...(groupId ? { groupId } : { botId }),
+      runId: message.runId,
+      messageId: message.id,
+      answer,
+      ...(fields ? { fields: [...fields] } : {}),
+      ...(remember === false ? { remember } : {}),
+      ...(dismiss ? { dismiss: true as const } : {}),
+    });
+  } finally {
+    // Another device may have answered; preserve any rejection after rereading.
+    if (isCurrentTarget(botId, groupId)) await refresh().catch(() => undefined);
+  }
 }

@@ -7608,3 +7608,28 @@ msgstr "你的語音供應商額度已用完。"
 #: src/lib/user-error.ts
 msgid "Your voice provider key was rejected."
 msgstr "你的語音供應商拒絕了該金鑰。"
+
+
+#: src/pages/shell/thread-queue.tsx
+msgid "Waiting for answer"
+msgstr "等待回答"
+
+#: src/pages/shell/thread-queue.tsx
+msgid "Waiting for secret"
+msgstr "等待提供密鑰"
+
+#: src/pages/shell/thread-queue.tsx
+msgid "Waiting"
+msgstr "等待中"
+
+#: src/pages/shell/thread-queue.tsx
+msgid "Review approval"
+msgstr "檢視核准"
+
+#: src/pages/shell/thread-queue.tsx
+msgid "Provide secret"
+msgstr "提供密鑰"
+
+#: src/pages/shell/thread-queue.tsx
+msgid "Take over"
+msgstr "接管控制"

@@ -7607,3 +7607,28 @@ msgstr "Ses sağlayıcınızın kredisi bitti."
 #: src/lib/user-error.ts
 msgid "Your voice provider key was rejected."
 msgstr "Ses sağlayıcınız anahtarı reddetti."
+
+
+#: src/pages/shell/thread-queue.tsx
+msgid "Waiting for answer"
+msgstr "Yanıt bekleniyor"
+
+#: src/pages/shell/thread-queue.tsx
+msgid "Waiting for secret"
+msgstr "Gizli bilgi bekleniyor"
+
+#: src/pages/shell/thread-queue.tsx
+msgid "Waiting"
+msgstr "Bekleniyor"
+
+#: src/pages/shell/thread-queue.tsx
+msgid "Review approval"
+msgstr "Onayı incele"
+
+#: src/pages/shell/thread-queue.tsx
+msgid "Provide secret"
+msgstr "Gizli bilgi sağla"
+
+#: src/pages/shell/thread-queue.tsx
+msgid "Take over"
+msgstr "Kontrolü devral"

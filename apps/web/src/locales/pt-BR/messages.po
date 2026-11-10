@@ -7607,3 +7607,28 @@ msgstr "Seu provedor de voz está sem crédito."
 #: src/lib/user-error.ts
 msgid "Your voice provider key was rejected."
 msgstr "Seu provedor de voz recusou a chave."
+
+
+#: src/pages/shell/thread-queue.tsx
+msgid "Waiting for answer"
+msgstr "Aguardando resposta"
+
+#: src/pages/shell/thread-queue.tsx
+msgid "Waiting for secret"
+msgstr "Aguardando segredo"
+
+#: src/pages/shell/thread-queue.tsx
+msgid "Waiting"
+msgstr "Aguardando"
+
+#: src/pages/shell/thread-queue.tsx
+msgid "Review approval"
+msgstr "Revisar aprovação"
+
+#: src/pages/shell/thread-queue.tsx
+msgid "Provide secret"
+msgstr "Fornecer segredo"
+
+#: src/pages/shell/thread-queue.tsx
+msgid "Take over"
+msgstr "Assumir controle"

@@ -7607,3 +7607,28 @@ msgstr "Je spraakaanbieder heeft geen tegoed meer."
 #: src/lib/user-error.ts
 msgid "Your voice provider key was rejected."
 msgstr "Je spraakaanbieder heeft de sleutel geweigerd."
+
+
+#: src/pages/shell/thread-queue.tsx
+msgid "Waiting for answer"
+msgstr "Wacht op antwoord"
+
+#: src/pages/shell/thread-queue.tsx
+msgid "Waiting for secret"
+msgstr "Wacht op geheim"
+
+#: src/pages/shell/thread-queue.tsx
+msgid "Waiting"
+msgstr "Wachten"
+
+#: src/pages/shell/thread-queue.tsx
+msgid "Review approval"
+msgstr "Goedkeuring bekijken"
+
+#: src/pages/shell/thread-queue.tsx
+msgid "Provide secret"
+msgstr "Geheim invoeren"
+
+#: src/pages/shell/thread-queue.tsx
+msgid "Take over"
+msgstr "Overnemen"

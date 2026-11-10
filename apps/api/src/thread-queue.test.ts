@@ -10,6 +10,8 @@ describe("thread queue runtime steering", () => {
     async (runtimeKind) => {
       const tx = {
         thread: { findFirst: vi.fn(async () => ({ nextEventSeq: 5 })) },
+        message: { findMany: vi.fn(async () => []) },
+        externalEffect: { findMany: vi.fn(async () => []) },
         steeringMessage: {
           findMany: vi.fn(async () => [
             {
@@ -22,7 +24,13 @@ describe("thread queue runtime steering", () => {
           ]),
         },
         run: {
-          findFirst: vi.fn(async () => ({ id: "active", status: "running", trigger: "user" })),
+          findFirst: vi.fn(async () => ({
+            id: "active",
+            threadId: "thread",
+            botId: "bot",
+            status: "running",
+            trigger: "user",
+          })),
         },
         event: { findFirst: vi.fn(async () => null) },
       };
@@ -38,6 +46,8 @@ describe("thread queue runtime steering", () => {
       expect(result.snapshot).toMatchObject({ canSteer, entries: [{ canSteer }] });
       tx.run.findFirst.mockResolvedValue({
         id: "active",
+        threadId: "thread",
+        botId: "bot",
         status: "waiting_input",
         trigger: "user",
       });

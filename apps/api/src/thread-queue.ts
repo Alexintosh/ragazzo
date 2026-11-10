@@ -14,6 +14,7 @@ import {
   createThreadMessageInTransaction,
   IsolationError,
   lockOwnedGroup,
+  readRunWaitingDetail,
 } from "@rakazo/db";
 import type { ThreadTarget } from "./thread-target.js";
 
@@ -133,6 +134,13 @@ export async function queueState(tx: Prisma.TransactionClient, actor: Actor, tar
       true;
   const canSteer =
     supportsSteering && active?.status === "running" && isConversationalRun(active.trigger);
+  const waitingDetail =
+    active && ["waiting_input", "waiting_takeover"].includes(active.status)
+      ? await readRunWaitingDetail(tx, actor, active.id, {
+          threadId: target.threadId,
+          botId: target.botId,
+        })
+      : undefined;
   const snapshot: ThreadQueue = {
     revision: changed ? changed.seq + 1 : 0,
     entries: rows.map((row) => ({
@@ -148,6 +156,7 @@ export async function queueState(tx: Prisma.TransactionClient, actor: Actor, tar
       canSteer: Boolean(canSteer && row.deliveryMode === "queue"),
     })),
     canSteer: Boolean(canSteer),
+    ...(waitingDetail ? { waitingDetail } : {}),
     waitingReason:
       active?.status === "waiting_input"
         ? "approval"

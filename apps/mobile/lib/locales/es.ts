@@ -1,4 +1,11 @@
 export const ES_MESSAGES: Record<string, string> = {
+  "Waiting for answer": "Esperando respuesta",
+  "Waiting for secret": "Esperando un secreto",
+  Waiting: "En espera",
+  "Review approval": "Revisar aprobación",
+  "Provide secret": "Proporcionar secreto",
+  "Take over": "Tomar el control",
+  "Waiting for current work": "Esperando el trabajo actual",
   "How other bots see it": "Cómo lo ven otros bots",
   "Share to": "Compartir en",
   "{count} files": "{count} archivos",

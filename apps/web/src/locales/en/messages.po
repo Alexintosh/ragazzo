@@ -7607,3 +7607,28 @@ msgstr "Your voice provider is out of credit."
 #: src/lib/user-error.ts
 msgid "Your voice provider key was rejected."
 msgstr "Your voice provider key was rejected."
+
+
+#: src/pages/shell/thread-queue.tsx
+msgid "Waiting for answer"
+msgstr "Waiting for answer"
+
+#: src/pages/shell/thread-queue.tsx
+msgid "Waiting for secret"
+msgstr "Waiting for secret"
+
+#: src/pages/shell/thread-queue.tsx
+msgid "Waiting"
+msgstr "Waiting"
+
+#: src/pages/shell/thread-queue.tsx
+msgid "Review approval"
+msgstr "Review approval"
+
+#: src/pages/shell/thread-queue.tsx
+msgid "Provide secret"
+msgstr "Provide secret"
+
+#: src/pages/shell/thread-queue.tsx
+msgid "Take over"
+msgstr "Take over"

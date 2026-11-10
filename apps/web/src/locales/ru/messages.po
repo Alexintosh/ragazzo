@@ -7607,3 +7607,28 @@ msgstr "У вашего голосового провайдера закончи
 #: src/lib/user-error.ts
 msgid "Your voice provider key was rejected."
 msgstr "Ваш голосовой провайдер отклонил ключ."
+
+
+#: src/pages/shell/thread-queue.tsx
+msgid "Waiting for answer"
+msgstr "Ожидание ответа"
+
+#: src/pages/shell/thread-queue.tsx
+msgid "Waiting for secret"
+msgstr "Ожидание секрета"
+
+#: src/pages/shell/thread-queue.tsx
+msgid "Waiting"
+msgstr "Ожидание"
+
+#: src/pages/shell/thread-queue.tsx
+msgid "Review approval"
+msgstr "Проверить подтверждение"
+
+#: src/pages/shell/thread-queue.tsx
+msgid "Provide secret"
+msgstr "Указать секрет"
+
+#: src/pages/shell/thread-queue.tsx
+msgid "Take over"
+msgstr "Взять управление"
