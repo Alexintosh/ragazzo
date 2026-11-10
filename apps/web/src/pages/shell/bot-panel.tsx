@@ -13,8 +13,10 @@ import {
   BOT_DESCRIPTION_MAX_LENGTH,
   BOT_NAME_MAX_LENGTH,
   BUILTIN_TOOL_NAMES,
+  DEFAULT_ENABLED_TOOL_CALL_LIMIT,
   isBuiltinToolName,
   resolveBotAvatarSet,
+  ToolCallLimitSchema,
 } from "@rakazo/contracts";
 import {
   chatModelChoices,
@@ -50,7 +52,11 @@ import { useSpaceQueries } from "../../lib/query";
 import { useSpaceRpc } from "../../lib/space-rpc";
 import { errorText } from "../../lib/user-error";
 import { AvatarStudioPopover } from "./avatar-studio-popover";
-import { BotRuntimeSettings, BotRuntimeStatus } from "./bot-runtime-settings";
+import {
+  BotRuntimeSettings,
+  BotRuntimeStatus,
+  useBotRuntimeSettingsError,
+} from "./bot-runtime-settings";
 import { ChatModelPicker } from "./chat-model-picker";
 import { RoleplayRelationshipDebug } from "./roleplay-relationship-debug";
 import { RoleplaySettings } from "./roleplay-settings";
@@ -80,6 +86,7 @@ function advancedValues(bot: Bot) {
     bot.runtimePermission ?? "workspace",
     bot.projectPath ?? null,
     bot.registeredHostId ?? null,
+    bot.maxToolCallsPerTurn ?? null,
   ] as const;
 }
 
@@ -157,6 +164,8 @@ export function BotSettings({
       modelProvider?: string | null;
       modelId?: string | null;
       thinkingLevel?: ThinkingLevel | null;
+      maxToolCallsPerTurn?: number | null;
+      expectedMaxToolCallsPerTurn?: number | null;
       disabledBuiltinTools?: string[];
       roleplayCharacter?: RoleplayCharacter;
       expectedRoleplayCharacter?: RoleplayCharacter;
@@ -199,6 +208,7 @@ export function BotSettings({
     projectPath: bot.projectPath ?? null,
     registeredHostId: bot.registeredHostId ?? null,
   });
+  const runtimeError = useBotRuntimeSettingsError(runtime);
   const [computerMode, setComputerMode] = useState(bot.computerMode);
   const [memoryScope, setMemoryScope] = useState(bot.memoryScope);
   const [autoSpeak, setAutoSpeak] = useState(bot.autoSpeak);
@@ -216,6 +226,13 @@ export function BotSettings({
     bot.modelProvider && bot.modelId ? modelOptionKey(bot.modelProvider, bot.modelId) : "",
   );
   const [thinkingLevel, setThinkingLevel] = useState(bot.thinkingLevel ?? "");
+  const [toolCallLimitEnabled, setToolCallLimitEnabled] = useState(bot.maxToolCallsPerTurn != null);
+  const [toolCallLimit, setToolCallLimit] = useState(
+    String(bot.maxToolCallsPerTurn ?? DEFAULT_ENABLED_TOOL_CALL_LIMIT),
+  );
+  const parsedToolCallLimit = ToolCallLimitSchema.safeParse(Number(toolCallLimit));
+  const validToolCallLimit = !toolCallLimitEnabled || parsedToolCallLimit.success;
+  const maxToolCallsPerTurn = toolCallLimitEnabled ? Number(toolCallLimit) : null;
   const [disabledBuiltinTools, setDisabledBuiltinTools] = useState<string[]>(
     bot.disabledBuiltinTools ?? [],
   );
@@ -261,6 +278,7 @@ export function BotSettings({
     runtime.runtimePermission,
     runtime.projectPath,
     runtime.registeredHostId,
+    maxToolCallsPerTurn,
   ]);
   const dirty =
     name.trim() !== savedNameRef.current.trim() ||
@@ -271,6 +289,7 @@ export function BotSettings({
   const executeSaveRef = useRef<
     (
       patchOverrides?: {
+        saveAdvanced?: boolean;
         name?: string;
         description?: string;
         color?: string;
@@ -314,6 +333,10 @@ export function BotSettings({
     if (memoryScope === saved[3]) setMemoryScope(next[3]);
     if (autoSpeak === saved[4]) setAutoSpeak(next[4]);
     if (voiceId === saved[5]) setVoiceId(next[5]);
+    if (maxToolCallsPerTurn === saved[11]) {
+      setToolCallLimitEnabled(next[11] != null);
+      if (next[11] != null) setToolCallLimit(String(next[11]));
+    }
     setRuntime((current) => ({
       runtimeKind: current.runtimeKind === saved[6] ? next[6] : current.runtimeKind,
       executionTarget: current.executionTarget === saved[7] ? next[7] : current.executionTarget,
@@ -368,6 +391,7 @@ export function BotSettings({
 
   async function executeSave(
     patchOverrides?: {
+      saveAdvanced?: boolean;
       name?: string;
       description?: string;
       color?: string;
@@ -391,6 +415,16 @@ export function BotSettings({
         await onSave({ fleetManagement: patchOverrides.fleetManagement });
         return;
       }
+      const saveAdvanced = patchOverrides?.saveAdvanced === true;
+      if (saveAdvanced && runtime.runtimeKind === "pi" && !validToolCallLimit) {
+        setError(t`Enter a positive whole number for the tool call limit.`);
+        return;
+      }
+      const executionChanged =
+        saveAdvanced &&
+        JSON.stringify(JSON.parse(advancedSnapshot).slice(6, 11)) !==
+          JSON.stringify(JSON.parse(savedAdvanced).slice(6, 11));
+      if (executionChanged && runtimeError) throw new Error(runtimeError);
       const selected = selectedModel;
       const nextName = (patchOverrides?.name !== undefined ? patchOverrides.name : name).trim();
       const nextDescription = (
@@ -406,6 +440,15 @@ export function BotSettings({
       if (nextName) setName(nextName);
       setDescription(nextDescription);
       const patch = {
+        ...(saveAdvanced &&
+        runtime.runtimeKind === "pi" &&
+        bot.botKind !== "roleplay" &&
+        maxToolCallsPerTurn !== JSON.parse(savedAdvanced)[11]
+          ? {
+              maxToolCallsPerTurn,
+              expectedMaxToolCallsPerTurn: JSON.parse(savedAdvanced)[11] as number | null,
+            }
+          : {}),
         ...(nextName && nextName !== savedNameRef.current.trim() ? { name: nextName } : {}),
         // Keep untouched profile fields off the wire.
         ...botProfilePatch(savedDescriptionRef.current, nextDescription),
@@ -416,35 +459,36 @@ export function BotSettings({
           ? { avatarSet: nextAvatarSet }
           : {}),
         notifyOnFinish: nextNotify,
-        ...runtime,
-        computerMode,
-        memoryScope,
-        autoSpeak,
-        voiceId: voiceId || null,
-        ...(runtime.runtimeKind === "pi"
+        ...(saveAdvanced
           ? {
-              modelProvider: selected?.provider ?? null,
-              modelId: selected?.modelId ?? null,
-            }
-          : {}),
-        ...(runtime.runtimeKind === "pi" &&
-        modelMetaReady &&
-        (thinkingOptions.length > 0 ||
-          (selected?.provider ?? null) !== bot.modelProvider ||
-          (selected?.modelId ?? null) !== bot.modelId)
-          ? {
-              thinkingLevel: thinkingOptions.length
-                ? ((thinkingLevel || null) as ThinkingLevel | null)
-                : null,
+              ...runtime,
+              computerMode,
+              memoryScope,
+              autoSpeak,
+              voiceId: voiceId || null,
+              ...(runtime.runtimeKind === "pi"
+                ? {
+                    modelProvider: selected?.provider ?? null,
+                    modelId: selected?.modelId ?? null,
+                  }
+                : {}),
+              ...(runtime.runtimeKind === "pi" &&
+              modelMetaReady &&
+              (thinkingOptions.length > 0 ||
+                (selected?.provider ?? null) !== bot.modelProvider ||
+                (selected?.modelId ?? null) !== bot.modelId)
+                ? {
+                    thinkingLevel: thinkingOptions.length
+                      ? ((thinkingLevel || null) as ThinkingLevel | null)
+                      : null,
+                  }
+                : {}),
             }
           : {}),
       };
       const requestedTools = patchOverrides?.disabledBuiltinTools;
       const baseTools = patchOverrides?.baseDisabledBuiltinTools ?? [];
       let savedRuntime = runtime;
-      const executionChanged =
-        JSON.stringify(JSON.parse(advancedSnapshot).slice(6)) !==
-        JSON.stringify(JSON.parse(savedAdvanced).slice(6));
       const acceptExecution = (updated: Bot) => {
         savedRuntime = {
           runtimeKind: updated.runtimeKind ?? "pi",
@@ -515,21 +559,23 @@ export function BotSettings({
       };
       if (nextName) savedNameRef.current = nextName;
       savedDescriptionRef.current = nextDescription;
-      setSavedAdvanced(
-        JSON.stringify([
-          modelKey,
-          thinkingLevel,
-          computerMode,
-          memoryScope,
-          autoSpeak,
-          voiceId,
-          savedRuntime.runtimeKind,
-          savedRuntime.executionTarget,
-          savedRuntime.runtimePermission,
-          savedRuntime.projectPath,
-          savedRuntime.registeredHostId,
-        ]),
-      );
+      if (saveAdvanced)
+        setSavedAdvanced(
+          JSON.stringify([
+            modelKey,
+            thinkingLevel,
+            computerMode,
+            memoryScope,
+            autoSpeak,
+            voiceId,
+            savedRuntime.runtimeKind,
+            savedRuntime.executionTarget,
+            savedRuntime.runtimePermission,
+            savedRuntime.projectPath,
+            savedRuntime.registeredHostId,
+            maxToolCallsPerTurn,
+          ]),
+        );
     } catch (err) {
       if (
         patchOverrides?.color !== undefined &&
@@ -573,6 +619,7 @@ export function BotSettings({
   }
 
   function enqueueSave(patchOverrides?: {
+    saveAdvanced?: boolean;
     name?: string;
     description?: string;
     color?: string;
@@ -813,6 +860,50 @@ export function BotSettings({
                 </div>
               </div>
             ) : null}
+            {runtime.runtimeKind === "pi" && bot.botKind !== "roleplay" ? (
+              <SettingsGroup label={t`Execution limits`}>
+                <label
+                  htmlFor={`${ids}-tool-limit-enabled`}
+                  className="flex min-h-11 items-center justify-between gap-3 text-sm text-foreground"
+                >
+                  <Trans>Limit tool calls</Trans>
+                  <Switch
+                    id={`${ids}-tool-limit-enabled`}
+                    checked={toolCallLimitEnabled}
+                    onCheckedChange={setToolCallLimitEnabled}
+                  />
+                </label>
+                {toolCallLimitEnabled ? (
+                  <label
+                    htmlFor={`${ids}-tool-limit`}
+                    className="flex min-h-11 items-center justify-between gap-3 text-sm text-foreground"
+                  >
+                    <Trans>Maximum tool calls</Trans>
+                    <Input
+                      id={`${ids}-tool-limit`}
+                      aria-label={t`Maximum tool calls`}
+                      type="number"
+                      min={1}
+                      max={2147483647}
+                      step={1}
+                      value={toolCallLimit}
+                      onChange={(event) => setToolCallLimit(event.target.value)}
+                      className="w-28"
+                    />
+                  </label>
+                ) : null}
+                <p className="text-xs text-muted-foreground">
+                  <Trans>
+                    Pi only. Off uses the deployment default, which is unlimited unless configured.
+                  </Trans>
+                </p>
+                {!validToolCallLimit ? (
+                  <p role="alert" className="text-xs text-destructive">
+                    <Trans>Enter a positive whole number for the tool call limit.</Trans>
+                  </p>
+                ) : null}
+              </SettingsGroup>
+            ) : null}
             {bot.botKind !== "roleplay" ? (
               <SettingsGroup label={t`Computer`}>
                 <ComputerModePicker value={computerMode} onChange={setComputerMode} />
@@ -922,7 +1013,7 @@ export function BotSettings({
                   value={description}
                   maxLength={BOT_DESCRIPTION_MAX_LENGTH}
                   onChange={(e) => setDescription(e.target.value)}
-                  onBlur={() => void enqueueSave()}
+                  onBlur={() => void enqueueSave({ description })}
                   placeholder={t`What this bot is for`}
                   rows={2}
                   className="mt-2 min-h-16 resize-none field-sizing-content border-0 bg-transparent p-0 text-foreground shadow-none"
@@ -1005,9 +1096,14 @@ export function BotSettings({
           {dirty ? (
             <Button
               className="sticky bottom-0 mt-5 w-full"
-              disabled={saving}
+              disabled={
+                saving ||
+                Boolean(runtimeError) ||
+                (runtime.runtimeKind === "pi" && !validToolCallLimit)
+              }
               onClick={() => {
                 void enqueueSave({
+                  saveAdvanced: true,
                   name,
                   description,
                   color,

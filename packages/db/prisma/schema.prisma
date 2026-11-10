@@ -727,6 +727,7 @@ model Bot {
   modelProvider     String?
   modelId           String?
   thinkingLevel     String?
+  maxToolCallsPerTurn Int?
   runtimeKind       String @default("pi")
   runtimeGeneration Int @default(0)
   registeredHostId String?

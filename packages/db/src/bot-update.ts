@@ -27,6 +27,7 @@ export async function commitBotUpdate(
     expectedInstructions?: string;
     expectedRoleplayCharacter?: RoleplayCharacter;
     expectedRuntimeKind?: string;
+    expectedMaxToolCallsPerTurn?: number | null;
     /** Write only while these settings hold; otherwise Prisma throws P2025. */
     expectedSettings?: Partial<
       Pick<Bot, "modelProvider" | "modelId" | "thinkingLevel" | "autoSpeak" | "voiceId">
@@ -52,6 +53,9 @@ export async function commitBotUpdate(
       where: {
         id: options.botId,
         ...options.expectedSettings,
+        ...(options.expectedMaxToolCallsPerTurn !== undefined
+          ? { maxToolCallsPerTurn: options.expectedMaxToolCallsPerTurn }
+          : {}),
         ...(options.expectedRuntimeKind ? { runtimeKind: options.expectedRuntimeKind } : {}),
       },
       data: options.data,
@@ -120,6 +124,9 @@ export async function commitBotUpdate(
       where: {
         id: options.botId,
         ...options.expectedSettings,
+        ...(options.expectedMaxToolCallsPerTurn !== undefined
+          ? { maxToolCallsPerTurn: options.expectedMaxToolCallsPerTurn }
+          : {}),
         ...(options.expectedRuntimeKind ? { runtimeKind: options.expectedRuntimeKind } : {}),
       },
       data,

@@ -526,6 +526,8 @@ export type AgentContextStrategy = "current" | "retrieval" | "snapshots" | "cach
 export const DEFAULT_CONTEXT_STRATEGY: AgentContextStrategy = "retrieval";
 
 export interface AgentRunRequest {
+  /** Optional Pi tool-call fuse; omitted uses the deployment default. */
+  maxToolCallsPerTurn?: number;
   /** A runtime-produced file, read within that runtime's authorized filesystem boundary. */
   onOutputFile?: (file: { id: string; path: string; bytes: Uint8Array }) => Promise<void>;
   /** Native harness configuration. Credentials and provider session IDs stay on the host. */

@@ -11,8 +11,10 @@ import {
   BOT_DESCRIPTION_MAX_LENGTH,
   BOT_INSTRUCTIONS_MAX_LENGTH,
   BOT_NAME_MAX_LENGTH,
+  DEFAULT_ENABLED_TOOL_CALL_LIMIT,
   NativeRuntimeCapabilities,
   resolveBotAvatarSet,
+  ToolCallLimitSchema,
 } from "@rakazo/contracts";
 import {
   credentialForModel,
@@ -104,6 +106,11 @@ export default function BotSettingsScreen() {
   const [runtimeStatusLoading, setRuntimeStatusLoading] = useState(false);
   const [runtimeStatusRevision, setRuntimeStatusRevision] = useState(0);
   const [runtimeKind, setRuntimeKind] = useState<Bot["runtimeKind"]>("pi");
+  const [toolCallLimitEnabled, setToolCallLimitEnabled] = useState(false);
+  const [toolCallLimit, setToolCallLimit] = useState(String(DEFAULT_ENABLED_TOOL_CALL_LIMIT));
+  const validToolCallLimit =
+    !toolCallLimitEnabled || ToolCallLimitSchema.safeParse(Number(toolCallLimit)).success;
+  const maxToolCallsPerTurn = toolCallLimitEnabled ? Number(toolCallLimit) : null;
   const [executionTarget, setExecutionTarget] = useState<Bot["executionTarget"]>("default");
   const [runtimePermission, setRuntimePermission] = useState<Bot["runtimePermission"]>("workspace");
   const [projectPath, setProjectPath] = useState("");
@@ -207,6 +214,8 @@ export default function BotSettingsScreen() {
         setAvatarSet(resolveBotAvatarSet(next.avatarSet));
         setComputerMode(next.computerMode);
         setRuntimeKind(next.runtimeKind ?? "pi");
+        setToolCallLimitEnabled(next.maxToolCallsPerTurn != null);
+        setToolCallLimit(String(next.maxToolCallsPerTurn ?? DEFAULT_ENABLED_TOOL_CALL_LIMIT));
         setExecutionTarget(next.executionTarget ?? "default");
         setRuntimePermission(next.runtimePermission ?? "workspace");
         setProjectPath(next.projectPath ?? "");
@@ -417,6 +426,25 @@ export default function BotSettingsScreen() {
 
   async function save() {
     if (!botId || !bot || pending || roleplaySettingsState.pending) return;
+    if (runtimeKind === "pi" && !validToolCallLimit) {
+      setError(t("Enter a positive whole number for the tool call limit."));
+      return;
+    }
+    const executionChanged =
+      runtimeKind !== (bot.runtimeKind ?? "pi") ||
+      executionTarget !== (bot.executionTarget ?? "default") ||
+      runtimePermission !== (bot.runtimePermission ?? "workspace") ||
+      (registeredHostId ?? null) !== (bot.registeredHostId ?? null) ||
+      (projectPath || null) !== (bot.projectPath ?? null);
+    if (
+      executionChanged &&
+      executionTarget === "host" &&
+      !registeredHostId &&
+      !environment.localHostConfigured
+    ) {
+      setError(t("Choose a registered host."));
+      return;
+    }
     // Saving other settings must also commit any character draft before leaving the screen.
     if (roleplaySettingsRef.current && !(await roleplaySettingsRef.current.save())) return;
     setPending(true);
@@ -434,6 +462,8 @@ export default function BotSettingsScreen() {
         modelProvider?: string | null;
         modelId?: string | null;
         thinkingLevel?: ThinkingLevel | null;
+        maxToolCallsPerTurn?: number | null;
+        expectedMaxToolCallsPerTurn?: number | null;
         autoSpeak?: boolean;
       } = { botId };
       if (profile.description !== (bot.description ?? "")) {
@@ -459,14 +489,16 @@ export default function BotSettingsScreen() {
           : null;
       }
       if (autoSpeak !== bot.autoSpeak) input.autoSpeak = autoSpeak;
-      let executionBot = bot;
       if (
-        runtimeKind !== (bot.runtimeKind ?? "pi") ||
-        executionTarget !== (bot.executionTarget ?? "default") ||
-        runtimePermission !== (bot.runtimePermission ?? "workspace") ||
-        (registeredHostId ?? null) !== (bot.registeredHostId ?? null) ||
-        (projectPath || null) !== (bot.projectPath ?? null)
+        runtimeKind === "pi" &&
+        bot.botKind !== "roleplay" &&
+        maxToolCallsPerTurn !== (bot.maxToolCallsPerTurn ?? null)
       ) {
+        input.maxToolCallsPerTurn = maxToolCallsPerTurn;
+        input.expectedMaxToolCallsPerTurn = bot.maxToolCallsPerTurn ?? null;
+      }
+      let executionBot = bot;
+      if (executionChanged) {
         const updated = await rpc("bots/setExecution", {
           botId,
           runtimeKind,
@@ -504,7 +536,12 @@ export default function BotSettingsScreen() {
         const updated = await rpc("bots/update", input);
         // Saved edits and their history become the baseline, so a retry after a failed switch write
         // does not resend them.
-        const { botId: _botId, expectedInstructions: _expected, ...saved } = input;
+        const {
+          botId: _botId,
+          expectedInstructions: _expected,
+          expectedMaxToolCallsPerTurn: _expectedLimit,
+          ...saved
+        } = input;
         setBot((prev) => (prev ? { ...prev, ...saved, ...updated } : prev));
       }
       await Promise.all([
@@ -534,6 +571,7 @@ export default function BotSettingsScreen() {
       avatarSet !== resolveBotAvatarSet(bot.avatarSet) ||
       computerMode !== bot.computerMode ||
       autoSpeak !== bot.autoSpeak ||
+      (runtimeKind === "pi" && maxToolCallsPerTurn !== (bot.maxToolCallsPerTurn ?? null)) ||
       (selectedModel?.provider ?? null) !== (bot.modelProvider ?? null) ||
       (selectedModel?.modelId ?? null) !== (bot.modelId ?? null) ||
       (thinkingLevel || null) !== (bot.thinkingLevel ?? null));
@@ -857,7 +895,11 @@ export default function BotSettingsScreen() {
                   <RegisteredHostPicker
                     spaceId={bot.spaceId}
                     value={registeredHostId}
-                    onChange={setRegisteredHostId}
+                    localHostConfigured={environment.localHostConfigured}
+                    onChange={(hostId) => {
+                      if (hostId !== registeredHostId) setProjectPath("");
+                      setRegisteredHostId(hostId);
+                    }}
                   />
                 ) : null}
                 {runtimeKind !== "pi" ? (
@@ -886,6 +928,15 @@ export default function BotSettingsScreen() {
                       ]}
                       onChange={(value) => setRuntimePermission(value as Bot["runtimePermission"])}
                     />
+                    <Text style={{ color: tokens.mutedForeground, fontSize: 12 }}>
+                      {runtimePermission === "full"
+                        ? t(
+                            "Full access allows file changes and commands outside the project folder.",
+                          )
+                        : t(
+                            "Workspace limits file writes. It does not limit all reads or network access.",
+                          )}
+                    </Text>
                   </>
                 ) : null}
                 {runtimeKind !== "pi" ? (
@@ -951,6 +1002,49 @@ export default function BotSettingsScreen() {
                     onChange={setThinkingLevel}
                     value={thinkingLevel}
                   />
+                ) : null}
+              </SettingsGroup>
+            ) : null}
+            {runtimeKind === "pi" && bot?.botKind !== "roleplay" ? (
+              <SettingsGroup label={t("Execution limits")}>
+                <View style={styles.row}>
+                  <Text style={[styles.rowLabel, { color: tokens.foreground }]}>
+                    {t("Limit tool calls")}
+                  </Text>
+                  <NativeSwitch
+                    accessibilityLabel={t("Limit tool calls")}
+                    value={toolCallLimitEnabled}
+                    onValueChange={setToolCallLimitEnabled}
+                  />
+                </View>
+                {toolCallLimitEnabled ? (
+                  <View style={styles.row}>
+                    <Text style={[styles.rowLabel, { color: tokens.foreground }]}>
+                      {t("Maximum tool calls")}
+                    </Text>
+                    <TextInput
+                      accessibilityLabel={t("Maximum tool calls")}
+                      keyboardType="number-pad"
+                      value={toolCallLimit}
+                      onChangeText={setToolCallLimit}
+                      style={{
+                        color: tokens.foreground,
+                        minWidth: 80,
+                        textAlign: "right",
+                        padding: 12,
+                      }}
+                    />
+                  </View>
+                ) : null}
+                <Text style={{ color: tokens.mutedForeground, fontSize: 13 }}>
+                  {t(
+                    "Pi only. Off uses the deployment default, which is unlimited unless configured.",
+                  )}
+                </Text>
+                {!validToolCallLimit ? (
+                  <Text accessibilityRole="alert" style={{ color: tokens.destructive }}>
+                    {t("Enter a positive whole number for the tool call limit.")}
+                  </Text>
                 ) : null}
               </SettingsGroup>
             ) : null}

@@ -55,6 +55,10 @@ export default function NewBot() {
   const [error, setError] = useState<string | null>(null);
   async function create() {
     if (busyRef.current) return;
+    if (executionTarget === "host" && !registeredHostId && !environment.localHostConfigured) {
+      setError(t("Choose a registered host."));
+      return;
+    }
     busyRef.current = true;
     setBusy(true);
     setError(null);
@@ -183,7 +187,11 @@ export default function NewBot() {
             <RegisteredHostPicker
               spaceId={originSpaceId}
               value={registeredHostId}
-              onChange={setRegisteredHostId}
+              localHostConfigured={environment.localHostConfigured}
+              onChange={(hostId) => {
+                if (hostId !== registeredHostId) setProjectPath("");
+                setRegisteredHostId(hostId);
+              }}
             />
           ) : null}
           {runtimeKind !== "pi" && originSpaceId ? (

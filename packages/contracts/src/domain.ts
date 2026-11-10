@@ -24,6 +24,7 @@ import { BotKindSchema, RoleplayCharacterSchema } from "./roleplay.js";
 import { RoutineWatchSchema, RoutineWatchStateSchema } from "./routine-watch.js";
 import { RunTriggerSchema } from "./runs.js";
 import { SettingsScopeSchema } from "./settings-scope.js";
+import { ToolCallLimitSchema } from "./tool-call-limit.js";
 
 export const ComputerModeSchema = z.enum(["team", "dedicated"]);
 export type ComputerMode = z.infer<typeof ComputerModeSchema>;
@@ -174,6 +175,8 @@ export const BotSchema = z.object({
   modelProvider: z.string().nullable(),
   modelId: z.string().nullable(),
   thinkingLevel: ThinkingLevelSchema.nullable(),
+  /** Pi-only override; null/absent uses the deployment default. */
+  maxToolCallsPerTurn: ToolCallLimitSchema.nullable().optional(),
   teamChatAmbientEnabled: z.boolean(),
   teamChatRules: z.string(),
   crossSpaceCommunication: z.boolean().optional(),
@@ -509,6 +512,8 @@ export const UpdateBotInput = z
     modelProvider: z.string().trim().min(1).max(80).nullable().optional(),
     modelId: z.string().trim().min(1).max(200).nullable().optional(),
     thinkingLevel: ThinkingLevelSchema.nullable().optional(),
+    maxToolCallsPerTurn: ToolCallLimitSchema.nullable().optional(),
+    expectedMaxToolCallsPerTurn: ToolCallLimitSchema.nullable().optional(),
     teamChatAmbientEnabled: z.boolean().optional(),
     teamChatRules: z.string().max(TEAM_CHAT_RULES_MAX_LENGTH).optional(),
     crossSpaceCommunication: z.boolean().optional(),
@@ -519,6 +524,16 @@ export const UpdateBotInput = z
   })
   .superRefine((value, ctx) => {
     const providerProvided = value.modelProvider !== undefined;
+    if (
+      value.maxToolCallsPerTurn !== undefined &&
+      value.expectedMaxToolCallsPerTurn === undefined
+    ) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["expectedMaxToolCallsPerTurn"],
+        message: "Read the current tool call limit before changing it",
+      });
+    }
     const modelProvided = value.modelId !== undefined;
     if (!providerProvided && !modelProvided) return;
     // Reject partial shapes like `{ modelId: null }` (provider omitted) so a
@@ -1907,6 +1922,8 @@ export const MeSchema = z.object({
   computerHost: z.enum(["docker", "this-mac"]).nullable(),
   canChooseHostComputer: z.boolean(),
   sandboxProvider: z.string(),
+  /** Whether Host can use the deployment bridge without a registered host ID. */
+  localHostConfigured: z.boolean().optional(),
   /** Whether this account can add stdio MCP servers here. Absent from older servers. */
   mcpStdioEnabled: z.boolean().default(false),
   avatarStyle: AvatarStyleSchema,

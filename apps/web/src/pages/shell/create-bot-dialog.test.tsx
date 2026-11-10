@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ORGANIC_AVATAR_LOOKS } from "@rakazo/core";
 import type { ReactNode } from "react";
 import { act } from "react";
@@ -16,6 +17,18 @@ vi.mock("@lingui/react/macro", () => {
 
 import { CreateBotDialog } from "./create-bot-dialog";
 
+vi.mock("../../lib/query", () => ({
+  useSpaceQueries: () => ({
+    me: {
+      queryOptions: () => ({
+        queryKey: ["me"],
+        queryFn: async () => ({ localHostConfigured: true, sandboxProvider: "docker" }),
+      }),
+    },
+  }),
+}));
+vi.mock("./registered-host-picker", () => ({ RegisteredHostPicker: () => null }));
+let queryClient: QueryClient;
 let container: HTMLDivElement;
 let root: Root;
 
@@ -27,6 +40,8 @@ beforeEach(() => {
     addEventListener: () => undefined,
     removeEventListener: () => undefined,
   })) as unknown as typeof window.matchMedia;
+  queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  queryClient.setQueryData(["me"], { localHostConfigured: true, sandboxProvider: "docker" });
   container = document.createElement("div");
   document.body.append(container);
   root = createRoot(container);
@@ -35,11 +50,16 @@ beforeEach(() => {
 afterEach(() => {
   act(() => root.unmount());
   container.remove();
+  queryClient.clear();
 });
 
 async function render(onCreate: (input: CreateBotDialogInput) => Promise<void>) {
   await act(async () => {
-    root.render(<CreateBotDialog onCancel={() => undefined} onCreate={onCreate} />);
+    root.render(
+      <QueryClientProvider client={queryClient}>
+        <CreateBotDialog onCancel={() => undefined} onCreate={onCreate} />
+      </QueryClientProvider>,
+    );
   });
 }
 
@@ -131,6 +151,11 @@ describe("CreateBotDialog", () => {
     await typeName("Scout");
     await click(button("Create"));
     expect(onCreate).toHaveBeenCalledWith({
+      runtimeKind: "pi",
+      executionTarget: "default",
+      runtimePermission: "workspace",
+      projectPath: null,
+      computerMode: "team",
       name: "Scout",
       color: "#10B981",
       avatarFamily: family,
@@ -147,6 +172,11 @@ describe("CreateBotDialog", () => {
     await typeName("Scout");
     await click(button("Create"));
     expect(onCreate).toHaveBeenCalledWith({
+      runtimeKind: "pi",
+      executionTarget: "default",
+      runtimePermission: "workspace",
+      projectPath: null,
+      computerMode: "team",
       name: "Scout",
       color: "#F97316::shape_1",
       avatarSet: "organic",

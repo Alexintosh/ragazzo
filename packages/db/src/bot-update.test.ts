@@ -18,6 +18,65 @@ describe("botProfileLabelsChanged", () => {
 });
 
 describe("commitBotUpdate", () => {
+  it("compares the saved tool limit atomically when setting or clearing it", async () => {
+    const update = vi.fn().mockResolvedValue({ id: "bot", name: "Fixture", description: "" });
+    for (const [before, after] of [
+      [null, 3],
+      [3, null],
+    ] as const) {
+      await commitBotUpdate({
+        prisma: { bot: { update } } as never,
+        notify: vi.fn(),
+        spaceId: "space",
+        threadId: "thread",
+        botId: "bot",
+        emitBotUpdated: false,
+        expectedMaxToolCallsPerTurn: before,
+        data: { maxToolCallsPerTurn: after },
+      });
+      expect(update).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          where: { id: "bot", maxToolCallsPerTurn: before },
+          data: { maxToolCallsPerTurn: after },
+        }),
+      );
+    }
+  });
+  it("does not publish a bot update when the reviewed limit is stale", async () => {
+    const stale = Object.assign(new Error("Stale baseline"), { code: "P2025" });
+    const tx = {
+      $queryRaw: vi.fn().mockResolvedValue([]),
+      bot: { update: vi.fn().mockRejectedValue(stale) },
+    };
+    const notify = vi.fn();
+    const append = vi.fn();
+    await expect(
+      commitBotUpdate(
+        {
+          prisma: {
+            $transaction: async (operation: (client: typeof tx) => Promise<unknown>) =>
+              operation(tx),
+          } as never,
+          notify,
+          spaceId: "space",
+          threadId: "thread",
+          botId: "bot",
+          emitBotUpdated: true,
+          expectedRuntimeKind: "pi",
+          expectedMaxToolCallsPerTurn: null,
+          data: { maxToolCallsPerTurn: 3 },
+        },
+        append,
+      ),
+    ).rejects.toBe(stale);
+    expect(tx.bot.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "bot", runtimeKind: "pi", maxToolCallsPerTurn: null },
+      }),
+    );
+    expect(append).not.toHaveBeenCalled();
+    expect(notify).not.toHaveBeenCalled();
+  });
   const character = parseRoleplayCharacterJson(
     '{"name":"Guide","scenario":"A quiet harbor"}',
   ).character;

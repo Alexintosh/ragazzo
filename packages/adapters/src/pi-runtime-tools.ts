@@ -11,7 +11,7 @@ import type {
   ModelCallObserver,
 } from "@rakazo/adapter-kit";
 import { DEFAULT_CONTEXT_STRATEGY } from "@rakazo/adapter-kit";
-import { FLEET_TOOL_NAMES } from "@rakazo/contracts";
+import { FLEET_TOOL_NAMES, ToolCallLimitSchema } from "@rakazo/contracts";
 import { isToolPauseResult } from "./approval-effect.js";
 import {
   connectionIdArgument,
@@ -707,17 +707,21 @@ export function toolCallBudgetExceededMessage(limit: number) {
   return `I stopped after reaching the limit of ${limit} tool calls in this turn. Send another message to continue.`;
 }
 
-export function toolCallBudgetFor(runId: string): ToolCallBudget {
+export function toolCallBudgetFor(runId: string, configuredLimit?: number): ToolCallBudget {
+  const limit =
+    configuredLimit === undefined
+      ? maxToolCallsPerTurn()
+      : ToolCallLimitSchema.parse(configuredLimit);
   const existing = toolCallBudgetsByRun.get(runId);
   if (existing) {
     existing.inFlight = 0;
-    existing.limit = maxToolCallsPerTurn();
+    existing.limit = limit;
     return existing;
   }
   const budget: ToolCallBudget = {
     count: 0,
     exceeded: false,
-    limit: maxToolCallsPerTurn(),
+    limit,
     inFlight: 0,
   };
   if (budget.limit > 0) toolCallBudgetsByRun.set(runId, budget);

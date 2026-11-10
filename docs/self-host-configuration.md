@@ -56,6 +56,10 @@ CREATEOS_SANDBOX_API_KEY= # when SANDBOX_PROVIDER=createos
 BOAT_API_KEY=             # when SANDBOX_PROVIDER=boat
 ```
 
+Pi agents can override this default in **Advanced → Execution limits**. See
+[Tool-call limit](tool-call-limit.md) for the typed API, precedence and process-local
+counter semantics.
+
 `COMPUTER_TAKEOVER_TTL_MS` (default `900000`, 15 minutes) is how long a person's takeover of a bot's
 screen lasts before control expires.
 

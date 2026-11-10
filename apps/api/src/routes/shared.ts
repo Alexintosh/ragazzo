@@ -61,6 +61,7 @@ export async function meDto(deps: RouterDeps, actor: Actor): Promise<Me> {
     canChooseHostComputer:
       Boolean(deps.env.desktopHostChoiceEnabled) && deps.env.sandboxProvider === "docker",
     sandboxProvider: deps.env.sandboxProvider,
+    localHostConfigured: deps.env.nativeHostConfigured === true,
     mcpStdioEnabled:
       admin &&
       mcpStdioAvailable({
